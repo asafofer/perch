@@ -10,6 +10,7 @@
   var ICON = {
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'
@@ -46,14 +47,16 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
-    '<div class="pane p-open"><div class="inner pt-8">' +
+    '<div class="pane p-open">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8">' +
       '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:0"><div class="min-w-0 flex-1"><div dir="auto" class="o-n truncate text-sm font-medium leading-4"></div><div class="o-a mt-0.5 text-xs leading-4 tabular-nums text-muted-foreground"></div></div><span class="o-bw">' + Badge('<span class="o-b font-mono text-[11px]"></span>') + '</span></div>' +
       '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
       '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 truncate font-medium"></span></p>' +
       '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4"><span class="o-st pl-1.5"></span><span class="flex-1"></span>' + Button('ghost', 'Not now', '', 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
       '<div id="b"></div></div></div>' +
-    '<div class="pane p-switch"><div class="inner pt-8">' +
+    '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Parked projects</div><div class="mt-0.5 text-xs leading-4 text-muted-foreground s-count"></div>') +
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
       '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('↑↓') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
@@ -67,7 +70,8 @@
   function q(c) { return scene.querySelector(c); }
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
-  q('.x-esc').onclick = function () { post({ type: 'dismiss' }); };
+  q('.x-esc').onclick = function () { post({ type: 'snooze' }); };
+  scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
   var last = { phase: null, token: null };
@@ -146,7 +150,7 @@
     if (!snap || m.type === 'size' || m.type === 'log') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'confirm') s.phase = 'restoring';
-    if (m.type === 'dismiss') s.phase = 'idle';
+    if (m.type === 'dismiss' || m.type === 'snooze') s.phase = 'idle';
     if (m.type === 'choose') { s.selected = m.index; s.phase = 'restoring'; }
     s.timerToken++; apply(s);
   }

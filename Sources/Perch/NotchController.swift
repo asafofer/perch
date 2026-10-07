@@ -19,6 +19,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var mouseMonitors: [Any] = []
     private var ready = false
     private var iconsSent = false
+    private var snoozeTask: Task<Void, Never>?
+    /// How long "Not now" hides the card before it comes back.
+    var snoozeSeconds: Double = 30 * 60
 
     init(provider: SessionProviding) {
         self.provider = provider
@@ -52,7 +55,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: public actions
-    func comeBack() { prepareToShow(); send(.comeBack) }
+    func comeBack() { snoozeTask?.cancel(); prepareToShow(); send(.comeBack) }
     func toggleSwitcher() { prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
@@ -144,11 +147,23 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         switch type {
         case "confirm": send(.confirm)
         case "dismiss": send(.dismiss)
+        case "snooze": snooze()
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
         case "log": NSLog("Perch UI: \(body["text"] ?? "")")
         default: break
+        }
+    }
+
+    /// "Not now": hide the card and bring it back later, unless you come back to it yourself first.
+    private func snooze() {
+        send(.dismiss)
+        snoozeTask?.cancel()
+        snoozeTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .seconds(self.snoozeSeconds))
+            if !Task.isCancelled, self.machine.phase == .idle { self.comeBack() }
         }
     }
 
