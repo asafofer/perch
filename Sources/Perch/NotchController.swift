@@ -276,7 +276,27 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func stopKeys() { if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil } }
 
     // MARK: mouse. Hover pauses the timer; the panel only catches clicks over the visible card.
+    private var cursorTimer: Timer?
+    private var lastCursor = CGPoint(x: -1, y: -1)
+
+    /// Checks the cursor 30 times a second. Reliable where mouse-moved events are not, and it feeds the character's eyes.
+    private func startCursorPolling() {
+        cursorTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.mouseMoved()
+                let p = NSEvent.mouseLocation
+                if self.machine.phase != .idle, self.ready, p != self.lastCursor {
+                    self.lastCursor = p
+                    let f = self.panel.frame
+                    self.web.evaluateJavaScript("window.perch && window.perch.cursor(\(p.x - f.minX), \(f.maxY - p.y))", completionHandler: nil)
+                }
+            }
+        }
+    }
+
     private func installMouseMonitors() {
+        startCursorPolling()
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
@@ -284,8 +304,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
         let idle = NotchGeometry.idleSize(for: info)
-        let w = max(idle.width, 150) + 70
-        return CGRect(x: info.frame.midX - w / 2, y: info.frame.maxY - idle.height - 3, width: w, height: idle.height + 3)
+        let w = max(idle.width, 150) + 90
+        // Extends above the screen edge so the very top pixel row of the cursor counts.
+        return CGRect(x: info.frame.midX - w / 2, y: info.frame.maxY - idle.height - 4, width: w, height: idle.height + 40)
     }
 
     /// Resting the cursor on the notch for a moment opens the welcome card.
@@ -294,7 +315,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
         if hoverLatched || hoverTask != nil { return }
         hoverTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(220))
+            try? await Task.sleep(for: .milliseconds(120))
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
             if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack() }

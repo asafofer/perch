@@ -41,7 +41,9 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
 .cr[data-m=sleep] .ey { height: 5%; border-radius: 3px; top: calc(var(--et) + 13%); }
-.cr[data-m=awake] .ey { animation: bl 4.2s infinite; }
+.cr[data-m=awake] .ey { transition: all .12s; }
+.cr.blink .ey { transform: scaleY(.1); }
+.cr[data-m=awake] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); transition: translate .15s; }
 .cr[data-m=happy] .ey { width: 17%; height: 15%; border-radius: 100% 100% 0 0; background: none; border-top: 2.2px solid #2B1B0E; top: calc(var(--et) + 5%); transform: translateX(-8%); }
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
 @keyframes hop { 0%,100% { translate: 0 0; } 40% { translate: 0 -5px; } 70% { translate: 0 1px; } }

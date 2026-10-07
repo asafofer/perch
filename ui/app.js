@@ -186,16 +186,27 @@
     if (m === 'awake' && wasMood !== 'awake') { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
-  scene.addEventListener('mousemove', function (e) {
+  /* cursor position in page coordinates, sent by Swift from anywhere on screen */
+  var trackTimer = null;
+  function cursor(x, y) {
     if (cr.dataset.m !== 'awake') return;
-    var r = cr.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-    var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 80);
-    tracking = true; look((dx / d) * 1.7 * k, (dy / d) * 1.1 * k);
-  });
-  scene.addEventListener('mouseleave', function () { tracking = false; });
-  setTimeout(glance, 1500); setTimeout(peek, 4000);
+    var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+    var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
+    tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
+    clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
+  }
+  if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
+  /* blinks at irregular intervals, sometimes twice */
+  function blink() {
+    if (cr.dataset.m === 'awake') {
+      cr.classList.add('blink');
+      setTimeout(function () { cr.classList.remove('blink'); if (Math.random() < 0.25) setTimeout(function () { cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110); }, 140); }, 110);
+    }
+    setTimeout(blink, 1100 + Math.random() * 2000);
+  }
+  setTimeout(glance, 1500); setTimeout(peek, 4000); setTimeout(blink, 1200);
 
-  window.perch = { apply: apply };
+  window.perch = { apply: apply, cursor: cursor };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
