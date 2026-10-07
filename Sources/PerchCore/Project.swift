@@ -1,7 +1,7 @@
 import Foundation
 
 public struct AgentStatus: Equatable, Sendable {
-    public enum Kind: Sendable { case done, needsYou, idle }
+    public enum Kind: Sendable { case done, needsYou, idle, running }
     public let kind: Kind
     public let text: String
     /// Which app's icon represents this agent: "claude", "codex".
@@ -48,6 +48,7 @@ public struct Project: Identifiable, Equatable, Sendable {
     /// The one status worth showing: whatever needs you, else what finished, else idle.
     public var status: (kind: String, text: String, app: String) {
         if let a = agents.first(where: { $0.kind == .needsYou }) { return ("attention", a.text, a.app) }
+        if let a = agents.first(where: { $0.kind == .running }) { return ("running", a.text, a.app) }
         if let a = agents.first(where: { $0.kind == .done }) { return ("done", a.text, a.app) }
         return ("idle", agents.first?.text ?? "No agents running", agents.first?.app ?? "claude")
     }

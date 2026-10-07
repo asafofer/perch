@@ -159,7 +159,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
         }
         refreshProjects()
-        let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
+        let t = Timer(timeInterval: 20, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
         RunLoop.main.add(t, forMode: .common)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshProjects() }

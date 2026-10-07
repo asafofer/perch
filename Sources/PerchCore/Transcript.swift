@@ -116,12 +116,12 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude") -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude", running: Bool = false) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
         let context = d.lastUserText.map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
-        let (status, next) = statusAndNext(d, git, agent: agent)
+        let (status, next) = statusAndNext(d, git, agent: agent, running: running)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
@@ -139,7 +139,8 @@ public enum Recap {
         return cap.hasSuffix(".") || cap.hasSuffix("…") ? cap : cap + "."
     }
 
-    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code") -> ((kind: AgentStatus.Kind, text: String), String) {
+    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code", running: Bool = false) -> ((kind: AgentStatus.Kind, text: String), String) {
+        if running { return ((.running, "\(agent) is working"), "") }
         if d.lastRole == "user" { return ((.needsYou, "Waiting on \(agent)"), "Check whether \(agent) finished") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
             return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")

@@ -3,8 +3,8 @@
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
   var CARD_W = 400;
-  var COLORS = { attention: '#FB923C', done: '#4ADE80', idle: '#71717A' };
-  var DOME = { d: 'M2 19V10L3 1.8Q3.3.6 4.4 1.2L9.8 4.8Q12 4 14.2 4.8L19.6 1.2Q20.7.6 21 1.8L22 10V19a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
+  var COLORS = { attention: '#FB923C', done: '#4ADE80', idle: '#71717A', running: '#7DD3FC' };
+  var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
   /* ---- shadcn recipes ---- */
   var ICON = {
@@ -37,9 +37,11 @@
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
   }
   /* the agent's real app icon, with a small state dot on its corner */
+  function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   function StatusIcon(st) {
     var color = COLORS[st.kind] || COLORS.idle;
     if (!icons[st.app]) return Dot(color);
+    if (st.kind === 'running') return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><span class="absolute -bottom-[3px] -right-[3px] grid size-2.5 place-items-center rounded-full bg-black">' + Spinner('size-2.5') + '</span></span>';
     return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
@@ -155,7 +157,7 @@
         App(p.app) +
         '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + p.name + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + p.topic + '</span></span>' +
         (p.attention ? Dot(COLORS.attention) : '') +
-        '<span class="text-xs tabular-nums text-muted-foreground">' + p.away + ' ago</span></div>';
+        (p.status.kind === 'running' ? '<span class="flex items-center gap-1.5 text-xs" style="color:' + COLORS.running + '">' + Spinner('size-3') + 'Working</span>' : '<span class="text-xs tabular-nums text-muted-foreground">' + p.away + ' ago</span>') + '</div>';
     }).join('');
     scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
   }
@@ -271,6 +273,7 @@
     var P = [
       { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
+      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, status: { kind: 'running', text: 'Claude Code is working' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
       { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
     ];
     var hash = (location.hash || '#open').slice(1);
