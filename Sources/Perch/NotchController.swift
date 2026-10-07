@@ -29,6 +29,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
+    private var askedForAccessibility = false
     /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
     private var hoverLatched = false
     /// Simulation mode: the welcome card stays until you act on it.
@@ -330,11 +331,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let project = projects.indices.contains(machine.selected) ? projects[machine.selected] : nil
         pickUp(machine.selected)
-        // Typing into another app needs Accessibility. Ask once, and the reply stays on the clipboard meanwhile.
-        guard AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary) else {
-            NSLog("Perch: reply copied, but Accessibility is not granted so it cannot be pasted")
-            return
+        // Typing into another app needs Accessibility. Ask once per launch (never in a loop). The paste is attempted
+        // either way, and the reply stays on the clipboard if it cannot go through.
+        let trusted = AXIsProcessTrusted()
+        if !trusted, !askedForAccessibility {
+            askedForAccessibility = true
+            _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
         }
+        NSLog("Perch: reply, accessibility trusted = \(trusted)")
         let target = project?.app == "codex" ? "com.openai.codex" : (project?.desktopSessionId != nil ? "com.anthropic.claudefordesktop" : "com.apple.Terminal")
         Task {
             // Wait for the app to be in front (up to 5 s), then give its message box a moment to take focus.
