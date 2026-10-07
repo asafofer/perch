@@ -77,6 +77,14 @@
     '</div></div>' +
     '</div></div>';
 
+  /* Inline markdown for summaries: **bold**, *italic*, `code`, [links](url) as plain text. Escaped first, so nothing can inject markup. */
+  function md(t) {
+    var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return h.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/`([^`]+)`/g, '<code class="rounded bg-white/[0.09] px-1 py-px font-mono text-[11.5px] text-foreground/90">$1</code>')
+      .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, function (m, a, b) { return '<strong class="font-semibold text-foreground">' + (a || b) + '</strong>'; })
+      .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
+  }
   function q(c) { return scene.querySelector(c); }
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
@@ -133,11 +141,11 @@
 
   function fill(p) {
     q('.o-away').textContent = 'While you were away \u00b7 ' + p.away;
-    q('.o-h').textContent = p.headline;
-    q('.o-c').textContent = p.context;
+    q('.o-h').innerHTML = md(p.headline);
+    q('.o-c').innerHTML = md(p.context);
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
     var nx = /\b(commit|push|merge|uncommitted|pull request|git)\b/i.test(p.next || '') ? '' : (p.next || '');
-    q('.o-x').textContent = nx;
+    q('.o-x').innerHTML = md(nx);
     q('.o-x').parentNode.style.display = nx ? '' : 'none';
     q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text);
   }
