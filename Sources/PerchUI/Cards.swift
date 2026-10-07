@@ -8,9 +8,9 @@ struct Reveal: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(on ? 1 : 0)
-            .offset(y: on ? 0 : 8)
-            .blur(radius: on ? 0 : 5)
-            .animation(on ? .spring(response: 0.46, dampingFraction: 0.86).delay(0.12 + 0.055 * Double(index))
+            .offset(y: on ? 0 : 6)
+            .blur(radius: on ? 0 : 4)
+            .animation(on ? .spring(response: 0.44, dampingFraction: 0.88).delay(0.12 + 0.05 * Double(index))
                           : .easeOut(duration: 0.12), value: on)
     }
 }
@@ -28,10 +28,10 @@ struct Band: View {
     let right: String
     var body: some View {
         HStack(spacing: 0) {
-            Text(left).font(Typo.band).foregroundStyle(.white).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 38)
+            Text(left).font(Typo.title).tracking(-0.1).foregroundStyle(Palette.textPrimary).lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 36)
             Color.clear.frame(width: metrics.gap)
-            Text(right).font(Typo.bandSub).foregroundStyle(Palette.textSecondary).lineLimit(1)
+            Text(right).font(Typo.meta).monospacedDigit().foregroundStyle(Palette.textSecondary).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 24)
@@ -44,18 +44,25 @@ struct Keycap: View {
     var onLight = false
     var body: some View {
         Text(label).font(Typo.key)
-            .foregroundStyle(onLight ? Palette.ink : Color(white: 0.78))
-            .padding(.horizontal, 7).padding(.vertical, 3)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(onLight ? Palette.ink.opacity(0.14) : Color.white.opacity(0.09)))
+            .foregroundStyle(onLight ? Palette.ink.opacity(0.8) : Color(white: 0.7))
+            .frame(minWidth: 16).padding(.horizontal, 4).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(onLight ? Palette.ink.opacity(0.12) : Color.white.opacity(0.08)))
     }
 }
 
 private struct PressStyle: ButtonStyle {
+    @State private var hovering = false
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+        configuration.label
+            .brightness(hovering ? 0.08 : 0)
+            .opacity(configuration.isPressed ? 0.75 : 1).scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .onHover { hovering = $0 }
     }
 }
+
+struct Hairline: View { var body: some View { Rectangle().fill(Palette.hairline).frame(height: 1) } }
 
 struct OpenCard: View {
     let project: Project
@@ -66,56 +73,52 @@ struct OpenCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Band(metrics: metrics, left: project.name, right: "back after \(project.away)").reveal(shown, 0)
+            Band(metrics: metrics, left: project.name, right: "Back after \(project.away)").reveal(shown, 0)
             VStack(alignment: .leading, spacing: 0) {
-                Text(project.headline).font(Typo.hero).tracking(-0.4).foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true).reveal(shown, 1)
-                Text(project.context).font(Typo.body).foregroundStyle(Palette.textSecondary).lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true).padding(.top, 8).reveal(shown, 2)
-                nextRow.padding(.top, 18).reveal(shown, 3)
+                Text(project.headline).font(Typo.hero).tracking(-0.5).foregroundStyle(Palette.textPrimary)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true).reveal(shown, 1)
+                Text(project.context).font(Typo.body).tracking(-0.1).foregroundStyle(Palette.textSecondary).lineSpacing(3)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true).padding(.top, 6).reveal(shown, 2)
+                nextRow.padding(.top, 16).reveal(shown, 3)
             }
-            .padding(.horizontal, 28).padding(.top, 16)
+            .padding(.horizontal, 28).padding(.top, 14)
             Spacer(minLength: 0)
-            footer.padding(.horizontal, 28).padding(.bottom, 20).reveal(shown, 4)
+            Hairline().reveal(shown, 4)
+            footer.padding(.horizontal, 28).frame(height: 56).reveal(shown, 4)
         }
     }
 
     private var nextRow: some View {
         HStack(spacing: 12) {
-            Image(systemName: "arrow.right").font(.system(size: 12, weight: .heavy)).foregroundStyle(Palette.saffron)
-                .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Palette.saffron.opacity(0.15)))
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Up next").font(Typo.label).foregroundStyle(Color(white: 0.52))
-                Text(project.next).font(Typo.strong).foregroundStyle(Palette.textPrimary)
-            }
+            Text("Next").font(Typo.label).foregroundStyle(Palette.textTertiary).frame(width: 34, alignment: .leading)
+            Text(project.next).font(Typo.row).foregroundStyle(Palette.textPrimary).lineLimit(1)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
-        .background(RoundedRectangle(cornerRadius: 17, style: .continuous).fill(Palette.surface))
-        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).strokeBorder(Palette.surfaceStroke, lineWidth: 1))
+        .padding(.horizontal, 14).frame(height: 40)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.035)))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
     }
 
     private var footer: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             ForEach(Array(project.agents.enumerated()), id: \.offset) { _, a in
                 HStack(spacing: 6) {
-                    Circle().fill(color(a.kind)).frame(width: 7, height: 7)
-                    Text(a.text).font(Typo.chip).foregroundStyle(Color(white: 0.76)).lineLimit(1).fixedSize()
+                    Circle().fill(color(a.kind)).frame(width: 6, height: 6).accessibilityHidden(true)
+                    Text(a.text).font(Typo.chip).foregroundStyle(Color(white: 0.7)).lineLimit(1).fixedSize()
                 }
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Capsule(style: .continuous).fill(Color.white.opacity(0.07)))
+                .padding(.horizontal, 9).frame(height: 24)
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
             }
             Spacer(minLength: 8)
             Button(action: dismiss) {
-                Text("Not now").font(.system(size: 13, weight: .semibold, design: .rounded)).lineLimit(1).fixedSize()
-                    .foregroundStyle(Palette.textSecondary).padding(.horizontal, 10).padding(.vertical, 8)
-            }.buttonStyle(PressStyle())
+                Text("Not now").font(Typo.button.weight(.medium)).lineLimit(1).fixedSize()
+                    .foregroundStyle(Palette.textSecondary).padding(.horizontal, 10).frame(height: 30)
+            }.buttonStyle(PressStyle()).accessibilityLabel("Not now")
             Button(action: confirm) {
-                HStack(spacing: 9) { Text("Pick up").font(Typo.button).lineLimit(1).fixedSize(); Keycap(label: "↩", onLight: true) }
-                    .foregroundStyle(Palette.ink).padding(.leading, 16).padding(.trailing, 8).frame(height: 36)
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.saffron))
-            }.buttonStyle(PressStyle())
+                HStack(spacing: 8) { Text("Pick up").font(Typo.button).lineLimit(1).fixedSize(); Keycap(label: "↩", onLight: true) }
+                    .foregroundStyle(Palette.ink).padding(.leading, 12).padding(.trailing, 6).frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Palette.saffron))
+            }.buttonStyle(PressStyle()).accessibilityLabel("Pick up where you left off")
         }
     }
 
@@ -136,31 +139,32 @@ struct SwitcherCard: View {
             Band(metrics: metrics, left: "Parked", right: "\(projects.count) projects").reveal(shown, 0)
             VStack(spacing: 2) {
                 ForEach(Array(projects.enumerated()), id: \.element.id) { i, p in
+                    let tint = Palette.tiles[i % Palette.tiles.count]
                     HStack(spacing: 12) {
-                        Text(String(p.name.prefix(1))).font(.system(size: 15, weight: .heavy, design: .rounded)).foregroundStyle(Palette.ink)
-                            .frame(width: 36, height: 36)
-                            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Palette.tiles[i % Palette.tiles.count]))
+                        Text(String(p.name.prefix(1))).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
+                            .frame(width: 28, height: 28)
+                            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.opacity(0.16)))
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(p.name).font(Typo.strong).foregroundStyle(.white)
-                            Text(p.subtitle).font(Typo.bandSub).foregroundStyle(Color(white: 0.55)).lineLimit(1)
+                            Text(p.name).font(Typo.row).foregroundStyle(Palette.textPrimary).lineLimit(1)
+                            Text(p.subtitle).font(Typo.meta).foregroundStyle(Palette.textTertiary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
-                        if p.needsAttention { Circle().fill(Palette.attention).frame(width: 7, height: 7) }
-                        Text(p.away).font(Typo.chip).foregroundStyle(Palette.textTertiary)
+                        if p.needsAttention { Circle().fill(Palette.attention).frame(width: 6, height: 6) }
+                        Text(p.away).font(Typo.meta).monospacedDigit().foregroundStyle(Palette.textTertiary)
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(RoundedRectangle(cornerRadius: 15, style: .continuous).fill(i == selected ? Palette.rowSelected : .clear))
+                    .padding(.horizontal, 10).frame(height: 46)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(i == selected ? Palette.rowSelected : .clear))
                     .contentShape(Rectangle())
                     .onTapGesture { choose(i) }
+                    .accessibilityElement(children: .combine).accessibilityAddTraits(.isButton)
                     .reveal(shown, i + 1)
                 }
             }
-            .padding(.horizontal, 18).padding(.top, 14).animation(Motion.snappy, value: selected)
+            .padding(.horizontal, 18).padding(.top, 10).animation(Motion.snappy, value: selected)
             Spacer(minLength: 0)
-            HStack(spacing: 18) {
-                hint("↑↓", "choose"); hint("return", "open"); hint("esc", "close")
-            }
-            .frame(maxWidth: .infinity).padding(.bottom, 20).reveal(shown, 4)
+            Hairline().reveal(shown, 4)
+            HStack(spacing: 18) { hint("↑↓", "Choose"); hint("↩", "Open"); hint("esc", "Close") }
+                .frame(maxWidth: .infinity).frame(height: 44).reveal(shown, 4)
         }
     }
 
@@ -186,26 +190,26 @@ struct RestoringCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Band(metrics: metrics, left: project.name, right: "one moment").reveal(shown, 0)
-            Text("Picking up where you left off").font(.system(size: 22, weight: .heavy, design: .rounded)).tracking(-0.3)
-                .foregroundStyle(.white).padding(.horizontal, 28).padding(.top, 16).reveal(shown, 1)
-            VStack(alignment: .leading, spacing: 12) {
+            Band(metrics: metrics, left: project.name, right: "Restoring…").reveal(shown, 0)
+            Text("Picking up where you left off").font(Typo.hero).tracking(-0.5).foregroundStyle(Palette.textPrimary)
+                .padding(.horizontal, 28).padding(.top, 14).reveal(shown, 1)
+            VStack(alignment: .leading, spacing: 11) {
                 ForEach(Array(project.restoreSteps.enumerated()), id: \.offset) { i, step in
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         ZStack {
-                            Circle().fill(Palette.done).frame(width: 22, height: 22).scaleEffect(shown ? 1 : 0.2)
+                            Circle().fill(Palette.done.opacity(0.16)).frame(width: 18, height: 18).scaleEffect(shown ? 1 : 0.3)
                             CheckMark().trim(from: 0, to: shown ? 1 : 0)
-                                .stroke(Color(red: 0.03, green: 0.16, blue: 0.08), style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
-                                .frame(width: 22, height: 22)
+                                .stroke(Palette.done, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                                .frame(width: 18, height: 18)
                         }
-                        .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(shown ? 0.45 + 0.3 * Double(i) : 0), value: shown)
-                        Text(step).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(Palette.textPrimary)
+                        .animation(.spring(response: 0.38, dampingFraction: 0.7).delay(shown ? 0.45 + 0.28 * Double(i) : 0), value: shown)
+                        Text(step).font(Typo.row).foregroundStyle(Palette.textPrimary).lineLimit(1)
                             .opacity(shown ? 1 : 0).offset(x: shown ? 0 : -4)
-                            .animation(.easeOut(duration: 0.3).delay(shown ? 0.45 + 0.3 * Double(i) : 0), value: shown)
+                            .animation(.easeOut(duration: 0.3).delay(shown ? 0.45 + 0.28 * Double(i) : 0), value: shown)
                     }
                 }
             }
-            .padding(.horizontal, 28).padding(.top, 16)
+            .padding(.horizontal, 28).padding(.top, 18)
         }
     }
 }

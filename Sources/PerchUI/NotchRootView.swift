@@ -11,8 +11,8 @@ public struct NotchRootView: View {
         let panel = model.panelSize
         let idle = NotchGeometry.idleSize(for: model.screen)
         let metrics = CardMetrics(band: max(idle.height, 32), gap: idle.width + 20)
-        let topR: CGFloat = phase == .idle ? 0 : 14
-        let botR: CGFloat = phase == .idle ? 10 : 30
+        let topR: CGFloat = phase == .idle ? 0 : 12
+        let botR: CGFloat = phase == .idle ? 10 : 26
         let visible = model.hasNotch || phase != .idle
 
         ZStack(alignment: .top) {
@@ -51,15 +51,15 @@ public struct NotchRootView: View {
     }
 
     private func timerLine(width: CGFloat, phase: NotchPhase) -> some View {
-        Rectangle().fill(Palette.saffron.opacity(0.9))
-            .frame(width: width * model.barProgress, height: 2)
+        Rectangle().fill(Palette.saffron.opacity(0.7))
+            .frame(width: width * model.barProgress, height: 1.5)
             .opacity(phase == .open ? 1 : 0)
     }
 
     /// Idle: peeking out from behind the notch. In a card: level with the notch, left of the title.
     private func creature(phase: NotchPhase, panelWidth: CGFloat, idle: CGSize, metrics: CardMetrics) -> some View {
         let perched = phase == .idle
-        let d: CGFloat = perched ? 24 : 28
+        let d: CGFloat = perched ? 22 : 24
         let cx = panelWidth / 2
         let x: CGFloat = perched
             ? (model.hasNotch ? cx - idle.width / 2 - d + 8 : cx - d / 2)

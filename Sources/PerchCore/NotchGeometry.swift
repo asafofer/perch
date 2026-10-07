@@ -9,9 +9,9 @@ public struct ScreenInfo: Equatable, Sendable {
 
 public enum NotchGeometry {
     public static let fallbackPillSize = CGSize(width: 188, height: 34)
-    public static let openSize = CGSize(width: 600, height: 262)
-    public static let switcherSize = CGSize(width: 600, height: 270)
-    public static let restoringSize = CGSize(width: 600, height: 214)
+    public static let openSize = CGSize(width: 600, height: 224)
+    public static let switcherSize = CGSize(width: 600, height: 238)
+    public static let restoringSize = CGSize(width: 600, height: 200)
     /// Transparent margin around the largest card, so shadows are not clipped.
     public static let shadowMargin: CGFloat = 40
 

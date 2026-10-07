@@ -14,7 +14,7 @@ public struct Creature: View {
     public var body: some View {
         GeometryReader { geo in
             let d = geo.size.width
-            TimelineView(.animation(minimumInterval: 1 / 30, paused: mood != .sleep)) { ctx in
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: mood != .sleep || Motion.reduced)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 let breath = mood == .sleep ? 1 + 0.035 * sin(t * 2.1) : 1
                 face(d: d)
@@ -29,6 +29,7 @@ public struct Creature: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
+        .accessibilityHidden(true)
         .animation(Motion.snappy, value: mood)
         .task(id: mood) { await life() }
     }
