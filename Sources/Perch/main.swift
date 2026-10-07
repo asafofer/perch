@@ -68,17 +68,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.snapshot(to: dir + "/idle.png") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { c.comeBack() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) { c.snapshot(to: dir + "/open.png") }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.8) { c.send(.openSwitcher) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5.2) { c.snapshot(to: dir + "/switcher.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { c.snapshot(to: dir + "/open.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.6) { c.send(.openSwitcher) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.2) { c.snapshot(to: dir + "/switcher.png") }
             if !args.contains("--real") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 5.6) { c.confirm() }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 7.4) { c.snapshot(to: dir + "/restoring.png") }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6.6) { c.confirm() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 8.6) { c.snapshot(to: dir + "/restoring.png") }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8.9) { c.send(.dismiss) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 9.2) { c.showSetup() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10.6) { c.snapshot(to: dir + "/setup.png") }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 11.6) { NSApp.terminate(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.4) { c.send(.dismiss) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.8) { c.showSetup() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12.4) { c.snapshot(to: dir + "/setup.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 13.4) { NSApp.terminate(nil) }
         }
         if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }

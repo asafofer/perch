@@ -41,16 +41,16 @@
     if (!icons[st.app]) return Dot(color);
     return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
   }
-  function header(inner, right, i) { return '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
+  function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
-    '<div class="pane p-open">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-open"><span class="o-away rv absolute right-[34px] top-[9px] z-10 text-xs tabular-nums text-muted-foreground" style="--i:0"></span>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
-      '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:0"><div class="min-w-0 flex-1"><div dir="auto" class="o-n truncate text-sm font-medium leading-4"></div><div class="o-a mt-0.5 text-xs leading-4 tabular-nums text-muted-foreground"></div></div><span class="o-bw">' + Badge('<span class="o-b font-mono text-[11px]"></span>') + '</span></div>' +
+      '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:0"><div class="min-w-0 flex-1"><div dir="auto" class="o-n truncate text-sm font-medium leading-4"></div><div class="o-a mt-0.5 text-xs leading-4 tabular-nums text-muted-foreground"></div></div><span class="o-bw">' + Badge('<span class="o-b font-mono text-[11px]"></span>') + '</span></div>' +
       '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
       '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 truncate font-medium"></span></p>' +
@@ -110,7 +110,8 @@
 
   function fill(p) {
     q('.o-n').textContent = p.name;
-    q('.o-a').textContent = 'Left ' + p.at + ' · ' + p.away + ' ago';
+    q('.o-a').textContent = 'Left ' + p.at;
+    q('.o-away').textContent = p.away;
     q('.o-bw').style.display = p.branch ? '' : 'none';
     q('.o-b').textContent = p.branch || '';
     q('.o-h').textContent = p.headline;
@@ -151,7 +152,7 @@
       cr.style.transform = 'translate(' + (scr.hasNotch ? (-scr.notchW / 2 - d + 6) : -d / 2) + 'px,' + (scr.hasNotch ? (idleH - d) / 2 : 6) + 'px)';
     } else {
       cr.style.width = cr.style.height = '20px';
-      cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + (32 + (40 - 20) / 2) + 'px)';
+      cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
     cr.dataset.m = st === 'idle' ? 'sleep' : (st === 'restore' ? 'happy' : 'awake');
     post({ type: 'size', width: w, height: h });
