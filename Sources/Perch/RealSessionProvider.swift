@@ -35,7 +35,18 @@ struct RealSessionProvider: SessionProviding {
     }
 
     /// Only the tail of the file: sessions can be tens of megabytes and the recent part is what matters.
-    static func digest(of url: URL, tailBytes: UInt64 = 600_000) -> SessionDigest? {
+    static func digest(of url: URL) -> SessionDigest? {
+        var result: SessionDigest?
+        // Busy sessions can end in megabytes of tool output and images, so widen the window until real messages appear.
+        for window in [600_000, 4_000_000, 16_000_000] as [UInt64] {
+            guard let d = digest(of: url, tailBytes: window) else { continue }
+            result = d
+            if d.cwd != nil, d.lastTimestamp != nil, d.lastUserText != nil { break }
+        }
+        return result
+    }
+
+    private static func digest(of url: URL, tailBytes: UInt64) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()) ?? 0
