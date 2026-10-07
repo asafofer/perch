@@ -47,15 +47,15 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>' +
-    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
+    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i></div>' +
+    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
     '<div class="pane p-open">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '<svg class="pointer-events-none absolute -inset-[3px] size-6" viewBox="0 0 24 24" style="transform:rotate(-90deg)" aria-hidden="true"><circle id="ring" cx="12" cy="12" r="10" fill="none" stroke="rgba(250,250,250,.42)" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="62.83"/></svg></button>' +
     '<div class="inner pt-8">' +
       '<div class="rv flex items-center justify-between gap-2 px-4 pt-0.5" style="--i:0"><span class="o-away text-xs tabular-nums text-muted-foreground"></span><span class="o-st"></span></div>' +
-      '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
-      '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-muted-foreground line-clamp-3" style="--i:2"></p>' +
-      '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 font-medium leading-4"></span></p>' +
-      '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      '<p dir="auto" class="o-h rv mt-2 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
+      '<p dir="auto" class="o-c rv mt-1 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-3" style="--i:2"></p>' +
+      '<p class="rv mt-3 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground/80"></span></p>' +
+      '<div class="rv mt-2 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
     '</div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -115,8 +115,10 @@
     q('.o-away').textContent = 'While you were away \u00b7 ' + p.away;
     q('.o-h').textContent = p.headline;
     q('.o-c').textContent = p.context;
-    q('.o-x').textContent = p.next;
-    q('.o-x').parentNode.style.display = p.next ? '' : 'none';
+    /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
+    var nx = /\b(commit|push|merge|uncommitted|pull request|git)\b/i.test(p.next || '') ? '' : (p.next || '');
+    q('.o-x').textContent = nx;
+    q('.o-x').parentNode.style.display = nx ? '' : 'none';
     q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text);
   }
   function list(s) {
@@ -154,7 +156,11 @@
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
-    cr.dataset.m = st === 'idle' ? 'sleep' : (st === 'restore' ? 'happy' : 'awake');
+    /* idle: nothing there until something needs you, then it pops out beside the notch with an orange dot */
+    var news = st === 'idle' && s.projects.some(function (x) { return x.attention; });
+    cr.style.opacity = (st === 'idle' && !news) ? 0 : 1;
+    cr.dataset.news = news ? '1' : '';
+    cr.dataset.m = st === 'idle' ? (news ? 'awake' : 'sleep') : (st === 'restore' ? 'happy' : 'awake');
     post({ type: 'size', width: w, height: h });
   }
   function apply(s) {
@@ -164,8 +170,8 @@
     var p = s.projects[s.selected];
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
-    var glow = { attention: '251,146,60', done: '74,222,128' };
-    n.style.setProperty('--glow', (st === 'open' && p && glow[p.status.kind]) || '245,184,59');
+    var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
+    n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
     else { if (last.running) bar(false); last.running = false; }
@@ -243,7 +249,7 @@
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer;
     window.perchDev = {
-      show: function (ph, setup) { clearTimeout(autoTimer); var s = Object.assign({}, base, { phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      show: function (ph, setup, quiet) { clearTimeout(autoTimer); var s = Object.assign({}, base, { projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }

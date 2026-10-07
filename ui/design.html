@@ -20,16 +20,6 @@ h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
 .note{font-size:12.5px;color:var(--pg-muted)}
 h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:6px 0 2px}
-.ideas{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
-.idea{display:flex;flex-direction:column;gap:8px}
-.idea h3{font:600 13px Inter,sans-serif;margin:0}.idea p{font-size:12.5px;line-height:1.5;color:var(--pg-muted);margin:0}
-.mini{position:relative;height:84px;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);
-  background:radial-gradient(420px 220px at 14% -10%,#3b5b50 0%,transparent 62%),radial-gradient(380px 260px at 100% 110%,#6a4331 0%,transparent 58%),#16201e}
-.mini .mb2{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38)}
-.mini .mnotch{position:absolute;left:50%;top:0;width:185px;height:32px;margin-left:-92.5px;background:#000;border-radius:0 0 10px 10px;z-index:11}
-.mini .cr{transition:transform .5s cubic-bezier(.3,1.35,.5,1),opacity .3s}
-.mini .dot{position:absolute;left:50%;top:5px;width:7px;height:7px;border-radius:50%;background:#FB923C;box-shadow:0 0 0 1.5px #000;z-index:12;transition:opacity .3s}
-.pill{font:500 12px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:1px solid var(--pg-line);border-radius:8px;padding:5px 10px;cursor:pointer;align-self:flex-start}
 </style>
 <main class="wrap">
   <header>
@@ -37,49 +27,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:6px 0 2px}
     <p class="sub">This is the real interface, the same code that runs in the app, with sample projects. Press the buttons, or use Tab, Return, N and Esc.</p>
   </header>
   <div class="bar" id="bar"></div>
-  <div class="bar" id="glowbar" style="align-items:center"><span class="note" style="margin-right:4px">Glow</span></div>
   <div class="desk"><div class="mb"></div><div id="scene"></div></div>
-  <section>
-    <h2>Idle: where does the character sit?</h2>
-    <p class="note" style="margin-bottom:10px">Today it is half behind the notch, which reads as undecided. Four alternatives. Wake or sleep them all:
-      <button class="pill" id="wake" style="display:inline-block;margin-left:6px">Awake</button></p>
-    <div class="ideas" id="ideas"></div>
-  </section>
-  <p class="note">The glow follows the status: orange when something needs you, green when things are done, saffron otherwise. Internal stays inside the black shape; external spills onto the windows behind.</p>
+  <p class="note">The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, saffron otherwise). At rest the character is hidden. It pops out beside the notch with an orange dot only when something needs you.</p>
 </main>
 <script src="app.js"></script>
 <script>
 (function () {
   var d = window.perchDev; if (!d) return;
   var items = [['Play the flow', function () { d.play(); }, 1], ['Welcome back', function () { d.project(0); d.show('open'); }], ['Done (green glow)', function () { d.project(1); d.show('open'); }],
-    ['Jump back in', function () { d.show('switcher'); }], ['Setup: off', function () { d.show('setup', 'off'); }], ['Setup: downloading', function () { d.show('setup', 'downloading'); }], ['Idle', function () { d.show('idle'); }]];
+    ['Jump back in', function () { d.show('switcher'); }], ['Setup: off', function () { d.show('setup', 'off'); }], ['Setup: downloading', function () { d.show('setup', 'downloading'); }], ['Idle: quiet', function () { d.show('idle', 'off', true); }], ['Idle: needs you', function () { d.show('idle'); }]];
   var bar = document.getElementById('bar');
-  var modes = [['External', 'external'], ['Internal', 'internal'], ['Both', 'both'], ['Off', 'off']], gb = document.getElementById('glowbar'), cur = 'internal';
-  document.documentElement.dataset.glow = cur;
-  modes.forEach(function (m) { var b = document.createElement('button'); b.textContent = m[0]; b.dataset.mode = m[1]; if (m[1] === cur) b.className = 'p';
-    b.onclick = function () { document.documentElement.dataset.glow = m[1]; gb.querySelectorAll('button').forEach(function (x) { x.className = x === b ? 'p' : ''; }); }; gb.appendChild(b); });
   items.forEach(function (it) { var b = document.createElement('button'); b.textContent = it[0]; if (it[2]) b.className = 'p'; b.onclick = it[1]; bar.appendChild(b); });
 })();
 
-var DOME='M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z';
-var IDEAS=[
- ['Today','Half behind the notch. Part visible, part hidden: it is neither here nor there.','translate(-104.5px,7px)'],
- ['A. Beside, fully visible','Sits clear of the notch with a small gap. Always readable, always cute, never ambiguous. My pick for the resting state.','translate(-116px,7px)'],
- ['B. Peeking from under','Centred below the notch with its top tucked behind it, like it is looking down at you. Decisive and playful, but it sits over whatever is under the menu bar.','translate(-9px,22px)'],
- ['C. Only when there is news','Nothing there by default. When something needs you it pops out beside the notch with an orange dot. Quietest menu bar; you lose the always-there friend.','news']
-];
-var ideas=document.getElementById('ideas'),minis=[];
-IDEAS.forEach(function(it){
-  var d=document.createElement('div');d.className='idea';
-  d.innerHTML='<div class="mini"><div class="mb2"></div><div class="mnotch"></div><div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="'+DOME+'"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div></div><h3>'+it[0]+'</h3><p>'+it[1]+'</p>';
-  var cr=d.querySelector('.cr'),mini=d.querySelector('.mini');
-  if(it[2]==='news'){
-    var dot=document.createElement('i');dot.className='dot';mini.appendChild(dot);
-    var on=false,btn=document.createElement('button');btn.className='pill';
-    var set=function(){cr.style.transform='translate(-116px,7px)';cr.style.opacity=on?1:0;dot.style.opacity=on?1:0;dot.style.marginLeft='-86px';btn.textContent=on?'Back to quiet':'Something needs you';};
-    btn.onclick=function(){on=!on;if(on)cr.dataset.m='awake';set()};d.appendChild(btn);set();
-  } else cr.style.transform=it[2];
-  ideas.appendChild(d);minis.push(cr);
-});
-var awake=false;document.getElementById('wake').onclick=function(){awake=!awake;this.textContent=awake?'Asleep':'Awake';minis.forEach(function(c){c.dataset.m=awake?'awake':'sleep'})};
 </script>
