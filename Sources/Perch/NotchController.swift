@@ -328,16 +328,28 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func reply(_ text: String) {
         let pb = NSPasteboard.general
         pb.clearContents(); pb.setString(text, forType: .string)
+        let project = projects.indices.contains(machine.selected) ? projects[machine.selected] : nil
         pickUp(machine.selected)
-        guard AXIsProcessTrusted() else { return }
+        // Typing into another app needs Accessibility. Ask once, and the reply stays on the clipboard meanwhile.
+        guard AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary) else {
+            NSLog("Perch: reply copied, but Accessibility is not granted so it cannot be pasted")
+            return
+        }
+        let target = project?.app == "codex" ? "com.openai.codex" : (project?.desktopSessionId != nil ? "com.anthropic.claudefordesktop" : "com.apple.Terminal")
         Task {
-            try? await Task.sleep(for: .milliseconds(1400))
+            // Wait for the app to be in front (up to 5 s), then give its message box a moment to take focus.
+            for _ in 0..<50 {
+                if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target { break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            try? await Task.sleep(for: .milliseconds(800))
             let src = CGEventSource(stateID: .combinedSessionState)
             for down in [true, false] {
                 let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)
                 e?.flags = .maskCommand
                 e?.post(tap: .cghidEventTap)
             }
+            NSLog("Perch: pasted reply into \(target)")
         }
     }
 
