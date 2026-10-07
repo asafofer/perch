@@ -8,7 +8,7 @@ public final class NotchViewModel {
     public var screen: ScreenInfo
     /// 1 -> 0 over the auto-collapse window; drives the thin timer line.
     public var barProgress: CGFloat = 1
-    public var nodCount = 0
+    public var hopCount = 0
     /// Called after every phase change with (old, new). The controller hangs timers and haptics here.
     public var onPhaseChange: ((NotchPhase, NotchPhase) -> Void)?
 
@@ -25,7 +25,7 @@ public final class NotchViewModel {
     public var bodySize: CGSize { NotchGeometry.size(for: phase, screen: screen) }
     public var panelSize: CGSize { NotchGeometry.panelFrame(for: screen).size }
 
-    public var birdMood: BirdView.Mood {
+    public var creatureMood: Creature.Mood {
         switch phase {
         case .idle: .sleep
         case .open, .switcher: .awake
@@ -43,7 +43,7 @@ public final class NotchViewModel {
         }
         withAnimation(animation) { machine.send(event) }
         if machine.phase != old {
-            if machine.phase == .restoring { nodCount += 1 }
+            if machine.phase == .restoring { hopCount += 1 }
             onPhaseChange?(old, machine.phase)
         }
     }
