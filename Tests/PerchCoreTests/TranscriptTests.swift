@@ -40,7 +40,7 @@ import Foundation
     @Test func recapPrefersUncommittedFilesWhenClaudeIsDone() {
         var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "All done."
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 3, files: ["a.swift", "b.js", "c.md"]), now: Date())!
-        #expect(p.next == "Commit changes to a.swift, b.js and 1 more" || p.next.hasPrefix("Commit changes")); #expect(p.status.kind == "done")
+        #expect(p.next == ""); #expect(p.status.kind == "done")
     }
     @Test func waitingWhenUserSpokeLast() {
         var d = TranscriptParser.digest(lines: lines); d.lastRole = "user"
@@ -70,7 +70,7 @@ import Foundation
     @Test func nextStepQuotesClaudesLastReplyWhenNothingElseApplies() {
         var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Perch is running now. Try the idle trigger."
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 0), now: Date())!
-        #expect(p.next == "Nothing pending. Tell Claude what's next.")
+        #expect(p.next == "")
     }
     @Test func keepsRecentMessagesForModels() {
         let d = TranscriptParser.digest(lines: lines)
@@ -96,16 +96,14 @@ import Foundation
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 2, files: ["a", "b"]), now: Date())!
         #expect(p.next == "Next: Wire the logo upload to the ledger")
     }
-    @Test func pushesWhenCleanButAhead() {
-        var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "All done."
-        let p = Recap.project(digest: d, git: GitInfo(uncommitted: 0, ahead: 2, branch: "main"), now: Date())!
-        #expect(p.next == "Push 2 commits on main")
-    }
     @Test func parsesPorcelainStatus() {
         let g = GitInfo.parse(status: "## feature/x...origin/feature/x [ahead 3]\n M Sources/App.swift\n?? docs/notes.md\nR  old.txt -> new.txt\n", lastCommit: nil)
         #expect(g.ahead == 3); #expect(g.branch == "feature/x"); #expect(g.files == ["App.swift", "notes.md", "new.txt"])
     }
-    @Test func codeFilesRankBeforeNotes() {
-        #expect(Recap.commitStep(GitInfo(uncommitted: 3, files: ["notes.md", "a.swift", "b.swift"])) == "Commit changes to a.swift, b.swift and 1 more")
+    @Test func neverSuggestsGitChores() {
+        var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Done. Next: commit and push the changes."
+        let p = Recap.project(digest: d, git: GitInfo(uncommitted: 4, files: ["a"]), now: Date())!
+        #expect(p.next == "")
+        #expect(Recap.isGitChore("Commit changes to a.swift")); #expect(!Recap.isGitChore("Wire up the logo upload"))
     }
 }

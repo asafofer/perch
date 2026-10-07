@@ -78,7 +78,7 @@ enum RecapMerge {
     /// Keep the plain "next" when it came from a concrete fact: Claude's open question or uncommitted files.
     /// Any model field that isn't grounded in the conversation falls back to the plain one.
     static func apply(_ r: RecapText, to p: Project, grounding: SessionDigest? = nil) -> Project {
-        let concrete = p.status.kind == "attention" || ["Commit ", "Push ", "Answer", "Next:"].contains { p.next.hasPrefix($0) }
+        let concrete = p.status.kind == "attention" || ["Answer", "Next:"].contains { p.next.hasPrefix($0) }
         let grounded: (String) -> Bool = { text in grounding.map { Grounding.isGrounded(text, in: $0) } ?? true }
         // A field is used only if it is the right length (never cut off), grounded in the conversation, and in the right voice.
         let oneSentence = !r.headline.dropLast().contains(".") && !r.next.dropLast().contains(".")
@@ -87,7 +87,7 @@ enum RecapMerge {
         if !headline.hasSuffix(".") { headline += "." }
         let headlineOK = oneSentence && r.headline.hasPrefix("You were") && (8...64).contains(r.headline.count) && grounded(r.headline)
         let contextOK = !repeats && (8...120).contains(r.context.count) && grounded(r.context) && !Grounding.copiesUserMessage(r.context, p.context)
-        let nextOK = oneSentence && (4...64).contains(r.next.count) && grounded(r.next)
+        let nextOK = oneSentence && (4...64).contains(r.next.count) && grounded(r.next) && !Recap.isGitChore(r.next)
         return p.withRecap(RecapText(headline: headlineOK ? headline : p.headline,
                                      context: contextOK ? r.context : p.context,
                                      next: concrete || !nextOK ? p.next : r.next))

@@ -145,25 +145,16 @@ public enum Recap {
             return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
         }
         let done = (kind: AgentStatus.Kind.done, text: "\(agent) replied")
-        if let a = d.lastAssistantText, let step = explicitNext(in: a) { return (done, "Next: \(clip(step, 100))") }
-        if let g = git {
-            if g.uncommitted > 0 { return (done, commitStep(g)) }
-            if g.ahead > 0 { return (done, "Push \(g.ahead) commit\(g.ahead == 1 ? "" : "s")\(g.branch.map { " on \($0)" } ?? "")") }
-        }
-        return (done, "Nothing pending. Tell \(agent == "Codex" ? "Codex" : "Claude") what's next.")
+        // Only a step the agent stated itself. Git housekeeping (committing, pushing) is never offered, and with
+        // nothing real to suggest the card shows no next step at all.
+        if let a = d.lastAssistantText, let step = explicitNext(in: a), !isGitChore(step) { return (done, "Next: \(clip(step, 100))") }
+        return (done, "")
     }
 
-    /// "Commit changes to a.swift, b.js and 3 more", with the most useful files first (code before notes and build output).
-    static func commitStep(_ g: GitInfo) -> String {
-        let ranked = g.files.sorted { rank($0) < rank($1) }
-        let shown = ranked.prefix(2).joined(separator: ", ")
-        let more = g.files.count - min(2, g.files.count)
-        return more > 0 ? "Commit changes to \(shown) and \(more) more" : "Commit changes to \(shown)"
-    }
-    private static func rank(_ name: String) -> Int {
-        let ext = (name as NSString).pathExtension.lowercased()
-        if ["md", "txt", "json", "lock", "log", "png", "jpg", "html"].contains(ext) { return 2 }
-        return name.hasPrefix(".") ? 3 : 1
+    /// Committing, pushing and merging are never useful as a suggested next step.
+    public static func isGitChore(_ text: String) -> Bool {
+        let t = text.lowercased()
+        return ["commit", "push", "merge", "uncommitted", "pull request", "git "].contains { t.contains($0) }
     }
 
     /// A next step the assistant stated itself: a line or sentence like "Next: …", "Then …", "Still to do: …".
@@ -238,7 +229,7 @@ public enum RecapPrompt {
     - headline: what they were doing, second person, past tense, starting with "You were". Max 60 characters, ends with a period.
     - context: the key decision or where things stand now, in plain words. Max 110 characters.
     - next: the single most useful next step, as a short imperative. Base it on the LATEST messages and the git facts. \
-    Never suggest something already done or merged, and never repeat a suggestion the user rejected. Max 60 characters.
+    Never suggest something already done or merged, never suggest committing, pushing or merging, and never repeat a suggestion the user rejected. Max 60 characters.
     No markdown, no emoji, no quotation marks around the fields.
     """
 
