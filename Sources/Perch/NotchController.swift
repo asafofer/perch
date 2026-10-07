@@ -22,7 +22,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var activity: NSObjectProtocol?
     private var snoozeTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
+    /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
     private var openedByHover = false
+    private var openedAt = Date.distantPast
+    /// The "Remind me in" choices are showing in place of the buttons.
+    private var snoozeMenuOpen = false
+    /// The reply field is showing; keys go to it.
+    private var replyOpen = false
     /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
     private var hoverLatched = false
     /// Simulation mode: the welcome card stays until you act on it.
@@ -65,14 +71,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: public actions
-    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); openedByHover = onHome; prepareToShow(onHome: onHome); send(.comeBack) }
-    func toggleSwitcher() { prepareToShow(); send(.openSwitcher) }
+    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); openedByHover = onHome; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack) }
+    func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
     /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
     func showSetup() {
         guard machine.phase == .idle, AppleRecapEngine.setupState != "ready" else { return }
-        snoozeTask?.cancel(); place(on: ScreenChooser.current()); send(.openSetup)
+        snoozeTask?.cancel(); openedByHover = false; place(on: ScreenChooser.current()); send(.openSetup)
     }
 
     /// Debug: write the web view's current pixels to a PNG, composited over a desktop-like colour.
@@ -199,7 +205,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func push() {
         guard ready else { return }
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen)
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen)
         iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -209,7 +215,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch phase: \(old) -> \(new)") }
         switch new {
         case .idle:
-            hoverLatched = true
+            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
@@ -258,7 +264,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
-        guard machine.autoCollapses, !holdOpen else { return }
+        guard machine.autoCollapses, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -274,7 +280,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         switch type {
         case "confirm": send(.confirm)
         case "dismiss": send(.dismiss)
-        case "snooze": snooze()
+        case "snooze": snooze(body["when"] as? String ?? "30m")
+        case "replyMenu":
+            replyOpen = body["open"] as? Bool ?? false
+            if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer() }
+            push()
+        case "reply": if let t = body["text"] as? String { reply(t) }
+        case "snoozeMenu":
+            snoozeMenuOpen = body["open"] as? Bool ?? false
+            if snoozeMenuOpen { timer?.cancel() } else { restartTimer() }
+            push()
         case "switcher": send(.openSwitcher)
         case "back": send(.back)
         case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
@@ -286,14 +301,43 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// "Not now": hide the card and bring it back later, unless you come back to it yourself first.
-    private func snooze() {
+    /// "Not now": hide the card and bring it back later (30 minutes, 2 hours, or 9 in the morning), unless you come back to it yourself first.
+    private func snooze(_ when: String) {
+        let seconds: Double
+        switch when {
+        case "2h": seconds = 2 * 3600
+        case "tomorrow":
+            let cal = Calendar.current
+            let next = cal.nextDate(after: Date(), matching: DateComponents(hour: 9, minute: 0), matchingPolicy: .nextTime) ?? Date().addingTimeInterval(12 * 3600)
+            // "Tomorrow" means tomorrow even when it is 5 AM now.
+            let tomorrow = cal.isDateInToday(next) ? cal.date(byAdding: .day, value: 1, to: next) ?? next : next
+            seconds = max(60, tomorrow.timeIntervalSinceNow)
+        default: seconds = snoozeSeconds
+        }
         send(.dismiss)
         snoozeTask?.cancel()
         snoozeTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: .seconds(self.snoozeSeconds))
+            try? await Task.sleep(for: .seconds(seconds))
             if !Task.isCancelled, self.machine.phase == .idle { self.comeBack() }
+        }
+    }
+
+    /// Answers Claude without typing in its window: the reply goes on the clipboard, the session opens, and it is pasted
+    /// for you when Perch has Accessibility access. It is never sent; you press Return in Claude.
+    private func reply(_ text: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents(); pb.setString(text, forType: .string)
+        pickUp(machine.selected)
+        guard AXIsProcessTrusted() else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(1400))
+            let src = CGEventSource(stateID: .combinedSessionState)
+            for down in [true, false] {
+                let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)
+                e?.flags = .maskCommand
+                e?.post(tap: .cghidEventTap)
+            }
         }
     }
 
@@ -302,11 +346,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             guard let self, self.machine.phase != .idle else { return e }
+            if self.replyOpen {
+                if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
+                return e
+            }
+            if self.snoozeMenuOpen {
+                switch e.keyCode {
+                case 18: self.snooze("30m")
+                case 19: self.snooze("2h")
+                case 20: self.snooze("tomorrow")
+                case 53, 45, 48, 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(false)", completionHandler: nil)
+                default: return e
+                }
+                return nil
+            }
             switch e.keyCode {
             case 36, 76: self.send(.confirm)
             case 53: self.send(.dismiss)
             case 48: self.send(self.machine.phase == .open ? .openSwitcher : .back)
-            case 45: if self.machine.phase == .open { self.snooze() } else { return e }
+            case 15: if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
+            case 45: if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             case 125: self.send(.next)
             case 126: self.send(.previous)
             default: return e
@@ -383,6 +442,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
         if inside, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
+        if !inside, openedByHover, Date().timeIntervalSince(openedAt) > 0.5 { send(.dismiss); return }
         if inside != machine.hovering {
             send(.hoverChanged(inside))
             if machine.phase == .open { restartTimer(); push() }

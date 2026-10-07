@@ -55,7 +55,9 @@
       '<p dir="auto" class="o-h rv mt-2 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-1 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-3" style="--i:2"></p>' +
       '<p class="rv mt-3 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground/80"></span></p>' +
-      '<div class="rv mt-2 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Reply', Kbd('R'), 'x-rep hidden') + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-6 min-w-0 flex-1 rounded-md bg-white/[0.07] px-2 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', 'Send', Kbd(svg('enter', 'size-2'), 1), 'x-send pr-0.5') + '</div>' +
+      '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -78,7 +80,25 @@
   function q(c) { return scene.querySelector(c); }
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
-  q('.x-esc').onclick = function () { post({ type: 'snooze' }); };
+  /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
+  var fMain = q('.f-main'), fSnz = q('.f-snz');
+  function snoozeMenu(open, quiet) {
+    fMain.style.display = open ? 'none' : ''; fSnz.style.display = open ? 'flex' : 'none';
+    if (!quiet) post({ type: 'snoozeMenu', open: open });
+  }
+  /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
+  var fRep = q('.f-rep'), rIn = q('.r-in'), bRep = q('.x-rep');
+  function replyMenu(open, quiet) {
+    fMain.style.display = open ? 'none' : ''; fRep.style.display = open ? 'flex' : 'none';
+    if (open) setTimeout(function () { rIn.focus(); }, 30); else { rIn.value = ''; rIn.blur(); }
+    if (!quiet) post({ type: 'replyMenu', open: open });
+  }
+  function sendReply() { var t = rIn.value.trim(); if (!t) return; replyMenu(false, true); post({ type: 'reply', text: t }); }
+  bRep.onclick = function () { replyMenu(true); };
+  q('.x-send').onclick = sendReply;
+  rIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendReply(); } else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); } e.stopPropagation(); });
+  q('.x-esc').onclick = function () { snoozeMenu(true); };
+  [['.x-s1', '30m'], ['.x-s2', '2h'], ['.x-s3', 'tomorrow']].forEach(function (b) { q(b[0]).onclick = function () { snoozeMenu(false, true); post({ type: 'snooze', when: b[1] }); }; });
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
@@ -151,7 +171,7 @@
     n.dataset.s = st;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
-      cr.style.transform = 'translate(' + (scr.hasNotch ? (-scr.notchW / 2 - d + 6) : -d / 2) + 'px,' + (scr.hasNotch ? (idleH - d) / 2 : 6) + 'px)';
+      cr.style.transform = 'translate(' + (scr.hasNotch ? (-scr.notchW / 2 - d - 6) : -d / 2) + 'px,' + (scr.hasNotch ? (idleH - d) / 2 : 6) + 'px)';
     } else {
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
@@ -168,6 +188,8 @@
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[s.phase];
     var p = s.projects[s.selected];
+    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
+    bRep.style.display = (st === 'open' && p && /^Answer/.test(p.next || '')) ? 'inline-flex' : 'none';
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
@@ -217,7 +239,7 @@
   }
   setTimeout(glance, 1500); setTimeout(peek, 4000); setTimeout(blink, 1200);
 
-  window.perch = { apply: apply, cursor: cursor };
+  window.perch = { apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -228,9 +250,9 @@
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   function dev(m) {
-    if (!snap || m.type === 'size' || m.type === 'log') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'choose') s.phase = 'idle';
+    if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose') s.phase = 'idle';
     if (m.type === 'switcher') s.phase = 'switcher';
     if (m.type === 'back') s.phase = 'open';
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -239,7 +261,7 @@
     var P = [
       { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Two invoices are still unmatched', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
     ];
     var hash = (location.hash || '#open').slice(1);
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
@@ -256,12 +278,13 @@
     };
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
-      if (e.key === 'Escape') window.perchDev.show('idle');
+      if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
-      else if ((e.key === 'n' || e.key === 'N') && ph === 'open') window.perchDev.show('idle');
+      else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
+      else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
     });
   }
 })();
