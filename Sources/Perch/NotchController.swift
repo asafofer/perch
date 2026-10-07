@@ -131,9 +131,27 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     func send(_ event: NotchEvent) {
+        // Pick up does the job and gets out of the way: no success screen.
+        if machine.phase == .open || machine.phase == .switcher {
+            switch event {
+            case .confirm: pickUp(machine.selected); return
+            case .choose(let i): pickUp(i); return
+            default: break
+            }
+        }
         let old = machine.phase
         machine.send(event)
         if machine.phase != old { phaseChanged(old, machine.phase) }
+        push()
+    }
+
+    private func pickUp(_ index: Int) {
+        guard projects.indices.contains(index) else { return }
+        Restorer.resume(projects[index])
+        haptic(.levelChange)
+        let old = machine.phase
+        machine.send(.dismiss)
+        phaseChanged(old, machine.phase)
         push()
     }
 
@@ -162,7 +180,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             watchSetup()
         case .restoring:
             timer?.cancel(); haptic(.levelChange)
-            if projects.indices.contains(machine.selected) { Restorer.resume(projects[machine.selected]) }
             timer = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(3.2))
                 if !Task.isCancelled { self?.send(.restoreFinished) }
