@@ -80,7 +80,43 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard machine.phase == .idle else { return }
         projects = provider.parkedProjects()
         machine.projectCount = projects.count
+        applyCachedRecaps()
         place(on: ScreenChooser.current())
+        enrich()
+    }
+
+    // MARK: on-device recaps
+    private var enriching = false
+
+    /// Cached model-written recaps apply instantly.
+    private func applyCachedRecaps() {
+        guard let real = provider as? RealSessionProvider else { return }
+        for i in projects.indices {
+            if let input = real.inputs[projects[i].id], let key = RecapCache.key(for: input.digest), let r = RecapCache.shared.get(key) {
+                projects[i] = RecapMerge.apply(r, to: projects[i])
+            }
+        }
+    }
+
+    /// Writes missing recaps with the on-device model, one at a time, and updates the card as each lands.
+    func enrich() {
+        guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
+        let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String)? in
+            guard let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
+            return (p.id, input.digest, input.git, p.name, key)
+        }
+        guard !todo.isEmpty else { return }
+        enriching = true
+        Task { [weak self] in
+            for (id, digest, git, name, key) in todo {
+                guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name) else { continue }
+                RecapCache.shared.set(key, r)
+                guard let self, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
+                self.projects[i] = RecapMerge.apply(r, to: self.projects[i])
+                self.push()
+            }
+            self?.enriching = false
+        }
     }
 
     private func place(on s: NSScreen) {

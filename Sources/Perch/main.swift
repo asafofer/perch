@@ -11,6 +11,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
+        if args.contains("--ai-check") {
+            if let why = AppleRecapEngine.unavailableReason { print("On-device model unavailable: \(why)"); exit(1) }
+            let real = RealSessionProvider()
+            let projects = real.parkedProjects()
+            Task {
+                for p in projects {
+                    guard let input = real.inputs[p.id] else { continue }
+                    let t0 = Date()
+                    let r = await AppleRecapEngine.recap(digest: input.digest, git: input.git, name: p.name)
+                    let merged = r.map { RecapMerge.apply($0, to: p) }
+                    print("== \(p.name)  (\(String(format: "%.1f", Date().timeIntervalSince(t0)))s)")
+                    print("  plain : \(p.headline) | \(p.context) | \(p.next)")
+                    print("  model : \(merged.map { "\($0.headline) | \($0.context) | \($0.next)" } ?? "failed")")
+                }
+                exit(0)
+            }
+            return
+        }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
@@ -76,12 +94,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Welcome back now", action: #selector(showWelcome), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Parked projects", action: #selector(showSwitcher), keyEquivalent: "").target = self
         menu.addItem(.separator())
+        let ai = AppleRecapEngine.unavailableReason == nil
+            ? NSMenuItem(title: "Summaries: on-device", action: nil, keyEquivalent: "")
+            : NSMenuItem(title: "Summaries: plain. Turn on Apple Intelligence…", action: #selector(openSystemSettings), keyEquivalent: "")
+        ai.target = self; ai.isEnabled = AppleRecapEngine.unavailableReason != nil
+        menu.addItem(ai)
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Perch", action: #selector(quit), keyEquivalent: "q").target = self
         item.menu = menu
         statusItem = item
     }
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
+    @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 

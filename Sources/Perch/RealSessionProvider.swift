@@ -2,9 +2,11 @@ import AppKit
 import PerchCore
 
 /// Reads the newest session of each recent project from ~/.claude/projects and turns it into a card.
-struct RealSessionProvider: SessionProviding {
+final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     var maxProjects = 5
     var maxAgeDays = 14
+    /// What the last scan read, so a model can write about it without reading the files again.
+    private(set) var inputs: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
 
     func parkedProjects() -> [Project] {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
@@ -21,6 +23,7 @@ struct RealSessionProvider: SessionProviding {
         newest.sort { $0.mtime > $1.mtime }
 
         var seen = Set<String>(), out: [Project] = []
+        inputs = [:]
         let now = Date()
         let desktop = DesktopSessions.index()
         for item in newest {
@@ -31,7 +34,8 @@ struct RealSessionProvider: SessionProviding {
             seen.insert(cwd)
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
-            if let p = Recap.project(digest: digest, git: Self.git(at: cwd), now: now, desktopSessionId: app?.id) { out.append(p) }
+            let git = Self.git(at: cwd)
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id) { out.append(p); inputs[p.id] = (digest, git) }
             if out.count == maxProjects { break }
         }
         return out
