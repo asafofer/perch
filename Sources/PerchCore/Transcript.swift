@@ -226,7 +226,8 @@ public enum RecapPrompt {
     public static let instructions = """
     You write the welcome-back card for a developer returning to a coding session. \
     Use ONLY facts stated in the conversation or the git facts below. Never invent topics, files, bugs or tasks.
-    - headline: what they were doing, second person, past tense, starting with "You were". Max 60 characters, ends with a period.
+    - headline: what they were doing at the END of the conversation, about the latest messages and not older topics. \
+    Second person, past tense, starting with "You were". Max 60 characters, ends with a period.
     - context: the key decision or where things stand now, in plain words. Max 110 characters.
     - next: the single most useful next step, as a short imperative. Base it on the LATEST messages and the git facts. \
     Never suggest something already done or merged, never suggest committing, pushing or merging, and never repeat a suggestion the user rejected. Max 60 characters.
@@ -241,8 +242,11 @@ public enum RecapPrompt {
             if let c = g.lastCommit, !c.isEmpty { out += "; last commit: \(Recap.clip(c, 80))" }
             out += "\n"
         }
-        out += "Recent conversation, oldest first:\n"
-        out += d.recent.suffix(8).map { ($0.role == "user" ? "User: " : "\(agent): ") + Recap.clip($0.text, 300) }.joined(separator: "\n")
+        let line: (SessionDigest.Line, Int) -> String = { ($0.role == "user" ? "User: " : "\(agent): ") + Recap.clip($0.text, $1) }
+        let recent = Array(d.recent.suffix(8))
+        let latest = recent.suffix(3), earlier = recent.dropLast(latest.count)
+        if !earlier.isEmpty { out += "Earlier, background only (may be finished):\n" + earlier.map { line($0, 140) }.joined(separator: "\n") + "\n" }
+        out += "Latest messages, oldest first (the card is about THESE):\n" + latest.map { line($0, 320) }.joined(separator: "\n")
         return out
     }
 

@@ -62,7 +62,7 @@ final class RecapCache: @unchecked Sendable {
 
     static func key(for d: SessionDigest) -> String? {
         guard let id = d.sessionId, let t = d.lastTimestamp else { return nil }
-        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v2"
+        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v3"
     }
     func get(_ key: String) -> RecapText? { lock.lock(); defer { lock.unlock() }; return store[key] }
     func set(_ key: String, _ value: RecapText) {
