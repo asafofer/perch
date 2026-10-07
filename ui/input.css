@@ -46,8 +46,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* character: a flat dome with flat eyes */
 .cr { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; z-index: 10; --et: 44%;
   transition: transform .5s cubic-bezier(.3,1.35,.5,1), width .5s cubic-bezier(.3,1.35,.5,1), height .5s cubic-bezier(.3,1.35,.5,1), opacity .3s; }
-.cr .dot { position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: #FB923C; box-shadow: 0 0 0 1.5px #000; opacity: 0; transform: scale(.4); transition: all .3s cubic-bezier(.3,1.5,.5,1); }
+.cr .dot { position: absolute; right: -7px; top: -6px; min-width: 13px; height: 13px; padding: 0 3.5px; box-sizing: border-box; border-radius: 7px; display: grid; place-items: center;
+  background: #FB923C; color: #1c0f03; font: 700 8.5px/1 Inter, sans-serif; letter-spacing: 0; box-shadow: 0 0 0 1.5px #000;
+  opacity: 0; transform: scale(.3); transition: all .35s .12s cubic-bezier(.3,1.7,.5,1); }
 .cr[data-news="1"] .dot { opacity: 1; transform: none; }
+.cr-in.arrive { animation: arrive .7s cubic-bezier(.25,1.2,.4,1) both; }
+@keyframes arrive { 0% { transform: translateX(22px) scale(.5); opacity: 0; } 55% { transform: translateX(-3px) scale(1.1); opacity: 1; } 100% { transform: none; opacity: 1; } }
 .cr-in { position: absolute; inset: 0; }
 .cr-in.hop { animation: hop .55s cubic-bezier(.3,1.5,.5,1); }
 .cr .f { position: absolute; inset: 0; transform-origin: 50% 100%; }

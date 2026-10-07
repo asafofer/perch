@@ -24,9 +24,11 @@ struct UISnapshot: Encodable {
     /// Real app icons as data URLs. Sent once, with the first snapshot.
     let icons: [String: String]?
     let setup: String
+    /// The session you are in right now. It never nudges you about itself.
+    let activeId: String?
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true) {
-        self.icons = icons; self.setup = setup
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil) {
+        self.icons = icons; self.setup = setup; self.activeId = activeId
         phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .setup: "setup" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse

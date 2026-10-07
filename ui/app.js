@@ -185,7 +185,9 @@
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
     /* idle: nothing there until something needs you, then it pops out beside the notch with an orange dot */
-    var news = st === 'idle' && s.projects.some(function (x) { return x.attention; });
+    var needN = st === 'idle' ? s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; }).length : 0, news = needN > 0;
+    var dotEl = cr.querySelector('.dot'); if (news) dotEl.textContent = needN > 9 ? '9+' : String(needN);
+    if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
     cr.style.opacity = (st === 'idle' && !news) ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     cr.dataset.m = st === 'idle' ? (news ? 'awake' : 'sleep') : (st === 'restore' ? 'happy' : 'awake');

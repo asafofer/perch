@@ -2,42 +2,153 @@
 <title>Perch Design</title>
 <link rel="stylesheet" href="dist/ui.css">
 <style>
-/* Layout concept: the real Perch UI on a faux desktop, driven by a few state buttons. */
-:root{--pg-bg:#F2F3F1;--pg-fg:#141816;--pg-muted:#5E6762;--pg-line:#D8DDD9}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;color-scheme:dark}}
-:root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;color-scheme:dark}
+/* The real Perch UI on a faux desktop. Pick a scenario below; pick an avatar in the matrix. */
+:root{--pg-bg:#F2F3F1;--pg-fg:#141816;--pg-muted:#5E6762;--pg-line:#D8DDD9;--pg-card:#FAFBFA}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;color-scheme:dark}}
+:root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;color-scheme:dark}
 html,body{overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;background:var(--pg-bg)!important;color:var(--pg-fg);margin:0}
 body{font-family:Inter,-apple-system,system-ui,sans-serif}
-.wrap{max-width:760px;margin:0 auto;padding:32px 20px 56px;display:flex;flex-direction:column;gap:18px}
+.wrap{max-width:880px;margin:0 auto;padding:28px 20px 64px;display:flex;flex-direction:column;gap:22px}
 h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
-.sub{margin:6px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:62ch}
-.bar{display:flex;gap:8px;flex-wrap:wrap}
-.bar button{font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:1px solid var(--pg-line);border-radius:8px;padding:8px 13px;cursor:pointer}
-.bar button.p{background:var(--pg-fg);color:var(--pg-bg);border-color:var(--pg-fg)}
+.sub{margin:6px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:64ch}
+h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
+.note{font-size:12.5px;line-height:1.5;color:var(--pg-muted);margin:0}
+
+/* the desktop stays in view while you pick scenarios */
+.deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
 .desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:340px;
   background:radial-gradient(700px 360px at 14% -10%,#3b5b50 0%,transparent 62%),radial-gradient(640px 420px at 100% 110%,#6a4331 0%,transparent 58%),#16201e}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
-.note{font-size:12.5px;color:var(--pg-muted)}
-h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:6px 0 2px}
+.now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
+
+/* scenarios */
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px}
+.group h3{font:600 12px Inter,sans-serif;letter-spacing:.02em;color:var(--pg-muted);margin:0 0 8px;text-transform:uppercase}
+.sc{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;transition:background .15s}
+.sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
+.sc b{font:500 13px Inter,sans-serif}.sc span{font-size:12px;line-height:1.4;color:var(--pg-muted)}
+.sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 22%,transparent)}
+.play{display:inline-flex;align-items:center;gap:8px;font:500 13px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border:0;border-radius:9px;padding:8px 13px;cursor:pointer;align-self:flex-start}
+
+/* avatar matrix */
+.matrix{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);overflow:hidden}
+.mrow{display:grid;grid-template-columns:150px repeat(4,1fr);align-items:center}
+.mrow>*{padding:10px 12px}
+.mhead{font:600 12px Inter,sans-serif;color:var(--pg-muted);text-transform:uppercase;letter-spacing:.02em}
+.pick{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;cursor:pointer;border-radius:0;padding:12px}
+.pick b{font:500 13px Inter,sans-serif}.pick span{font-size:12px;color:var(--pg-muted)}
+.mrow.sel{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
+.mrow:not(.hd):hover{background:color-mix(in srgb,var(--pg-fg) 5%,transparent)}
+.cell{display:grid;place-items:center;height:76px}
+.cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
+.cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
+.badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
+@media (max-height:760px){.deskwrap{position:static}}
+@media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
 <main class="wrap">
   <header>
     <h1>Perch</h1>
-    <p class="sub">This is the real interface, the same code that runs in the app, with sample projects. Press the buttons, or use Tab, Return, N and Esc.</p>
+    <p class="sub">The real interface, the same code that runs in the app, with sample projects. Pick a scenario to see it on the desktop below. You can also use Tab, Return, N, R and Esc on the card.</p>
   </header>
-  <div class="bar" id="bar"></div>
-  <div class="desk"><div class="mb"></div><div id="scene"></div></div>
+
+  <div class="deskwrap">
+    <div class="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
+  </div>
+
+  <section>
+    <h2>Scenarios</h2>
+    <p class="note" style="margin-bottom:10px">Each one is the live card in that state.</p>
+    <div class="groups" id="groups"></div>
+  </section>
+
+  <section>
+    <h2>Avatar</h2>
+    <p class="note" style="margin-bottom:10px">Pick a shape. It updates the desktop above. Each row shows the four moods: asleep, awake, happy and peeking.</p>
+    <div class="matrix" id="matrix"></div>
+    <p class="note" id="chosen" style="margin-top:8px"></p>
+  </section>
+
   <p class="note">The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, saffron otherwise). At rest the character is hidden. It pops out beside the notch with an orange dot only when something needs you.</p>
 </main>
 <script src="app.js"></script>
 <script>
 (function () {
   var d = window.perchDev; if (!d) return;
-  var items = [['Play the flow', function () { d.play(); }, 1], ['Welcome back', function () { d.project(0); d.show('open'); }], ['Done (green glow)', function () { d.project(1); d.show('open'); }],
-    ['Claude asked a question', function () { d.project(2); d.show('open'); }], ['Replying', function () { d.project(2); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); }, 700); }], ['Replying: typed', function () { d.project(2); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }], ['Snooze choices', function () { d.project(0); d.show('open'); setTimeout(function () { document.querySelector('.x-esc').click(); }, 700); }], ['Jump back in', function () { d.show('switcher'); }], ['Setup: off', function () { d.show('setup', 'off'); }], ['Setup: downloading', function () { d.show('setup', 'downloading'); }], ['Idle: quiet', function () { d.show('idle', 'off', true); }], ['Idle: needs you', function () { d.show('idle'); }]];
-  var bar = document.getElementById('bar');
-  items.forEach(function (it) { var b = document.createElement('button'); b.textContent = it[0]; if (it[2]) b.className = 'p'; b.onclick = it[1]; bar.appendChild(b); });
-})();
+  function reply(typed) { return function () { d.project(2); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  var GROUPS = [
+    ['Coming back', [
+      ['Needs you', 'Codex is waiting on you. Orange glow.', function () { d.project(0); d.show('open'); }],
+      ['Replied', 'The agent finished. Green glow.', function () { d.project(1); d.show('open'); }],
+      ['Asked a question', 'Shows Reply and the question under Next.', function () { d.project(2); d.show('open'); }]
+    ]],
+    ['Acting on it', [
+      ['Reply: empty', 'Press R. The field replaces the buttons.', reply(false)],
+      ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
+      ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(0); d.show('open'); setTimeout(function () { document.querySelector('.x-esc').click(); }, 700); }],
+      ['Other projects', 'Press Tab. Tab goes back to the card.', function () { d.show('switcher'); }]
+    ]],
+    ['Resting', [
+      ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
+      ['Something needs you', 'The character pops out with an orange dot.', function () { d.show('idle'); }]
+    ]],
+    ['First run', [
+      ['Better summaries: off', 'Guides turning on Apple Intelligence.', function () { d.show('setup', 'off'); }],
+      ['Better summaries: downloading', 'The model is downloading.', function () { d.show('setup', 'downloading'); }]
+    ]]
+  ];
+  var now = document.getElementById('now'), btns = [];
+  function run(b, name, fn) { btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
+  var wrap = document.getElementById('groups');
+  var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
+  play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };
+  wrap.parentNode.insertBefore(play, wrap); play.style.marginBottom = '10px';
+  GROUPS.forEach(function (g) {
+    var box = document.createElement('div'); box.className = 'group'; box.innerHTML = '<h3>' + g[0] + '</h3>';
+    g[1].forEach(function (s) {
+      var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<b>' + s[0] + '</b><span>' + s[1] + '</span>';
+      b.onclick = function () { run(b, g[0] + ': ' + s[0], s[2]); };
+      btns.push(b); box.appendChild(b);
+    });
+    wrap.appendChild(box);
+  });
+  btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs you';
 
+  /* avatars */
+  var VARIANTS = [
+    ['Dome', 'Today. Soft top, flat base.', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
+    ['Arch', 'Taller and calmer, like a doorway.', 'M4 22V11a8 8 0 0 1 16 0v11a0 0 0 0 1 0 0H4z', '40%'],
+    ['Tile', 'A rounded square. Reads like an app.', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%'],
+    ['Ears', 'Dome with two small ears. More creature.', 'M2 19V13a10 10 0 0 1 3.4-7.5L5 1.5l4.6 2.2a10 10 0 0 1 4.8 0L19 1.5l-.4 4A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '50%']
+  ];
+  var MOODS = [['Asleep', 'sleep'], ['Awake', 'awake'], ['Happy', 'happy'], ['Peeking', 'peek']];
+  var mx = document.getElementById('matrix'), chosen = document.getElementById('chosen'), rows = [], DOME_PATH = VARIANTS[0][2];
+  function cr(mood, path, et) {
+    return '<div class="stage"><div class="cr" data-m="' + mood + '" style="--et:' + et + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + path + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div></div>';
+  }
+  var head = document.createElement('div'); head.className = 'mrow hd';
+  head.innerHTML = '<div class="mhead">Shape</div>' + MOODS.map(function (m) { return '<div class="mhead" style="text-align:center">' + m[0] + '</div>'; }).join('');
+  mx.appendChild(head);
+  function choose(i) {
+    var v = VARIANTS[i];
+    rows.forEach(function (r, j) { r.classList.toggle('sel', j === i); r.querySelector('.tag').style.display = j === i ? '' : 'none'; });
+    document.querySelectorAll('#scene .cr .f path').forEach(function (p) { p.setAttribute('d', v[2]); });
+    var live = document.querySelector('#scene .cr'); if (live) live.style.setProperty('--et', v[3]);
+    chosen.textContent = 'Showing: ' + v[0] + '. Tell me which one you want and I will make it the default.';
+  }
+  VARIANTS.forEach(function (v, i) {
+    var r = document.createElement('div'); r.className = 'mrow';
+    r.innerHTML = '<button class="pick"><b>' + v[0] + '<span class="badge tag" style="display:none">Showing</span></b><span>' + v[1] + '</span></button>' + MOODS.map(function (m) { return '<div class="cell">' + cr(m[1], v[2], v[3]) + '</div>'; }).join('');
+    r.querySelector('.pick').onclick = function () { choose(i); };
+    r.querySelectorAll('.cell').forEach(function (c) { c.style.cursor = 'pointer'; c.onclick = function () { choose(i); }; });
+    rows.push(r); mx.appendChild(r);
+  });
+  choose(0);
+  /* keep the chosen shape when the card re-renders */
+  var cur = 0, orig = choose; choose = function (i) { cur = i; orig(i); };
+  var real = window.perchDev.show; window.perchDev.show = function () { real.apply(this, arguments); orig(cur); };
+})();
 </script>

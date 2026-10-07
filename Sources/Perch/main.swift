@@ -52,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var seconds: TimeInterval = 20 * 60
             if let i = args.firstIndex(of: "--idle"), args.indices.contains(i + 1), let v = TimeInterval(args[i + 1]) { seconds = v }
             let monitor = ActivityMonitor(threshold: seconds)
-            monitor.onReturn = { c.comeBack() }
+            monitor.onReturn = { c.comeBack(proactive: true) }
             activity = monitor
             installStatusItem()
             // First run: offer the guided setup once, a moment after launch.

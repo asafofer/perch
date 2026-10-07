@@ -72,7 +72,28 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: public actions
-    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); openedByHover = onHome; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack) }
+    /// `proactive` is Perch speaking up on its own (you came back from being away, a snooze ended). Then it never
+    /// talks about the session you are already in: that one goes to the back, and if it is the only one, nothing shows.
+    func comeBack(onHome: Bool = false, proactive: Bool = false) {
+        if proactive, machine.phase == .idle, let i = activeProjectIndex() {
+            guard projects.count > 1 else { return }
+            projects.append(projects.remove(at: i))
+        }
+        snoozeTask?.cancel(); openedByHover = onHome; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack)
+    }
+
+    /// The most recent session of whichever app is in front: Claude, Codex or a terminal.
+    private func activeProjectIndex() -> Int? {
+        guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
+        let terminals: Set<String> = ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "com.github.wez.wezterm", "net.kovidgoyal.kitty"]
+        return projects.firstIndex { p in
+            switch bid {
+            case "com.anthropic.claudefordesktop": return p.app == "claude" && p.desktopSessionId != nil
+            case "com.openai.codex": return p.app == "codex"
+            default: return terminals.contains(bid) && p.app == "claude" && p.desktopSessionId == nil
+            }
+        }
+    }
     func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
@@ -133,6 +154,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func startRefreshing() {
+        // Switching apps changes which session counts as "the one you are in", so the resting character is re-evaluated.
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
+        }
         refreshProjects()
         let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
         RunLoop.main.add(t, forMode: .common)
@@ -206,7 +231,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func push() {
         guard ready else { return }
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen)
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
+                          activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil)
         iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -320,7 +346,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         snoozeTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: .seconds(seconds))
-            if !Task.isCancelled, self.machine.phase == .idle { self.comeBack() }
+            if !Task.isCancelled, self.machine.phase == .idle { self.comeBack(proactive: true) }
         }
     }
 
