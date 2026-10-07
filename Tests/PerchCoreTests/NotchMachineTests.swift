@@ -105,4 +105,13 @@ import Testing
         #expect(m.phase == .open)
         var i = NotchMachine(projectCount: 3); i.send(.back); #expect(i.phase == .idle)
     }
+
+    @Test func refreshWhileOpenKeepsTheCardAndClampsSelection() {
+        var m = NotchMachine(projectCount: 3)
+        m.send(.comeBack); m.send(.next); m.send(.next)
+        m.send(.projectsChanged(count: 2, selected: 5))
+        #expect(m.phase == .open); #expect(m.projectCount == 2); #expect(m.selected == 1)
+        m.send(.projectsChanged(count: 4, selected: 2))
+        #expect(m.selected == 2)
+    }
 }

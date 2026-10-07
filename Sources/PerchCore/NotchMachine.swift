@@ -7,6 +7,8 @@ public enum NotchEvent: Equatable, Sendable {
     case choose(Int)
     case openSetup
     case back
+    /// The list was refreshed while the card is up: keep the card, clamp what is selected.
+    case projectsChanged(count: Int, selected: Int)
     case hoverChanged(Bool), restoreFinished
 }
 
@@ -55,6 +57,11 @@ public struct NotchMachine: Equatable, Sendable {
             if !hovering { close() }
         case (.restoring, .restoreFinished):
             close()
+        case (.open, .projectsChanged(let n, let sel)), (.switcher, .projectsChanged(let n, let sel)):
+            projectCount = n
+            if n == 0 { close() } else { selected = min(max(sel, 0), n - 1) }
+        case (_, .projectsChanged(let n, _)):
+            projectCount = n
         case (.open, .hoverChanged(let h)), (.switcher, .hoverChanged(let h)):
             hovering = h
         default:

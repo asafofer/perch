@@ -80,6 +80,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             projects.append(projects.remove(at: i))
         }
         snoozeTask?.cancel(); openedByHover = onHome; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack)
+        refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
     /// The most recent session of whichever app is in front: Claude, Codex or a terminal.
@@ -94,7 +95,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         }
     }
-    func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher) }
+    func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher); refreshProjects() }
     func confirm() { send(.confirm) }
 
     /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
@@ -140,9 +141,24 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             await MainActor.run {
                 guard let self else { return }
                 self.refreshing = false
-                if self.machine.phase == .idle { self.install(list) } else { self.pendingProjects = list }
+                switch self.machine.phase {
+                case .idle: self.install(list)
+                case .open, .switcher: self.installLive(list)
+                default: self.pendingProjects = list
+                }
             }
         }
+    }
+
+    /// New data while the card is up: swap it in, keep the same project selected, and redraw.
+    private func installLive(_ list: [Project]) {
+        guard list != projects else { return }
+        let keep = projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
+        projects = list
+        machine.send(.projectsChanged(count: list.count, selected: list.firstIndex { $0.id == keep } ?? 0))
+        applyCachedRecaps()
+        enrich()
+        push()
     }
 
     private func install(_ list: [Project]) {
@@ -159,7 +175,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
         }
         refreshProjects()
-        let t = Timer(timeInterval: 20, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
+        // Every 5 seconds while the card is up, every 20 otherwise.
+        var tick = 0
+        let t = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                tick += 1
+                if self.machine.phase == .open || self.machine.phase == .switcher || tick % 4 == 0 { self.refreshProjects() }
+            }
+        }
         RunLoop.main.add(t, forMode: .common)
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshProjects() }
