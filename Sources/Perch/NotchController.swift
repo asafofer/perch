@@ -107,15 +107,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Writes missing recaps with the on-device model, one at a time, and updates the card as each lands.
     func enrich() {
         guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
-        let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String)? in
+        let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
             guard let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
-            return (p.id, input.digest, input.git, p.name, key)
+            return (p.id, input.digest, input.git, p.name, key, p.app == "codex" ? "Codex" : "Claude")
         }
         guard !todo.isEmpty else { return }
         enriching = true
         Task { [weak self] in
-            for (id, digest, git, name, key) in todo {
-                guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name) else { continue }
+            for (id, digest, git, name, key, agent) in todo {
+                guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name, agent: agent) else { continue }
                 RecapCache.shared.set(key, r)
                 guard let self, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
                 self.projects[i] = RecapMerge.apply(r, to: self.projects[i], grounding: digest)

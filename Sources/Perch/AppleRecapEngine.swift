@@ -32,11 +32,11 @@ enum AppleRecapEngine {
         }
     }
 
-    static func recap(digest: SessionDigest, git: GitInfo?, name: String) async -> RecapText? {
+    static func recap(digest: SessionDigest, git: GitInfo?, name: String, agent: String = "Claude") async -> RecapText? {
         guard unavailableReason == nil else { return nil }
         let session = LanguageModelSession(instructions: RecapPrompt.instructions)
         do {
-            let r = try await session.respond(to: RecapPrompt.build(digest: digest, git: git, projectName: name), generating: GeneratedRecap.self)
+            let r = try await session.respond(to: RecapPrompt.build(digest: digest, git: git, projectName: name, agent: agent), generating: GeneratedRecap.self)
             let c = r.content
             return RecapText(headline: c.headline.trimmingCharacters(in: .whitespacesAndNewlines), context: c.context.trimmingCharacters(in: .whitespacesAndNewlines), next: c.next.trimmingCharacters(in: .whitespacesAndNewlines))
         } catch {

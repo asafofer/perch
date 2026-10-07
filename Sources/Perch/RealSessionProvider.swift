@@ -9,6 +9,28 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     private(set) var inputs: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
 
     func parkedProjects() -> [Project] {
+        inputs = [:]
+        var all = claudeProjects() + codexProjects()
+        all.sort { $0.last > $1.last }
+        var seen = Set<String>(), out: [Project] = []
+        for item in all {
+            guard let cwd = item.project.cwd, !seen.contains(cwd) else { continue }
+            seen.insert(cwd); out.append(item.project)
+            inputs[item.project.id] = (item.digest, item.git)
+            if out.count == maxProjects { break }
+        }
+        return out
+    }
+
+    typealias Found = (project: Project, digest: SessionDigest, git: GitInfo?, last: Date)
+
+    private func usable(_ cwd: String) -> Bool {
+        !cwd.contains("/scratch-workspaces/") && !cwd.contains("/scratchpad") && !cwd.hasPrefix("/private/tmp")
+            && !cwd.hasPrefix("/tmp") && !cwd.hasPrefix("/var/") && FileManager.default.fileExists(atPath: cwd)
+    }
+
+    // MARK: Claude Code (~/.claude/projects/*/*.jsonl)
+    private func claudeProjects() -> [Found] {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
         guard let dirs = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
         let cutoff = Date().addingTimeInterval(-Double(maxAgeDays) * 86_400)
@@ -22,38 +44,83 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         }
         newest.sort { $0.mtime > $1.mtime }
 
-        var seen = Set<String>(), out: [Project] = []
-        inputs = [:]
+        var seen = Set<String>(), out: [Found] = []
         let now = Date()
         let desktop = DesktopSessions.index()
-        for item in newest {
-            guard var digest = Self.digest(of: item.url), let cwd = digest.cwd, !seen.contains(cwd),
-                  !cwd.contains("/scratch-workspaces/"), !cwd.contains("/scratchpad"),
-                  !cwd.hasPrefix("/private/tmp"), !cwd.hasPrefix("/tmp"), !cwd.hasPrefix("/var/"),
-                  FileManager.default.fileExists(atPath: cwd) else { continue }
+        for item in newest.prefix(12) {
+            guard var digest = Self.digest(of: item.url, parse: TranscriptParser.digest), let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
             seen.insert(cwd)
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             let git = Self.git(at: cwd)
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id) { out.append(p); inputs[p.id] = (digest, git) }
-            if out.count == maxProjects { break }
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id), let last = digest.lastTimestamp {
+                out.append((p, digest, git, last))
+            }
         }
         return out
     }
 
+    // MARK: Codex (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl)
+    private func codexProjects() -> [Found] {
+        let fm = FileManager.default
+        let root = fm.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions")
+        let cutoff = Date().addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        func sortedDesc(_ url: URL) -> [URL] {
+            ((try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []).sorted { $0.lastPathComponent > $1.lastPathComponent }
+        }
+        var candidates: [(url: URL, mtime: Date)] = []
+        outer: for year in sortedDesc(root) {
+            for month in sortedDesc(year) {
+                for day in sortedDesc(month) {
+                    for file in sortedDesc(day) where file.pathExtension == "jsonl" {
+                        guard let m = try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { continue }
+                        if m < cutoff { break outer }
+                        candidates.append((file, m))
+                    }
+                    if candidates.count >= 40 { break outer }
+                }
+            }
+        }
+        candidates.sort { $0.mtime > $1.mtime }
+
+        var seen = Set<String>(), out: [Found] = []
+        let now = Date()
+        for item in candidates.prefix(20) {
+            guard var digest = Self.digest(of: item.url, parse: CodexTranscript.digest) else { continue }
+            if digest.cwd == nil || digest.sessionId == nil, let head = Self.head(of: item.url) { digest.cwd = digest.cwd ?? head.cwd; digest.sessionId = digest.sessionId ?? head.sessionId }
+            guard let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
+            seen.insert(cwd)
+            let git = Self.git(at: cwd)
+            digest.branch = Self.branch(at: cwd)
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex"), let last = digest.lastTimestamp {
+                out.append((p, digest, git, last))
+            }
+        }
+        return out
+    }
+
+    /// The first line of a Codex file holds the folder and id, far from the tail we read for messages.
+    static func head(of url: URL) -> SessionDigest? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 200_000), let text = String(data: data, encoding: .utf8),
+              let first = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true).first else { return nil }
+        return CodexTranscript.digest(lines: [String(first)])
+    }
+
     /// Only the tail of the file: sessions can be tens of megabytes and the recent part is what matters.
-    static func digest(of url: URL) -> SessionDigest? {
+    static func digest(of url: URL, parse: ([String]) -> SessionDigest) -> SessionDigest? {
         var result: SessionDigest?
         // Busy sessions can end in megabytes of tool output and images, so widen the window until real messages appear.
         for window in [600_000, 4_000_000, 16_000_000] as [UInt64] {
-            guard let d = digest(of: url, tailBytes: window) else { continue }
+            guard let d = digest(of: url, tailBytes: window, parse: parse) else { continue }
             result = d
-            if d.cwd != nil, d.lastTimestamp != nil, d.lastUserText != nil { break }
+            if d.lastTimestamp != nil, d.lastUserText != nil { break }
         }
         return result
     }
 
-    private static func digest(of url: URL, tailBytes: UInt64) -> SessionDigest? {
+    private static func digest(of url: URL, tailBytes: UInt64, parse: ([String]) -> SessionDigest) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         let size = (try? handle.seekToEnd()) ?? 0
@@ -61,8 +128,8 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         try? handle.seek(toOffset: start)
         guard let data = try? handle.readToEnd(), var text = String(data: data, encoding: .utf8) else { return nil }
         if start > 0, let nl = text.firstIndex(of: "\n") { text = String(text[text.index(after: nl)...]) }   // drop the partial first line
-        var d = TranscriptParser.digest(lines: text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init))
-        if d.title == nil { d.title = lastTitle(in: url) }
+        var d = parse(text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init))
+        if d.title == nil, url.path.contains("/.claude/") { d.title = lastTitle(in: url) }
         return d
     }
 
@@ -75,6 +142,11 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         let end = data[hit.upperBound...].firstIndex(of: 0x0A) ?? data.count
         guard let obj = (try? JSONSerialization.jsonObject(with: data[start..<end])) as? [String: Any] else { return nil }
         return obj["customTitle"] as? String
+    }
+
+    static func branch(at cwd: String) -> String? {
+        let b = run("git", ["-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"])?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (b?.isEmpty == false && b != "HEAD") ? b : nil
     }
 
     static func git(at cwd: String) -> GitInfo? {
@@ -122,6 +194,11 @@ enum DesktopSessions {
 /// Sessions from the Claude app open in the Claude app; terminal sessions resume in Terminal.
 enum Restorer {
     static func resume(_ p: Project) {
+        // Codex: bring the Codex app forward. (Opening one exact thread needs a link Codex doesn't document.)
+        if p.app == "codex" {
+            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/Codex.app"), configuration: NSWorkspace.OpenConfiguration())
+            return
+        }
         if let id = p.desktopSessionId, let url = URL(string: "claude://code/continue?session=\(id)") {
             NSWorkspace.shared.open(url)
             return

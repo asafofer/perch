@@ -89,19 +89,19 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil) -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude") -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
         let context = d.lastUserText.map { "You last asked: “\(clip($0, 90))”" } ?? "Your last session is ready to resume."
-        let (status, next) = statusAndNext(d, git)
-        let agents = [AgentStatus(kind: status.kind, text: status.text)]
+        let (status, next) = statusAndNext(d, git, agent: agent)
+        let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
-                       topic: clip(d.title ?? d.lastUserText ?? name, 28), app: "claude", agents: agents,
+                       topic: clip(d.title ?? d.lastUserText ?? name, 28), app: app, agents: agents,
                        steps: desktopSessionId != nil
-                           ? [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your session")]
-                           : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your Claude Code session")],
+                           ? [RestoreStep(icon: "win", text: "Opened the \(app == "codex" ? "Codex" : "Claude") app"), RestoreStep(icon: "term", text: "Went back to your session")]
+                           : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
     }
 
@@ -112,18 +112,18 @@ public enum Recap {
         return cap.hasSuffix(".") || cap.hasSuffix("…") ? cap : cap + "."
     }
 
-    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?) -> ((kind: AgentStatus.Kind, text: String), String) {
-        if d.lastRole == "user" { return ((.needsYou, "Waiting on Claude Code"), "Check whether Claude Code finished") }
+    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code") -> ((kind: AgentStatus.Kind, text: String), String) {
+        if d.lastRole == "user" { return ((.needsYou, "Waiting on \(agent)"), "Check whether \(agent) finished") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
-            return ((.needsYou, "Claude asked you something"), "Answer: “\(clip(lastSentence(a), 70))”")
+            return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 70))”")
         }
         if let g = git, g.uncommitted > 0 {
-            return ((.done, "Claude Code replied"), "Review \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")")
+            return ((.done, "\(agent) replied"), "Review \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")")
         }
         if let a = d.lastAssistantText, let first = firstSentence(a) {
-            return ((.done, "Claude Code replied"), "Pick up from: “\(clip(first, 70))”")
+            return ((.done, "\(agent) replied"), "Pick up from: “\(clip(first, 70))”")
         }
-        return ((.done, "Claude Code replied"), "Continue from Claude's last reply")
+        return ((.done, "\(agent) replied"), "Continue from the last reply")
     }
 
     static func lastSentence(_ s: String) -> String {
@@ -184,7 +184,7 @@ public enum RecapPrompt {
     No markdown, no emoji, no quotation marks around the fields.
     """
 
-    public static func build(digest d: SessionDigest, git: GitInfo?, projectName: String) -> String {
+    public static func build(digest d: SessionDigest, git: GitInfo?, projectName: String, agent: String = "Claude") -> String {
         var out = "Project: \(projectName)\n"
         if let t = d.title, !t.isEmpty { out += "Session title: \(t)\n" }
         if let g = git {
@@ -193,7 +193,7 @@ public enum RecapPrompt {
             out += "\n"
         }
         out += "Recent conversation, oldest first:\n"
-        out += d.recent.suffix(8).map { ($0.role == "user" ? "User: " : "Claude: ") + Recap.clip($0.text, 300) }.joined(separator: "\n")
+        out += d.recent.suffix(8).map { ($0.role == "user" ? "User: " : "\(agent): ") + Recap.clip($0.text, 300) }.joined(separator: "\n")
         return out
     }
 
@@ -213,5 +213,46 @@ extension Project {
         Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                 context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                 agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+    }
+}
+
+
+/// Reads Codex session files (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl).
+/// The working folder and id sit in the first line (session_meta); messages are response_item records.
+public enum CodexTranscript {
+    public static func digest(lines: [String]) -> SessionDigest {
+        var d = SessionDigest()
+        let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        for line in lines {
+            guard let data = line.data(using: .utf8),
+                  let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let payload = o["payload"] as? [String: Any] else { continue }
+            let type = o["type"] as? String
+            if type == "session_meta" {
+                if let id = payload["id"] as? String { d.sessionId = id }
+                if let cwd = payload["cwd"] as? String { d.cwd = cwd }
+                continue
+            }
+            guard type == "response_item", payload["type"] as? String == "message",
+                  let role = payload["role"] as? String, role == "user" || role == "assistant",
+                  let text = text(from: payload["content"]), !text.isEmpty else { continue }
+            if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
+            if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
+            if role == "user" { d.lastUserText = text } else { d.lastAssistantText = text }
+            d.lastRole = role
+            d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
+            if d.recent.count > 12 { d.recent.removeFirst() }
+        }
+        return d
+    }
+
+    static func text(from content: Any?) -> String? {
+        guard let blocks = content as? [[String: Any]] else { return TranscriptParser.text(from: content) }
+        let raw = blocks.compactMap { b -> String? in
+            let t = b["type"] as? String
+            return t == "input_text" || t == "output_text" ? b["text"] as? String : nil
+        }.joined(separator: " ")
+        return TranscriptParser.text(from: raw)
     }
 }
