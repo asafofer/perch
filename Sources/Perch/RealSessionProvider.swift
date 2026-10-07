@@ -150,9 +150,9 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     }
 
     static func git(at cwd: String) -> GitInfo? {
-        guard let status = run("git", ["-C", cwd, "status", "--porcelain"]) else { return nil }
-        let n = status.split(separator: "\n").count
-        return GitInfo(uncommitted: n, lastCommit: run("git", ["-C", cwd, "log", "-1", "--format=%s"])?.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard let status = run("git", ["-C", cwd, "status", "--porcelain", "-b"]) else { return nil }
+        let last = run("git", ["-C", cwd, "log", "-1", "--format=%s"])?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return GitInfo.parse(status: status, lastCommit: last)
     }
 
     private static func run(_ tool: String, _ args: [String]) -> String? {

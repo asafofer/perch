@@ -84,7 +84,34 @@ public enum TranscriptParser {
 public struct GitInfo: Equatable, Sendable {
     public var uncommitted: Int
     public var lastCommit: String?
-    public init(uncommitted: Int, lastCommit: String? = nil) { self.uncommitted = uncommitted; self.lastCommit = lastCommit }
+    /// File names (not paths) of the uncommitted changes, most relevant first.
+    public var files: [String]
+    /// Commits not yet pushed to the upstream branch.
+    public var ahead: Int
+    public var branch: String?
+    public init(uncommitted: Int, lastCommit: String? = nil, files: [String] = [], ahead: Int = 0, branch: String? = nil) {
+        self.uncommitted = uncommitted; self.lastCommit = lastCommit; self.files = files; self.ahead = ahead; self.branch = branch
+    }
+
+    /// Parses `git status --porcelain -b` output.
+    public static func parse(status: String, lastCommit: String?) -> GitInfo {
+        var files: [String] = [], ahead = 0, branch: String?
+        for line in status.split(separator: "\n", omittingEmptySubsequences: true) {
+            if line.hasPrefix("## ") {
+                let head = line.dropFirst(3)
+                branch = String(head).components(separatedBy: "...").first
+                if let r = head.range(of: "ahead "), let n = Int(String(head[r.upperBound...].prefix(while: { $0.isNumber }))) { ahead = n }
+                continue
+            }
+            var path = String(line.dropFirst(3))
+            if let arrow = path.range(of: " -> ") { path = String(path[arrow.upperBound...]) }
+            path = path.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            let name = (path as NSString).lastPathComponent
+            if !name.isEmpty { files.append(name) }
+        }
+        var seen = Set<String>(); files = files.filter { seen.insert($0).inserted }
+        return GitInfo(uncommitted: files.count, lastCommit: lastCommit, files: files, ahead: ahead, branch: branch)
+    }
 }
 
 public enum Recap {
@@ -117,13 +144,42 @@ public enum Recap {
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
             return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 70))”")
         }
-        if let g = git, g.uncommitted > 0 {
-            return ((.done, "\(agent) replied"), "Review \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")")
+        let done = (kind: AgentStatus.Kind.done, text: "\(agent) replied")
+        if let a = d.lastAssistantText, let step = explicitNext(in: a) { return (done, "Next: \(clip(step, 66))") }
+        if let g = git {
+            if g.uncommitted > 0 { return (done, commitStep(g)) }
+            if g.ahead > 0 { return (done, "Push \(g.ahead) commit\(g.ahead == 1 ? "" : "s")\(g.branch.map { " on \($0)" } ?? "")") }
         }
-        if let a = d.lastAssistantText, let first = firstSentence(a) {
-            return ((.done, "\(agent) replied"), "Pick up from: “\(clip(first, 70))”")
+        if let a = d.lastAssistantText, let first = firstSentence(a) { return (done, "Pick up from: “\(clip(first, 70))”") }
+        return (done, "Continue from the last reply")
+    }
+
+    /// "Commit changes to a.swift, b.js and 3 more", with the most useful files first (code before notes and build output).
+    static func commitStep(_ g: GitInfo) -> String {
+        let ranked = g.files.sorted { rank($0) < rank($1) }
+        let shown = ranked.prefix(2).joined(separator: ", ")
+        let more = g.files.count - min(2, g.files.count)
+        return more > 0 ? "Commit changes to \(shown) and \(more) more" : "Commit changes to \(shown)"
+    }
+    private static func rank(_ name: String) -> Int {
+        let ext = (name as NSString).pathExtension.lowercased()
+        if ["md", "txt", "json", "lock", "log", "png", "jpg", "html"].contains(ext) { return 2 }
+        return name.hasPrefix(".") ? 3 : 1
+    }
+
+    /// A next step the assistant stated itself: a line or sentence like "Next: …", "Then …", "Still to do: …".
+    static func explicitNext(in text: String) -> String? {
+        let cues = ["next:", "next,", "next I", "then ", "still to do", "remaining:", "to do:", "todo:", "left to do", "next step"]
+        let pieces = text.replacingOccurrences(of: "\n", with: ". ").components(separatedBy: CharacterSet(charactersIn: ".!"))
+        for raw in pieces.reversed() {
+            var t = raw.trimmingCharacters(in: CharacterSet(charactersIn: " -•*\t"))
+            guard t.count > 8 else { continue }
+            let lower = t.lowercased()
+            guard let cue = cues.first(where: { lower.hasPrefix($0.lowercased()) }) else { continue }
+            t = String(t.dropFirst(cue.count)).trimmingCharacters(in: CharacterSet(charactersIn: " :,-"))
+            if t.count > 6 { return t.prefix(1).uppercased() + t.dropFirst() }
         }
-        return ((.done, "\(agent) replied"), "Continue from the last reply")
+        return nil
     }
 
     static func lastSentence(_ s: String) -> String {
