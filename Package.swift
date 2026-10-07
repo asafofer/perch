@@ -6,9 +6,7 @@ let package = Package(
     platforms: [.macOS(.v26)],
     targets: [
         .target(name: "PerchCore"),
-        .target(name: "PerchUI", dependencies: ["PerchCore"]),
-        .executableTarget(name: "Perch", dependencies: ["PerchCore", "PerchUI"]),
-        .executableTarget(name: "PerchSnapshots", dependencies: ["PerchCore", "PerchUI"]),
+        .executableTarget(name: "Perch", dependencies: ["PerchCore"]),
         .testTarget(name: "PerchCoreTests", dependencies: ["PerchCore"]),
     ],
     swiftLanguageModes: [.v5]

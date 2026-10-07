@@ -4,6 +4,7 @@ public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restori
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
+    case choose(Int)
     case hoverChanged(Bool), restoreFinished
 }
 
@@ -37,6 +38,9 @@ public struct NotchMachine: Equatable, Sendable {
             selected = (selected - 1 + projectCount) % projectCount
         case (.open, .confirm), (.switcher, .confirm):
             phase = .restoring
+        case (.open, .choose(let i)), (.switcher, .choose(let i)):
+            guard (0..<projectCount).contains(i) else { return }
+            selected = i; phase = .restoring
         case (.open, .dismiss), (.switcher, .dismiss), (.restoring, .dismiss):
             close()
         case (.open, .timeout):

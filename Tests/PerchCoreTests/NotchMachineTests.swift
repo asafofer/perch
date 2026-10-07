@@ -63,3 +63,18 @@ import Testing
         #expect(m.phase == .idle)
     }
 }
+
+@Suite struct NotchMachineChooseTests {
+    @Test func chooseSelectsAndRestores() {
+        var m = NotchMachine(projectCount: 3); m.send(.openSwitcher); m.send(.choose(2))
+        #expect(m.phase == .restoring); #expect(m.selected == 2)
+    }
+    @Test func chooseOutOfRangeIsIgnored() {
+        var m = NotchMachine(projectCount: 3); m.send(.openSwitcher); m.send(.choose(7))
+        #expect(m.phase == .switcher)
+    }
+    @Test func chooseIsIgnoredWhenIdle() {
+        var m = NotchMachine(projectCount: 3); m.send(.choose(1))
+        #expect(m.phase == .idle)
+    }
+}

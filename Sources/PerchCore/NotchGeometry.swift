@@ -8,36 +8,24 @@ public struct ScreenInfo: Equatable, Sendable {
 }
 
 public enum NotchGeometry {
-    public static let fallbackPillSize = CGSize(width: 188, height: 34)
-    public static let openSize = CGSize(width: 600, height: 224)
-    public static let switcherSize = CGSize(width: 600, height: 238)
-    public static let restoringSize = CGSize(width: 600, height: 200)
-    /// Transparent margin around the largest card, so shadows are not clipped.
-    public static let shadowMargin: CGFloat = 40
+    public static let cardWidth: CGFloat = 360
+    /// One fixed, transparent panel hosts every phase. It holds the tallest card plus room for the shadow.
+    public static let panelSize = CGSize(width: 440, height: 300)
+    public static let fallbackIdleHeight: CGFloat = 32
 
+    /// Idle footprint: the hardware notch, or nothing visible on a Mac without one.
     public static func idleSize(for screen: ScreenInfo) -> CGSize {
-        screen.notchSize ?? fallbackPillSize
+        screen.notchSize ?? CGSize(width: 0, height: fallbackIdleHeight)
     }
 
-    public static func size(for phase: NotchPhase, screen: ScreenInfo) -> CGSize {
-        switch phase {
-        case .idle: idleSize(for: screen)
-        case .open: openSize
-        case .switcher: switcherSize
-        case .restoring: restoringSize
-        }
-    }
-
-    /// The fixed panel that hosts every phase: top-centred, big enough for the largest card plus margin.
+    /// The panel, top-centred on the screen.
     public static func panelFrame(for screen: ScreenInfo) -> CGRect {
-        let w = openSize.width + shadowMargin * 2
-        let h = openSize.height + shadowMargin
-        return CGRect(x: screen.frame.midX - w / 2, y: screen.frame.maxY - h, width: w, height: h)
+        CGRect(x: screen.frame.midX - panelSize.width / 2, y: screen.frame.maxY - panelSize.height,
+               width: panelSize.width, height: panelSize.height)
     }
 
-    /// Screen-space rect of the visible card for a phase (used for hover and click-through).
-    public static func contentRect(for phase: NotchPhase, screen: ScreenInfo) -> CGRect {
-        let s = size(for: phase, screen: screen)
-        return CGRect(x: screen.frame.midX - s.width / 2, y: screen.frame.maxY - s.height, width: s.width, height: s.height)
+    /// Screen-space rect of the visible card, used for hover and click-through. `height` comes from the UI.
+    public static func contentRect(width: CGFloat, height: CGFloat, screen: ScreenInfo) -> CGRect {
+        CGRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
     }
 }

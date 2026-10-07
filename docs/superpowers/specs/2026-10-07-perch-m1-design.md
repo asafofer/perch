@@ -12,7 +12,7 @@ Reading `~/.claude`, git state, summarizing, Accessibility window restore, first
 
 ## Stack
 
-Swift 6, SwiftUI for views, AppKit for the window. macOS 26 target (this machine runs 26.6). No third-party dependencies. Direct distribution, not sandboxed.
+Swift 6 and AppKit for the window, state machine, hotkeys and everything native. The card itself is drawn by a WKWebView running `ui/` (HTML, Tailwind v3, shadcn recipes, bundled Inter), so the shipped app matches the design mockups exactly. Swift owns all state and pushes JSON snapshots to the page; the page only draws and reports clicks. macOS 26 target (this machine runs 26.6). No third-party dependencies. Direct distribution, not sandboxed.
 
 ## Units
 
