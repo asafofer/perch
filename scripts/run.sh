@@ -13,7 +13,13 @@ cp ".build/$CONFIG/Perch" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp ui/index.html ui/app.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
-codesign --force --sign - "$APP" >/dev/null 2>&1
+# Sign with the stable local "Perch Dev" certificate when it exists, so macOS remembers privacy permissions across rebuilds.
+# (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
+if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then
+  codesign --force --sign "Perch Dev" "$APP" >/dev/null 2>&1 || codesign --force --sign - "$APP" >/dev/null 2>&1
+else
+  codesign --force --sign - "$APP" >/dev/null 2>&1
+fi
 pkill -x Perch 2>/dev/null || true
 case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
