@@ -49,14 +49,14 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
-    '<div class="pane p-open"><button aria-label="Jump back in" title="Other projects" class="x-list rv absolute right-[32px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('list', 'size-3') + '</button>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '<svg class="pointer-events-none absolute -inset-[3px] size-6" viewBox="0 0 24 24" style="transform:rotate(-90deg)" aria-hidden="true"><circle id="ring" cx="12" cy="12" r="10" fill="none" stroke="rgba(250,250,250,.42)" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="62.83"/></svg></button>' +
     '<div class="inner pt-8">' +
-      '<p class="o-away rv px-4 pt-0.5 text-xs tabular-nums text-muted-foreground" style="--i:0"></p>' +
+      '<div class="rv flex items-center justify-between gap-2 px-4 pt-0.5" style="--i:0"><span class="o-away text-xs tabular-nums text-muted-foreground"></span><span class="o-st"></span></div>' +
       '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground line-clamp-3" style="--i:2"></p>' +
       '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 font-medium leading-4"></span></p>' +
-      '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4"><span class="o-st pl-1.5"></span><span class="flex-1"></span>' + Button('ghost', 'Not now', '', 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
-      '<div id="b"></div></div></div>' +
+      '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('⇥'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+    '</div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
@@ -134,8 +134,9 @@
     }).join('') + '</div>';
   }
   function bar(on) {
-    var b = q('#b'); b.style.transition = 'none'; b.style.width = on ? '100%' : '0';
-    if (on) { void b.offsetWidth; b.style.transition = 'width 9s linear'; b.style.width = '0'; }
+    var r = q('#ring'); if (!r) return;
+    r.style.transition = 'none'; r.style.strokeDashoffset = on ? '0' : '62.83';
+    if (on) { void r.getBoundingClientRect(); r.style.transition = 'stroke-dashoffset 9s linear'; r.style.strokeDashoffset = '62.83'; }
   }
   function layout(st, s) {
     var scr = s.screen, idleW = scr.hasNotch ? scr.notchW : 0, idleH = scr.hasNotch ? scr.notchH : 32;

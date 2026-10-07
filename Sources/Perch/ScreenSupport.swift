@@ -12,6 +12,11 @@ extension NSScreen {
 }
 
 enum ScreenChooser {
+    /// Where the notch lives when nothing is showing: the built-in display with a notch, else the main display.
+    static func home() -> NSScreen {
+        NSScreen.screens.first { $0.notchSize != nil } ?? NSScreen.main ?? NSScreen.screens[0]
+    }
+
     /// The display under the cursor, else the built-in one, else the main one.
     static func current() -> NSScreen {
         let p = NSEvent.mouseLocation

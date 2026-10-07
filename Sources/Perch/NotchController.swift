@@ -19,6 +19,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var mouseMonitors: [Any] = []
     private var ready = false
     private var iconsSent = false
+    private var activity: NSObjectProtocol?
     private var snoozeTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
     /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
@@ -32,8 +33,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         self.provider = provider
         projects = provider.parkedProjects()
         machine = NotchMachine(projectCount: projects.count)
-        screen = ScreenChooser.current()
+        screen = ScreenChooser.home()
         info = screen.screenInfo
+        // Without this macOS naps an app with no visible window, which makes cursor polling erratic.
+        activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Watching the cursor for the notch")
 
         let config = WKWebViewConfiguration()
         let controller = WKUserContentController()
@@ -60,7 +63,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: public actions
-    func comeBack() { snoozeTask?.cancel(); prepareToShow(); send(.comeBack) }
+    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); prepareToShow(onHome: onHome); send(.comeBack) }
     func toggleSwitcher() { prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
@@ -87,12 +90,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: state
-    private func prepareToShow() {
+    private func prepareToShow(onHome: Bool = false) {
         guard machine.phase == .idle else { return }
         projects = provider.parkedProjects()
         machine.projectCount = projects.count
         applyCachedRecaps()
-        place(on: ScreenChooser.current())
+        place(on: onHome ? ScreenChooser.home() : ScreenChooser.current())
         enrich()
     }
 
@@ -172,6 +175,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         switch new {
         case .idle:
             hoverLatched = true
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(700))
+                guard let self, self.machine.phase == .idle else { return }
+                self.place(on: ScreenChooser.home()); self.push()
+            }
             timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
         case .open:
             if old == .idle { haptic(.alignment) }
@@ -264,7 +272,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             switch e.keyCode {
             case 36, 76: self.send(.confirm)
             case 53: self.send(.dismiss)
-            case 48: self.send(e.modifierFlags.contains(.shift) ? .previous : .next)
+            case 48: if self.machine.phase == .open { self.send(.openSwitcher) } else { self.send(e.modifierFlags.contains(.shift) ? .previous : .next) }
+            case 45: if self.machine.phase == .open { self.snooze() } else { return e }
             case 125: self.send(.next)
             case 126: self.send(.previous)
             default: return e
@@ -281,7 +290,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Checks the cursor 30 times a second. Reliable where mouse-moved events are not, and it feeds the character's eyes.
     private func startCursorPolling() {
-        cursorTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.mouseMoved()
@@ -293,10 +302,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
             }
         }
+        t.tolerance = 0
+        RunLoop.main.add(t, forMode: .common)
+        cursorTimer = t
+    }
+
+    /// A click anywhere outside the card closes it.
+    private func clickedElsewhere() {
+        guard machine.phase != .idle else { return }
+        let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
+        if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
     }
 
     private func installMouseMonitors() {
         startCursorPolling()
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.clickedElsewhere() } }) { mouseMonitors.append(g) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
@@ -318,7 +338,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             try? await Task.sleep(for: .milliseconds(120))
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
-            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack() }
+            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack(onHome: true) }
         }
     }
 
