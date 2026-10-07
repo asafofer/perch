@@ -11,6 +11,9 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastTimestamp: Date?
     /// "user" or "assistant": who spoke last.
     public var lastRole: String?
+    /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
+    public var recent: [Line] = []
+    public struct Line: Equatable, Sendable { public let role: String; public let text: String }
     public init() {}
 }
 
@@ -35,6 +38,8 @@ public enum TranscriptParser {
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if type == "user" { d.lastUserText = text } else { d.lastAssistantText = text }
             d.lastRole = type
+            d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
+            if d.recent.count > 12 { d.recent.removeFirst() }
         }
         return d
     }
@@ -84,7 +89,7 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current) -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
@@ -94,9 +99,10 @@ public enum Recap {
         return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: clip(d.title ?? d.lastUserText ?? name, 28), app: "claude", agents: agents,
-                       steps: [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"),
-                               RestoreStep(icon: "term", text: "Resumed your Claude Code session")],
-                       sessionId: d.sessionId, cwd: cwd)
+                       steps: desktopSessionId != nil
+                           ? [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your session")]
+                           : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your Claude Code session")],
+                       sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
@@ -133,7 +139,7 @@ public enum Recap {
         return t
     }
 
-    static func clip(_ s: String, _ n: Int) -> String {
+    public static func clip(_ s: String, _ n: Int) -> String {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
         return t.count <= n ? t : String(t.prefix(n - 1)).trimmingCharacters(in: .whitespaces) + "…"
     }
@@ -156,5 +162,55 @@ public enum RelativeTime {
         if let y = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: y) { return "Yesterday \(time)" }
         if let week = calendar.date(byAdding: .day, value: -6, to: now), date > week { f.dateFormat = "EEE h:mm a"; return f.string(from: date) }
         f.dateFormat = "MMM d"; return f.string(from: date)
+    }
+}
+
+/// Words a model writes for the card. Only the three fields the UI shows.
+public struct RecapText: Equatable, Codable, Sendable {
+    public var headline: String
+    public var context: String
+    public var next: String
+    public init(headline: String, context: String, next: String) { self.headline = headline; self.context = context; self.next = next }
+}
+
+public enum RecapPrompt {
+    public static let instructions = """
+    You write the welcome-back card for a developer returning to a coding session. \
+    Read the recent conversation and the facts, then write three short fields in plain English.
+    - headline: what they were doing, second person, past tense ("You were fixing the login bug."). Max 60 characters, ends with a period.
+    - context: the key decision or where things stand now. Max 110 characters.
+    - next: the single most useful next step, imperative ("Add the missing test."). Base it on the LATEST messages and the git facts. \
+    Never suggest something already done or merged, and never repeat a suggestion the user rejected. Max 60 characters.
+    No markdown, no emoji, no quotation marks around the fields.
+    """
+
+    public static func build(digest d: SessionDigest, git: GitInfo?, projectName: String) -> String {
+        var out = "Project: \(projectName)\n"
+        if let g = git {
+            out += "Git: \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")"
+            if let c = g.lastCommit, !c.isEmpty { out += "; last commit: \(Recap.clip(c, 80))" }
+            out += "\n"
+        }
+        out += "Recent conversation, oldest first:\n"
+        out += d.recent.suffix(8).map { ($0.role == "user" ? "User: " : "Claude: ") + Recap.clip($0.text, 300) }.joined(separator: "\n")
+        return out
+    }
+
+    /// Pulls the JSON object out of a model reply, tolerating code fences and chatter around it.
+    public static func parse(_ raw: String) -> RecapText? {
+        guard let a = raw.firstIndex(of: "{"), let b = raw.lastIndex(of: "}"), a < b,
+              let data = String(raw[a...b]).data(using: .utf8),
+              var t = try? JSONDecoder().decode(RecapText.self, from: data) else { return nil }
+        t.headline = Recap.clip(t.headline, 70); t.context = Recap.clip(t.context, 120); t.next = Recap.clip(t.next, 70)
+        return t.headline.isEmpty || t.next.isEmpty ? nil : t
+    }
+}
+
+extension Project {
+    /// The same project with model-written words in place of the plain recap.
+    public func withRecap(_ r: RecapText) -> Project {
+        Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
+                context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
+                agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
     }
 }

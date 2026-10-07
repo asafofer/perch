@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import PerchCore
 
 /// Reads the newest session of each recent project from ~/.claude/projects and turns it into a card.
@@ -22,13 +22,16 @@ struct RealSessionProvider: SessionProviding {
 
         var seen = Set<String>(), out: [Project] = []
         let now = Date()
+        let desktop = DesktopSessions.index()
         for item in newest {
-            guard let digest = Self.digest(of: item.url), let cwd = digest.cwd, !seen.contains(cwd),
+            guard var digest = Self.digest(of: item.url), let cwd = digest.cwd, !seen.contains(cwd),
                   !cwd.contains("/scratch-workspaces/"), !cwd.contains("/scratchpad"),
                   !cwd.hasPrefix("/private/tmp"), !cwd.hasPrefix("/tmp"), !cwd.hasPrefix("/var/"),
                   FileManager.default.fileExists(atPath: cwd) else { continue }
             seen.insert(cwd)
-            if let p = Recap.project(digest: digest, git: Self.git(at: cwd), now: now) { out.append(p) }
+            let app = digest.sessionId.flatMap { desktop[$0] }
+            if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
+            if let p = Recap.project(digest: digest, git: Self.git(at: cwd), now: now, desktopSessionId: app?.id) { out.append(p) }
             if out.count == maxProjects { break }
         }
         return out
@@ -86,9 +89,39 @@ struct RealSessionProvider: SessionProviding {
     }
 }
 
-/// What "Pick up" does for a real session: open Terminal in the project and resume the Claude Code session.
+/// The Claude app keeps its own list of Code sessions. This maps a transcript id to the app's id and title.
+enum DesktopSessions {
+    struct Entry { let id: String; let title: String? }
+
+    /// Keys are the transcript ids (the app calls them cliSessionId).
+    static func index() -> [String: Entry] {
+        let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")
+        var out: [String: Entry] = [:]
+        let fm = FileManager.default
+        for account in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] {
+            let accountDir = root.appendingPathComponent(account)
+            for org in (try? fm.contentsOfDirectory(atPath: accountDir.path)) ?? [] {
+                let dir = accountDir.appendingPathComponent(org)
+                for file in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where file.hasPrefix("local_") && file.hasSuffix(".json") {
+                    guard let data = try? Data(contentsOf: dir.appendingPathComponent(file)),
+                          let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                          let cli = o["cliSessionId"] as? String, let id = o["sessionId"] as? String else { continue }
+                    out[cli] = Entry(id: id, title: o["title"] as? String)
+                }
+            }
+        }
+        return out
+    }
+}
+
+/// What "Pick up" does for a real session: reopen it where you were working.
+/// Sessions from the Claude app open in the Claude app; terminal sessions resume in Terminal.
 enum Restorer {
     static func resume(_ p: Project) {
+        if let id = p.desktopSessionId, let url = URL(string: "claude://code/continue?session=\(id)") {
+            NSWorkspace.shared.open(url)
+            return
+        }
         guard let cwd = p.cwd, let id = p.sessionId else { return }   // sample data does nothing
         let command = "cd \(shellQuote(cwd)) && claude --resume \(id)"
         let script = "tell application \"Terminal\"\nactivate\ndo script \"\(command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\"\nend tell"

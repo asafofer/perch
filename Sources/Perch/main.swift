@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
-                print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   resume:   cd \(p.cwd ?? "?") && claude --resume \(p.sessionId ?? "?")")
+                print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(p.desktopSessionId.map { "claude://code/continue?session=" + $0 } ?? "Terminal: claude --resume \(p.sessionId ?? "?")")")
             }
             exit(0)
         }

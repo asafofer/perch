@@ -32,13 +32,15 @@ public struct Project: Identifiable, Equatable, Sendable {
     /// Set for real sessions: what Pick up resumes. Nil for sample data, which does nothing.
     public let sessionId: String?
     public let cwd: String?
+    /// The Claude app's own id for this session ("local_…"). When set, Pick up opens it in the app instead of Terminal.
+    public let desktopSessionId: String?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
-                agents: [AgentStatus], steps: [RestoreStep], sessionId: String? = nil, cwd: String? = nil) {
+                agents: [AgentStatus], steps: [RestoreStep], sessionId: String? = nil, cwd: String? = nil, desktopSessionId: String? = nil) {
         self.id = id; self.name = name; self.branch = branch; self.away = away; self.at = at
         self.headline = headline; self.context = context; self.next = next; self.topic = topic
-        self.app = app; self.agents = agents; self.steps = steps; self.sessionId = sessionId; self.cwd = cwd
+        self.app = app; self.agents = agents; self.steps = steps; self.sessionId = sessionId; self.cwd = cwd; self.desktopSessionId = desktopSessionId
     }
 
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
