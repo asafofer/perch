@@ -39,10 +39,10 @@
     '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
     '<div class="pane p-open"><div class="inner pt-8">' +
-      '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:0"><div class="min-w-0 flex-1"><div class="o-n truncate text-sm font-medium leading-4"></div><div class="o-a mt-0.5 text-xs leading-4 tabular-nums text-muted-foreground"></div></div><span class="o-bw">' + Badge('<span class="o-b font-mono text-[11px]"></span>') + '</span></div>' +
-      '<p class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
-      '<p class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
-      '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span class="o-x min-w-0 truncate font-medium"></span></p>' +
+      '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:0"><div class="min-w-0 flex-1"><div dir="auto" class="o-n truncate text-sm font-medium leading-4"></div><div class="o-a mt-0.5 text-xs leading-4 tabular-nums text-muted-foreground"></div></div><span class="o-bw">' + Badge('<span class="o-b font-mono text-[11px]"></span>') + '</span></div>' +
+      '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
+      '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
+      '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 truncate font-medium"></span></p>' +
       '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4"><span class="o-st pl-1.5"></span><span class="flex-1"></span>' + Button('ghost', 'Not now', '', 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
       '<div id="b"></div></div></div>' +
     '<div class="pane p-switch"><div class="inner pt-8">' +
@@ -80,7 +80,7 @@
     q('.s-l').innerHTML = s.projects.map(function (p, k) {
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors ' + (k === s.selected ? 'bg-accent' : '') + '" data-i="' + k + '">' +
         App(p.app) +
-        '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + p.name + '</span><span class="ml-2 text-muted-foreground">' + p.topic + '</span></span>' +
+        '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + p.name + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + p.topic + '</span></span>' +
         (p.attention ? Dot(COLORS.attention) : '') +
         '<span class="text-xs tabular-nums text-muted-foreground">' + p.away + ' ago</span></div>';
     }).join('');

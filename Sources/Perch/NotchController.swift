@@ -8,7 +8,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private let panel = NotchPanel()
     private let web: WKWebView
     private var machine: NotchMachine
-    private let projects: [Project]
+    private var projects: [Project]
+    private let provider: SessionProviding
     private var screen: NSScreen
     private var info: ScreenInfo
     private var contentSize = CGSize(width: NotchGeometry.cardWidth, height: 160)
@@ -19,6 +20,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var ready = false
 
     init(provider: SessionProviding) {
+        self.provider = provider
         projects = provider.parkedProjects()
         machine = NotchMachine(projectCount: projects.count)
         screen = ScreenChooser.current()
@@ -70,7 +72,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: state
-    private func prepareToShow() { if machine.phase == .idle { place(on: ScreenChooser.current()) } }
+    private func prepareToShow() {
+        guard machine.phase == .idle else { return }
+        projects = provider.parkedProjects()
+        machine.projectCount = projects.count
+        place(on: ScreenChooser.current())
+    }
 
     private func place(on s: NSScreen) {
         screen = s; info = s.screenInfo
@@ -105,6 +112,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
         case .restoring:
             timer?.cancel(); haptic(.levelChange)
+            if projects.indices.contains(machine.selected) { Restorer.resume(projects[machine.selected]) }
             timer = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(3.2))
                 if !Task.isCancelled { self?.send(.restoreFinished) }

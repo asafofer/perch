@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build Perch (web UI + Swift), wrap it in a signed .app bundle, and launch it.
-# Flags: --demo plays the flow once. --snapshot <dir> writes PNGs of each state and quits.
+# Flags: --demo plays the flow once. --idle <seconds> shows it after that much idle time (default 1200). --snapshot <dir> writes PNGs of each state and quits.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CONFIG=${CONFIG:-debug}
@@ -17,6 +17,7 @@ codesign --force --sign - "$APP" >/dev/null 2>&1
 pkill -x Perch 2>/dev/null || true
 case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
-  --snapshot) "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" ;;
+  --idle) open -n "$APP" --args --idle "${2:-15}" ;;
+  --snapshot) "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
   *) open "$APP" ;;
 esac

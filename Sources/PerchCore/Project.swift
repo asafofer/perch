@@ -27,13 +27,16 @@ public struct Project: Identifiable, Equatable, Sendable {
     public let app: String           // which app icon the UI shows
     public let agents: [AgentStatus]
     public let steps: [RestoreStep]
+    /// Set for real sessions: what Pick up resumes. Nil for sample data, which does nothing.
+    public let sessionId: String?
+    public let cwd: String?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
-                agents: [AgentStatus], steps: [RestoreStep]) {
+                agents: [AgentStatus], steps: [RestoreStep], sessionId: String? = nil, cwd: String? = nil) {
         self.id = id; self.name = name; self.branch = branch; self.away = away; self.at = at
         self.headline = headline; self.context = context; self.next = next; self.topic = topic
-        self.app = app; self.agents = agents; self.steps = steps
+        self.app = app; self.agents = agents; self.steps = steps; self.sessionId = sessionId; self.cwd = cwd
     }
 
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
