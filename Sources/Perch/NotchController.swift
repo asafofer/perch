@@ -133,8 +133,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Reading sessions and running git takes seconds, so it never happens when the card opens.
     func refreshProjects() {
-        guard !refreshing else { return }
-        refreshing = true
+        guard !refreshing else { refreshAgain = true; return }
+        refreshing = true; refreshAgain = false
         let provider = self.provider
         Task.detached(priority: .utility) { [weak self] in
             let list = provider.parkedProjects()
@@ -146,7 +146,39 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 case .open, .switcher: self.installLive(list)
                 default: self.pendingProjects = list
                 }
+                if self.refreshAgain { self.refreshAgain = false; self.refreshProjects() }
             }
+        }
+    }
+    private var refreshAgain = false
+
+    // MARK: watching the session folders, so a new message shows up within a moment
+    private var fsStream: FSEventStreamRef?
+    private var fsPending = false
+
+    private func startWatching() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let paths = [".claude/projects", ".codex/sessions"].map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
+        guard !paths.isEmpty else { return }
+        var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
+        let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
+            guard let info else { return }
+            let me = Unmanaged<NotchController>.fromOpaque(info).takeUnretainedValue()
+            MainActor.assumeIsolated { me.sessionFilesChanged() }
+        }
+        guard let stream = FSEventStreamCreate(nil, callback, &ctx, paths as CFArray, FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 0.2,
+                                               FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer)) else { return }
+        FSEventStreamSetDispatchQueue(stream, .main)
+        FSEventStreamStart(stream)
+        fsStream = stream
+    }
+
+    /// A busy session writes many times a second, so refreshes are spaced at least half a second apart.
+    private func sessionFilesChanged() {
+        guard !fsPending else { return }
+        fsPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            MainActor.assumeIsolated { self?.fsPending = false; self?.refreshProjects() }
         }
     }
 
@@ -175,6 +207,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
         }
         refreshProjects()
+        startWatching()
         // Every 5 seconds while the card is up, every 20 otherwise.
         var tick = 0
         let t = Timer(timeInterval: 5, repeats: true) { [weak self] _ in

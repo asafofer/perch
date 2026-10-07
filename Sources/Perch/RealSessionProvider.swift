@@ -25,6 +25,27 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         return out
     }
 
+    /// Reading a session tail is the slow part, so a file is only read again when it changed.
+    private var digestCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
+    private var gitCache: [String: (at: Date, info: GitInfo?, branch: String?)] = [:]
+
+    private func cachedDigest(_ url: URL, mtime: Date, parse: ([String]) -> SessionDigest) -> SessionDigest? {
+        lock.lock(); let hit = digestCache[url.path]; lock.unlock()
+        if let hit, hit.mtime == mtime { return hit.digest }
+        guard let d = Self.digest(of: url, parse: parse) else { return nil }
+        lock.lock(); digestCache[url.path] = (mtime, d); lock.unlock()
+        return d
+    }
+
+    /// Git state changes slowly next to a conversation, so it is looked up at most every 30 seconds per folder.
+    private func cachedGit(_ cwd: String, withBranch: Bool = false) -> (info: GitInfo?, branch: String?) {
+        lock.lock(); let hit = gitCache[cwd]; lock.unlock()
+        if let hit, Date().timeIntervalSince(hit.at) < 30, !withBranch || hit.branch != nil { return (hit.info, hit.branch) }
+        let info = Self.git(at: cwd), branch = withBranch ? Self.branch(at: cwd) : hit?.branch
+        lock.lock(); gitCache[cwd] = (Date(), info, branch); lock.unlock()
+        return (info, branch)
+    }
+
     typealias Found = (project: Project, digest: SessionDigest, git: GitInfo?, last: Date)
 
     private func usable(_ cwd: String) -> Bool {
@@ -54,11 +75,11 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         let now = Date()
         let desktop = DesktopSessions.index()
         for item in newest.prefix(12) {
-            guard var digest = Self.digest(of: item.url, parse: TranscriptParser.digest), let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
+            guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: TranscriptParser.digest), let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
             seen.insert(cwd)
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
-            let git = Self.git(at: cwd)
+            let git = cachedGit(cwd).info
             if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
@@ -92,12 +113,13 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         var seen = Set<String>(), out: [Found] = []
         let now = Date()
         for item in candidates.prefix(20) {
-            guard var digest = Self.digest(of: item.url, parse: CodexTranscript.digest) else { continue }
+            guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: CodexTranscript.digest) else { continue }
             if digest.cwd == nil || digest.sessionId == nil, let head = Self.head(of: item.url) { digest.cwd = digest.cwd ?? head.cwd; digest.sessionId = digest.sessionId ?? head.sessionId }
             guard let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
             seen.insert(cwd)
-            let git = Self.git(at: cwd)
-            digest.branch = Self.branch(at: cwd)
+            let cg = cachedGit(cwd, withBranch: true)
+            let git = cg.info
+            digest.branch = cg.branch
             if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
