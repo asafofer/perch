@@ -12,7 +12,7 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 codesign --force --sign - "$APP" >/dev/null 2>&1
 pkill -x Perch 2>/dev/null || true
 if [ "${1:-}" = "--demo" ]; then
-  "$APP/Contents/MacOS/Perch" --demo &
+  open -n "$APP" --args --demo
 else
   open "$APP"
 fi
