@@ -49,9 +49,10 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
-    '<div class="pane p-open"><span class="o-away rv absolute left-[44px] top-[9px] z-10 text-xs tabular-nums text-muted-foreground" style="--i:0"></span><button aria-label="Jump back in" title="Other projects" class="x-list rv absolute right-[32px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('list', 'size-3') + '</button>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-open"><button aria-label="Jump back in" title="Other projects" class="x-list rv absolute right-[32px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('list', 'size-3') + '</button>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
-      '<p dir="auto" class="o-h rv mt-0.5 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
+      '<p class="o-away rv px-4 pt-0.5 text-xs tabular-nums text-muted-foreground" style="--i:0"></p>' +
+      '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
       '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 truncate font-medium"></span></p>' +
       '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4"><span class="o-st pl-1.5"></span><span class="flex-1"></span>' + Button('ghost', 'Not now', '', 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
@@ -110,7 +111,7 @@
   var snap = null;
 
   function fill(p) {
-    q('.o-away').textContent = p.away;
+    q('.o-away').textContent = 'While you were away · ' + p.away;
     q('.o-h').textContent = p.headline;
     q('.o-c').textContent = p.context;
     q('.o-x').textContent = p.next;
