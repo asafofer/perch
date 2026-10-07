@@ -33,8 +33,8 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     }
 
     // MARK: Claude Code (~/.claude/projects/*/*.jsonl)
-    /// A session file written to in the last 45 seconds means the agent is working right now.
-    static let runningWindow: TimeInterval = 45
+    /// Working right now: its turn is open (a tool call or your prompt is the last thing) and the file was written to in the last 150 seconds.
+    static let runningWindow: TimeInterval = 150
 
     private func claudeProjects() -> [Found] {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
@@ -59,7 +59,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             let git = Self.git(at: cwd)
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, running: now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
         }
@@ -98,7 +98,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             seen.insert(cwd)
             let git = Self.git(at: cwd)
             digest.branch = Self.branch(at: cwd)
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", running: now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
         }

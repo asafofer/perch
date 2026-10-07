@@ -11,6 +11,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastTimestamp: Date?
     /// "user" or "assistant": who spoke last.
     public var lastRole: String?
+    /// The agent's turn has started and not finished: its last record is a tool call, a tool result or your prompt.
+    public var turnOpen = false
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
@@ -34,7 +36,14 @@ public enum TranscriptParser {
             if let c = o["cwd"] as? String { d.cwd = c }
             if let b = o["gitBranch"] as? String, !b.isEmpty, b != "HEAD" { d.branch = b }
             guard type == "user" || type == "assistant", o["isMeta"] as? Bool != true else { continue }
-            guard let text = text(from: (o["message"] as? [String: Any])?["content"]), !text.isEmpty else { continue }
+            let message = o["message"] as? [String: Any]
+            if type == "assistant" {
+                let done: Set<String> = ["end_turn", "stop_sequence", "max_tokens", "refusal"]
+                d.turnOpen = !done.contains(message?["stop_reason"] as? String ?? "")
+            } else {
+                d.turnOpen = !isInterrupt(message?["content"])
+            }
+            guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if type == "user" { d.lastUserText = text } else { d.lastAssistantText = text }
             d.lastRole = type
@@ -42,6 +51,12 @@ public enum TranscriptParser {
             if d.recent.count > 12 { d.recent.removeFirst() }
         }
         return d
+    }
+
+    static func isInterrupt(_ content: Any?) -> Bool {
+        if let s = content as? String { return s.hasPrefix("[Request interrupted") }
+        if let blocks = content as? [[String: Any]] { return blocks.contains { ($0["text"] as? String)?.hasPrefix("[Request interrupted") == true } }
+        return false
     }
 
     /// Plain text of a message, without injected reminders or command wrappers. Tool results count as no text.
@@ -283,6 +298,9 @@ public enum CodexTranscript {
                   let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let payload = o["payload"] as? [String: Any] else { continue }
             let type = o["type"] as? String
+            if type == "event_msg", let kind = payload["type"] as? String {
+                if kind == "task_started" { d.turnOpen = true } else if kind == "task_complete" || kind == "turn_aborted" { d.turnOpen = false }
+            }
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }

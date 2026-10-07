@@ -47,6 +47,20 @@ import Foundation
         let p = Recap.project(digest: d, git: nil, now: Date())!
         #expect(p.status.kind == "attention")
     }
+    @Test func turnIsOpenAfterAToolResultAndClosedAfterEndTurn() {
+        #expect(TranscriptParser.digest(lines: lines).turnOpen)   // the last record is a tool result
+        let finished = lines + [#"{"type":"assistant","timestamp":"2026-10-07T09:07:00.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"All done."}]}}"#]
+        #expect(!TranscriptParser.digest(lines: finished).turnOpen)
+        let working = finished + [#"{"type":"assistant","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","name":"Bash"}]}}"#]
+        #expect(TranscriptParser.digest(lines: working).turnOpen)
+        let stopped = working + [#"{"type":"user","message":{"content":[{"type":"text","text":"[Request interrupted by user]"}]}}"#]
+        #expect(!TranscriptParser.digest(lines: stopped).turnOpen)
+    }
+    @Test func codexTurnFollowsTaskEvents() {
+        let started = [#"{"type":"event_msg","payload":{"type":"task_started"}}"#]
+        #expect(CodexTranscript.digest(lines: started).turnOpen)
+        #expect(!CodexTranscript.digest(lines: started + [#"{"type":"event_msg","payload":{"type":"task_complete"}}"#]).turnOpen)
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")
