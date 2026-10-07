@@ -4,7 +4,7 @@
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
   var CARD_W = 400;
   var COLORS = { attention: '#FB923C', done: '#4ADE80', idle: '#71717A' };
-  var DOME = { d: 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3zM1.8 4.6a3.4 3.4 0 1 1 6.8 0a3.4 3.4 0 1 1-6.8 0zM15.4 4.6a3.4 3.4 0 1 1 6.8 0a3.4 3.4 0 1 1-6.8 0z', et: '44%' };
+  var DOME = { d: 'M2 19V10L3 1.8Q3.3.6 4.4 1.2L9.8 4.8Q12 4 14.2 4.8L19.6 1.2Q20.7.6 21 1.8L22 10V19a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
   /* ---- shadcn recipes ---- */
   var ICON = {
