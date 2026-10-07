@@ -53,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 8.5) { NSApp.terminate(nil) }
         }
+        if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.comeBack() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) { c.confirm() }
