@@ -18,6 +18,7 @@ pkill -x Perch 2>/dev/null || true
 case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
   --show) open -n "$APP" --args --show ;;
+  --setup) open -n "$APP" --args --setup ;;
   --idle) open -n "$APP" --args --idle "${2:-15}" ;;
   --snapshot) "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
   *) open "$APP" ;;

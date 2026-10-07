@@ -59,6 +59,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func toggleSwitcher() { prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
+    /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
+    func showSetup() {
+        guard machine.phase == .idle, AppleRecapEngine.setupState != "ready" else { return }
+        snoozeTask?.cancel(); place(on: ScreenChooser.current()); send(.openSetup)
+    }
+
     /// Debug: write the web view's current pixels to a PNG, composited over a desktop-like colour.
     func snapshot(to path: String) {
         web.takeSnapshot(with: nil) { image, _ in
@@ -133,7 +139,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func push() {
         guard ready else { return }
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all())
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState)
         iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -151,6 +157,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if old == .idle { haptic(.alignment) }
             timer?.cancel()
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+        case .setup:
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+            watchSetup()
         case .restoring:
             timer?.cancel(); haptic(.levelChange)
             if projects.indices.contains(machine.selected) { Restorer.resume(projects[machine.selected]) }
@@ -163,6 +172,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func haptic(_ p: NSHapticFeedbackManager.FeedbackPattern) {
         NSHapticFeedbackManager.defaultPerformer.perform(p, performanceTime: .now)
+    }
+
+    /// While the setup card is open, re-check the system every second and close the card once everything is ready.
+    private func watchSetup() {
+        timer?.cancel()
+        timer = Task { [weak self] in
+            var last = ""
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, self.machine.phase == .setup else { return }
+                let now = AppleRecapEngine.setupState
+                if now != last { last = now; self.push() }
+                if now == "ready" {
+                    try? await Task.sleep(for: .seconds(2.2))
+                    if self.machine.phase == .setup { self.send(.dismiss) }
+                    self.enrich(); return
+                }
+            }
+        }
     }
 
     private func restartTimer() {
@@ -184,6 +212,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "confirm": send(.confirm)
         case "dismiss": send(.dismiss)
         case "snooze": snooze()
+        case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }

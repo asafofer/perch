@@ -22,6 +22,16 @@ enum AppleRecapEngine {
         }
     }
 
+    /// ready, off (Apple Intelligence switched off), downloading (model not ready yet), unsupported (this Mac can't run it)
+    static var setupState: String {
+        switch SystemLanguageModel.default.availability {
+        case .available: return "ready"
+        case .unavailable(.appleIntelligenceNotEnabled): return "off"
+        case .unavailable(.modelNotReady): return "downloading"
+        case .unavailable: return "unsupported"
+        }
+    }
+
     static func recap(digest: SessionDigest, git: GitInfo?, name: String) async -> RecapText? {
         guard unavailableReason == nil else { return nil }
         let session = LanguageModelSession(instructions: RecapPrompt.instructions)

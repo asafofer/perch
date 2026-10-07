@@ -11,6 +11,7 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'
@@ -61,6 +62,12 @@
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
       '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('↑↓') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
+    '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8">' +
+      header('<div class="text-sm font-medium leading-4">Better summaries</div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Written on your Mac. Nothing leaves it.</div>') +
+      '<div class="rv flex flex-col gap-0.5 px-4 pb-1 pt-0.5 su-rows" style="--i:1"></div>' +
+      '<div class="rv flex h-9 items-center gap-1 px-2.5" style="--i:2"><span class="su-note min-w-0 flex-1 pl-1.5 text-xs text-muted-foreground"></span><span class="su-btns flex items-center gap-1"></span></div>' +
+    '</div></div>' +
     '<div class="pane p-restore"><div class="inner pt-8">' +
       header('<div class="r-n text-sm font-medium leading-4"></div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Picking up where you left off</div>') +
       '<div class="rv px-4 pb-4 pt-0.5 r-l" style="--i:1"></div>' +
@@ -74,6 +81,29 @@
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
+  /* ---- guided setup for on-device summaries ---- */
+  function stepIcon(state) {
+    if (state === 'done') return '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>';
+    if (state === 'busy') return '<span class="grid size-4 flex-none place-items-center text-muted-foreground">' + svg('load', 'size-3.5 animate-spin') + '</span>';
+    return '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>';
+  }
+  function setup(state) {
+    var one = state === 'off' ? 'todo' : (state === 'unsupported' ? 'todo' : 'done');
+    var two = state === 'ready' ? 'done' : (state === 'downloading' ? 'busy' : 'todo');
+    var dim = function (st) { return st === 'todo' ? 'text-muted-foreground' : ''; };
+    q('.su-rows').innerHTML =
+      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(one === 'todo' && state === 'unsupported' ? 'todo' : (one === 'todo' ? 'x' : 'done')) + '">' + stepIcon(one) + '<span class="flex-1">Turn on Apple Intelligence</span></div>' +
+      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(two) + '">' + stepIcon(two) + '<span class="flex-1">' + (two === 'busy' ? 'Downloading the model…' : 'Let it download the model') + '</span></div>';
+    var note = { off: 'Takes a few minutes the first time.', downloading: 'You can keep working. This finishes on its own.', ready: 'All set. Summaries now run on your Mac.', unsupported: "This Mac can't run it, so Perch keeps plain summaries." }[state];
+    q('.su-note').textContent = note;
+    var b = q('.su-btns');
+    if (state === 'off') b.innerHTML = Button('ghost', 'Skip', '', 'x-skip') + Button('default', 'Open Settings', '', 'x-open');
+    else if (state === 'ready') b.innerHTML = '';
+    else b.innerHTML = Button('ghost', state === 'unsupported' ? 'OK' : 'Close', '', 'x-skip');
+    var sk = b.querySelector('.x-skip'); if (sk) sk.onclick = function () { post({ type: 'dismiss' }); };
+    var op = b.querySelector('.x-open'); if (op) op.onclick = function () { post({ type: 'openSettings' }); };
+  }
+
   var last = { phase: null, token: null };
   var snap = null;
 
@@ -128,8 +158,9 @@
   function apply(s) {
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[s.phase];
     var p = s.projects[s.selected];
+    if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
@@ -137,7 +168,7 @@
     last.phase = s.phase; last.token = s.timerToken;
   }
   window.perch = { apply: apply };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore' }[snap.phase], snap); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {

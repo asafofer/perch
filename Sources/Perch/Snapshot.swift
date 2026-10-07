@@ -23,10 +23,11 @@ struct UISnapshot: Encodable {
     let projects: [UIProject]
     /// Real app icons as data URLs. Sent once, with the first snapshot.
     let icons: [String: String]?
+    let setup: String
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil) {
-        self.icons = icons
-        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring" }
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready") {
+        self.icons = icons; self.setup = setup
+        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .setup: "setup" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses
         self.timerToken = timerToken

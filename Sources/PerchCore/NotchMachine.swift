@@ -1,10 +1,11 @@
 import Foundation
 
-public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring }
+public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, setup }
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
     case choose(Int)
+    case openSetup
     case hoverChanged(Bool), restoreFinished
 }
 
@@ -25,6 +26,10 @@ public struct NotchMachine: Equatable, Sendable {
         case (.idle, .comeBack):
             guard projectCount > 0 else { return }   // nothing to say: stay closed
             selected = 0; phase = .open
+        case (.idle, .openSetup):
+            phase = .setup
+        case (.setup, .dismiss):
+            close()
         case (.idle, .openSwitcher):
             guard projectCount > 0 else { return }
             phase = .switcher

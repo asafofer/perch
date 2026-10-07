@@ -55,6 +55,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             monitor.onReturn = { c.comeBack() }
             activity = monitor
             installStatusItem()
+            // First run: offer the guided setup once, a moment after launch.
+            let key = "setupOffered"
+            if !UserDefaults.standard.bool(forKey: key), AppleRecapEngine.setupState != "ready" {
+                UserDefaults.standard.set(true, forKey: key)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.showSetup() }
+            }
         }
 
         if let i = args.firstIndex(of: "--snapshot"), args.indices.contains(i + 1) {
@@ -69,8 +75,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.6) { c.confirm() }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 7.4) { c.snapshot(to: dir + "/restoring.png") }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8.5) { NSApp.terminate(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8.9) { c.send(.dismiss) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 9.2) { c.showSetup() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.6) { c.snapshot(to: dir + "/setup.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 11.6) { NSApp.terminate(nil) }
         }
+        if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.comeBack() }
@@ -96,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         let ai = AppleRecapEngine.unavailableReason == nil
             ? NSMenuItem(title: "Summaries: on-device", action: nil, keyEquivalent: "")
-            : NSMenuItem(title: "Summaries: plain. Turn on Apple Intelligence…", action: #selector(openSystemSettings), keyEquivalent: "")
+            : NSMenuItem(title: "Set up better summaries…", action: #selector(showSetup), keyEquivalent: "")
         ai.target = self; ai.isEnabled = AppleRecapEngine.unavailableReason != nil
         menu.addItem(ai)
         menu.addItem(.separator())
@@ -106,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
+    @objc private func showSetup() { controller?.showSetup() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }
 }
