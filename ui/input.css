@@ -30,6 +30,11 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n[data-s=restore] .rest-i .ck { opacity: 1; transform: none; transition-delay: calc(.45s + var(--k) * .28s); }
 .notouch { transition: none !important; }
 
+/* glow variants. Default is external; the design page switches html[data-glow]. */
+html[data-glow="internal"] .n:not([data-s=idle]) { box-shadow: inset 0 -22px 30px -18px rgba(var(--glow, 245,184,59), .55), 0 26px 46px -12px rgba(0,0,0,.55); }
+html[data-glow="both"] .n:not([data-s=idle]) { box-shadow: inset 0 -22px 30px -18px rgba(var(--glow, 245,184,59), .5), 0 18px 40px -8px rgba(var(--glow, 245,184,59), .3), 0 26px 46px -12px rgba(0,0,0,.55); }
+html[data-glow="off"] .n:not([data-s=idle]) { box-shadow: 0 26px 46px -12px rgba(0,0,0,.55); }
+
 /* character: a flat dome with flat eyes */
 .cr { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; z-index: 10; --et: 44%;
   transition: transform .5s cubic-bezier(.3,1.35,.5,1), width .5s cubic-bezier(.3,1.35,.5,1), height .5s cubic-bezier(.3,1.35,.5,1); }

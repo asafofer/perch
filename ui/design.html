@@ -26,8 +26,9 @@ h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
     <p class="sub">This is the real interface, the same code that runs in the app, with sample projects. Press the buttons, or use Tab, Return, N and Esc.</p>
   </header>
   <div class="bar" id="bar"></div>
+  <div class="bar" id="glowbar" style="align-items:center"><span class="note" style="margin-right:4px">Glow</span></div>
   <div class="desk"><div class="mb"></div><div id="scene"></div></div>
-  <p class="note">Glow under the card: orange when something needs you, green when things are done, saffron otherwise.</p>
+  <p class="note">The glow follows the status: orange when something needs you, green when things are done, saffron otherwise. Internal stays inside the black shape; external spills onto the windows behind.</p>
 </main>
 <script src="app.js"></script>
 <script>
@@ -36,6 +37,10 @@ h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
   var items = [['Play the flow', function () { d.play(); }, 1], ['Welcome back', function () { d.project(0); d.show('open'); }], ['Done (green glow)', function () { d.project(1); d.show('open'); }],
     ['Jump back in', function () { d.show('switcher'); }], ['Setup: off', function () { d.show('setup', 'off'); }], ['Setup: downloading', function () { d.show('setup', 'downloading'); }], ['Idle', function () { d.show('idle'); }]];
   var bar = document.getElementById('bar');
+  var modes = [['External', 'external'], ['Internal', 'internal'], ['Both', 'both'], ['Off', 'off']], gb = document.getElementById('glowbar'), cur = 'internal';
+  document.documentElement.dataset.glow = cur;
+  modes.forEach(function (m) { var b = document.createElement('button'); b.textContent = m[0]; b.dataset.mode = m[1]; if (m[1] === cur) b.className = 'p';
+    b.onclick = function () { document.documentElement.dataset.glow = m[1]; gb.querySelectorAll('button').forEach(function (x) { x.className = x === b ? 'p' : ''; }); }; gb.appendChild(b); });
   items.forEach(function (it) { var b = document.createElement('button'); b.textContent = it[0]; if (it[2]) b.className = 'p'; b.onclick = it[1]; bar.appendChild(b); });
 })();
 </script>
