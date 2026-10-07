@@ -99,7 +99,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard let real = provider as? RealSessionProvider else { return }
         for i in projects.indices {
             if let input = real.inputs[projects[i].id], let key = RecapCache.key(for: input.digest), let r = RecapCache.shared.get(key) {
-                projects[i] = RecapMerge.apply(r, to: projects[i])
+                projects[i] = RecapMerge.apply(r, to: projects[i], grounding: input.digest)
             }
         }
     }
@@ -118,7 +118,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name) else { continue }
                 RecapCache.shared.set(key, r)
                 guard let self, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
-                self.projects[i] = RecapMerge.apply(r, to: self.projects[i])
+                self.projects[i] = RecapMerge.apply(r, to: self.projects[i], grounding: digest)
                 self.push()
             }
             self?.enriching = false

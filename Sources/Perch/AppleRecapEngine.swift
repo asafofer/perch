@@ -4,11 +4,11 @@ import PerchCore
 
 @Generable
 struct GeneratedRecap {
-    @Guide(description: "What the developer was doing. Second person, past tense, under 60 characters, ends with a period.")
+    @Guide(description: "What the developer was doing, taken from the conversation. Starts with You were. Under 60 characters.")
     var headline: String
-    @Guide(description: "The key decision or where things stand now, under 110 characters.")
+    @Guide(description: "The key decision or where things stand now, taken from the conversation. Under 110 characters.")
     var context: String
-    @Guide(description: "The single most useful next step, imperative, under 60 characters. Never something already done.")
+    @Guide(description: "The single most useful next step, taken from the latest messages. Under 60 characters. Never something already done.")
     var next: String
 }
 
@@ -38,7 +38,7 @@ enum AppleRecapEngine {
         do {
             let r = try await session.respond(to: RecapPrompt.build(digest: digest, git: git, projectName: name), generating: GeneratedRecap.self)
             let c = r.content
-            return RecapText(headline: Recap.clip(c.headline, 70), context: Recap.clip(c.context, 120), next: Recap.clip(c.next, 70))
+            return RecapText(headline: c.headline.trimmingCharacters(in: .whitespacesAndNewlines), context: c.context.trimmingCharacters(in: .whitespacesAndNewlines), next: c.next.trimmingCharacters(in: .whitespacesAndNewlines))
         } catch {
             NSLog("Perch: on-device recap failed for \(name): \(error)")
             return nil
@@ -62,7 +62,7 @@ final class RecapCache: @unchecked Sendable {
 
     static func key(for d: SessionDigest) -> String? {
         guard let id = d.sessionId, let t = d.lastTimestamp else { return nil }
-        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v1"
+        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v2"
     }
     func get(_ key: String) -> RecapText? { lock.lock(); defer { lock.unlock() }; return store[key] }
     func set(_ key: String, _ value: RecapText) {
@@ -76,8 +76,39 @@ final class RecapCache: @unchecked Sendable {
 /// Which parts of the plain recap are facts the model must not override.
 enum RecapMerge {
     /// Keep the plain "next" when it came from a concrete fact: Claude's open question or uncommitted files.
-    static func apply(_ r: RecapText, to p: Project) -> Project {
+    /// Any model field that isn't grounded in the conversation falls back to the plain one.
+    static func apply(_ r: RecapText, to p: Project, grounding: SessionDigest? = nil) -> Project {
         let concrete = p.status.kind == "attention" || p.next.hasPrefix("Review ") || p.next.hasPrefix("Answer")
-        return p.withRecap(RecapText(headline: r.headline, context: r.context, next: concrete ? p.next : r.next))
+        let grounded: (String) -> Bool = { text in grounding.map { Grounding.isGrounded(text, in: $0) } ?? true }
+        // A field is used only if it is the right length (never cut off), grounded in the conversation, and in the right voice.
+        let oneSentence = !r.headline.dropLast().contains(".") && !r.next.dropLast().contains(".")
+        let repeats = r.context.contains(r.headline) || r.headline.contains(r.context)
+        var headline = r.headline
+        if !headline.hasSuffix(".") { headline += "." }
+        let headlineOK = oneSentence && r.headline.hasPrefix("You were") && (8...64).contains(r.headline.count) && grounded(r.headline)
+        let contextOK = !repeats && (8...120).contains(r.context.count) && grounded(r.context) && !Grounding.copiesUserMessage(r.context, p.context)
+        let nextOK = oneSentence && (4...64).contains(r.next.count) && grounded(r.next)
+        return p.withRecap(RecapText(headline: headlineOK ? headline : p.headline,
+                                     context: contextOK ? r.context : p.context,
+                                     next: concrete || !nextOK ? p.next : r.next))
+    }
+}
+
+enum Grounding {
+    private static let stop: Set<String> = ["were", "that", "with", "this", "your", "from", "have", "been", "into", "than", "then", "them", "they", "will", "what", "when", "where", "which", "about", "there", "their", "also", "just", "more", "some", "only", "need", "does", "make", "made"]
+
+    /// True when the model just parroted the plain recap's quoted message back.
+    static func copiesUserMessage(_ modelText: String, _ plain: String) -> Bool {
+        let a = modelText.lowercased(), b = plain.lowercased()
+        return b.contains(a) || a.contains(String(b.dropFirst(16).prefix(40)))
+    }
+
+    /// At least half the meaningful words of the text must appear in what the developer and Claude actually said.
+    static func isGrounded(_ text: String, in d: SessionDigest) -> Bool {
+        let source = (d.recent.map(\.text) + [d.title ?? ""]).joined(separator: " ").lowercased()
+        let words = text.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init).filter { $0.count >= 4 && !stop.contains($0) }
+        guard !words.isEmpty else { return true }
+        let hits = words.filter { source.contains($0) }.count
+        return Double(hits) / Double(words.count) >= 0.5
     }
 }

@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     guard let input = real.inputs[p.id] else { continue }
                     let t0 = Date()
                     let r = await AppleRecapEngine.recap(digest: input.digest, git: input.git, name: p.name)
-                    let merged = r.map { RecapMerge.apply($0, to: p) }
+                    let merged = r.map { RecapMerge.apply($0, to: p, grounding: input.digest) }
                     print("== \(p.name)  (\(String(format: "%.1f", Date().timeIntervalSince(t0)))s)")
                     print("  plain : \(p.headline) | \(p.context) | \(p.next)")
                     print("  model : \(merged.map { "\($0.headline) | \($0.context) | \($0.next)" } ?? "failed")")

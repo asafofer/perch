@@ -176,16 +176,17 @@ public struct RecapText: Equatable, Codable, Sendable {
 public enum RecapPrompt {
     public static let instructions = """
     You write the welcome-back card for a developer returning to a coding session. \
-    Read the recent conversation and the facts, then write three short fields in plain English.
-    - headline: what they were doing, second person, past tense ("You were fixing the login bug."). Max 60 characters, ends with a period.
-    - context: the key decision or where things stand now. Max 110 characters.
-    - next: the single most useful next step, imperative ("Add the missing test."). Base it on the LATEST messages and the git facts. \
+    Use ONLY facts stated in the conversation or the git facts below. Never invent topics, files, bugs or tasks.
+    - headline: what they were doing, second person, past tense, starting with "You were". Max 60 characters, ends with a period.
+    - context: the key decision or where things stand now, in plain words. Max 110 characters.
+    - next: the single most useful next step, as a short imperative. Base it on the LATEST messages and the git facts. \
     Never suggest something already done or merged, and never repeat a suggestion the user rejected. Max 60 characters.
     No markdown, no emoji, no quotation marks around the fields.
     """
 
     public static func build(digest d: SessionDigest, git: GitInfo?, projectName: String) -> String {
         var out = "Project: \(projectName)\n"
+        if let t = d.title, !t.isEmpty { out += "Session title: \(t)\n" }
         if let g = git {
             out += "Git: \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")"
             if let c = g.lastCommit, !c.isEmpty { out += "; last commit: \(Recap.clip(c, 80))" }
