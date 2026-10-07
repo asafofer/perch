@@ -2,7 +2,7 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 360;
+  var CARD_W = 400;
   var COLORS = { attention: '#FB923C', done: '#4ADE80', idle: '#71717A' };
   var DOME = { d: 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
@@ -53,8 +53,8 @@
     '<div class="inner pt-8">' +
       '<p class="o-away rv px-4 pt-0.5 text-xs tabular-nums text-muted-foreground" style="--i:0"></p>' +
       '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
-      '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
-      '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 truncate font-medium"></span></p>' +
+      '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground line-clamp-3" style="--i:2"></p>' +
+      '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 font-medium leading-4"></span></p>' +
       '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4"><span class="o-st pl-1.5"></span><span class="flex-1"></span>' + Button('ghost', 'Not now', '', 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
       '<div id="b"></div></div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +

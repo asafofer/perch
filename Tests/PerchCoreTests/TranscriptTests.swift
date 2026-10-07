@@ -70,7 +70,7 @@ import Foundation
     @Test func nextStepQuotesClaudesLastReplyWhenNothingElseApplies() {
         var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Perch is running now. Try the idle trigger."
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 0), now: Date())!
-        #expect(p.next == "Pick up from: “Perch is running now”")
+        #expect(p.next == "Nothing pending. Tell Claude what's next.")
     }
     @Test func keepsRecentMessagesForModels() {
         let d = TranscriptParser.digest(lines: lines)

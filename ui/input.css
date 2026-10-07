@@ -6,7 +6,7 @@
 
 html, body { margin: 0; background: transparent; overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; cursor: default; }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; }
-#scene { position: relative; width: 440px; height: 300px; }
+#scene { position: relative; width: 480px; height: 320px; }
 .perch { --background: 0 0% 0%; --foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 11%; --accent-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%; --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%; --ring: 240 4.9% 83.9%; color: hsl(var(--foreground)); letter-spacing: -.011em; }
 
@@ -19,7 +19,7 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .ear.r { right: -12px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 11.5px, #000 12px); }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
-.pane { position: absolute; left: 0; top: 0; width: 360px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .n[data-s=open] .p-open, .n[data-s=restore] .p-restore, .n[data-s=switch] .p-switch, .n[data-s=setup] .p-setup { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
 .n[data-s=open] .p-open .rv, .n[data-s=restore] .p-restore .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=setup] .p-setup .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }

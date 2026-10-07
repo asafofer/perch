@@ -120,7 +120,7 @@ public enum Recap {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
-        let context = d.lastUserText.map { "You last asked: “\(clip($0, 90))”" } ?? "Your last session is ready to resume."
+        let context = d.lastUserText.map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
@@ -142,16 +142,15 @@ public enum Recap {
     static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code") -> ((kind: AgentStatus.Kind, text: String), String) {
         if d.lastRole == "user" { return ((.needsYou, "Waiting on \(agent)"), "Check whether \(agent) finished") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
-            return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 70))”")
+            return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
         }
         let done = (kind: AgentStatus.Kind.done, text: "\(agent) replied")
-        if let a = d.lastAssistantText, let step = explicitNext(in: a) { return (done, "Next: \(clip(step, 66))") }
+        if let a = d.lastAssistantText, let step = explicitNext(in: a) { return (done, "Next: \(clip(step, 100))") }
         if let g = git {
             if g.uncommitted > 0 { return (done, commitStep(g)) }
             if g.ahead > 0 { return (done, "Push \(g.ahead) commit\(g.ahead == 1 ? "" : "s")\(g.branch.map { " on \($0)" } ?? "")") }
         }
-        if let a = d.lastAssistantText, let first = firstSentence(a) { return (done, "Pick up from: “\(clip(first, 70))”") }
-        return (done, "Continue from the last reply")
+        return (done, "Nothing pending. Tell \(agent == "Codex" ? "Codex" : "Claude") what's next.")
     }
 
     /// "Commit changes to a.swift, b.js and 3 more", with the most useful files first (code before notes and build output).
@@ -197,7 +196,10 @@ public enum Recap {
 
     public static func clip(_ s: String, _ n: Int) -> String {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.count <= n ? t : String(t.prefix(n - 1)).trimmingCharacters(in: .whitespaces) + "…"
+        guard t.count > n else { return t }
+        var cut = String(t.prefix(n - 1))
+        if let space = cut.lastIndex(of: " "), cut.distance(from: cut.startIndex, to: space) > n * 6 / 10 { cut = String(cut[..<space]) }
+        return cut.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:-")) + "…"
     }
 }
 

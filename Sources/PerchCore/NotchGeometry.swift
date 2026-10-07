@@ -8,9 +8,9 @@ public struct ScreenInfo: Equatable, Sendable {
 }
 
 public enum NotchGeometry {
-    public static let cardWidth: CGFloat = 360
+    public static let cardWidth: CGFloat = 400
     /// One fixed, transparent panel hosts every phase. It holds the tallest card plus room for the shadow.
-    public static let panelSize = CGSize(width: 440, height: 300)
+    public static let panelSize = CGSize(width: 480, height: 320)
     public static let fallbackIdleHeight: CGFloat = 32
 
     /// Idle footprint: the hardware notch, or nothing visible on a Mac without one.
