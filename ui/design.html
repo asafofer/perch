@@ -119,10 +119,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
   /* avatars */
   var VARIANTS = [
-    ['Dome', 'Today. Soft top, flat base.', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
+    ['Dome', 'The first one. Soft top, flat base.', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
     ['Arch', 'Taller and calmer, like a doorway.', 'M4 22V11a8 8 0 0 1 16 0v11a0 0 0 0 1 0 0H4z', '40%'],
     ['Tile', 'A rounded square. Reads like an app.', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%'],
-    ['Ears', 'Dome with two small ears. More creature.', 'M2 19V13a10 10 0 0 1 3.4-7.5L5 1.5l4.6 2.2a10 10 0 0 1 4.8 0L19 1.5l-.4 4A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '50%']
+    ['Ears', 'Now. Dome with two round ears.', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3zM1.8 4.6a3.4 3.4 0 1 1 6.8 0a3.4 3.4 0 1 1-6.8 0zM15.4 4.6a3.4 3.4 0 1 1 6.8 0a3.4 3.4 0 1 1-6.8 0z', '44%']
   ];
   var MOODS = [['Asleep', 'sleep'], ['Awake', 'awake'], ['Happy', 'happy'], ['Peeking', 'peek']];
   var mx = document.getElementById('matrix'), chosen = document.getElementById('chosen'), rows = [], DOME_PATH = VARIANTS[0][2];
@@ -146,9 +146,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     r.querySelectorAll('.cell').forEach(function (c) { c.style.cursor = 'pointer'; c.onclick = function () { choose(i); }; });
     rows.push(r); mx.appendChild(r);
   });
-  choose(0);
+  choose(3);
   /* keep the chosen shape when the card re-renders */
-  var cur = 0, orig = choose; choose = function (i) { cur = i; orig(i); };
+  var cur = 3, orig = choose; choose = function (i) { cur = i; orig(i); };
   var real = window.perchDev.show; window.perchDev.show = function () { real.apply(this, arguments); orig(cur); };
 })();
 </script>
