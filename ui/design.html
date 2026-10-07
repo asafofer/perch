@@ -1,0 +1,41 @@
+<meta charset="utf-8">
+<title>Perch Design</title>
+<link rel="stylesheet" href="dist/ui.css">
+<style>
+/* Layout concept: the real Perch UI on a faux desktop, driven by a few state buttons. */
+:root{--pg-bg:#F2F3F1;--pg-fg:#141816;--pg-muted:#5E6762;--pg-line:#D8DDD9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;color-scheme:dark}}
+:root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;color-scheme:dark}
+html,body{overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;background:var(--pg-bg)!important;color:var(--pg-fg);margin:0}
+body{font-family:Inter,-apple-system,system-ui,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:32px 20px 56px;display:flex;flex-direction:column;gap:18px}
+h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
+.sub{margin:6px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:62ch}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+.bar button{font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:1px solid var(--pg-line);border-radius:8px;padding:8px 13px;cursor:pointer}
+.bar button.p{background:var(--pg-fg);color:var(--pg-bg);border-color:var(--pg-fg)}
+.desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:340px;
+  background:radial-gradient(700px 360px at 14% -10%,#3b5b50 0%,transparent 62%),radial-gradient(640px 420px at 100% 110%,#6a4331 0%,transparent 58%),#16201e}
+.mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
+.desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
+.note{font-size:12.5px;color:var(--pg-muted)}
+</style>
+<main class="wrap">
+  <header>
+    <h1>Perch</h1>
+    <p class="sub">This is the real interface, the same code that runs in the app, with sample projects. Press the buttons, or use Tab, Return, N and Esc.</p>
+  </header>
+  <div class="bar" id="bar"></div>
+  <div class="desk"><div class="mb"></div><div id="scene"></div></div>
+  <p class="note">Glow under the card: orange when something needs you, green when things are done, saffron otherwise.</p>
+</main>
+<script src="app.js"></script>
+<script>
+(function () {
+  var d = window.perchDev; if (!d) return;
+  var items = [['Play the flow', function () { d.play(); }, 1], ['Welcome back', function () { d.project(0); d.show('open'); }], ['Done (green glow)', function () { d.project(1); d.show('open'); }],
+    ['Jump back in', function () { d.show('switcher'); }], ['Setup: off', function () { d.show('setup', 'off'); }], ['Setup: downloading', function () { d.show('setup', 'downloading'); }], ['Idle', function () { d.show('idle'); }]];
+  var bar = document.getElementById('bar');
+  items.forEach(function (it) { var b = document.createElement('button'); b.textContent = it[0]; if (it[2]) b.className = 'p'; b.onclick = it[1]; bar.appendChild(b); });
+})();
+</script>

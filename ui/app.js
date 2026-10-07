@@ -55,13 +55,13 @@
       '<p dir="auto" class="o-h rv mt-1 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground line-clamp-3" style="--i:2"></p>' +
       '<p class="rv mt-2 flex items-baseline gap-2 px-4 text-sm" style="--i:3"><span class="text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 font-medium leading-4"></span></p>' +
-      '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('⇥'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      '<div class="rv mt-1 flex h-9 items-center gap-1 px-2.5" style="--i:4">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
     '</div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
-      '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('↑↓') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -95,7 +95,7 @@
     var dim = function (st) { return st === 'todo' ? 'text-muted-foreground' : ''; };
     q('.su-rows').innerHTML =
       '<div class="flex h-7 items-center gap-2 text-sm ' + dim(one === 'todo' && state === 'unsupported' ? 'todo' : (one === 'todo' ? 'x' : 'done')) + '">' + stepIcon(one) + '<span class="flex-1">Turn on Apple Intelligence</span></div>' +
-      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(two) + '">' + stepIcon(two) + '<span class="flex-1">' + (two === 'busy' ? 'Downloading the model…' : 'Let it download the model') + '</span></div>';
+      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(two) + '">' + stepIcon(two) + '<span class="flex-1">' + (two === 'busy' ? 'Downloading the model\u2026' : 'Let it download the model') + '</span></div>';
     var note = { off: 'Takes a few minutes the first time.', downloading: 'A few GB. Keep working, this finishes on its own.', ready: 'All set. Summaries now run on your Mac.', unsupported: "This Mac can't run it, so Perch keeps plain summaries." }[state];
     q('.su-note').textContent = note;
     var b = q('.su-btns');
@@ -111,7 +111,7 @@
   var snap = null;
 
   function fill(p) {
-    q('.o-away').textContent = 'While you were away · ' + p.away;
+    q('.o-away').textContent = 'While you were away \u00b7 ' + p.away;
     q('.o-h').textContent = p.headline;
     q('.o-c').textContent = p.context;
     q('.o-x').textContent = p.next;
@@ -162,6 +162,8 @@
     var p = s.projects[s.selected];
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
+    var glow = { attention: '251,146,60', done: '74,222,128' };
+    n.style.setProperty('--glow', (st === 'open' && p && glow[p.status.kind]) || '245,184,59');
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
     else { if (last.running) bar(false); last.running = false; }
@@ -220,10 +222,9 @@
   function dev(m) {
     if (!snap || m.type === 'size' || m.type === 'log') return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (m.type === 'confirm') s.phase = 'restoring';
-    if (m.type === 'dismiss' || m.type === 'snooze') s.phase = 'idle';
-    if (m.type === 'choose') { s.selected = m.index; s.phase = 'restoring'; }
-    s.timerToken++; apply(s);
+    if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'choose') s.phase = 'idle';
+    if (m.type === 'switcher') s.phase = 'switcher';
+    s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
   }
   if (!NATIVE) {
     var P = [
@@ -235,6 +236,20 @@
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
-    apply({ phase: phase, selected: sel, autoCollapse: false, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P });
+    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off' };
+    apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
+    var autoTimer;
+    window.perchDev = {
+      show: function (ph, setup) { clearTimeout(autoTimer); var s = Object.assign({}, base, { phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
+      project: function (i) { base.selected = i; }
+    };
+    document.addEventListener('keydown', function (e) {
+      var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
+      if (e.key === 'Escape') window.perchDev.show('idle');
+      else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
+      else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
+      else if ((e.key === 'n' || e.key === 'N') && ph === 'open') window.perchDev.show('idle');
+    });
   }
 })();
