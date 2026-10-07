@@ -6,19 +6,22 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     var maxProjects = 5
     var maxAgeDays = 14
     /// What the last scan read, so a model can write about it without reading the files again.
-    private(set) var inputs: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
+    private var _inputs: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
+    private let lock = NSLock()
+    var inputs: [String: (digest: SessionDigest, git: GitInfo?)] { lock.lock(); defer { lock.unlock() }; return _inputs }
 
     func parkedProjects() -> [Project] {
-        inputs = [:]
         var all = claudeProjects() + codexProjects()
         all.sort { $0.last > $1.last }
         var seen = Set<String>(), out: [Project] = []
+        var fresh: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
         for item in all {
             guard let cwd = item.project.cwd, !seen.contains(cwd) else { continue }
             seen.insert(cwd); out.append(item.project)
-            inputs[item.project.id] = (item.digest, item.git)
+            fresh[item.project.id] = (item.digest, item.git)
             if out.count == maxProjects { break }
         }
+        lock.lock(); _inputs = fresh; lock.unlock()
         return out
     }
 

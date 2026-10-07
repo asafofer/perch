@@ -22,6 +22,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var activity: NSObjectProtocol?
     private var snoozeTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
+    private var openedByHover = false
     /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
     private var hoverLatched = false
     /// Simulation mode: the welcome card stays until you act on it.
@@ -31,8 +32,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     init(provider: SessionProviding) {
         self.provider = provider
-        projects = provider.parkedProjects()
-        machine = NotchMachine(projectCount: projects.count)
+        projects = []
+        machine = NotchMachine(projectCount: 0)
         screen = ScreenChooser.home()
         info = screen.screenInfo
         // Without this macOS naps an app with no visible window, which makes cursor polling erratic.
@@ -57,13 +58,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSLog("Perch: ui/index.html is missing from the app bundle")
         }
         installMouseMonitors()
+        startRefreshing()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { guard let self, self.machine.phase == .idle else { return }; self.place(on: ScreenChooser.current()); self.push() }
         }
     }
 
     // MARK: public actions
-    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); prepareToShow(onHome: onHome); send(.comeBack) }
+    func comeBack(onHome: Bool = false) { snoozeTask?.cancel(); openedByHover = onHome; prepareToShow(onHome: onHome); send(.comeBack) }
     func toggleSwitcher() { prepareToShow(); send(.openSwitcher) }
     func confirm() { send(.confirm) }
 
@@ -92,11 +94,44 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: state
     private func prepareToShow(onHome: Bool = false) {
         guard machine.phase == .idle else { return }
-        projects = provider.parkedProjects()
-        machine.projectCount = projects.count
         applyCachedRecaps()
         place(on: onHome ? ScreenChooser.home() : ScreenChooser.current())
+    }
+
+    // MARK: keeping the project list fresh, off the main thread
+    private var refreshing = false
+    private var pendingProjects: [Project]?
+
+    /// Reading sessions and running git takes seconds, so it never happens when the card opens.
+    func refreshProjects() {
+        guard !refreshing else { return }
+        refreshing = true
+        let provider = self.provider
+        Task.detached(priority: .utility) { [weak self] in
+            let list = provider.parkedProjects()
+            await MainActor.run {
+                guard let self else { return }
+                self.refreshing = false
+                if self.machine.phase == .idle { self.install(list) } else { self.pendingProjects = list }
+            }
+        }
+    }
+
+    private func install(_ list: [Project]) {
+        projects = list
+        machine.projectCount = list.count
+        applyCachedRecaps()
         enrich()
+        push()
+    }
+
+    private func startRefreshing() {
+        refreshProjects()
+        let t = Timer(timeInterval: 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
+        RunLoop.main.add(t, forMode: .common)
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshProjects() }
+        }
     }
 
     // MARK: on-device recaps
@@ -156,7 +191,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func pickUp(_ index: Int) {
         guard projects.indices.contains(index) else { return }
         Restorer.resume(projects[index])
-        haptic(.levelChange)
         let old = machine.phase
         machine.send(.dismiss)
         phaseChanged(old, machine.phase)
@@ -172,28 +206,29 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch phase: \(old) -> \(new)") }
         switch new {
         case .idle:
             hoverLatched = true
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
-                self.place(on: ScreenChooser.home()); self.push()
+                self.place(on: ScreenChooser.home())
+                if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
+                self.refreshProjects()
             }
             timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
         case .open:
-            if old == .idle { haptic(.alignment) }
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
             restartTimer()
         case .switcher:
-            if old == .idle { haptic(.alignment) }
             timer?.cancel()
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
         case .setup:
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
             watchSetup()
         case .restoring:
-            timer?.cancel(); haptic(.levelChange)
+            timer?.cancel()
             timer = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(3.2))
                 if !Task.isCancelled { self?.send(.restoreFinished) }
@@ -201,9 +236,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    private func haptic(_ p: NSHapticFeedbackManager.FeedbackPattern) {
-        NSHapticFeedbackManager.defaultPerformer.perform(p, performanceTime: .now)
-    }
 
     /// While the setup card is open, re-check the system every second and close the card once everything is ready.
     private func watchSetup() {
@@ -324,20 +356,22 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
         let idle = NotchGeometry.idleSize(for: info)
-        let w = max(idle.width, 150) + 90
+        let w = max(idle.width, 150)
+        let left: CGFloat = 30, right: CGFloat = 8     // the character sits just left of the notch
         // Extends above the screen edge so the very top pixel row of the cursor counts.
-        return CGRect(x: info.frame.midX - w / 2, y: info.frame.maxY - idle.height - 4, width: w, height: idle.height + 40)
+        return CGRect(x: info.frame.midX - w / 2 - left, y: info.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
     }
 
     /// Resting the cursor on the notch for a moment opens the welcome card.
     private func hoverIdle() {
         let inside = notchHoverRect().contains(NSEvent.mouseLocation)
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
-        if hoverLatched || hoverTask != nil { return }
+        if hoverLatched || hoverTask != nil || NSEvent.pressedMouseButtons != 0 { return }
         hoverTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(120))
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hover: dwell done") }
             if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack(onHome: true) }
         }
     }
@@ -347,6 +381,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
+        if inside, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         if inside != machine.hovering {
             send(.hoverChanged(inside))
             if machine.phase == .open { restartTimer(); push() }
