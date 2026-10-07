@@ -20,6 +20,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var ready = false
     private var iconsSent = false
     private var snoozeTask: Task<Void, Never>?
+    private var hoverTask: Task<Void, Never>?
+    /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
+    private var hoverLatched = false
     /// Simulation mode: the welcome card stays until you act on it.
     var holdOpen = false
     /// How long "Not now" hides the card before it comes back.
@@ -168,6 +171,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         switch new {
         case .idle:
+            hoverLatched = true
             timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
         case .open:
             if old == .idle { haptic(.alignment) }
@@ -277,8 +281,28 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
     }
+    /// The notch plus a little room for the character beside it.
+    private func notchHoverRect() -> CGRect {
+        let idle = NotchGeometry.idleSize(for: info)
+        let w = max(idle.width, 150) + 70
+        return CGRect(x: info.frame.midX - w / 2, y: info.frame.maxY - idle.height - 3, width: w, height: idle.height + 3)
+    }
+
+    /// Resting the cursor on the notch for a moment opens the welcome card.
+    private func hoverIdle() {
+        let inside = notchHoverRect().contains(NSEvent.mouseLocation)
+        if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
+        if hoverLatched || hoverTask != nil { return }
+        hoverTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard let self, !Task.isCancelled else { return }
+            self.hoverTask = nil
+            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack() }
+        }
+    }
+
     private func mouseMoved() {
-        guard machine.phase != .idle else { return }
+        if machine.phase == .idle { hoverIdle(); return }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside

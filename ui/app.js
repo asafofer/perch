@@ -47,7 +47,7 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
+    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
     '<div class="pane p-open"><button aria-label="Jump back in" title="Other projects" class="x-list rv absolute right-[32px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('list', 'size-3') + '</button>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -166,6 +166,35 @@
     else { if (last.running) bar(false); last.running = false; }
     last.phase = s.phase; last.token = s.timerToken;
   }
+  /* ---- the character: glances, follows the cursor, wakes with a hop, peeks while asleep ---- */
+  var tracking = false, wasMood = 'sleep', inner = cr.querySelector('.cr-in');
+  function look(x, y) { cr.style.setProperty('--lx', x.toFixed(2) + 'px'); cr.style.setProperty('--ly', y.toFixed(2) + 'px'); }
+  function glance() {
+    var m = cr.dataset.m;
+    if (m === 'awake' && !tracking) look((Math.random() * 3.2) - 1.6, (Math.random() * 2) - 1);
+    setTimeout(glance, 900 + Math.random() * 2200);
+  }
+  function peek() {
+    if (cr.dataset.m === 'sleep') {
+      cr.dataset.m = 'peek'; look(1.4, 0);
+      setTimeout(function () { if (cr.dataset.m === 'peek') { cr.dataset.m = 'sleep'; look(0, 0); } }, 1100);
+    }
+    setTimeout(peek, 6000 + Math.random() * 7000);
+  }
+  new MutationObserver(function () {
+    var m = cr.dataset.m;
+    if (m === 'awake' && wasMood !== 'awake') { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
+    if (m !== 'peek') wasMood = m;
+  }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
+  scene.addEventListener('mousemove', function (e) {
+    if (cr.dataset.m !== 'awake') return;
+    var r = cr.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 80);
+    tracking = true; look((dx / d) * 1.7 * k, (dy / d) * 1.1 * k);
+  });
+  scene.addEventListener('mouseleave', function () { tracking = false; });
+  setTimeout(glance, 1500); setTimeout(peek, 4000);
+
   window.perch = { apply: apply };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[snap.phase], snap); });
 
