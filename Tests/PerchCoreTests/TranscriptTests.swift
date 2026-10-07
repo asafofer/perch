@@ -58,4 +58,18 @@ import Foundation
         var d = SessionDigest(); d.lastUserText = "hi"
         #expect(Recap.project(digest: d, git: nil, now: Date()) == nil)
     }
+    @Test func shellCommandsAreNotPrompts() {
+        #expect(TranscriptParser.text(from: "<bash-input>cd x && ls</bash-input><bash-stdout>out</bash-stdout>") == nil)
+    }
+    @Test func injectedNotificationsAreNotPrompts() {
+        #expect(TranscriptParser.text(from: "<task-notification><task-id>1</task-id></task-notification>") == nil)
+    }
+    @Test func realPromptsThatStartWithAngleBracketSurvive() {
+        #expect(TranscriptParser.text(from: "<div> is broken, fix it") == "<div> is broken, fix it")
+    }
+    @Test func nextStepQuotesClaudesLastReplyWhenNothingElseApplies() {
+        var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Perch is running now. Try the idle trigger."
+        let p = Recap.project(digest: d, git: GitInfo(uncommitted: 0), now: Date())!
+        #expect(p.next == "Pick up from: “Perch is running now”")
+    }
 }

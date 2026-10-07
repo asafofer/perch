@@ -51,9 +51,20 @@ public enum TranscriptParser {
         raw = strip(raw, open: "<command-message>", close: "</command-message>")
         raw = strip(raw, open: "<command-args>", close: "</command-args>")
         raw = strip(raw, open: "<local-command-stdout>", close: "</local-command-stdout>")
+        raw = strip(raw, open: "<bash-stdout>", close: "</bash-stdout>")
+        raw = strip(raw, open: "<bash-stderr>", close: "</bash-stderr>")
+        raw = strip(raw, open: "<bash-input>", close: "</bash-input>")
         let t = raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
         if t.hasPrefix("[Request interrupted") || t.hasPrefix("Caveat:") { return nil }
+        if isMachineMessage(t) { return nil }
         return t.isEmpty ? nil : t
+    }
+
+    /// Harness-injected messages that arrive as "user" turns, like <task-notification>...</task-notification>.
+    static func isMachineMessage(_ t: String) -> Bool {
+        guard t.hasPrefix("<"), let close = t.firstIndex(of: ">") else { return false }
+        let name = t[t.index(after: t.startIndex)..<close].split(separator: " ").first.map(String.init) ?? ""
+        return !name.isEmpty && name.allSatisfy { $0.isLetter || $0 == "-" || $0 == "_" } && t.hasSuffix("</\(name)>")
     }
 
     private static func strip(_ s: String, open: String, close: String) -> String {
@@ -103,6 +114,9 @@ public enum Recap {
         if let g = git, g.uncommitted > 0 {
             return ((.done, "Claude Code replied"), "Review \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")")
         }
+        if let a = d.lastAssistantText, let first = firstSentence(a) {
+            return ((.done, "Claude Code replied"), "Pick up from: “\(clip(first, 70))”")
+        }
         return ((.done, "Claude Code replied"), "Continue from Claude's last reply")
     }
 
@@ -110,6 +124,13 @@ public enum Recap {
         let parts = s.split(whereSeparator: { ".!\n".contains($0) }).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         // keep the question mark that split() removed from neither side
         return (parts.last ?? s).trimmingCharacters(in: CharacterSet(charactersIn: " ?")) + "?"
+    }
+
+    static func firstSentence(_ s: String) -> String? {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return nil }
+        if let end = t.firstIndex(where: { ".!?".contains($0) }) { return String(t[...end]).trimmingCharacters(in: CharacterSet(charactersIn: ".")) }
+        return t
     }
 
     static func clip(_ s: String, _ n: Int) -> String {
