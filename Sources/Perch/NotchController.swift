@@ -20,6 +20,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var ready = false
     private var iconsSent = false
     private var snoozeTask: Task<Void, Never>?
+    /// Simulation mode: the welcome card stays until you act on it.
+    var holdOpen = false
     /// How long "Not now" hides the card before it comes back.
     var snoozeSeconds: Double = 30 * 60
 
@@ -157,7 +159,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func push() {
         guard ready else { return }
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState)
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen)
         iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -212,7 +214,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
-        guard machine.autoCollapses else { return }
+        guard machine.autoCollapses, !holdOpen else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -229,6 +231,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "confirm": send(.confirm)
         case "dismiss": send(.dismiss)
         case "snooze": snooze()
+        case "switcher": send(.openSwitcher)
         case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":

@@ -25,11 +25,11 @@ struct UISnapshot: Encodable {
     let icons: [String: String]?
     let setup: String
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready") {
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true) {
         self.icons = icons; self.setup = setup
         phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .setup: "setup" }
         selected = machine.selected
-        autoCollapse = machine.autoCollapses
+        autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken
         self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? 32)
         self.projects = projects.map { p in

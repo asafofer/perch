@@ -80,6 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 12.4) { c.snapshot(to: dir + "/setup.png") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 13.4) { NSApp.terminate(nil) }
         }
+        if args.contains("--simulate") {
+            // "I was away, I'm back": asleep for a few seconds, then you return and the card stays open.
+            c.holdOpen = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { c.comeBack() }
+        }
         if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {

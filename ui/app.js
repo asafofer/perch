@@ -11,6 +11,7 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
@@ -48,7 +49,7 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip">' +
-    '<div class="pane p-open"><span class="o-away rv absolute right-[34px] top-[9px] z-10 text-xs tabular-nums text-muted-foreground" style="--i:0"></span>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-open"><span class="o-away rv absolute left-[44px] top-[9px] z-10 text-xs tabular-nums text-muted-foreground" style="--i:0"></span><button aria-label="Jump back in" title="Other projects" class="x-list rv absolute right-[32px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('list', 'size-3') + '</button>' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       '<p dir="auto" class="o-h rv mt-0.5 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em] text-balance" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-sm leading-[16px] text-pretty text-muted-foreground" style="--i:2"></p>' +
@@ -57,7 +58,7 @@
       '<div id="b"></div></div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
-      header('<div class="text-sm font-medium leading-4">Parked projects</div><div class="mt-0.5 text-xs leading-4 text-muted-foreground s-count"></div>') +
+      header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
       '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('↑↓') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
@@ -77,6 +78,7 @@
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
   q('.x-esc').onclick = function () { post({ type: 'snooze' }); };
+  scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
@@ -115,7 +117,6 @@
     q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text);
   }
   function list(s) {
-    q('.s-count').textContent = s.projects.length + ' projects';
     q('.s-l').innerHTML = s.projects.map(function (p, k) {
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors ' + (k === s.selected ? 'bg-accent' : '') + '" data-i="' + k + '">' +
         App(p.app) +
