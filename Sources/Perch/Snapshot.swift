@@ -4,7 +4,7 @@ import PerchCore
 /// What Swift tells the web UI. The UI never decides anything; it only draws this.
 struct UISnapshot: Encodable {
     struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat }
-    struct Status: Encodable { let kind: String; let text: String }
+    struct Status: Encodable { let kind: String; let text: String; let app: String }
     struct Step: Encodable { let icon: String; let text: String }
     struct UIProject: Encodable {
         let id, name: String
@@ -21,8 +21,11 @@ struct UISnapshot: Encodable {
     let timerToken: Int
     let screen: Screen
     let projects: [UIProject]
+    /// Real app icons as data URLs. Sent once, with the first snapshot.
+    let icons: [String: String]?
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int) {
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil) {
+        self.icons = icons
         phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses
@@ -31,7 +34,7 @@ struct UISnapshot: Encodable {
         self.projects = projects.map { p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
-                      status: Status(kind: p.status.kind, text: p.status.text),
+                      status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) })
         }
     }

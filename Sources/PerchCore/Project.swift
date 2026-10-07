@@ -4,7 +4,9 @@ public struct AgentStatus: Equatable, Sendable {
     public enum Kind: Sendable { case done, needsYou, idle }
     public let kind: Kind
     public let text: String
-    public init(kind: Kind, text: String) { self.kind = kind; self.text = text }
+    /// Which app's icon represents this agent: "claude", "codex".
+    public let app: String
+    public init(kind: Kind, text: String, app: String = "claude") { self.kind = kind; self.text = text; self.app = app }
 }
 
 public struct RestoreStep: Equatable, Sendable {
@@ -42,10 +44,10 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
 
     /// The one status worth showing: whatever needs you, else what finished, else idle.
-    public var status: (kind: String, text: String) {
-        if let a = agents.first(where: { $0.kind == .needsYou }) { return ("attention", a.text) }
-        if let a = agents.first(where: { $0.kind == .done }) { return ("done", a.text) }
-        return ("idle", agents.first?.text ?? "No agents running")
+    public var status: (kind: String, text: String, app: String) {
+        if let a = agents.first(where: { $0.kind == .needsYou }) { return ("attention", a.text, a.app) }
+        if let a = agents.first(where: { $0.kind == .done }) { return ("done", a.text, a.app) }
+        return ("idle", agents.first?.text ?? "No agents running", agents.first?.app ?? "claude")
     }
 }
 
@@ -61,7 +63,7 @@ public struct FakeSessionProvider: SessionProviding {
                     headline: "You were fixing the permissions screen.",
                     context: "You swapped the sheet for a popover because it clipped on small windows.",
                     next: "Add the tooltip to the Accessibility row", topic: "Permissions screen", app: "xcode",
-                    agents: [AgentStatus(kind: .done, text: "Claude Code done"), AgentStatus(kind: .needsYou, text: "Codex needs you")],
+                    agents: [AgentStatus(kind: .done, text: "Claude Code done"), AgentStatus(kind: .needsYou, text: "Codex needs you", app: "codex")],
                     steps: [RestoreStep(icon: "win", text: "Put 3 windows back"),
                             RestoreStep(icon: "file", text: "Opened PermissionsView.swift"),
                             RestoreStep(icon: "term", text: "Resumed your Claude Code session")]),

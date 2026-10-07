@@ -23,13 +23,21 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + t + '</kbd>'; }
   function Badge(inner, cls) { return '<span class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-md bg-white/[0.07] px-1.5 py-px text-xs font-medium text-foreground/80 ' + (cls || '') + '">' + inner + '</span>'; }
   function Dot(c) { return '<i class="block size-1.5 rounded-full" style="background:' + c + '"></i>'; }
-  function App(k) {
+  var icons = {};
+  function App(k, c) {
+    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
     var g = {
       xcode: ['#1C7CF4', '<path d="M7 17l6.2-6.2" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="11" y="5.2" width="7.4" height="4" rx="1" transform="rotate(45 14.7 7.2)" fill="#fff"/>'],
       claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
       numbers: ['#2FB457', '<g fill="#fff"><rect x="6" y="12" width="3" height="6" rx=".8"/><rect x="10.5" y="8" width="3" height="10" rx=".8"/><rect x="15" y="5" width="3" height="13" rx=".8"/></g>']
     }[k] || ['#52525B', ''];
-    return '<svg class="size-5 flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
+    return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
+  }
+  /* the agent's real app icon, with a small state dot on its corner */
+  function StatusIcon(st) {
+    var color = COLORS[st.kind] || COLORS.idle;
+    if (!icons[st.app]) return Dot(color);
+    return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
   }
   function header(inner, right, i) { return '<div class="rv flex h-10 items-center gap-2 pl-[44px] pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
@@ -73,7 +81,7 @@
     q('.o-h').textContent = p.headline;
     q('.o-c').textContent = p.context;
     q('.o-x').textContent = p.next;
-    q('.o-st').innerHTML = Badge(Dot(COLORS[p.status.kind] || COLORS.idle) + p.status.text);
+    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text);
   }
   function list(s) {
     q('.s-count').textContent = s.projects.length + ' projects';
@@ -115,6 +123,7 @@
   }
   function apply(s) {
     snap = s;
+    if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore' }[s.phase];
     var p = s.projects[s.selected];
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }

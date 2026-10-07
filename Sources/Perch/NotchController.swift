@@ -18,6 +18,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var keyMonitor: Any?
     private var mouseMonitors: [Any] = []
     private var ready = false
+    private var iconsSent = false
 
     init(provider: SessionProviding) {
         self.provider = provider
@@ -93,7 +94,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func push() {
         guard ready else { return }
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken)
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all())
+        iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
