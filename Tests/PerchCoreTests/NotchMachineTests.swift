@@ -94,3 +94,15 @@ import Testing
         #expect(m.phase == .open)
     }
 }
+
+@Suite struct NotchMachineBackTests {
+    @Test func backFromListReturnsToTheCardOfTheHighlightedProject() {
+        var m = NotchMachine(projectCount: 3); m.send(.comeBack); m.send(.openSwitcher); m.send(.next); m.send(.back)
+        #expect(m.phase == .open); #expect(m.selected == 1)
+    }
+    @Test func backDoesNothingOutsideTheList() {
+        var m = NotchMachine(projectCount: 3); m.send(.comeBack); m.send(.back)
+        #expect(m.phase == .open)
+        var i = NotchMachine(projectCount: 3); i.send(.back); #expect(i.phase == .idle)
+    }
+}

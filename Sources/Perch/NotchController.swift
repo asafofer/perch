@@ -276,6 +276,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "dismiss": send(.dismiss)
         case "snooze": snooze()
         case "switcher": send(.openSwitcher)
+        case "back": send(.back)
         case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
@@ -304,7 +305,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             switch e.keyCode {
             case 36, 76: self.send(.confirm)
             case 53: self.send(.dismiss)
-            case 48: if self.machine.phase == .open { self.send(.openSwitcher) } else { self.send(e.modifierFlags.contains(.shift) ? .previous : .next) }
+            case 48: self.send(self.machine.phase == .open ? .openSwitcher : .back)
             case 45: if self.machine.phase == .open { self.snooze() } else { return e }
             case 125: self.send(.next)
             case 126: self.send(.previous)

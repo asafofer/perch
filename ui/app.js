@@ -61,7 +61,7 @@
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
-      '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-back flex cursor-pointer items-center gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Back</button><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -79,6 +79,7 @@
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
   q('.x-esc').onclick = function () { post({ type: 'snooze' }); };
+  scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
@@ -224,6 +225,7 @@
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'choose') s.phase = 'idle';
     if (m.type === 'switcher') s.phase = 'switcher';
+    if (m.type === 'back') s.phase = 'open';
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
   }
   if (!NATIVE) {
@@ -242,13 +244,16 @@
     window.perchDev = {
       show: function (ph, setup) { clearTimeout(autoTimer); var s = Object.assign({}, base, { phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
-      project: function (i) { base.selected = i; }
+      project: function (i) { base.selected = i; },
+      step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }
     };
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       if (e.key === 'Escape') window.perchDev.show('idle');
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
+      else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
+      else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') window.perchDev.show('idle');
     });
   }
