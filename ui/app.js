@@ -94,6 +94,8 @@
       .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, function (m, a, b) { return '<strong class="font-semibold text-foreground">' + (a || b) + '</strong>'; })
       .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
   }
+  /* Everything that comes from a session (names, titles, prompts) is text, never markup. */
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function q(c) { return scene.querySelector(c); }
   var n = q('.n'), cr = q('.cr');
   q('.x-go').onclick = function () { post({ type: 'confirm' }); };
@@ -157,22 +159,22 @@
     var nx = /\b(commit|push|merge|uncommitted|pull request|git)\b/i.test(p.next || '') ? '' : (p.next || '');
     q('.o-x').innerHTML = md(nx);
     q('.o-x').parentNode.style.display = nx ? '' : 'none';
-    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text + (p.status.kind === 'running' ? Spinner('size-3') : ''));
+    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + esc(p.status.text) + (p.status.kind === 'running' ? Spinner('size-3') : ''));
   }
   function list(s) {
     q('.s-l').innerHTML = s.projects.map(function (p, k) {
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors ' + (k === s.selected ? 'bg-accent' : '') + '" data-i="' + k + '">' +
         App(p.app) +
-        '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + p.name + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + p.topic + '</span></span>' +
+        '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + esc(p.name) + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span></span>' +
         (p.attention ? Dot(COLORS.attention) : '') +
-        (p.status.kind === 'running' ? '<span class="flex items-center gap-1.5 text-xs" style="color:' + COLORS.running + '">' + Spinner('size-3') + 'Working</span>' : '<span class="text-xs tabular-nums text-muted-foreground">' + p.away + ' ago</span>') + '</div>';
+        (p.status.kind === 'running' ? '<span class="flex items-center gap-1.5 text-xs" style="color:' + COLORS.running + '">' + Spinner('size-3') + 'Working</span>' : '<span class="text-xs tabular-nums text-muted-foreground">' + esc(p.away) + ' ago</span>') + '</div>';
     }).join('');
     scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
   }
   function rest(p) {
     q('.r-n').textContent = p.name;
     q('.r-l').innerHTML = '<div class="rest-i flex flex-col gap-0.5">' + p.steps.map(function (x, k) {
-      return '<div class="flex h-7 items-center gap-2 text-sm" style="--k:' + k + '"><span class="text-muted-foreground">' + svg(x.icon, 'size-3.5') + '</span><span class="flex-1 truncate">' + x.text + '</span><span class="ck text-emerald-400">' + svg('check', 'size-3') + '</span></div>';
+      return '<div class="flex h-7 items-center gap-2 text-sm" style="--k:' + k + '"><span class="text-muted-foreground">' + svg(x.icon, 'size-3.5') + '</span><span class="flex-1 truncate">' + esc(x.text) + '</span><span class="ck text-emerald-400">' + svg('check', 'size-3') + '</span></div>';
     }).join('') + '</div>';
   }
   function bar(on) {
@@ -420,7 +422,7 @@
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', '', 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 2) {
       var rows = o.sources.map(function (x) {
-        var sub = o.scanning ? 'Scanning\u2026' : (x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
+        var sub = o.scanning ? 'Scanning\u2026' : (x.count ? esc(x.names.slice(0, 2).join(', ')) + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw relative h-[18px] w-[30px] flex-none cursor-pointer rounded-full transition-colors duration-200 ' + (x.enabled ? 'bg-emerald-400' : 'bg-white/20') + '"><i class="absolute top-[2px] block size-[14px] rounded-full bg-white shadow transition-all duration-200 ' + (x.enabled ? 'left-[14px]' : 'left-[2px]') + '"></i></button>';
         return '<div class="flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3"><span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block text-[13px] font-medium leading-4">' + x.name + '</span><span class="block truncate text-xs leading-4 text-muted-foreground">' + sub + '</span></span>' + (o.scanning ? Spinner('size-3.5') : '') + sw + '</div>';
       }).join('');
