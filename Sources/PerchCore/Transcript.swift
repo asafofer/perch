@@ -13,10 +13,35 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastRole: String?
     /// The agent's turn has started and not finished: its last record is a tool call, a tool result or your prompt.
     public var turnOpen = false
+    /// The newest tool call that has no result yet, while the turn is open. A stale one usually means a permission prompt.
+    public var pendingTool: PendingTool?
+    /// You stopped the agent (Esc, or Codex's turn was aborted) and have not written since.
+    public var interrupted = false
+    /// The last thing you asked that says something: "yes", "ok go ahead" and "push it" are skipped.
+    public var lastAsk: String?
+    /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
+    public var entrypoint: String?
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
     public init() {}
+}
+
+public struct PendingTool: Equatable, Sendable {
+    public let name: String
+    /// The question, when the tool asks you one (AskUserQuestion).
+    public let question: String?
+    /// A Bash call's own timeout, so a long build is not mistaken for a wait.
+    public let timeout: TimeInterval?
+    public init(name: String, question: String? = nil, timeout: TimeInterval? = nil) { self.name = name; self.question = question; self.timeout = timeout }
+
+    init(block b: [String: Any]) {
+        let input = b["input"] as? [String: Any]
+        let qs = input?["questions"] as? [[String: Any]]
+        self.init(name: b["name"] as? String ?? "tool",
+                  question: (qs?.first?["question"] as? String) ?? (input?["question"] as? String),
+                  timeout: (input?["timeout"] as? Double).map { $0 / 1000 })
+    }
 }
 
 public enum TranscriptParser {
@@ -25,6 +50,7 @@ public enum TranscriptParser {
         var d = SessionDigest()
         let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let isoPlain = ISO8601DateFormatter()
+        var open: [(id: String, tool: PendingTool)] = []
         for line in lines {
             guard let data = line.data(using: .utf8),
                   let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { continue }
@@ -35,21 +61,31 @@ public enum TranscriptParser {
             if let s = o["sessionId"] as? String { d.sessionId = s }
             if let c = o["cwd"] as? String { d.cwd = c }
             if let b = o["gitBranch"] as? String, !b.isEmpty, b != "HEAD" { d.branch = b }
+            if let e = o["entrypoint"] as? String { d.entrypoint = e }
             guard type == "user" || type == "assistant", o["isMeta"] as? Bool != true else { continue }
             let message = o["message"] as? [String: Any]
+            let blocks = message?["content"] as? [[String: Any]] ?? []
             if type == "assistant" {
                 let done: Set<String> = ["end_turn", "stop_sequence", "max_tokens", "refusal"]
                 d.turnOpen = !done.contains(message?["stop_reason"] as? String ?? "")
+                for b in blocks where b["type"] as? String == "tool_use" { open.append((b["id"] as? String ?? "", PendingTool(block: b))) }
+            } else if isInterrupt(message?["content"]) {
+                d.turnOpen = false; d.interrupted = true; open = []
             } else {
-                d.turnOpen = !isInterrupt(message?["content"])
+                d.turnOpen = true
+                let answered = Set(blocks.compactMap { $0["type"] as? String == "tool_result" ? $0["tool_use_id"] as? String : nil })
+                open.removeAll { answered.contains($0.id) }
             }
+            if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text } else { d.lastAssistantText = text }
+            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text } } else { d.lastAssistantText = text }
+            d.interrupted = false
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }
         }
+        d.pendingTool = d.turnOpen ? open.last?.tool : nil
         return d
     }
 
@@ -131,16 +167,16 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude", running: Bool = false) -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude", quietFor: TimeInterval? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
-        let context = d.lastUserText.map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
-        let (status, next) = statusAndNext(d, git, agent: agent, running: running)
+        let context = (d.lastAsk ?? d.lastUserText).map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
+        let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
-                       topic: clip(d.title ?? d.lastUserText ?? name, 28), app: app, agents: agents,
+                       topic: clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 28), app: app, agents: agents,
                        steps: desktopSessionId != nil
                            ? [RestoreStep(icon: "win", text: "Opened the \(app == "codex" ? "Codex" : "Claude") app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
@@ -148,17 +184,36 @@ public enum Recap {
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
-        let base = d.title ?? d.lastUserText ?? "Your last session"
+        let base = d.title ?? d.lastAsk ?? d.lastUserText ?? "Your last session"
         let t = clip(base, 70)
         let cap = t.prefix(1).uppercased() + t.dropFirst()
         return cap.hasSuffix(".") || cap.hasSuffix("…") ? cap : cap + "."
     }
 
-    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code", running: Bool = false) -> ((kind: AgentStatus.Kind, text: String), String) {
-        if running { return ((.running, "\(agent) is working"), "") }
-        if d.lastRole == "user" { return ((.needsYou, "Waiting on \(agent)"), "Check whether \(agent) finished") }
+    /// A session counts as working while its turn is open and the file changed this recently.
+    public static let runningWindow: TimeInterval = 150
+
+    /// `quietFor` is how long ago the session file last changed; nil when unknown.
+    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code", quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
+        let short = agent == "Codex" ? "Codex" : "Claude", quiet = quietFor ?? .infinity
+        let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
+        if d.turnOpen, let t = d.pendingTool {
+            // Tools that wait on you by design.
+            if t.name == "AskUserQuestion" {
+                return ((.needsYou, "\(short) asked you something"), t.question.map { "Answer: “\(clip($0, 100))”" } ?? "")
+            }
+            if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
+            // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
+            let expected: TimeInterval = t.name == "Bash" ? (t.timeout ?? 120) + 15 : (["Task", "Agent"].contains(t.name) ? 1800 : 30)
+            if quiet < expected { return working }
+            if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
+            return ((.idle, "\(agent) stopped mid-task"), "")
+        }
+        if d.turnOpen && quiet < runningWindow { return working }
+        if d.interrupted { return ((.idle, "You stopped \(short)"), "") }
+        if d.lastRole == "user" { return ((.idle, "\(agent) stopped before replying"), "") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
-            return ((.needsYou, "\(agent == "Codex" ? "Codex" : "Claude") asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
+            return ((.needsYou, "\(short) asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
         }
         let done = (kind: AgentStatus.Kind.done, text: "\(agent) replied")
         // Only a step the agent stated itself. Git housekeeping (committing, pushing) is never offered, and with
@@ -168,9 +223,21 @@ public enum Recap {
     }
 
     /// Committing, pushing and merging are never useful as a suggested next step.
+    /// Matches the chore, not the word: "Push the branch" is one, "Add push notifications" is not.
     public static func isGitChore(_ text: String) -> Bool {
-        let t = text.lowercased()
-        return ["commit", "push", "merge", "uncommitted", "pull request", "git "].contains { t.contains($0) }
+        text.range(of: #"^\W*(commit|push|merge|rebase|stage)\b(?! notification)|\b(pull request|uncommitted|git (add|commit|push|merge|rebase))\b|\bopen (a|the) pr\b"#,
+                   options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static let ackWords: Set<String> = ["yes", "yep", "yeah", "yup", "y", "ok", "okay", "k", "kk", "sure", "go", "ahead", "do", "it",
+        "continue", "proceed", "thanks", "thank", "you", "ty", "lgtm", "perfect", "great", "nice", "cool", "good", "fine", "looks", "sounds",
+        "push", "commit", "and", "merge", "ship", "please", "no", "nope", "that", "this", "now", "all", "right", "alright",
+        "\u{05DB}\u{05DF}", "\u{05E1}\u{05D1}\u{05D1}\u{05D4}", "\u{05D0}\u{05D5}\u{05E7}\u{05D9}\u{05D9}", "\u{05EA}\u{05D5}\u{05D3}\u{05D4}"]
+
+    /// A reply that only says go on ("yes", "ok go ahead", "push it please"). It tells you nothing about the work.
+    public static func isAcknowledgement(_ text: String) -> Bool {
+        let words = text.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+        return !words.isEmpty && words.count <= 4 && words.allSatisfy { ackWords.contains($0) }
     }
 
     /// A next step the assistant stated itself: a line or sentence like "Next: …", "Then …", "Still to do: …".
@@ -299,7 +366,7 @@ public enum CodexTranscript {
                   let payload = o["payload"] as? [String: Any] else { continue }
             let type = o["type"] as? String
             if type == "event_msg", let kind = payload["type"] as? String {
-                if kind == "task_started" { d.turnOpen = true } else if kind == "task_complete" || kind == "turn_aborted" { d.turnOpen = false }
+                if kind == "task_started" { d.turnOpen = true; d.interrupted = false } else if kind == "task_complete" { d.turnOpen = false } else if kind == "turn_aborted" { d.turnOpen = false; d.interrupted = true }
             }
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
@@ -311,7 +378,8 @@ public enum CodexTranscript {
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text } else { d.lastAssistantText = text }
+            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text } } else { d.lastAssistantText = text }
+            if role == "assistant" { d.interrupted = false }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }

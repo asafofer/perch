@@ -42,10 +42,10 @@ import Foundation
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 3, files: ["a.swift", "b.js", "c.md"]), now: Date())!
         #expect(p.next == ""); #expect(p.status.kind == "done")
     }
-    @Test func waitingWhenUserSpokeLast() {
-        var d = TranscriptParser.digest(lines: lines); d.lastRole = "user"
+    @Test func userSpokeLastAndNothingCameBackIsNotYourTurn() {
+        var d = TranscriptParser.digest(lines: lines); d.lastRole = "user"; d.turnOpen = false
         let p = Recap.project(digest: d, git: nil, now: Date())!
-        #expect(p.status.kind == "attention")
+        #expect(p.status.kind == "idle"); #expect(p.status.text == "Claude Code stopped before replying"); #expect(p.next == "")
     }
     @Test func turnIsOpenAfterAToolResultAndClosedAfterEndTurn() {
         #expect(TranscriptParser.digest(lines: lines).turnOpen)   // the last record is a tool result
@@ -119,5 +119,57 @@ import Foundation
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 4, files: ["a"]), now: Date())!
         #expect(p.next == "")
         #expect(Recap.isGitChore("Commit changes to a.swift")); #expect(!Recap.isGitChore("Wire up the logo upload"))
+        #expect(Recap.isGitChore("Push the branch")); #expect(Recap.isGitChore("Open a PR for the fix")); #expect(Recap.isGitChore("Run git push"))
+        #expect(!Recap.isGitChore("Add push notifications")); #expect(!Recap.isGitChore("Fix the commitment dialog")); #expect(!Recap.isGitChore("Handle merged cells"))
+    }
+
+    // MARK: what the agent is doing, from the shape of the transcript
+    let prompt = #"{"type":"user","sessionId":"s2","cwd":"/Users/a/app","timestamp":"2026-10-07T09:00:00.000Z","message":{"content":"run the tests"}}"#
+    func toolCall(_ name: String, _ input: String = "{}", id: String = "t1") -> String {
+        #"{"type":"assistant","timestamp":"2026-10-07T09:00:05.000Z","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"\#(id)","name":"\#(name)","input":\#(input)}]}}"#
+    }
+    func result(_ id: String = "t1") -> String { #"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"\#(id)","content":"ok"}]}}"# }
+    func status(_ lines: [String], quiet: TimeInterval) -> (kind: String, text: String, next: String) {
+        let p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: Date(), quietFor: quiet)!
+        return (p.status.kind, p.status.text, p.next)
+    }
+
+    @Test func aToolCallWithoutAResultIsPending() {
+        #expect(TranscriptParser.digest(lines: [prompt, toolCall("Edit")]).pendingTool?.name == "Edit")
+        #expect(TranscriptParser.digest(lines: [prompt, toolCall("Edit"), result()]).pendingTool == nil)
+    }
+    @Test func aStaleToolCallIsWaitingForYourOK() {
+        #expect(status([prompt, toolCall("Edit")], quiet: 5).kind == "running")
+        let s = status([prompt, toolCall("Edit")], quiet: 90)
+        #expect(s.kind == "attention"); #expect(s.text == "Claude is waiting for your OK")
+    }
+    @Test func aLongCommandIsWorkingUntilItsOwnTimeout() {
+        let build = toolCall("Bash", #"{"command":"swift build","timeout":600000}"#)
+        #expect(status([prompt, build], quiet: 400).kind == "running")
+        #expect(status([prompt, build], quiet: 700).kind == "attention")
+        #expect(status([prompt, toolCall("Bash")], quiet: 200).kind == "attention")   // default timeout is two minutes
+    }
+    @Test func aQuestionAskedThroughTheToolNeedsYouAtOnce() {
+        let ask = toolCall("AskUserQuestion", #"{"questions":[{"question":"Which database should we use?"}]}"#)
+        let s = status([prompt, ask], quiet: 1)
+        #expect(s.kind == "attention"); #expect(s.next == "Answer: “Which database should we use?”")
+        #expect(status([prompt, toolCall("ExitPlanMode")], quiet: 1).text == "Claude has a plan for you")
+    }
+    @Test func stoppingTheAgentIsNotYourTurn() {
+        let stop = #"{"type":"user","message":{"content":[{"type":"text","text":"[Request interrupted by user]"}]}}"#
+        let s = status([prompt, toolCall("Bash"), stop], quiet: 600)
+        #expect(s.kind == "idle"); #expect(s.text == "You stopped Claude")
+    }
+    @Test func acknowledgementsAreNotWhatYouWereDoing() {
+        let yes = #"{"type":"user","timestamp":"2026-10-07T09:10:00.000Z","message":{"content":"yes, push it please"}}"#
+        let d = TranscriptParser.digest(lines: [prompt, yes])
+        #expect(d.lastUserText == "yes, push it please"); #expect(d.lastAsk == "run the tests")
+        #expect(Recap.project(digest: d, git: nil, now: Date())!.headline == "Run the tests.")
+        #expect(Recap.isAcknowledgement("ok go ahead")); #expect(Recap.isAcknowledgement("LGTM!")); #expect(Recap.isAcknowledgement("\u{05DB}\u{05DF}"))
+        #expect(!Recap.isAcknowledgement("yes but rename it first")); #expect(!Recap.isAcknowledgement("fix the login"))
+    }
+    @Test func readsHowTheSessionWasStarted() {
+        let headless = #"{"type":"user","entrypoint":"sdk-cli","sessionId":"s3","cwd":"/x","message":{"content":"summarise"}}"#
+        #expect(TranscriptParser.digest(lines: [headless]).entrypoint == "sdk-cli")
     }
 }

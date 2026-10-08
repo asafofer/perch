@@ -69,33 +69,40 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     }
 
     // MARK: Claude Code (~/.claude/projects/*/*.jsonl)
-    /// Working right now: its turn is open (a tool call or your prompt is the last thing) and the file was written to in the last 150 seconds.
-    static let runningWindow: TimeInterval = 150
-
     private func claudeProjects() -> [Found] {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
         guard let dirs = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
         let cutoff = Date().addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        var newest: [(url: URL, mtime: Date)] = []
+        // The newest few sessions of each folder, newest folder first. A headless run (`claude -p`) or an empty session
+        // can be the newest file, so the next one down stands in for it.
+        var folders: [[(url: URL, mtime: Date)]] = []
         for dir in dirs {
             guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { continue }
-            let best = files.filter { $0.pathExtension == "jsonl" }
-                .compactMap { u -> (URL, Date)? in (try? u.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate).map { (u, $0) } }
-                .max { $0.1 < $1.1 }
-            if let best, best.1 > cutoff { newest.append((best.0, best.1)) }
+            let recent = files.filter { $0.pathExtension == "jsonl" }
+                .compactMap { u -> (url: URL, mtime: Date)? in (try? u.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate).map { (u, $0) } }
+                .filter { $0.mtime > cutoff }
+                .sorted { $0.mtime > $1.mtime }
+            if !recent.isEmpty { folders.append(Array(recent.prefix(3))) }
         }
-        newest.sort { $0.mtime > $1.mtime }
+        folders.sort { $0[0].mtime > $1[0].mtime }
 
         var seen = Set<String>(), out: [Found] = []
         let now = Date()
-        let desktop = DesktopSessions.index()
-        for item in newest.prefix(12) {
-            guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: TranscriptParser.digest), let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
+        let desktop = DesktopSessions.shared.index()
+        for folder in folders.prefix(12) {
+            let hit = folder.lazy.compactMap { item -> (item: (url: URL, mtime: Date), digest: SessionDigest)? in
+                guard let d = self.cachedDigest(item.url, mtime: item.mtime, parse: TranscriptParser.digest), d.lastTimestamp != nil,
+                      !(d.entrypoint?.hasPrefix("sdk") ?? false) else { return nil }
+                return (item, d)
+            }.first
+            guard let hit, let cwd = hit.digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
+            let item = hit.item
+            var digest = hit.digest
             seen.insert(cwd)
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             let git = cachedGit(cwd).info
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
         }
@@ -135,7 +142,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
             digest.branch = cg.branch
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", running: digest.turnOpen && now.timeIntervalSince(item.mtime) < Self.runningWindow), let last = digest.lastTimestamp {
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
         }
@@ -209,27 +216,36 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
 }
 
 /// The Claude app keeps its own list of Code sessions. This maps a transcript id to the app's id and title.
-enum DesktopSessions {
+final class DesktopSessions: @unchecked Sendable {
     struct Entry { let id: String; let title: String? }
+    static let shared = DesktopSessions()
+    /// Parsed files by path, read again only when they change. A busy session triggers a scan every half second.
+    private var cache: [String: (mtime: Date, cli: String, entry: Entry)] = [:]
+    private let lock = NSLock()
 
     /// Keys are the transcript ids (the app calls them cliSessionId).
-    static func index() -> [String: Entry] {
+    func index() -> [String: Entry] {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")
-        var out: [String: Entry] = [:]
         let fm = FileManager.default
+        lock.lock(); defer { lock.unlock() }
+        var fresh: [String: (mtime: Date, cli: String, entry: Entry)] = [:]
         for account in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] {
             let accountDir = root.appendingPathComponent(account)
             for org in (try? fm.contentsOfDirectory(atPath: accountDir.path)) ?? [] {
                 let dir = accountDir.appendingPathComponent(org)
                 for file in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where file.hasPrefix("local_") && file.hasSuffix(".json") {
-                    guard let data = try? Data(contentsOf: dir.appendingPathComponent(file)),
+                    let url = dir.appendingPathComponent(file)
+                    guard let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { continue }
+                    if let hit = cache[url.path], hit.mtime == mtime { fresh[url.path] = hit; continue }
+                    guard let data = try? Data(contentsOf: url),
                           let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                           let cli = o["cliSessionId"] as? String, let id = o["sessionId"] as? String else { continue }
-                    out[cli] = Entry(id: id, title: o["title"] as? String)
+                    fresh[url.path] = (mtime, cli, Entry(id: id, title: o["title"] as? String))
                 }
             }
         }
-        return out
+        cache = fresh
+        return Dictionary(fresh.values.map { ($0.cli, $0.entry) }, uniquingKeysWith: { a, _ in a })
     }
 }
 

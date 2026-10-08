@@ -156,7 +156,7 @@
     q('.o-h').innerHTML = md(p.headline);
     q('.o-c').innerHTML = md(p.context);
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
-    var nx = /\b(commit|push|merge|uncommitted|pull request|git)\b/i.test(p.next || '') ? '' : (p.next || '');
+    var nx = /^\W*(next:\s*)?(commit|push|merge|rebase|stage)\b(?! notification)|\b(pull request|uncommitted|git (add|commit|push|merge|rebase))\b|\bopen (a|the) pr\b/i.test(p.next || '') ? '' : (p.next || '');
     q('.o-x').innerHTML = md(nx);
     q('.o-x').parentNode.style.display = nx ? '' : 'none';
     q('.o-st').innerHTML = Badge(StatusIcon(p.status) + esc(p.status.text) + (p.status.kind === 'running' ? Spinner('size-3') : ''));
