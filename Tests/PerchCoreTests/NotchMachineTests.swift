@@ -114,4 +114,11 @@ import Testing
         m.send(.projectsChanged(count: 4, selected: 2))
         #expect(m.selected == 2)
     }
+
+    @Test func onboardingOpensFromIdleAndClosesOnDismiss() {
+        var m = NotchMachine(projectCount: 0)
+        m.send(.openOnboarding); #expect(m.phase == .onboarding)
+        m.send(.comeBack); #expect(m.phase == .onboarding)
+        m.send(.dismiss); #expect(m.phase == .idle)
+    }
 }

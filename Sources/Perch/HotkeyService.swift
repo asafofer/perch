@@ -37,6 +37,13 @@ final class HotkeyService {
     }
 
     /// Tap Command+Option together, with nothing else pressed, and release within 0.6s.
+    /// Granting Accessibility after launch only takes effect for monitors created afterwards, so they are rebuilt.
+    func restartChordMonitor() {
+        if let m = flagsMonitor { NSEvent.removeMonitor(m); flagsMonitor = nil }
+        if let m = localMonitor { NSEvent.removeMonitor(m); localMonitor = nil }
+        startChordMonitor()
+    }
+
     func startChordMonitor() {
         let trusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): false] as CFDictionary)
         if !trusted { NSLog("Perch: Accessibility not granted, Command+Option tap disabled (use Command+Option+Space)") }

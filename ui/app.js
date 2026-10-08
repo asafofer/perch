@@ -73,6 +73,8 @@
       '<div class="rv flex flex-col gap-0.5 px-4 pb-1 pt-0.5 su-rows" style="--i:1"></div>' +
       '<div class="rv flex h-9 items-center gap-1 px-2.5" style="--i:2"><span class="su-note min-w-0 flex-1 pl-1.5 text-xs text-muted-foreground"></span><span class="su-btns flex items-center gap-1"></span></div>' +
     '</div></div>' +
+    '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-restore"><div class="inner pt-8">' +
       header('<div class="r-n text-sm font-medium leading-4"></div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Picking up where you left off</div>') +
       '<div class="rv px-4 pb-4 pt-0.5 r-l" style="--i:1"></div>' +
@@ -198,11 +200,13 @@
   function apply(s) {
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     bRep.style.display = (st === 'open' && p) ? 'inline-flex' : 'none';
     if (p) rIn.placeholder = 'Reply to ' + (p.app === 'codex' || p.status.app === 'codex' || /codex/i.test(p.status.text) ? 'Codex' : 'Claude') + '\u2026';
+    applyCharacter(s.character);
+    if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
@@ -239,6 +243,7 @@
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
+    var pv = q('.cr-pv'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * 4.5 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * 3 * pk).toFixed(2) + 'px'); }
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
@@ -252,8 +257,113 @@
   }
   setTimeout(glance, 1500); setTimeout(peek, 4000); setTimeout(blink, 1200);
 
-  window.perch = { apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup' }[snap.phase], snap); });
+
+  /* ---- character: shape and colour, chosen in onboarding ---- */
+  var SHAPES = [
+    ['ears', 'Ears', 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
+    ['dome', 'Dome', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
+    ['arch', 'Arch', 'M4 22V11a8 8 0 0 1 16 0v11H4z', '40%'],
+    ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%']
+  ];
+  var COLORS = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
+  var charNow = { shape: 'ears', color: '#F5B83D' };
+  function shapeOf(k) { for (var i = 0; i < SHAPES.length; i++) if (SHAPES[i][0] === k) return SHAPES[i]; return SHAPES[0]; }
+  function applyCharacter(c) {
+    if (!c) return;
+    charNow = { shape: c.shape, color: c.color };
+    var sh = shapeOf(c.shape);
+    scene.querySelectorAll('.cr:not(.cr-mini) .f path').forEach(function (p) { p.setAttribute('d', sh[2]); });
+    scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); });
+    document.documentElement.style.setProperty('--cr', c.color);
+  }
+  function crHtml(cls, size, sh, mood) {
+    return '<div class="cr ' + cls + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+  }
+
+  /* ---- onboarding: five short steps inside the notch ---- */
+  var onbStep = -1, onbSig = '', onbLast = null;
+  function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
+  function otitle(o, title, sub) {
+    return oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + (o.step + 1) + ' of ' + o.total + '</div>') +
+      oi(1, '<p class="mt-1 px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
+      oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
+  }
+  function ofoot(i, back, mid, label, action) {
+    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', '', 'o-back') : '') + '<span class="flex-1"></span>' + (mid || '') +
+      Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
+  }
+  function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
+  function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
+  function ohint(left, text) { return '<div class="flex items-center gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
+  function onbDo(a) { if (a === 'settings') post({ type: 'openSettings' }); else post({ type: 'onb', action: a }); }
+  function pickCharacter(c) {
+    applyCharacter(c); post({ type: 'character', shape: c.shape, color: c.color });
+    if (onbLast) onbRender(onbLast, false);
+    var pv = q('.cr-pv'); if (pv) { pv.dataset.m = 'happy'; pv.querySelector('.cr-in').classList.remove('hop'); void pv.offsetWidth; pv.querySelector('.cr-in').classList.add('hop'); setTimeout(function () { pv.dataset.m = 'awake'; }, 800); }
+  }
+  function onbRender(o, animate) {
+    onbLast = o;
+    var box = q('.onb'), h = '', g = o.accessibility, st = o.step;
+    if (st === 0) {
+      var shapes = SHAPES.map(function (sh) {
+        return '<button class="o-shape grid size-11 cursor-pointer place-items-center rounded-lg transition ' + (sh[0] === charNow.shape ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]') + '" data-k="' + sh[0] + '" aria-label="' + sh[1] + '" title="' + sh[1] + '">' + crHtml('cr-mini', 24, sh) + '</button>';
+      }).join('');
+      var colors = COLORS.map(function (c) {
+        return '<button class="o-color size-5 cursor-pointer rounded-full transition ' + (c[1] === charNow.color ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110') + '" style="background:' + c[1] + '" data-c="' + c[1] + '" aria-label="' + c[0] + '" title="' + c[0] + '"></button>';
+      }).join('');
+      h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
+        oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="grid size-[76px] flex-none place-items-center rounded-2xl bg-white/[0.06]">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
+        ofoot(4, false, '', 'Next', 'next');
+    } else if (st === 1) {
+      h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
+        oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
+        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
+        ofoot(5, true, g ? '' : Button('ghost', 'Skip', '', 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
+    } else if (st === 2) {
+      var n = o.found.length;
+      var list = o.found.map(function (f) { return '<div class="flex h-8 items-center gap-2 text-[13px]">' + App(f.app, 'size-4') + '<span class="min-w-0 flex-1 truncate font-medium">' + f.name + '</span><span class="text-xs tabular-nums text-muted-foreground">' + f.away + ' ago</span></div>'; }).join('');
+      h = otitle(o, 'Find your projects', o.scanning ? 'Looking through your Claude Code and Codex sessions\u2026' : (n ? 'Found ' + n + (n === 1 ? ' recent project.' : ' recent projects.') : 'No sessions yet. Perch finds them as soon as you start one.')) +
+        oi(3, '<div class="mt-2 px-4">' + (o.scanning ? '<div class="flex h-8 items-center gap-2 text-[13px] text-muted-foreground">' + Spinner('size-3.5') + 'Scanning\u2026</div>' : list) + '</div>') +
+        oi(4, '<p class="mt-1 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+        ofoot(5, true, '', 'Next', 'next');
+    } else if (st === 3) {
+      var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
+      var off = o.summaries === 'off';
+      h = otitle(o, 'Better summaries', 'Written on your Mac. Nothing leaves it.') +
+        oi(3, '<div class="mt-3 px-4">' + orow(o.summaries === 'downloading' ? '<span class="grid size-4 flex-none place-items-center">' + Spinner('size-3.5') + '</span>' : tick(o.summaries === 'ready'), sm[0], '') + '</div>') +
+        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + sm[1] + '</p>') +
+        ofoot(5, true, off ? Button('ghost', 'Skip', '', 'o-skip') : '', off ? 'Open Settings' : 'Next', off ? 'settings' : 'next');
+    } else {
+      h = otitle(o, 'You\u2019re all set', 'Here is how to reach Perch.') +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
+        ofoot(4, true, '', 'Done', 'finish');
+    }
+    box.className = 'onb' + (animate ? ' go' : '');
+    box.innerHTML = h;
+    box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
+    box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
+    box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
+    box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
+    box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
+    box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
+  }
+  function onb(o) {
+    if (!o) return;
+    var sig = [o.step, o.accessibility, o.summaries, o.scanning, o.found.length].join('|');
+    if (sig === onbSig) return;
+    var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
+  }
+  /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
+  function onbKey(k) {
+    if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
+    if (onbStep !== 0) return;
+    var i = 0; SHAPES.forEach(function (sh, j) { if (sh[0] === charNow.shape) i = j; });
+    i = (i + (k === 'right' ? 1 : -1) + SHAPES.length) % SHAPES.length;
+    pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
+  }
+
+  window.perch = { onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -263,9 +373,19 @@
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   function dev(m) {
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose') s.phase = 'idle';
+    if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
+    if (m.type === 'onb' && s.onboarding) {
+      var o = s.onboarding;
+      if (m.action === 'next') o.step = Math.min(o.step + 1, o.total - 1);
+      else if (m.action === 'back') o.step = Math.max(o.step - 1, 0);
+      else if (m.action === 'finish') s.phase = 'idle';
+      else if (m.action === 'accessibility') o.accessibility = true;
+      if (o.step === 2 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
+    }
+    if (m.type === 'onb' && !s.onboarding) return;
     if (m.type === 'switcher') s.phase = 'switcher';
     if (m.type === 'back') s.phase = 'open';
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -285,7 +405,13 @@
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer;
     window.perchDev = {
-      show: function (ph, setup, quiet) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      show: function (ph, setup, quiet) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      onboarding: function (step, accessibility, summaries) {
+        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        var found = P.slice(0, 4).map(function (x) { return { name: x.name, app: x.status.app || x.app, away: x.away }; });
+        apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
+          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, found: found } }));
+      },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }

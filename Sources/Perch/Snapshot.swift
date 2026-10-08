@@ -15,7 +15,20 @@ struct UISnapshot: Encodable {
         let steps: [Step]
     }
 
+    struct Character: Encodable { let shape: String; let color: String }
+    struct Found: Encodable { let name: String; let app: String; let away: String }
+    struct Onboarding: Encodable {
+        let step: Int
+        let total: Int
+        let accessibility: Bool
+        let summaries: String
+        let scanning: Bool
+        let found: [Found]
+    }
+
     let phase: String
+    let character: Character
+    let onboarding: Onboarding?
     let selected: Int
     let autoCollapse: Bool
     let timerToken: Int
@@ -27,9 +40,11 @@ struct UISnapshot: Encodable {
     /// The session you are in right now. It never nudges you about itself.
     let activeId: String?
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil) {
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, onboarding: Onboarding? = nil) {
+        self.onboarding = onboarding
+        character = Character(shape: Prefs.shape, color: Prefs.color)
         self.icons = icons; self.setup = setup; self.activeId = activeId
-        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .setup: "setup" }
+        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .setup: "setup"; case .onboarding: "onboarding" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken

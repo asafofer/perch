@@ -25,6 +25,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
     private var openedByHover = false
     private var openedAt = Date.distantPast
+    /// Perch spoke up on its own: it must not take the keyboard from whatever you are typing in. A click gives it focus.
+    private var proactiveOpen = false
     /// The "Remind me in" choices are showing in place of the buttons.
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
@@ -79,7 +81,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard projects.count > 1 else { return }
             projects.append(projects.remove(at: i))
         }
-        snoozeTask?.cancel(); openedByHover = onHome; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack)
+        snoozeTask?.cancel(); openedByHover = onHome; proactiveOpen = proactive; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack)
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
@@ -97,13 +99,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Command+Option tapped: open the list, or close whatever is showing.
     func chordTap() { if machine.phase == .idle { toggleSwitcher() } else { send(.dismiss) } }
-    func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher); refreshProjects() }
+    func toggleSwitcher() { openedByHover = false; proactiveOpen = false; prepareToShow(); send(.openSwitcher); refreshProjects() }
     func confirm() { send(.confirm) }
 
     /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
     func showSetup() {
         guard machine.phase == .idle, AppleRecapEngine.setupState != "ready" else { return }
-        snoozeTask?.cancel(); openedByHover = false; place(on: ScreenChooser.current()); send(.openSetup)
+        snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false; place(on: ScreenChooser.current()); send(.openSetup)
     }
 
     /// Debug: write the web view's current pixels to a PNG, composited over a desktop-like colour.
@@ -146,6 +148,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 switch self.machine.phase {
                 case .idle: self.install(list)
                 case .open, .switcher: self.installLive(list)
+                case .onboarding: self.projects = list; self.machine.send(.projectsChanged(count: list.count, selected: 0)); self.push()
                 default: self.pendingProjects = list
                 }
                 if self.refreshAgain { self.refreshAgain = false; self.refreshProjects() }
@@ -291,13 +294,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func push() {
         guard ready else { return }
         let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
-                          activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil)
+                          activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
+                          onboarding: machine.phase == .onboarding ? onboardingState() : nil)
         iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
+        if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch phase: \(old) -> \(new)") }
         switch new {
         case .idle:
@@ -311,13 +316,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
         case .open:
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
             restartTimer()
         case .switcher:
             timer?.cancel()
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
+        case .onboarding:
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
+            watchOnboarding()
         case .setup:
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover { panel.makeKey() }
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
             watchSetup()
         case .restoring:
             timer?.cancel()
@@ -378,6 +386,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             push()
         case "switcher": send(.openSwitcher)
         case "back": send(.back)
+        case "onb": if let a = body["action"] as? String { onboardingAction(a) }
+        case "character":
+            if let shape = body["shape"] as? String { Prefs.shape = shape }
+            if let color = body["color"] as? String { Prefs.color = color }
         case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
@@ -447,11 +459,83 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    // MARK: onboarding
+    var onAccessibilityGranted: (() -> Void)?
+    private var onbStep = 0
+    private let onbTotal = 5
+    private var accessibilityWas = AXIsProcessTrusted()
+    private var onbTask: Task<Void, Never>?
+
+    func startOnboarding(step: Int = 0) {
+        guard machine.phase == .idle else { return }
+        onbStep = step; snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
+        place(on: ScreenChooser.current())
+        if step >= 2 { refreshProjects() }
+        send(.openOnboarding)
+    }
+
+    private func onboardingState() -> UISnapshot.Onboarding {
+        UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing,
+                              found: projects.prefix(5).map { .init(name: $0.name, app: $0.app, away: $0.away) })
+    }
+
+    private func onboardingAction(_ action: String) {
+        switch action {
+        case "next":
+            onbStep = min(onbStep + 1, onbTotal - 1)
+            if onbStep == 2 { refreshProjects() }
+        case "back": onbStep = max(onbStep - 1, 0)
+        case "finish": send(.dismiss); return
+        case "accessibility":
+            // Asking is what lists Perch in the Accessibility pane; then take them there.
+            _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        case "restart": relaunch(); return
+        default: break
+        }
+        push()
+    }
+
+    /// Starts a fresh copy of Perch and quits this one. Some permissions only apply to a new process.
+    private func relaunch() {
+        Prefs.resumeStep = onbStep
+        let task = Process(); task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "sleep 0.8; open -n \"\(Bundle.main.bundlePath)\""]
+        try? task.run()
+        NSApp.terminate(nil)
+    }
+
+    /// While onboarding is up, notice permission changes within a second so the card reacts as you click in System Settings.
+    private func watchOnboarding() {
+        onbTask?.cancel()
+        onbTask = Task { [weak self] in
+            var last = ""
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(700))
+                guard let self, self.machine.phase == .onboarding else { return }
+                let trusted = AXIsProcessTrusted()
+                if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
+                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)"
+                if key != last { last = key; self.push() }
+            }
+        }
+    }
+
     // MARK: keys
     private func startKeys() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             guard let self, self.machine.phase != .idle else { return e }
+            if self.machine.phase == .onboarding {
+                switch e.keyCode {
+                case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
+                case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)
+                case 124: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('right')", completionHandler: nil)
+                case 53: self.send(.dismiss)
+                default: return e
+                }
+                return nil
+            }
             if self.replyOpen {
                 if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
                 return e
@@ -507,7 +591,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// A click anywhere outside the card closes it.
     private func clickedElsewhere() {
-        guard machine.phase != .idle else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding else { return }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
     }
@@ -547,7 +631,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
-        if inside, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
+        if inside, panel.allowsKey, !panel.isKeyWindow, !proactiveOpen { panel.makeKey() }
         if !inside, openedByHover, Date().timeIntervalSince(openedAt) > 0.5 { send(.dismiss); return }
         if inside != machine.hovering {
             send(.hoverChanged(inside))

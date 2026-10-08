@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
         hotkeys.register(keyCode: kVK_ANSI_Q, modifiers: controlKey | optionKey, id: 3) { NSApp.terminate(nil) }
         hotkeys.onChordTap = { c.chordTap() }
+        c.onAccessibilityGranted = { [hotkeys] in hotkeys.restartChordMonitor() }
         hotkeys.startChordMonitor()
 
         if !sample {
@@ -55,12 +56,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             monitor.onReturn = { c.comeBack(proactive: true) }
             activity = monitor
             installStatusItem()
-            // First run: offer the guided setup once, a moment after launch.
-            let key = "setupOffered"
-            if !UserDefaults.standard.bool(forKey: key), AppleRecapEngine.setupState != "ready" {
-                UserDefaults.standard.set(true, forKey: key)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.showSetup() }
-            }
+            // First run (or a restart in the middle of setup): the guided onboarding.
+            if let step = Prefs.resumeStep { Prefs.resumeStep = nil; DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.startOnboarding(step: step) } }
+            else if !Prefs.onboarded { DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { c.startOnboarding() } }
         }
 
         if let i = args.firstIndex(of: "--snapshot"), args.indices.contains(i + 1) {
@@ -109,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Welcome back now", action: #selector(showWelcome), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Parked projects", action: #selector(showSwitcher), keyEquivalent: "").target = self
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Customize your character…", action: #selector(customize), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Set up Perch…", action: #selector(showOnboarding), keyEquivalent: "").target = self
         let ai = AppleRecapEngine.unavailableReason == nil
             ? NSMenuItem(title: "Summaries: on-device", action: nil, keyEquivalent: "")
             : NSMenuItem(title: "Set up better summaries…", action: #selector(showSetup), keyEquivalent: "")
@@ -121,6 +121,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
+    @objc private func customize() { controller?.startOnboarding(step: 0) }
+    @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func showSetup() { controller?.showSetup() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }
