@@ -13,10 +13,10 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 /* notch + card */
 .n { position: absolute; top: 0; left: 50%; width: 185px; height: 32px; margin-left: -92.5px; background: #000; border-radius: 0 0 10px 10px; z-index: 9;
   /* closing: the card drops back first, then narrows into the notch */
-  transition: height .26s cubic-bezier(.55,0,.8,.3), width .32s .07s cubic-bezier(.4,0,.2,1), margin-left .32s .07s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1); }
+  transition: height .26s cubic-bezier(.55,0,.8,.3), width .32s .07s cubic-bezier(.4,0,.2,1), margin-left .32s .07s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1), --gcol .7s cubic-bezier(.3,.9,.4,1); }
 .n:not([data-s=idle]) { border-radius: 0 0 20px 20px; box-shadow: 0 26px 46px -12px rgba(0,0,0,.5);
   /* opening: it widens with a springy overshoot, then drops down and settles */
-  transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .6s .05s cubic-bezier(.3,1.5,.45,1), border-radius .4s, box-shadow .6s, transform .35s cubic-bezier(.3,1.5,.5,1); }
+  transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .6s .05s cubic-bezier(.3,1.5,.45,1), border-radius .4s, box-shadow .6s, transform .35s cubic-bezier(.3,1.5,.5,1), --gcol .7s cubic-bezier(.3,.9,.4,1); }
 /* the stand-in notch on a screen without one: a quiet black tab that leans toward you when the cursor is near */
 .n[data-virt="1"][data-s=idle] { border-radius: 0 0 9px 9px; box-shadow: 0 0 0 .5px rgba(255,255,255,.08); }
 .n[data-virt="1"][data-hot="1"][data-s=idle] { transform: scale(1.07, 1.2); transform-origin: 50% 0; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 8px 20px -6px rgba(0,0,0,.65); }
@@ -40,6 +40,11 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
     radial-gradient(ellipse 110% 110px at 50% 100%, rgba(var(--glow, 245,184,59), .17) 0%, rgba(var(--glow, 245,184,59), .095) 28%, rgba(var(--glow, 245,184,59), .04) 58%, rgba(var(--glow, 245,184,59), .012) 82%, transparent 100%); }
 .glow::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(var(--glow-hi, 255,220,130), .34) 50%, transparent); }
+/* when the card is not about a status, the light takes the character's colour */
+.n[data-g=char] .glow { background:
+  radial-gradient(ellipse 55% 46px at 50% 100%, color-mix(in srgb, color-mix(in srgb, var(--gcol) 55%, white) 12%, transparent), transparent 100%),
+  radial-gradient(ellipse 110% 110px at 50% 100%, color-mix(in srgb, var(--gcol) 18%, transparent) 0%, color-mix(in srgb, var(--gcol) 10%, transparent) 28%, color-mix(in srgb, var(--gcol) 4.2%, transparent) 58%, color-mix(in srgb, var(--gcol) 1.2%, transparent) 82%, transparent 100%); }
+.n[data-g=char] .glow::after { background: linear-gradient(90deg, transparent, color-mix(in srgb, color-mix(in srgb, var(--gcol) 55%, white) 36%, transparent) 50%, transparent); }
 .n:not([data-s=idle]) .glow { opacity: 1; }
 
 html[data-glow="off"] .glow { opacity: 0 !important; }
@@ -60,11 +65,25 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr-in.hop { animation: hop .55s cubic-bezier(.3,1.5,.5,1); }
 .cr .f { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .cr .f svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.cr .f path { fill: var(--cr, #F5B83D); transition: fill .3s; }
+/* --cr is a real colour property, so changing it fades the character, the glow and the preview together */
+@property --gcol { syntax: '<color>'; inherits: true; initial-value: #F5B83D; }
+@property --cr { syntax: '<color>'; inherits: true; initial-value: #F5B83D; }
+:root { transition: --cr .6s cubic-bezier(.3,.9,.4,1); }
+.cr .f path { fill: var(--cr); }
+.cr .f.swap { animation: swap .56s cubic-bezier(.3,1.4,.5,1); }
+/* the party at the end of onboarding */
+.cr-in.party { animation: party 1.8s cubic-bezier(.3,1.2,.5,1) both; }
+@keyframes party { 0% { transform: scale(.4); opacity: 0; } 10% { transform: scale(1.1,.86); opacity: 1; } 24% { transform: translateY(-26px) scale(.92,1.12); } 38% { transform: translateY(0) scale(1.14,.84); } 52% { transform: translateY(-18px) scale(.95,1.08) rotate(-4deg); } 66% { transform: translateY(0) scale(1.1,.88) rotate(2deg); } 82% { transform: translateY(-8px) scale(.98,1.04); } 100% { transform: none; } }
+.cf-wrap { position: absolute; left: 50%; pointer-events: none; z-index: 12; }
+.cf { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 1.5px; opacity: 0; animation: cf 1.5s cubic-bezier(.2,.8,.3,1) var(--d, 0s) both; }
+@keyframes cf { 0% { transform: translate(0,0) rotate(0) scale(.4); opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), calc(var(--y) + 46px)) rotate(var(--r)) scale(1); opacity: 0; } }
+@keyframes swap { 0% { transform: scale(1); } 24% { transform: scale(.76,.9) rotate(-6deg); } 62% { transform: scale(1.13,.94) rotate(3deg); } 100% { transform: scale(1); } }
+.pv-tile { background: color-mix(in srgb, var(--cr) 9%, #0b0b0c); }
+.pv-bloom { background: radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--cr) 34%, transparent), transparent 68%); }
 .onb.go .o-i { animation: onbin .42s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i, 0) * .05s); }
 @keyframes onbin { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
 .cr .ey { position: absolute; top: var(--et); width: 14%; height: 24%; border-radius: 50%; background: #2B1B0E; transition: all .22s; translate: var(--lx, 0px) var(--ly, 0px); }
-.cr .ey.l { left: 30%; } .cr .ey.r { left: 56%; }
+.cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
 .cr[data-m=sleep] .ey { height: 5%; border-radius: 3px; top: calc(var(--et) + 13%); }

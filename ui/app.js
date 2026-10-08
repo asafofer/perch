@@ -190,10 +190,13 @@
     n.style.opacity = 1;
     n.dataset.virt = virt ? '1' : '';
     n.dataset.s = st;
+    curH = h;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
-      cr.style.transform = 'translate(' + (-idleW / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)';
-    } else {
+      idleXf = 'translate(' + (-idleW / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
+      cr.style.transform = idleXf;
+      if (helloNext) { helloNext = false; sayHello(); }
+    } else if (!celebrating) {
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
@@ -201,9 +204,9 @@
     var needN = st === 'idle' ? s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; }).length : 0, news = needN > 0;
     var dotEl = cr.querySelector('.dot'); if (news) dotEl.textContent = needN > 9 ? '9+' : String(needN);
     if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
-    cr.style.opacity = (st === 'idle' && !news) ? 0 : 1;
+    cr.style.opacity = (st === 'idle' && !news && !hello) ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
-    cr.dataset.m = st === 'idle' ? (news ? 'awake' : 'sleep') : (st === 'restore' ? 'happy' : 'awake');
+    if (!celebrating) cr.dataset.m = st === 'idle' ? ((news || hello) ? 'awake' : 'sleep') : (st === 'restore' ? 'happy' : 'awake');
     post({ type: 'size', width: w, height: h });
   }
   function apply(s) {
@@ -221,6 +224,10 @@
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
+    n.dataset.g = (st === 'open' && p && glow[p.status.kind]) ? 'status' : 'char';
+    var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
+    n.style.setProperty('--gcol', allDone ? '#4ADE80' : (s.character ? s.character.color : charNow.color));
+    lastSt = st;
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
     else { if (last.running) bar(false); last.running = false; }
@@ -280,7 +287,8 @@
     ['ears', 'Ears', 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
     ['dome', 'Dome', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
     ['arch', 'Arch', 'M4 22V11a8 8 0 0 1 16 0v11H4z', '40%'],
-    ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%']
+    ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%'],
+    ['peak', 'Peak', 'M10.3 4.3Q12 1.6 13.7 4.3L21.3 17.6Q22.9 20.6 19.6 20.6H4.4Q1.1 20.6 2.7 17.6Z', '55%', '35%', '51%']
   ];
   var PALETTE = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
   var charNow = { shape: 'ears', color: '#F5B83D' };
@@ -290,14 +298,56 @@
     charNow = { shape: c.shape, color: c.color };
     var sh = shapeOf(c.shape);
     scene.querySelectorAll('.cr:not(.cr-mini) .f path').forEach(function (p) { p.setAttribute('d', sh[2]); });
-    scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); });
+    scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); e.style.setProperty('--el', sh[4] || '30%'); e.style.setProperty('--er', sh[5] || '56%'); });
     document.documentElement.style.setProperty('--cr', c.color);
+    if (n && !(onbStep === 4 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: five short steps inside the notch ---- */
+
+  /* ---- moments: the party at the end of onboarding, and the first hello beside the notch ---- */
+  var celebrating = false, hello = false, helloNext = false, curH = 232, idleXf = '', idleD = 18, lastSt = 'idle';
+  function celebrate() {
+    var box = q('.onb'), reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    celebrating = true;
+    box.style.transition = 'opacity .35s'; box.style.opacity = '0';
+    cr.dataset.m = 'happy';
+    cr.style.width = cr.style.height = '70px';
+    cr.style.transform = 'translate(-35px,' + Math.round(curH / 2 - 38) + 'px)';
+    var ci = cr.querySelector('.cr-in'); ci.classList.remove('party'); void ci.offsetWidth; ci.classList.add('party');
+    confetti();
+    setTimeout(function () {
+      celebrating = false; ci.classList.remove('party');
+      cr.dataset.m = 'awake';
+      if (snap) layout(lastSt, snap);               /* collapses back to the small one at the top left */
+      box.style.opacity = ''; box.classList.remove('go'); void box.offsetWidth; box.classList.add('go');
+    }, 1900);
+  }
+  function confetti() {
+    var host = q('.p-onb'), cols = ['#4ADE80', '#86EFAC', charNow.color, '#FDE68A', '#FFFFFF'], k, html = '';
+    for (k = 0; k < 18; k++) {
+      var a = (k / 18) * Math.PI * 2 + Math.random() * 0.5, dist = 70 + Math.random() * 60;
+      html += '<i class="cf" style="--x:' + Math.round(Math.cos(a) * dist) + 'px;--y:' + Math.round(Math.sin(a) * dist * 0.75 - 16) + 'px;--r:' + Math.round(Math.random() * 360) + 'deg;--d:' + (0.05 + Math.random() * 0.2).toFixed(2) + 's;background:' + cols[k % cols.length] + '"></i>';
+    }
+    var wrap = document.createElement('div'); wrap.className = 'cf-wrap'; wrap.style.top = Math.round(curH / 2 - 3) + 'px'; wrap.innerHTML = html; host.appendChild(wrap);
+    setTimeout(function () { wrap.remove(); }, 1700);
+  }
+  /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
+  function sayHello() {
+    hello = true;
+    var ci = cr.querySelector('.cr-in');
+    cr.style.opacity = 1; cr.dataset.m = 'awake';
+    ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
+    setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = 'happy'; }, 700);
+    setTimeout(function () { cr.dataset.m = 'awake'; blinkEl(cr); }, 1500);
+    setTimeout(function () { cr.style.transform = idleXf + ' translateX(' + (idleD + 4) + 'px) scale(.55)'; cr.style.opacity = 0; }, 2500);
+    setTimeout(function () { hello = false; if (snap) layout(lastSt, snap); }, 3100);
+  }
+
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
@@ -312,24 +362,57 @@
   function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-center gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
-  function onbDo(a) { if (a === 'settings') post({ type: 'openSettings' }); else post({ type: 'onb', action: a }); }
+  function onbDo(a) { if (a === 'finish') helloNext = true; if (a === 'settings') post({ type: 'openSettings' }); else post({ type: 'onb', action: a }); }
   function pickCharacter(c) {
-    applyCharacter(c); post({ type: 'character', shape: c.shape, color: c.color });
-    if (onbLast) onbRender(onbLast, false);
-    var pv = q('.cr-pv'); if (pv) { pv.dataset.m = 'happy'; pv.querySelector('.cr-in').classList.remove('hop'); void pv.offsetWidth; pv.querySelector('.cr-in').classList.add('hop'); setTimeout(function () { pv.dataset.m = 'awake'; }, 800); }
+    var shapeChanged = c.shape !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
+    post({ type: 'character', shape: c.shape, color: c.color });
+    var commit = function () { applyCharacter(charNow); };
+    if (shapeChanged && pv) {
+      /* squash, swap the shape at the lowest point, spring back */
+      var f = pv.querySelector('.f'); f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
+      setTimeout(commit, 120); setTimeout(function () { f.classList.remove('swap'); }, 560);
+    } else commit();
+    charNow = { shape: c.shape, color: c.color };
+    document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbStep === 4 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
+    if (box) {
+      box.querySelectorAll('.o-shape').forEach(function (b) {
+        var on = b.dataset.k === c.shape;
+        b.className = b.className.replace(/bg-white\/\[0\.14\] ring-1 ring-white\/40|bg-white\/\[0\.06\] hover:bg-white\/\[0\.1\]/, on ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]');
+      });
+      box.querySelectorAll('.o-color').forEach(function (b) {
+        var on = b.dataset.c === c.color;
+        b.className = b.className.replace(/ring-2 ring-white ring-offset-2 ring-offset-black|hover:scale-110/, on ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110');
+      });
+    }
+    if (pv) {
+      pv.dataset.m = 'happy';
+      var ci = pv.querySelector('.cr-in'); ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+      clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850);
+    }
   }
+  /* the preview and the little shape tiles are alive: they blink and glance about while you choose */
+  function blinkEl(el) { el.classList.add('blink'); setTimeout(function () { el.classList.remove('blink'); }, 150); }
+  (function previewLife() {
+    var pv = q('.cr-pv');
+    if (pv && pv.dataset.m === 'awake') {
+      blinkEl(pv); if (Math.random() < 0.3) setTimeout(function () { blinkEl(pv); }, 280);
+      pv.style.setProperty('--lx', ((Math.random() - 0.5) * 5).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((Math.random() - 0.5) * 3).toFixed(2) + 'px');
+    }
+    scene.querySelectorAll('.cr-mini').forEach(function (m, i) { if (Math.random() < 0.55) setTimeout(function () { blinkEl(m); }, i * 130); });
+    setTimeout(previewLife, 1700 + Math.random() * 2400);
+  })();
   function onbRender(o, animate) {
     onbLast = o;
     var box = q('.onb'), h = '', g = o.accessibility, st = o.step;
     if (st === 0) {
       var shapes = SHAPES.map(function (sh) {
-        return '<button class="o-shape grid size-11 cursor-pointer place-items-center rounded-lg transition ' + (sh[0] === charNow.shape ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]') + '" data-k="' + sh[0] + '" aria-label="' + sh[1] + '" title="' + sh[1] + '">' + crHtml('cr-mini', 24, sh) + '</button>';
+        return '<button class="o-shape grid size-11 cursor-pointer place-items-center rounded-lg transition active:scale-95 ' + (sh[0] === charNow.shape ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]') + '" data-k="' + sh[0] + '" aria-label="' + sh[1] + '" title="' + sh[1] + '">' + crHtml('cr-mini', 24, sh) + '</button>';
       }).join('');
       var colors = PALETTE.map(function (c) {
         return '<button class="o-color size-5 cursor-pointer rounded-full transition ' + (c[1] === charNow.color ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110') + '" style="background:' + c[1] + '" data-c="' + c[1] + '" aria-label="' + c[0] + '" title="' + c[0] + '"></button>';
       }).join('');
       h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
-        oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="grid size-[76px] flex-none place-items-center rounded-2xl bg-white/[0.06]">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
+        oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
         ofoot(4, false, '', 'Next', 'next');
     } else if (st === 1) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
@@ -373,6 +456,7 @@
     var sig = [o.step, o.accessibility, o.summaries, o.scanning, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
+    if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
