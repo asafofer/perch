@@ -34,6 +34,10 @@ public struct Project: Identifiable, Equatable, Sendable {
     public let cwd: String?
     /// The Claude app's own id for this session ("local_…"). When set, Pick up opens it in the app instead of Terminal.
     public let desktopSessionId: String?
+    /// When the agent last said something. What "while you were away" is measured against.
+    public var lastActive: Date?
+    /// A terminal session that is still open in a terminal tab right now, so Pick up goes to that tab.
+    public var liveInTerminal = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,

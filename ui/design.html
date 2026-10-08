@@ -87,8 +87,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Acting on it', [
       ['Reply: empty', 'Press R. The field replaces the buttons.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
+      ['Reply: no Accessibility', 'Perch cannot type for you, so Send becomes Copy and open.', function () { d.noAccess(); reply(true)(); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(0); d.show('open'); setTimeout(function () { document.querySelector('.x-esc').click(); }, 700); }],
-      ['Other projects', 'Press Tab. Shows which sessions are working. Tab goes back.', function () { d.show('switcher'); }]
+      ['Other projects', 'Press Tab. Shows which sessions are working. Tab goes back.', function () { d.show('switcher'); }],
+      ['Asked for, still looking', 'The shortcut right after launch, before the first scan. Turns into the card when it can.', function () { d.empty(true); }],
+      ['Asked for, nothing there', 'No sessions in the last two weeks. Says so instead of doing nothing.', function () { d.empty(false); }]
     ]],
     ['External display', [
       ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', 'off', true); }],

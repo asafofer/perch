@@ -67,7 +67,12 @@ final class RecapCache: @unchecked Sendable {
     func get(_ key: String) -> RecapText? { lock.lock(); defer { lock.unlock() }; return store[key] }
     func set(_ key: String, _ value: RecapText) {
         lock.lock(); store[key] = value
-        if store.count > 200 { store = Dictionary(uniqueKeysWithValues: store.suffix(100).map { ($0.key, $0.value) }) }
+        if store.count > 200 {
+            // Keep the 100 newest by the session time in the key ("id|time|version"). Dictionary order is not age.
+            let time: (String) -> Int = { Int($0.split(separator: "|").dropFirst().first ?? "") ?? 0 }
+            let keep = Set(store.keys.sorted { time($0) > time($1) }.prefix(100))
+            store = store.filter { keep.contains($0.key) }
+        }
         let data = try? JSONEncoder().encode(store); lock.unlock()
         if let data { try? data.write(to: url, options: .atomic) }
     }
@@ -78,11 +83,15 @@ enum RecapMerge {
     /// Keep the plain "next" when it came from a concrete fact: Claude's open question or uncommitted files.
     /// Any model field that isn't grounded in the conversation falls back to the plain one.
     static func apply(_ r: RecapText, to p: Project, grounding: SessionDigest? = nil) -> Project {
-        let concrete = p.status.kind == "attention" || ["Answer", "Next:"].contains { p.next.hasPrefix($0) }
+        // The plain next step only exists when it is a fact (a question to answer, a step the agent stated), so it wins.
+        let concrete = p.status.kind == "attention" || !p.next.isEmpty
         let grounded: (String) -> Bool = { text in grounding.map { Grounding.isGrounded(text, in: $0) } ?? true }
         // A field is used only if it is the right length (never cut off), grounded in the conversation, and in the right voice.
         let oneSentence = !r.headline.dropLast().contains(".") && !r.next.dropLast().contains(".")
         let repeats = r.context.contains(r.headline) || r.headline.contains(r.context)
+        var r = r
+        r.next = r.next.replacingOccurrences(of: #"^\s*next\s*[:,-]\s*"#, with: "", options: [.regularExpression, .caseInsensitive])   // the card already says "Next"
+        r.next = r.next.prefix(1).uppercased() + r.next.dropFirst()
         var headline = r.headline
         if !headline.hasSuffix(".") { headline += "." }
         let headlineOK = oneSentence && r.headline.hasPrefix("You were") && (8...64).contains(r.headline.count) && grounded(r.headline)

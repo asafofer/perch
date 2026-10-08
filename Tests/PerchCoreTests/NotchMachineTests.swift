@@ -9,8 +9,16 @@ import Testing
         #expect(m.phase == .open); #expect(m.selected == 0)
     }
     @Test func comeBackWithNoProjectsStaysClosed() {
-        var m = machine(0); m.send(.comeBack); m.send(.openSwitcher)
+        var m = machine(0); m.send(.comeBack)
         #expect(m.phase == .idle)
+    }
+    @Test func askingForTheListWithNoProjectsShowsItEmpty() {
+        var m = machine(0); m.send(.openSwitcher)
+        #expect(m.phase == .switcher)
+        m.send(.next); m.send(.previous); #expect(m.selected == 0)
+        m.send(.back); #expect(m.phase == .switcher)
+        m.send(.projectsChanged(count: 0, selected: 0)); #expect(m.phase == .switcher)
+        m.send(.projectsChanged(count: 2, selected: 0)); m.send(.next); #expect(m.selected == 1)
     }
     @Test func nextCyclesAndWraps() {
         var m = machine(); m.send(.comeBack)

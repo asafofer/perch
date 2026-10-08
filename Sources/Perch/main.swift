@@ -31,9 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
+                let opens = p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")"
+                    : p.desktopSessionId.map { "claude://code/continue?session=" + $0 }
+                    ?? (p.liveInTerminal ? "the terminal tab it is running in" : "\(Terminals.preferred): claude --resume \(p.sessionId ?? "?")")
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
-                print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(p.desktopSessionId.map { "claude://code/continue?session=" + $0 } ?? "Terminal: claude --resume \(p.sessionId ?? "?")")")
+                print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }
+            for hit in LiveSessions.claude() { print("live terminal session: pid \(hit.pid) in \(hit.cwd) on \(hit.tty)") }
             exit(0)
         }
         // Demos and snapshots always use sample data, so they never open Terminal.

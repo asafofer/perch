@@ -43,6 +43,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     var holdOpen = false
     /// How long "Not now" hides the card before it comes back.
     var snoozeSeconds: Double = 30 * 60
+    /// "Not now" holds until then: coming back from a break does not override it.
+    private var snoozedUntil = Date.distantPast
+    /// The first scan has finished, so an empty list really is empty.
+    private var scannedOnce = false
+    /// You asked for the card before the first scan finished: the list shows "Looking" and turns into the card when it can.
+    private var openWhenScanned = false
 
     init(provider: SessionProviding) {
         self.provider = provider
@@ -81,24 +87,31 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: public actions
     /// `proactive` is Perch speaking up on its own (you came back from being away, a snooze ended). Then it never
     /// talks about the session you are already in: that one goes to the back, and if it is the only one, nothing shows.
-    func comeBack(onHome: Bool = false, proactive: Bool = false) {
-        if proactive, machine.phase == .idle, let i = activeProjectIndex() {
+    /// `reminder` is a "Not now" coming due; it is the one proactive open a snooze allows.
+    func comeBack(byHover: Bool = false, proactive: Bool = false, reminder: Bool = false) {
+        guard machine.phase == .idle else { return }
+        if proactive && !reminder && Date() < snoozedUntil { return }
+        if !proactive && !byHover {
+            // You asked for it yourself, so the snooze is over. With nothing to show yet, the list says so instead of doing nothing.
+            snoozeTask?.cancel(); snoozedUntil = .distantPast
+            if projects.isEmpty { openWhenScanned = !scannedOnce; toggleSwitcher(); return }
+        }
+        if proactive, let i = activeProjectIndex() {
             guard projects.count > 1 else { return }
             projects.append(projects.remove(at: i))
         }
-        snoozeTask?.cancel(); openedByHover = onHome; proactiveOpen = proactive; openedAt = Date(); leftCardAt = nil; prepareToShow(onHome: onHome); send(.comeBack)
+        openedByHover = byHover; proactiveOpen = proactive; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.comeBack)
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
     /// The most recent session of whichever app is in front: Claude, Codex or a terminal.
     private func activeProjectIndex() -> Int? {
         guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
-        let terminals: Set<String> = ["com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "com.github.wez.wezterm", "net.kovidgoyal.kitty"]
         return projects.firstIndex { p in
             switch bid {
-            case "com.anthropic.claudefordesktop": return p.app == "claude" && p.desktopSessionId != nil
-            case "com.openai.codex": return p.app == "codex"
-            default: return terminals.contains(bid) && p.app == "claude" && p.desktopSessionId == nil
+            case Restorer.claudeApp: return p.app == "claude" && p.desktopSessionId != nil
+            case Restorer.codexApp: return p.app == "codex"
+            default: return Terminals.all.contains(bid) && p.app == "claude" && p.desktopSessionId == nil
             }
         }
     }
@@ -131,10 +144,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: state
-    private func prepareToShow(onHome: Bool = false) {
+    /// The card opens on the display the cursor is on, the same one whose notch or tab you hovered.
+    private func prepareToShow() {
         guard machine.phase == .idle else { return }
         applyCachedRecaps()
-        place(on: onHome ? ScreenChooser.home() : ScreenChooser.current())
+        place(on: ScreenChooser.current())
     }
 
     // MARK: keeping the project list fresh, off the main thread
@@ -150,12 +164,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             let list = provider.parkedProjects()
             await MainActor.run {
                 guard let self else { return }
-                self.refreshing = false
+                self.refreshing = false; self.scannedOnce = true
                 switch self.machine.phase {
                 case .idle: self.install(list)
                 case .open, .switcher: self.installLive(list)
                 case .onboarding, .settings: self.projects = list; self.machine.send(.projectsChanged(count: list.count, selected: 0)); self.push()
                 default: self.pendingProjects = list
+                }
+                if self.openWhenScanned {
+                    self.openWhenScanned = false
+                    if self.machine.phase == .switcher, !list.isEmpty { self.send(.back) } else { self.push() }
                 }
                 if self.refreshAgain { self.refreshAgain = false; self.refreshProjects() }
             }
@@ -214,8 +232,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func startRefreshing() {
         // Switching apps changes which session counts as "the one you are in", so the resting character is re-evaluated.
-        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            MainActor.assumeIsolated {
+                // Pick up opens terminal sessions in the terminal you use.
+                if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier, Terminals.all.contains(bid) { Prefs.lastTerminal = bid }
+                if self?.machine.phase == .idle { self?.push() }
+            }
         }
         refreshProjects()
         startWatching()
@@ -288,9 +310,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         push()
     }
 
-    private func pickUp(_ index: Int) {
+    private func pickUp(_ index: Int, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
         guard projects.indices.contains(index) else { return }
-        Restorer.resume(projects[index])
+        Restorer.resume(projects[index], then: done)
         let old = machine.phase
         machine.send(.dismiss)
         phaseChanged(old, machine.phase)
@@ -301,6 +323,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard ready else { return }
         let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
                           activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
+                          scanning: !scannedOnce, canSend: AXIsProcessTrusted(),
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         iconsSent = true
@@ -443,48 +466,75 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         send(.dismiss)
         snoozeTask?.cancel()
+        snoozedUntil = Date().addingTimeInterval(seconds)
         snoozeTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(for: .seconds(seconds))
-            if !Task.isCancelled, self.machine.phase == .idle { self.comeBack(proactive: true) }
+            guard !Task.isCancelled else { return }
+            self.snoozedUntil = .distantPast
+            if self.machine.phase == .idle { self.comeBack(proactive: true, reminder: true) }
         }
     }
 
-    /// Answers Claude or Codex without typing in its window: the reply goes on the clipboard, the exact session opens, and it is
-    /// pasted and sent for you when Perch has Accessibility access. Without it, it stays on the clipboard for you to paste.
+    /// Answers Claude or Codex without typing in its window: the exact session opens and the reply is pasted and sent.
+    /// It is typed only when Perch knows the focused input belongs to that session; otherwise, and without Accessibility,
+    /// the reply stays on the clipboard for you to paste. When it was typed, your clipboard is put back.
     private func reply(_ text: String) {
-        let pb = NSPasteboard.general
-        pb.clearContents(); pb.setString(text, forType: .string)
-        let project = projects.indices.contains(machine.selected) ? projects[machine.selected] : nil
-        pickUp(machine.selected)
-        // Typing into another app needs Accessibility. Ask once per launch (never in a loop). The paste is attempted
-        // either way, and the reply stays on the clipboard if it cannot go through.
+        guard projects.indices.contains(machine.selected) else { return }
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
-            askedForAccessibility = true
+            askedForAccessibility = true   // ask once per launch, never in a loop
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
         }
-        NSLog("Perch: reply, accessibility trusted = \(trusted)")
-        let target = project?.app == "codex" ? "com.openai.codex" : (project?.desktopSessionId != nil ? "com.anthropic.claudefordesktop" : "com.apple.Terminal")
-        Task {
-            // Wait for the app to be in front (up to 5 s), then give its message box a moment to take focus.
-            for _ in 0..<50 {
-                if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target { break }
-                try? await Task.sleep(for: .milliseconds(100))
+        let pb = NSPasteboard.general
+        let saved = trusted ? Clipboard.save() : nil
+        pb.clearContents(); pb.setString(text, forType: .string)
+        let ours = pb.changeCount
+        let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        pickUp(machine.selected) { landing in
+            guard trusted else { return }
+            let target: String, settle: () async -> Bool
+            switch landing {
+            case .app(let app, exact: true):
+                // Already in front means the app navigates inside itself, which takes longer than coming forward.
+                target = app; let wait = frontBefore == app ? 1.6 : 0.9
+                settle = { try? await Task.sleep(for: .seconds(wait)); return true }
+            case .newTerminal(let app, let cwd):
+                // Type only once claude is running, never into the shell before it.
+                target = app
+                settle = {
+                    for _ in 0..<60 {
+                        if await Task.detached(operation: { LiveSessions.claude().contains { $0.cwd == cwd } }).value {
+                            try? await Task.sleep(for: .seconds(1.5)); return true
+                        }
+                        try? await Task.sleep(for: .milliseconds(250))
+                    }
+                    return false
+                }
+            default:
+                NSLog("Perch: reply left on the clipboard (no exact session to type into)"); return
             }
-            try? await Task.sleep(for: .milliseconds(800))
-            let src = CGEventSource(stateID: .combinedSessionState)
-            for down in [true, false] {
-                let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)
-                e?.flags = .maskCommand
-                e?.post(tap: .cghidEventTap)
+            Task {
+                for _ in 0..<50 {
+                    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target { break }
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                guard await settle(), NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target else {
+                    NSLog("Perch: reply left on the clipboard (\(target) did not come forward)"); return
+                }
+                let src = CGEventSource(stateID: .combinedSessionState)
+                for down in [true, false] {
+                    let e = CGEvent(keyboardEventSource: src, virtualKey: 9, keyDown: down)
+                    e?.flags = .maskCommand
+                    e?.post(tap: .cghidEventTap)
+                }
+                // You wrote it and pressed Send, so it is sent: Return after the paste.
+                try? await Task.sleep(for: .milliseconds(250))
+                for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
+                NSLog("Perch: sent reply into \(target)")
+                try? await Task.sleep(for: .milliseconds(600))
+                if let saved, pb.changeCount == ours { Clipboard.restore(saved) }
             }
-            // You wrote it and pressed Send, so it is sent: Return after the paste.
-            try? await Task.sleep(for: .milliseconds(250))
-            for down in [true, false] {
-                CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap)
-            }
-            NSLog("Perch: sent reply into \(target)")
         }
     }
 
@@ -591,25 +641,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
                 return e
             }
+            // Letters by what they type, so N, R and the comma work on any keyboard layout. Digits also by position (AZERTY).
+            let ch = e.charactersIgnoringModifiers?.lowercased() ?? ""
             if self.snoozeMenuOpen {
-                switch e.keyCode {
-                case 18: self.snooze("30m")
-                case 19: self.snooze("2h")
-                case 20: self.snooze("tomorrow")
-                case 53, 45, 48, 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(false)", completionHandler: nil)
-                default: return e
-                }
+                if ch == "1" || e.keyCode == 18 { self.snooze("30m") }
+                else if ch == "2" || e.keyCode == 19 { self.snooze("2h") }
+                else if ch == "3" || e.keyCode == 20 { self.snooze("tomorrow") }
+                else if [53, 48, 36, 76].contains(e.keyCode) || ch == "n" { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(false)", completionHandler: nil) }
+                else { return e }
                 return nil
             }
-            switch e.keyCode {
-            case 36, 76: self.send(.confirm)
-            case 53: self.send(.dismiss)
-            case 43: if self.machine.phase == .open || self.machine.phase == .switcher { self.send(.openSettings) } else { return e }
-            case 48: self.send(self.machine.phase == .open ? .openSwitcher : .back)
-            case 15: if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
-            case 45: if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
-            case 125: self.send(.next)
-            case 126: self.send(.previous)
+            let list = self.machine.phase == .open || self.machine.phase == .switcher
+            switch (e.keyCode, ch) {
+            case (36, _), (76, _): self.send(.confirm)
+            case (53, _): self.send(.dismiss)
+            case (48, _): self.send(self.machine.phase == .open ? .openSwitcher : .back)
+            case (125, _): self.send(.next)
+            case (126, _): self.send(.previous)
+            case (_, ","): if list { self.send(.openSettings) } else { return e }
+            case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
+            case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             default: return e
             }
             if self.machine.phase == .open { self.restartTimer(); self.push() }
@@ -622,11 +673,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var cursorTimer: Timer?
     private var lastCursor = CGPoint(x: -1, y: -1)
 
-    /// Checks the cursor 30 times a second. Reliable where mouse-moved events are not, and it feeds the character's eyes.
+    /// Checks the cursor 30 times a second while it is near the top of a screen or a card is up, and 4 times a second
+    /// otherwise. Reliable where mouse-moved events are not, it feeds the character's eyes, and it lets the Mac idle.
+    private var cursorFast = true
     private func startCursorPolling() {
-        let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+        cursorTimer?.invalidate()
+        let t = Timer(timeInterval: cursorFast ? 1.0 / 30.0 : 0.25, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                let at = NSEvent.mouseLocation
+                let top = NSScreen.screens.first { $0.frame.contains(at) }.map { $0.frame.maxY - at.y } ?? 0
+                let fast = self.machine.phase != .idle || top < 160
+                if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
                 let p = NSEvent.mouseLocation
                 if self.machine.phase != .idle, self.ready, p != self.lastCursor {
@@ -675,7 +733,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hover: dwell done") }
-            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack(onHome: true) }
+            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack(byHover: true) }
         }
     }
 

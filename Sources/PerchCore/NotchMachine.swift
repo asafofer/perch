@@ -32,6 +32,7 @@ public struct NotchMachine: Equatable, Sendable {
             guard projectCount > 0 else { return }   // nothing to say: stay closed
             selected = 0; phase = .open
         case (.switcher, .back):
+            guard projectCount > 0 else { return }   // no card to go back to
             phase = .open
         case (.idle, .openSetup):
             phase = .setup
@@ -44,15 +45,16 @@ public struct NotchMachine: Equatable, Sendable {
         case (.idle, .openOnboarding):
             phase = .onboarding
         case (.idle, .openSwitcher):
-            guard projectCount > 0 else { return }
-            phase = .switcher
+            phase = .switcher   // asked for: an empty list says so instead of doing nothing
         case (.open, .openSwitcher):
             phase = .switcher
         case (.switcher, .openSwitcher):
             close()
         case (.open, .next), (.switcher, .next):
+            guard projectCount > 0 else { return }
             selected = (selected + 1) % projectCount
         case (.open, .previous), (.switcher, .previous):
+            guard projectCount > 0 else { return }
             selected = (selected - 1 + projectCount) % projectCount
         case (.open, .confirm), (.switcher, .confirm):
             phase = .restoring
@@ -67,7 +69,7 @@ public struct NotchMachine: Equatable, Sendable {
             close()
         case (.open, .projectsChanged(let n, let sel)), (.switcher, .projectsChanged(let n, let sel)):
             projectCount = n
-            if n == 0 { close() } else { selected = min(max(sel, 0), n - 1) }
+            if n == 0 { if phase == .open { close() } else { selected = 0 } } else { selected = min(max(sel, 0), n - 1) }
         case (_, .projectsChanged(let n, _)):
             projectCount = n
         case (.open, .hoverChanged(let h)), (.switcher, .hoverChanged(let h)):

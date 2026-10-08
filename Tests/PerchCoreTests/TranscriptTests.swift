@@ -108,7 +108,7 @@ import Foundation
     @Test func statedNextStepBeatsGit() {
         var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Done with the table. Next: wire the logo upload to the ledger."
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 2, files: ["a", "b"]), now: Date())!
-        #expect(p.next == "Next: Wire the logo upload to the ledger")
+        #expect(p.next == "Wire the logo upload to the ledger")
     }
     @Test func parsesPorcelainStatus() {
         let g = GitInfo.parse(status: "## feature/x...origin/feature/x [ahead 3]\n M Sources/App.swift\n?? docs/notes.md\nR  old.txt -> new.txt\n", lastCommit: nil)

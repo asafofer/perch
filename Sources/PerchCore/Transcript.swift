@@ -174,13 +174,15 @@ public enum Recap {
         let context = (d.lastAsk ?? d.lastUserText).map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
-        return Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
+        var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 28), app: app, agents: agents,
                        steps: desktopSessionId != nil
                            ? [RestoreStep(icon: "win", text: "Opened the \(app == "codex" ? "Codex" : "Claude") app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+        p.lastActive = last
+        return p
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
@@ -218,7 +220,7 @@ public enum Recap {
         let done = (kind: AgentStatus.Kind.done, text: "\(agent) replied")
         // Only a step the agent stated itself. Git housekeeping (committing, pushing) is never offered, and with
         // nothing real to suggest the card shows no next step at all.
-        if let a = d.lastAssistantText, let step = explicitNext(in: a), !isGitChore(step) { return (done, "Next: \(clip(step, 100))") }
+        if let a = d.lastAssistantText, let step = explicitNext(in: a), !isGitChore(step) { return (done, clip(step, 100)) }   // the card labels it "Next" itself
         return (done, "")
     }
 
@@ -346,9 +348,11 @@ public enum RecapPrompt {
 extension Project {
     /// The same project with model-written words in place of the plain recap.
     public func withRecap(_ r: RecapText) -> Project {
-        Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
-                context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
-                agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+        var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
+                        context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
+                        agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+        p.lastActive = lastActive; p.liveInTerminal = liveInTerminal
+        return p
     }
 }
 
