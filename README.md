@@ -1,49 +1,77 @@
 # Perch
 
-A notch app for macOS that tells you where you left off in your Claude Code and Codex sessions, and lets you jump back in.
+A notch app for macOS. When you come back to your Mac, Perch tells you where you left off in your Claude Code and Codex sessions, and lets you jump back in, reply, snooze, or change settings, all without leaving the notch.
 
-Hover the notch, come back from being away, or press ⌃⌥P. The card shows each project's last topic, what's happening (working, replied, waiting on you), and lets you reply or pick up in one key.
+- **Welcome back.** After you have been away, the card drops from the notch: what you were doing, what the agent is doing now (working, replied, waiting on you), and the next step when there is a real one.
+- **Pick up.** Return opens the exact Claude Code or Codex session.
+- **Reply.** Answer from the card. Perch opens the session, pastes your reply and sends it.
+- **Other projects.** Tab shows your recent sessions with a live "Working" indicator.
+- **On-device summaries.** Written by Apple Intelligence on your Mac. Nothing leaves it.
+- **Yours.** Pick your character's shape and colour in onboarding or Settings.
 
 ## Requirements
 
-- A Mac with a notch, macOS 26 or later
-- Xcode 26 (Swift toolchain), Node 20+ (for the Tailwind build)
+- macOS 26 or later (Apple silicon). A notch is not required: on other screens Perch draws a small tab at the top centre.
+- Xcode 26 (for the Swift toolchain) and Node 20+ (for the Tailwind build).
 - Claude Code and/or Codex, used as you normally would. Perch only reads their local session files.
 
-## Run it
+## Install
+
+**From source (recommended while this is internal):**
 
 ```bash
-cd ui && npm install && cd ..
-./scripts/make-dev-cert.sh   # once: a local signing certificate, so macOS remembers permissions between builds
-./scripts/run.sh --show      # build, launch, and show the card right away
+git clone https://github.com/asafofer/perch.git
+cd perch
+./scripts/make-dev-cert.sh   # once: a local signing certificate so macOS remembers permissions
+./scripts/install.sh         # builds a release app, copies it to /Applications, opens it
 ```
 
-Other flags: `--idle <seconds>` shows the welcome card after that much idle time (default 1200), `--simulate` plays away-then-back, `--setup` shows setup, `--snapshot <dir>` writes PNGs of each state.
+**Run it in development:** `./scripts/run.sh --show` (builds a debug app and shows the card straight away).
 
-Tests: `swift test`.
+**Share a build:** `./scripts/package.sh` writes `build/Perch.zip`. It is not notarized, so whoever unzips it right-clicks Perch.app and chooses Open the first time.
 
-## How it's built
+On first launch Perch walks you through setup: character, Accessibility, which apps to read, and on-device summaries.
 
-- `Sources/PerchCore`: pure logic. The notch state machine, geometry, transcript parsing and recaps. No UI. Tested.
-- `Sources/Perch`: the AppKit shell. A borderless panel over the menu bar with a `WKWebView`, hotkeys, hover, session scanning, on-device summaries (Apple Intelligence).
-- `ui/`: the interface. Plain JS, Tailwind v3 and shadcn-style classes, Inter bundled. Swift sends JSON snapshots to `window.perch.apply(...)`; the page only draws and reports clicks.
-- `ui/design.html`: the same UI with sample data and every state on one page. Open it in a browser to iterate on design without the app (`cd ui && python3 -m http.server`).
-
-## Keys
+## Using it
 
 | | |
 |---|---|
-| Hover the notch | Open the card |
-| ⌃⌥P | Welcome card |
-| ⌃⌥L | Other projects |
+| Hover the notch (or the tab) | Open the card |
+| Command + Option, tap | Open or close Perch |
+| Control + Option + P | The welcome card |
+| Control + Option + L | Other projects |
 | Tab | Switch between the card and the list |
 | Return | Pick up |
 | R | Reply |
-| N | Not now (30 min, 2 hours, tomorrow) |
+| N | Not now: 30 min, 2 hours or tomorrow |
+| , | Settings |
 | Esc | Close |
+
+Menu bar item: welcome card, other projects, choose apps, customize your character, set up Perch, quit.
 
 ## Permissions
 
-- **Accessibility** is needed to paste a reply into Claude or Codex for you. Without it the reply is copied and you paste it.
-- **Files** access prompts appear the first time Perch reads a project folder.
-- **Apple Intelligence** (optional) writes the summaries on your Mac.
+- **Accessibility**: Command + Option, and pasting a reply into Claude or Codex for you. Without it, a reply is copied and you paste it yourself.
+- **Files**: macOS asks the first time Perch reads a project folder. Choose Allow.
+- **Apple Intelligence** (optional): on-device summaries.
+
+If you toggled Accessibility on and Perch still says it is waiting, remove Perch from the list with the minus button, add it again, and restart Perch (onboarding has a Restart button for this).
+
+## Developing
+
+Read [AGENTS.md](AGENTS.md): architecture, the design-first workflow, design rules, and the gotchas. Short version:
+
+```bash
+cd ui && npm install && cd ..
+swift test                         # logic tests
+./scripts/run.sh --show            # build and launch
+cd ui && python3 -m http.server 8765   # then open http://localhost:8765/design.html
+```
+
+`ui/design.html` is the real interface with sample data and every state on one page. New UI goes there first.
+
+## Troubleshooting
+
+- **Card never appears on its own:** it needs you to be away for 20 minutes (Settings, "Come back after"). For testing, `./scripts/run.sh --idle 15`.
+- **macOS keeps asking for permissions after every build:** run `./scripts/make-dev-cert.sh` once.
+- **Nothing in the list:** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`.

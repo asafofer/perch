@@ -20,6 +20,7 @@ if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; th
 else
   codesign --force --sign - "$APP" >/dev/null 2>&1
 fi
+if [ "${1:-}" = "--package-only" ]; then exit 0; fi
 pkill -x Perch 2>/dev/null || true
 case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
