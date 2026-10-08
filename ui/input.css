@@ -26,9 +26,9 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
-.n[data-s=open] .p-open, .n[data-s=restore] .p-restore, .n[data-s=switch] .p-switch, .n[data-s=setup] .p-setup, .n[data-s=onb] .p-onb { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
+.n[data-s=open] .p-open, .n[data-s=restore] .p-restore, .n[data-s=switch] .p-switch, .n[data-s=setup] .p-setup, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
-.n[data-s=open] .p-open .rv, .n[data-s=restore] .p-restore .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=setup] .p-setup .rv, .n[data-s=onb] .p-onb .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
+.n[data-s=open] .p-open .rv, .n[data-s=restore] .p-restore .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=setup] .p-setup .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .rest-i .ck { opacity: 0; transform: scale(.6); transition: all .3s cubic-bezier(.3,1.5,.5,1); }
 .n[data-s=restore] .rest-i .ck { opacity: 1; transform: none; transition-delay: calc(.45s + var(--k) * .28s); }
 .notouch { transition: none !important; }
@@ -41,12 +41,7 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .glow::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(var(--glow-hi, 255,220,130), .34) 50%, transparent); }
 .n:not([data-s=idle]) .glow { opacity: 1; }
-/* dithered variant (design only for now): single pixels instead of a gradient */
-.glow-d { display: none; position: absolute; left: 0; right: 0; bottom: 0; height: 72px; pointer-events: none; opacity: 0; transition: opacity .9s ease;
-  background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; border-radius: inherit; }
-html[data-glow="dither"] .glow-d { display: block; }
-.n:not([data-s=idle]) .glow-d { opacity: 1; }
-html[data-glow="dither"] .glow { opacity: .4 !important; }
+
 html[data-glow="off"] .glow { opacity: 0 !important; }
 /* external: a soft halo on the windows behind, no inner light */
 html[data-glow="external"] .glow { opacity: 0 !important; }
