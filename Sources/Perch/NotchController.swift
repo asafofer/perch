@@ -734,6 +734,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
                 case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)
                 case 124: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('right')", completionHandler: nil)
+                case 125: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('down')", completionHandler: nil)
+                case 126: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('up')", completionHandler: nil)
                 case 53: if self.onbOnly { self.finishCharacter() } else { self.send(.dismiss) }
                 default: return e
                 }

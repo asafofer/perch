@@ -103,7 +103,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Settings', [
       ['Settings', 'The gear on the card, or the comma key. Everything lives in the notch.', function () { d.project(0); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Summaries off', 'Shows the Set up button.', function () { d.settings({ summaries: 'off' }); }],
-      ['Change character', 'From Settings: only the character, Done goes back to Settings.', function () { d.onboarding(0, true, null, true); }],
+      ['Change character', 'From Settings: only the character, Done goes back to Settings. Arrow keys work here too.', function () { d.onboarding(0, true, null, true); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false, summaries: 'off' }); }]
     ]],
     ['Resting', [
@@ -111,7 +111,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Something needs you', 'The character pops out with an orange dot.', function () { d.show('idle'); }]
     ]],
     ['Onboarding', [
-      ['1. Make it yours', 'Shape and colour. Arrow keys cycle shapes.', function () { d.onboarding(0); }],
+      ['1. Make it yours', 'Shape and colour. Left and right change the shape, up and down the colour.', function () { d.onboarding(0); }],
       ['2. Accessibility: waiting', 'Open System Settings. Detects the grant live.', function () { d.onboarding(1, false); }],
       ['2. Accessibility: allowed', 'The row ticks and Next appears.', function () { d.onboarding(1, true); }],
       ['3. Choose your apps', 'Switch Claude Code and Codex on or off. Scans so macOS asks about folders now.', function () { d.onboarding(2, true); }],

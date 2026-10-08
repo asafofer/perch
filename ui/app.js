@@ -374,8 +374,9 @@
       oi(1, '<p class="' + (o.only ? 'pt-0.5' : 'mt-1') + ' px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
-  function ofoot(i, back, mid, label, action) {
-    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', '', 'o-back') : '') + '<span class="flex-1"></span>' + (mid || '') +
+  /* `left` sits where Back would be: the keyboard hints on the character step */
+  function ofoot(i, back, mid, label, action, left) {
+    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', '', 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
   }
   function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
@@ -432,7 +433,8 @@
       }).join('');
       h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
         oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
-        ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next');
+        ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
+          '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + Kbd('\u2190\u2192') + 'Shape</span><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Colour</span></span>');
     } else if (st === 1) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
@@ -481,8 +483,16 @@
   function onbKey(k) {
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
     if (onbStep !== 0) return;
-    var i = 0; SHAPES.forEach(function (sh, j) { if (sh[0] === charNow.shape) i = j; });
-    i = (i + (k === 'right' ? 1 : -1) + SHAPES.length) % SHAPES.length;
+    /* left and right change the shape, up and down the colour; both wrap */
+    var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
+    if (k === 'up' || k === 'down') {
+      PALETTE.forEach(function (c, j) { if (c[1] === charNow.color) i = j; });
+      i = (i + d + PALETTE.length) % PALETTE.length;
+      pickCharacter({ shape: charNow.shape, color: PALETTE[i][1] });
+      return;
+    }
+    SHAPES.forEach(function (sh, j) { if (sh[0] === charNow.shape) i = j; });
+    i = (i + d + SHAPES.length) % SHAPES.length;
     pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
   }
 
@@ -605,6 +615,8 @@
     };
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
+      var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+      if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter')) { e.preventDefault(); onbKey(arrows[e.key] || 'enter'); return; }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
