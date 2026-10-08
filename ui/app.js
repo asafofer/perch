@@ -77,9 +77,9 @@
       '<div class="rv flex h-9 items-center gap-1 px-2.5" style="--i:2"><span class="su-note min-w-0 flex-1 pl-1.5 text-xs text-muted-foreground"></span><span class="su-btns flex items-center gap-1"></span></div>' +
     '</div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
+    '<div class="inner pt-8 pb-3.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
+    '<div class="inner pt-8 pb-3.5"><div class="set"></div></div></div>' +
     '<div class="pane p-restore"><div class="inner pt-8">' +
       header('<div class="r-n text-sm font-medium leading-4"></div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Picking up where you left off</div>') +
       '<div class="rv px-4 pb-4 pt-0.5 r-l" style="--i:1"></div>' +
