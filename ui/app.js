@@ -202,7 +202,7 @@
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     bRep.style.display = (st === 'open' && p) ? 'inline-flex' : 'none';
-    if (p) rIn.placeholder = 'Reply to ' + (p.status.app === 'codex' ? 'Codex' : 'Claude') + '\u2026';
+    if (p) rIn.placeholder = 'Reply to ' + (p.app === 'codex' || p.status.app === 'codex' || /codex/i.test(p.status.text) ? 'Codex' : 'Claude') + '\u2026';
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
@@ -272,7 +272,7 @@
   }
   if (!NATIVE) {
     var P = [
-      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
+      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you', app: 'codex' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
       { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, status: { kind: 'running', text: 'Claude Code is working' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
       { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
