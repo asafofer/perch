@@ -25,7 +25,6 @@
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + label + (extra || '') + '</button>';
   }
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + t + '</kbd>'; }
-  function Badge(inner, cls) { return '<span class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap text-xs font-medium text-foreground/80 ' + (cls || '') + '">' + inner + '</span>'; }
   function Dot(c) { return '<i class="block size-1.5 rounded-full" style="background:' + c + '"></i>'; }
   var icons = {};
   function App(k, c) {
@@ -52,14 +51,13 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
-    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
-    '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '<svg class="pointer-events-none absolute -inset-[3px] size-6" viewBox="0 0 24 24" style="transform:rotate(-90deg)" aria-hidden="true"><circle id="ring" cx="12" cy="12" r="10" fill="none" stroke="rgba(250,250,250,.42)" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="62.83"/></svg></button>' +
+    '<div class="pane p-open">' + '<span class="o-away rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-xs tabular-nums text-muted-foreground" style="--i:0"></span><span class="o-st rv absolute right-[58px] top-[7px] z-10 flex h-[18px] items-center gap-1" style="--i:0"></span>' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
+    '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
-      '<div class="rv flex items-center justify-between gap-2 px-4 pt-0.5" style="--i:0"><span class="o-away text-xs tabular-nums text-muted-foreground"></span><span class="o-st"></span></div>' +
-      '<p dir="auto" class="o-h rv mt-2 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
+      '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
       '<p dir="auto" class="o-c rv mt-1 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-3" style="--i:2"></p>' +
       '<p class="rv mt-3 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
-      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'Other projects', Kbd('Tab'), 'x-list') + '<span class="flex-1"></span>' + Button('ghost', 'Reply', Kbd('R'), 'x-rep hidden') + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + '<button class="x-list inline-flex h-6 cursor-pointer items-center gap-1.5 whitespace-nowrap pl-1.5 text-xs text-muted-foreground/60 transition-colors outline-none hover:text-foreground focus-visible:text-foreground">Other projects<span class="text-[10.5px] text-muted-foreground/40">Tab</span></button>' + '<span class="flex-1"></span>' + Button('ghost', 'Reply', Kbd('R'), 'x-rep hidden') + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
@@ -153,7 +151,7 @@
 
   function fill(p) {
     /* what happened, measured against your break ("Finished 12m after you left"); older snapshots only have the age */
-    q('.o-away').textContent = p.line || ('While you were away \u00b7 ' + p.away);
+    var aw = q('.o-away'); aw.textContent = p.status.kind === 'running' ? '' : p.away; aw.title = p.line || 'While you were away';
     q('.o-h').innerHTML = md(p.headline);
     q('.o-c').innerHTML = md(p.context);
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -161,7 +159,7 @@
     nx = nx.replace(/^\s*next\s*[:,-]\s*/i, '');   /* the row is already labelled Next (old cache, model output) */
     q('.o-x').innerHTML = md(nx);
     q('.o-x').parentNode.style.display = nx ? '' : 'none';
-    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + esc(p.status.text) + (p.status.kind === 'running' ? Spinner('size-3') : ''));
+    var so = q('.o-st'); so.innerHTML = StatusIcon(p.status) + (p.status.kind === 'running' ? Spinner('size-3') : ''); so.title = p.status.text; so.setAttribute('aria-label', p.status.text);
   }
   function list(s) {
     var empty = !s.projects.length;
@@ -188,10 +186,11 @@
       return '<div class="flex h-7 items-center gap-2 text-sm" style="--k:' + k + '"><span class="text-muted-foreground">' + svg(x.icon, 'size-3.5') + '</span><span class="flex-1 truncate">' + esc(x.text) + '</span><span class="ck text-emerald-400">' + svg('check', 'size-3') + '</span></div>';
     }).join('') + '</div>';
   }
+  /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
-    var r = q('#ring'); if (!r) return;
-    r.style.transition = 'none'; r.style.strokeDashoffset = on ? '0' : '62.83';
-    if (on) { void r.getBoundingClientRect(); r.style.transition = 'stroke-dashoffset 9s linear'; r.style.strokeDashoffset = '62.83'; }
+    var g = q('.glow'); g.style.transition = 'none'; g.style.opacity = '';
+    if (on) { void g.offsetWidth; g.style.transition = 'opacity 9s linear'; g.style.opacity = '.3'; }
+    else g.style.transition = '';
   }
   function layout(st, s) {
     /* No hardware notch (an external display): draw a small black tab at the top centre, so there is always something to aim at. */
