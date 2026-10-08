@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Perch">
+  <defs>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1D1F23"/><stop offset="1" stop-color="#0B0C0E"/></linearGradient>
+    <radialGradient id="glow" cx="512" cy="924" r="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F5B83D" stop-opacity=".30"/><stop offset=".45" stop-color="#F5B83D" stop-opacity=".10"/><stop offset="1" stop-color="#F5B83D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#bg)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
+    <!-- the notch -->
+    <path d="M342 100H682V158a30 30 0 0 1-30 30H372a30 30 0 0 1-30-30Z" fill="#000"/>
+    <!-- the character -->
+    <g transform="translate(296 360) scale(18)">
+      <path fill="#F5B83D" d="M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z"/>
+    </g>
+    <ellipse cx="456" cy="602" rx="30" ry="52" fill="#2B1B0E"/>
+    <ellipse cx="568" cy="602" rx="30" ry="52" fill="#2B1B0E"/>
+  </g>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+</svg>

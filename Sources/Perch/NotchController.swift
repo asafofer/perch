@@ -115,7 +115,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Debug: write the web view's current pixels to a PNG, composited over a desktop-like colour.
     func snapshot(to path: String) {
-        web.takeSnapshot(with: nil) { image, _ in
+        let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
+        web.takeSnapshot(with: cfg) { image, _ in
             guard let image else { return }
             let size = image.size
             let out = NSImage(size: size)
