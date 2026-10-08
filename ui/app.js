@@ -151,7 +151,7 @@
 
   function fill(p) {
     /* what happened, measured against your break ("Finished 12m after you left"); older snapshots only have the age */
-    var aw = q('.o-away'); aw.textContent = p.status.kind === 'running' ? '' : p.away; aw.title = p.line || 'While you were away';
+    var aw = q('.o-away'); aw.textContent = p.status.kind === 'running' ? '' : p.away.replace(/^(\d+h) \d+m$/, '$1') + ' ago'; aw.title = p.line || 'While you were away';
     q('.o-h').innerHTML = md(p.headline);
     q('.o-c').innerHTML = md(p.context);
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
