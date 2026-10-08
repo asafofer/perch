@@ -5,7 +5,7 @@ import CoreGraphics
 @MainActor
 final class ActivityMonitor {
     var onReturn: (() -> Void)?
-    private let threshold: TimeInterval
+    var threshold: TimeInterval
     private var armed = false
     private var timer: Timer?
 

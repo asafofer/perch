@@ -121,4 +121,11 @@ import Testing
         m.send(.comeBack); #expect(m.phase == .onboarding)
         m.send(.dismiss); #expect(m.phase == .idle)
     }
+
+    @Test func settingsOpenFromAnywhereAndCloseOnDismiss() {
+        var m = NotchMachine(projectCount: 2)
+        m.send(.comeBack); m.send(.openSettings); #expect(m.phase == .settings)
+        m.send(.dismiss); #expect(m.phase == .idle)
+        m.send(.openSettings); #expect(m.phase == .settings)
+    }
 }

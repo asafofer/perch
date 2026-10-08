@@ -1,12 +1,13 @@
 import Foundation
 
-public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, setup, onboarding }
+public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, setup, onboarding, settings }
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
     case choose(Int)
     case openSetup
     case openOnboarding
+    case openSettings
     case back
     /// The list was refreshed while the card is up: keep the card, clamp what is selected.
     case projectsChanged(count: Int, selected: Int)
@@ -34,6 +35,10 @@ public struct NotchMachine: Equatable, Sendable {
             phase = .open
         case (.idle, .openSetup):
             phase = .setup
+        case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):
+            phase = .settings
+        case (.settings, .dismiss):
+            close()
         case (.setup, .dismiss), (.onboarding, .dismiss):
             close()
         case (.idle, .openOnboarding):

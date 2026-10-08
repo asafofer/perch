@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var seconds: TimeInterval = 20 * 60
             if let i = args.firstIndex(of: "--idle"), args.indices.contains(i + 1), let v = TimeInterval(args[i + 1]) { seconds = v }
             let monitor = ActivityMonitor(threshold: seconds)
+            if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
+            c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
             monitor.onReturn = { c.comeBack(proactive: true) }
             activity = monitor
             installStatusItem()

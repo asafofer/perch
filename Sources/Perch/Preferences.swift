@@ -16,4 +16,9 @@ enum Prefs {
         get { Set((d.array(forKey: "sources.enabled") as? [String]) ?? ["claude", "codex"]) }
         set { d.set(Array(newValue), forKey: "sources.enabled") }
     }
+    /// Minutes away before the welcome card comes back. 20 by default.
+    static var idleMinutes: Int {
+        get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
+        set { d.set(newValue, forKey: "idleMinutes") }
+    }
 }

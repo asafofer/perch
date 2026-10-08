@@ -25,7 +25,7 @@
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + label + (extra || '') + '</button>';
   }
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + t + '</kbd>'; }
-  function Badge(inner, cls) { return '<span class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-md bg-white/[0.07] px-1.5 py-px text-xs font-medium text-foreground/80 ' + (cls || '') + '">' + inner + '</span>'; }
+  function Badge(inner, cls) { return '<span class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap text-xs font-medium text-foreground/80 ' + (cls || '') + '">' + inner + '</span>'; }
   function Dot(c) { return '<i class="block size-1.5 rounded-full" style="background:' + c + '"></i>'; }
   var icons = {};
   function App(k, c) {
@@ -41,9 +41,8 @@
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   function StatusIcon(st) {
     var color = COLORS[st.kind] || COLORS.idle;
-    if (!icons[st.app]) return st.kind === 'running' ? Spinner('size-3') : Dot(color);
-    /* working: a thin arc keeps circling the app icon */
-    if (st.kind === 'running') return '<span class="relative mx-[3px] flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><span class="absolute -inset-[4px] animate-spin rounded-full border-[1.5px] border-transparent border-r-[#7DD3FC]/35 border-t-[#7DD3FC]" aria-hidden="true"></span></span>';
+    if (!icons[st.app]) return Dot(color);
+    if (st.kind === 'running') return '<img class="size-3.5 flex-none rounded-[4px]" src="' + icons[st.app] + '" alt="">';
     return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
@@ -158,7 +157,7 @@
     var nx = /\b(commit|push|merge|uncommitted|pull request|git)\b/i.test(p.next || '') ? '' : (p.next || '');
     q('.o-x').innerHTML = md(nx);
     q('.o-x').parentNode.style.display = nx ? '' : 'none';
-    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text);
+    q('.o-st').innerHTML = Badge(StatusIcon(p.status) + p.status.text + (p.status.kind === 'running' ? Spinner('size-3') : ''));
   }
   function list(s) {
     q('.s-l').innerHTML = s.projects.map(function (p, k) {
