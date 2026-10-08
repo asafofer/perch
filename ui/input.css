@@ -41,6 +41,12 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .glow::after { content: ""; position: absolute; left: 14%; right: 14%; bottom: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(var(--glow-hi, 255,220,130), .34) 50%, transparent); }
 .n:not([data-s=idle]) .glow { opacity: 1; }
+/* dithered variant (design only for now): single pixels instead of a gradient */
+.glow-d { display: none; position: absolute; left: 0; right: 0; bottom: 0; height: 92px; pointer-events: none; opacity: 0; transition: opacity .9s ease;
+  background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; border-radius: inherit; }
+html[data-glow="dither"] .glow-d { display: block; }
+.n:not([data-s=idle]) .glow-d { opacity: 1; }
+html[data-glow="dither"] .glow { background: none; }
 html[data-glow="off"] .glow { opacity: 0 !important; }
 /* external: a soft halo on the windows behind, no inner light */
 html[data-glow="external"] .glow { opacity: 0 !important; }

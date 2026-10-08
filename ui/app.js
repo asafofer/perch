@@ -50,7 +50,7 @@
   var scene = document.getElementById('scene');
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i></div>' +
-    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
+    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><i class="glow-d"></i>' +
     '<div class="pane p-open">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '<svg class="pointer-events-none absolute -inset-[3px] size-6" viewBox="0 0 24 24" style="transform:rotate(-90deg)" aria-hidden="true"><circle id="ring" cx="12" cy="12" r="10" fill="none" stroke="rgba(250,250,250,.42)" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="62.83" stroke-dashoffset="62.83"/></svg></button>' +
     '<div class="inner pt-8 pb-1.5">' +
       '<div class="rv flex items-center justify-between gap-2 px-4 pt-0.5" style="--i:0"><span class="o-away text-xs tabular-nums text-muted-foreground"></span><span class="o-st"></span></div>' +
@@ -213,6 +213,7 @@
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
+    q('.glow-d').style.backgroundImage = 'url(' + ditherUrl(g[0], g[1]) + ')';
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
     else { if (last.running) bar(false); last.running = false; }
@@ -265,6 +266,24 @@
   }
   setTimeout(glance, 1500); setTimeout(peek, 4000); setTimeout(blink, 1200);
 
+
+
+  /* A dithered glow: the same light, built from a Bayer ordered-dither of single pixels instead of a smooth gradient. */
+  var BAYER8 = [0,32,8,40,2,34,10,42, 48,16,56,24,50,18,58,26, 12,44,4,36,14,46,6,38, 60,28,52,20,62,30,54,22, 3,35,11,43,1,33,9,41, 51,19,59,27,49,17,57,25, 15,47,7,39,13,45,5,37, 63,31,55,23,61,29,53,21];
+  var ditherCache = {};
+  function ditherUrl(base, hi) {
+    var key = base + '|' + hi; if (ditherCache[key]) return ditherCache[key];
+    var W = 200, H = 46, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d'), img = ctx.createImageData(W, H), b = base.split(',').map(Number), h2 = hi.split(',').map(Number);
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+      var u = (x / (W - 1) - 0.5) * 2, v = y / (H - 1);
+      var I = Math.pow(v, 2.3) * (1 - 0.55 * Math.pow(Math.abs(u), 1.6)) * 0.34;
+      var t = (BAYER8[(y % 8) * 8 + (x % 8)] + 0.5) / 64;
+      if (I > t) { var strong = I > 0.2, col = strong ? h2 : b, o = (y * W + x) * 4; img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = strong ? 150 : 105; }
+    }
+    ctx.putImageData(img, 0, 0);
+    return ditherCache[key] = c.toDataURL();
+  }
 
   /* ---- character: shape and colour, chosen in onboarding ---- */
   var SHAPES = [

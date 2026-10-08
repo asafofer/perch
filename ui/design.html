@@ -61,6 +61,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
   <div class="deskwrap">
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
+    <div class="disp" id="glowsw"><span>Glow</span><button data-g="smooth" aria-pressed="true">Smooth</button><button data-g="dither" aria-pressed="false">Dithered</button></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button></div>
   </div>
 
@@ -113,6 +114,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
     document.querySelectorAll('#disp button').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
+  document.querySelectorAll('#glowsw button').forEach(function (b) { b.onclick = function () {
+    document.documentElement.dataset.glow = b.dataset.g;
+    document.querySelectorAll('#glowsw button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  }; });
   document.querySelectorAll('#disp button').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
   function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
   var wrap = document.getElementById('groups');
