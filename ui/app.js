@@ -40,8 +40,9 @@
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   function StatusIcon(st) {
     var color = COLORS[st.kind] || COLORS.idle;
-    if (!icons[st.app]) return Dot(color);
-    if (st.kind === 'running') return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><span class="absolute -bottom-[3px] -right-[3px] grid size-2.5 place-items-center rounded-full bg-black">' + Spinner('size-2.5') + '</span></span>';
+    if (!icons[st.app]) return st.kind === 'running' ? Spinner('size-3') : Dot(color);
+    /* working: a thin arc keeps circling the app icon */
+    if (st.kind === 'running') return '<span class="relative mx-[3px] flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><span class="absolute -inset-[4px] animate-spin rounded-full border-[1.5px] border-transparent border-r-[#7DD3FC]/35 border-t-[#7DD3FC]" aria-hidden="true"></span></span>';
     return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
@@ -268,18 +269,22 @@
 
 
 
-  /* A dithered glow: the same light, built from a Bayer ordered-dither of single pixels instead of a smooth gradient. */
-  var BAYER8 = [0,32,8,40,2,34,10,42, 48,16,56,24,50,18,58,26, 12,44,4,36,14,46,6,38, 60,28,52,20,62,30,54,22, 3,35,11,43,1,33,9,41, 51,19,59,27,49,17,57,25, 15,47,7,39,13,45,5,37, 63,31,55,23,61,29,53,21];
+  /* A dithered glow: the same light, but built from single pixels placed by interleaved-gradient noise (no visible grid). One CSS pixel per dot. */
   var ditherCache = {};
   function ditherUrl(base, hi) {
     var key = base + '|' + hi; if (ditherCache[key]) return ditherCache[key];
-    var W = 200, H = 46, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var W = 400, H = 72, c = document.createElement('canvas'); c.width = W; c.height = H;
     var ctx = c.getContext('2d'), img = ctx.createImageData(W, H), b = base.split(',').map(Number), h2 = hi.split(',').map(Number);
+    function ss(a, z, x) { var t = Math.min(1, Math.max(0, (x - a) / (z - a))); return t * t * (3 - 2 * t); }
     for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
       var u = (x / (W - 1) - 0.5) * 2, v = y / (H - 1);
-      var I = Math.pow(v, 2.3) * (1 - 0.55 * Math.pow(Math.abs(u), 1.6)) * 0.34;
-      var t = (BAYER8[(y % 8) * 8 + (x % 8)] + 0.5) / 64;
-      if (I > t) { var strong = I > 0.2, col = strong ? h2 : b, o = (y * W + x) * 4; img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = strong ? 150 : 105; }
+      var I = ss(0, 1, v) * ss(0, 1, v) * (1 - 0.7 * Math.pow(Math.abs(u), 2)) * 0.3;
+      var n = (52.9829189 * (((0.06711056 * x + 0.00583715 * y) % 1 + 1) % 1)) % 1;
+      if (I > n) {
+        var k = Math.min(0.55, I * 1.4), o = (y * W + x) * 4;
+        img.data[o] = b[0] + (h2[0] - b[0]) * k; img.data[o + 1] = b[1] + (h2[1] - b[1]) * k; img.data[o + 2] = b[2] + (h2[2] - b[2]) * k;
+        img.data[o + 3] = 95 + 110 * k;
+      }
     }
     ctx.putImageData(img, 0, 0);
     return ditherCache[key] = c.toDataURL();
@@ -292,7 +297,7 @@
     ['arch', 'Arch', 'M4 22V11a8 8 0 0 1 16 0v11H4z', '40%'],
     ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%']
   ];
-  var COLORS = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
+  var PALETTE = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
   var charNow = { shape: 'ears', color: '#F5B83D' };
   function shapeOf(k) { for (var i = 0; i < SHAPES.length; i++) if (SHAPES[i][0] === k) return SHAPES[i]; return SHAPES[0]; }
   function applyCharacter(c) {
@@ -335,7 +340,7 @@
       var shapes = SHAPES.map(function (sh) {
         return '<button class="o-shape grid size-11 cursor-pointer place-items-center rounded-lg transition ' + (sh[0] === charNow.shape ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]') + '" data-k="' + sh[0] + '" aria-label="' + sh[1] + '" title="' + sh[1] + '">' + crHtml('cr-mini', 24, sh) + '</button>';
       }).join('');
-      var colors = COLORS.map(function (c) {
+      var colors = PALETTE.map(function (c) {
         return '<button class="o-color size-5 cursor-pointer rounded-full transition ' + (c[1] === charNow.color ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110') + '" style="background:' + c[1] + '" data-c="' + c[1] + '" aria-label="' + c[0] + '" title="' + c[0] + '"></button>';
       }).join('');
       h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
@@ -393,7 +398,7 @@
     pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
   }
 
-  window.perch = { hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
+  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -426,7 +431,7 @@
     var P = [
       { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you', app: 'codex' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, status: { kind: 'running', text: 'Claude Code is working' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
+      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, status: { kind: 'running', text: 'Claude Code is working', app: 'claude' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
       { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
     ];
     var hash = (location.hash || '#open').slice(1);
