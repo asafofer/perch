@@ -16,14 +16,14 @@ struct UISnapshot: Encodable {
     }
 
     struct Character: Encodable { let shape: String; let color: String }
-    struct Found: Encodable { let name: String; let app: String; let away: String }
+    struct Source: Encodable { let id: String; let name: String; let count: Int; let names: [String]; let enabled: Bool }
     struct Onboarding: Encodable {
         let step: Int
         let total: Int
         let accessibility: Bool
         let summaries: String
         let scanning: Bool
-        let found: [Found]
+        let sources: [Source]
     }
 
     let phase: String

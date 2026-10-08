@@ -4,6 +4,12 @@ import PerchCore
 /// Reads the newest session of each recent project from ~/.claude/projects and turns it into a card.
 final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     var maxProjects = 5
+    /// Whether an agent ("claude", "codex") is switched on in Perch's settings.
+    var isEnabled: (String) -> Bool = { Prefs.enabledSources.contains($0) }
+    struct Count { let count: Int; let names: [String] }
+    private var _counts: [String: Count] = [:]
+    /// What the last scan found per agent, before any agent is switched off. Onboarding shows this.
+    var counts: [String: Count] { lock.lock(); defer { lock.unlock() }; return _counts }
     var maxAgeDays = 14
     /// What the last scan read, so a model can write about it without reading the files again.
     private var _inputs: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
@@ -13,6 +19,15 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     func parkedProjects() -> [Project] {
         var all = claudeProjects() + codexProjects()
         all.sort { $0.last > $1.last }
+        var perApp: [String: (seen: Set<String>, names: [String])] = [:]
+        for item in all {
+            let key = item.project.app, cwd = item.project.cwd ?? item.project.id
+            var entry = perApp[key] ?? ([], [])
+            if entry.seen.insert(cwd).inserted { entry.names.append(item.project.name) }
+            perApp[key] = entry
+        }
+        lock.lock(); _counts = perApp.mapValues { Count(count: $0.names.count, names: $0.names) }; lock.unlock()
+        all = all.filter { isEnabled($0.project.app) }
         var seen = Set<String>(), out: [Project] = []
         var fresh: [String: (digest: SessionDigest, git: GitInfo?)] = [:]
         for item in all {

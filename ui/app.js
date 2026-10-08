@@ -320,11 +320,14 @@
         oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', '', 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 2) {
-      var n = o.found.length;
-      var list = o.found.map(function (f) { return '<div class="flex h-8 items-center gap-2 text-[13px]">' + App(f.app, 'size-4') + '<span class="min-w-0 flex-1 truncate font-medium">' + f.name + '</span><span class="text-xs tabular-nums text-muted-foreground">' + f.away + ' ago</span></div>'; }).join('');
-      h = otitle(o, 'Find your projects', o.scanning ? 'Looking through your Claude Code and Codex sessions\u2026' : (n ? 'Found ' + n + (n === 1 ? ' recent project.' : ' recent projects.') : 'No sessions yet. Perch finds them as soon as you start one.')) +
-        oi(3, '<div class="mt-2 px-4">' + (o.scanning ? '<div class="flex h-8 items-center gap-2 text-[13px] text-muted-foreground">' + Spinner('size-3.5') + 'Scanning\u2026</div>' : list) + '</div>') +
-        oi(4, '<p class="mt-1 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+      var rows = o.sources.map(function (x) {
+        var sub = o.scanning ? 'Scanning\u2026' : (x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
+        var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw relative h-[18px] w-[30px] flex-none cursor-pointer rounded-full transition-colors duration-200 ' + (x.enabled ? 'bg-emerald-400' : 'bg-white/20') + '"><i class="absolute top-[2px] block size-[14px] rounded-full bg-white shadow transition-all duration-200 ' + (x.enabled ? 'left-[14px]' : 'left-[2px]') + '"></i></button>';
+        return '<div class="flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3"><span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block text-[13px] font-medium leading-4">' + x.name + '</span><span class="block truncate text-xs leading-4 text-muted-foreground">' + sub + '</span></span>' + (o.scanning ? Spinner('size-3.5') : '') + sw + '</div>';
+      }).join('');
+      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
+        oi(3, '<div class="mt-3 flex flex-col gap-1.5 px-4">' + rows + '</div>') +
+        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 3) {
       var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
@@ -344,12 +347,13 @@
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { post({ type: 'source', id: b.dataset.id, enabled: b.getAttribute('aria-checked') !== 'true' }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.accessibility, o.summaries, o.scanning, o.found.length].join('|');
+    var sig = [o.step, o.accessibility, o.summaries, o.scanning, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
   }
@@ -385,6 +389,7 @@
       else if (m.action === 'accessibility') o.accessibility = true;
       if (o.step === 2 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
+    if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onb' && !s.onboarding) return;
     if (m.type === 'switcher') s.phase = 'switcher';
     if (m.type === 'back') s.phase = 'open';
@@ -408,9 +413,9 @@
       show: function (ph, setup, quiet) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
       onboarding: function (step, accessibility, summaries) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        var found = P.slice(0, 4).map(function (x) { return { name: x.name, app: x.status.app || x.app, away: x.away }; });
+        var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, found: found } }));
+          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources } }));
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },

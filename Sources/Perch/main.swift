@@ -108,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Parked projects", action: #selector(showSwitcher), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Customize your character…", action: #selector(customize), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Choose apps…", action: #selector(chooseApps), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Set up Perch…", action: #selector(showOnboarding), keyEquivalent: "").target = self
         let ai = AppleRecapEngine.unavailableReason == nil
             ? NSMenuItem(title: "Summaries: on-device", action: nil, keyEquivalent: "")
@@ -122,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
     @objc private func customize() { controller?.startOnboarding(step: 0) }
+    @objc private func chooseApps() { controller?.startOnboarding(step: 2) }
     @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func showSetup() { controller?.showSetup() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }

@@ -387,6 +387,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "back": send(.back)
         case "onb": if let a = body["action"] as? String { onboardingAction(a) }
+        case "source":
+            if let id = body["id"] as? String, let on = body["enabled"] as? Bool {
+                var set = Prefs.enabledSources
+                if on { set.insert(id) } else { set.remove(id) }
+                Prefs.enabledSources = set
+                refreshProjects(); push()
+            }
         case "character":
             if let shape = body["shape"] as? String { Prefs.shape = shape }
             if let color = body["color"] as? String { Prefs.color = color }
@@ -475,8 +482,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
-        UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing,
-                              found: projects.prefix(5).map { .init(name: $0.name, app: $0.app, away: $0.away) })
+        let counts = (provider as? RealSessionProvider)?.counts ?? [:]
+        let on = Prefs.enabledSources
+        let sources = [("claude", "Claude Code"), ("codex", "Codex")].map { id, name in
+            UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
+        }
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources)
     }
 
     private func onboardingAction(_ action: String) {
@@ -515,7 +526,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let self, self.machine.phase == .onboarding else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
-                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)"
+                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())"
                 if key != last { last = key; self.push() }
             }
         }

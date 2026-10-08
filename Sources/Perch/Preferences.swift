@@ -11,4 +11,9 @@ enum Prefs {
     }
     static var shape: String { get { d.string(forKey: "character.shape") ?? "ears" } set { d.set(newValue, forKey: "character.shape") } }
     static var color: String { get { d.string(forKey: "character.color") ?? "#F5B83D" } set { d.set(newValue, forKey: "character.color") } }
+    /// Which agents Perch reads. Both by default.
+    static var enabledSources: Set<String> {
+        get { Set((d.array(forKey: "sources.enabled") as? [String]) ?? ["claude", "codex"]) }
+        set { d.set(Array(newValue), forKey: "sources.enabled") }
+    }
 }
