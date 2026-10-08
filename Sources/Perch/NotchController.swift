@@ -514,8 +514,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "onbOpen":
             let step = body["step"] as? Int ?? 0
-            send(.dismiss)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.startOnboarding(step: step) }
+            if body["only"] as? Bool == true, machine.phase == .settings {
+                // Changing the character is a page inside Settings: it opens in place and Done goes back.
+                onbStep = step; onbOnly = true; onbBackToSettings = true
+                send(.openOnboarding)
+            } else {
+                send(.dismiss)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.startOnboarding(step: step) }
+            }
         case "quit": NSApp.terminate(nil)
         case "source":
             if let id = body["id"] as? String, let on = body["enabled"] as? Bool {
@@ -647,10 +653,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private let onbTotal = 5
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
+    /// Just the character step (Settings or the menu bar), not the whole setup.
+    private var onbOnly = false
+    /// Done and Esc return to Settings, where it was opened from.
+    private var onbBackToSettings = false
 
-    func startOnboarding(step: Int = 0) {
+    func startOnboarding(step: Int = 0, characterOnly: Bool = false) {
         guard machine.phase == .idle else { return }
-        onbStep = step; snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
+        onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
+        snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
         place(on: ScreenChooser.current())
         if step >= 2 { refreshProjects() }
         send(.openOnboarding)
@@ -662,12 +673,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let sources = [("claude", "Claude Code"), ("codex", "Codex")].map { id, name in
             UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
         }
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources)
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources, only: onbOnly)
+    }
+
+    /// Leaves the character page: back to Settings when it came from there, otherwise closed.
+    private func finishCharacter() {
+        if onbBackToSettings { send(.openSettings) } else { send(.dismiss) }
     }
 
     private func onboardingAction(_ action: String) {
         switch action {
         case "next":
+            if onbOnly { finishCharacter(); return }
             onbStep = min(onbStep + 1, onbTotal - 1)
             if onbStep == 2 { refreshProjects() }
         case "back": onbStep = max(onbStep - 1, 0)
@@ -717,7 +734,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
                 case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)
                 case 124: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('right')", completionHandler: nil)
-                case 53: self.send(.dismiss)
+                case 53: if self.onbOnly { self.finishCharacter() } else { self.send(.dismiss) }
                 default: return e
                 }
                 return nil

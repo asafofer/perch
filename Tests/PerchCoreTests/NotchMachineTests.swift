@@ -130,6 +130,12 @@ import Testing
         m.send(.dismiss); #expect(m.phase == .idle)
     }
 
+    @Test func characterPageOpensFromSettingsAndGoesBack() {
+        var m = NotchMachine(projectCount: 2)
+        m.send(.openSettings); m.send(.openOnboarding); #expect(m.phase == .onboarding)
+        m.send(.openSettings); #expect(m.phase == .settings)
+    }
+
     @Test func settingsOpenFromAnywhereAndCloseOnDismiss() {
         var m = NotchMachine(projectCount: 2)
         m.send(.comeBack); m.send(.openSettings); #expect(m.phase == .settings)

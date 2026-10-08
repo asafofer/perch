@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
-    @objc private func customize() { controller?.startOnboarding(step: 0) }
+    @objc private func customize() { controller?.startOnboarding(step: 0, characterOnly: true) }
     @objc private func chooseApps() { controller?.startOnboarding(step: 2) }
     @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func showSetup() { controller?.showSetup() }

@@ -42,8 +42,10 @@ public struct NotchMachine: Equatable, Sendable {
             close()
         case (.setup, .dismiss), (.onboarding, .dismiss):
             close()
-        case (.idle, .openOnboarding):
+        case (.idle, .openOnboarding), (.settings, .openOnboarding):
             phase = .onboarding
+        case (.onboarding, .openSettings):
+            phase = .settings   // back from changing the character
         case (.idle, .openSwitcher):
             phase = .switcher   // asked for: an empty list says so instead of doing nothing
         case (.open, .openSwitcher):

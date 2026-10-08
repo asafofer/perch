@@ -370,8 +370,8 @@
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
-    return oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + (o.step + 1) + ' of ' + o.total + '</div>') +
-      oi(1, '<p class="mt-1 px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
+    return (o.only ? '' : oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + (o.step + 1) + ' of ' + o.total + '</div>')) +
+      oi(1, '<p class="' + (o.only ? 'pt-0.5' : 'mt-1') + ' px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
   function ofoot(i, back, mid, label, action) {
@@ -432,7 +432,7 @@
       }).join('');
       h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
         oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
-        ofoot(4, false, '', 'Next', 'next');
+        ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next');
     } else if (st === 1) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
@@ -472,7 +472,7 @@
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.accessibility, o.summaries, o.scanning, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
+    var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
@@ -518,7 +518,7 @@
     }; });
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
-    on('.s-change', function () { post({ type: 'onbOpen', step: 0 }); });
+    on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
     on('.s-replay', function () { post({ type: 'onbOpen', step: 0 }); });
     on('.s-sum', function () { post({ type: 'openSettings' }); });
     on('.s-ax', function () { post({ type: 'onb', action: 'accessibility' }); });
@@ -557,7 +557,8 @@
     if (m.type === 'settings') { s.phase = 'settings'; s.settings = s.settings || { sources: [], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', enabled: true }, { id: 'codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true); return; }
+    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, null, m.only); return; }
+    if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(); return; }
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
@@ -589,11 +590,11 @@
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
           settings: Object.assign({ sources: [{ id: 'claude', enabled: true }, { id: 'codex', enabled: true }], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false }, o || {}) }));
       },
-      onboarding: function (step, accessibility, summaries) {
+      onboarding: function (step, accessibility, summaries, only) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources } }));
+          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only } }));
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },

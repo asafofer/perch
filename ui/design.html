@@ -103,6 +103,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Settings', [
       ['Settings', 'The gear on the card, or the comma key. Everything lives in the notch.', function () { d.project(0); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Summaries off', 'Shows the Set up button.', function () { d.settings({ summaries: 'off' }); }],
+      ['Change character', 'From Settings: only the character, Done goes back to Settings.', function () { d.onboarding(0, true, null, true); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false, summaries: 'off' }); }]
     ]],
     ['Resting', [

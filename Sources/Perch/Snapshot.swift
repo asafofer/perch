@@ -28,6 +28,8 @@ struct UISnapshot: Encodable {
         let summaries: String
         let scanning: Bool
         let sources: [Source]
+        /// Only the character step, opened from Settings or the menu: no step count, and Done instead of Next.
+        let only: Bool
     }
 
     struct Settings: Encodable { let sources: [Source]; let summaries: String; let accessibility: Bool; let idleMinutes: Int; let login: Bool }
