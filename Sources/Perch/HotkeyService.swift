@@ -10,6 +10,7 @@ final class HotkeyService {
     private var chordStart: Date?
     private var chordDirty = false
     var onChordTap: (() -> Void)?
+    private var localMonitor: Any?
 
     func register(keyCode: Int, modifiers: Int, id: UInt32, action: @escaping () -> Void) {
         installHandlerIfNeeded()
@@ -41,6 +42,11 @@ final class HotkeyService {
         if !trusted { NSLog("Perch: Accessibility not granted, Command+Option tap disabled (use Command+Option+Space)") }
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { [weak self] event in
             MainActor.assumeIsolated { self?.handle(event) }
+        }
+        // While Perch's own card is the key window, the keys arrive locally instead.
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
+            MainActor.assumeIsolated { self?.handle(event) }
+            return event
         }
     }
 

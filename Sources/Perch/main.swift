@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.register(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { c.comeBack() }
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
         hotkeys.register(keyCode: kVK_ANSI_Q, modifiers: controlKey | optionKey, id: 3) { NSApp.terminate(nil) }
-        hotkeys.onChordTap = { c.toggleSwitcher() }
+        hotkeys.onChordTap = { c.chordTap() }
         hotkeys.startChordMonitor()
 
         if !sample {

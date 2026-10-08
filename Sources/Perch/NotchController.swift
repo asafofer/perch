@@ -95,6 +95,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         }
     }
+    /// Command+Option tapped: open the list, or close whatever is showing.
+    func chordTap() { if machine.phase == .idle { toggleSwitcher() } else { send(.dismiss) } }
     func toggleSwitcher() { openedByHover = false; prepareToShow(); send(.openSwitcher); refreshProjects() }
     func confirm() { send(.confirm) }
 
@@ -407,8 +409,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// Answers Claude without typing in its window: the reply goes on the clipboard, the session opens, and it is pasted
-    /// for you when Perch has Accessibility access. It is never sent; you press Return in Claude.
+    /// Answers Claude or Codex without typing in its window: the reply goes on the clipboard, the exact session opens, and it is
+    /// pasted and sent for you when Perch has Accessibility access. Without it, it stays on the clipboard for you to paste.
     private func reply(_ text: String) {
         let pb = NSPasteboard.general
         pb.clearContents(); pb.setString(text, forType: .string)
@@ -436,7 +438,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 e?.flags = .maskCommand
                 e?.post(tap: .cghidEventTap)
             }
-            NSLog("Perch: pasted reply into \(target)")
+            // You wrote it and pressed Send, so it is sent: Return after the paste.
+            try? await Task.sleep(for: .milliseconds(250))
+            for down in [true, false] {
+                CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap)
+            }
+            NSLog("Perch: sent reply into \(target)")
         }
     }
 

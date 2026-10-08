@@ -222,9 +222,10 @@ enum DesktopSessions {
 /// Sessions from the Claude app open in the Claude app; terminal sessions resume in Terminal.
 enum Restorer {
     static func resume(_ p: Project) {
-        // Codex: bring the Codex app forward. (Opening one exact thread needs a link Codex doesn't document.)
+        // Codex opens one exact thread through codex://threads/<id>; without an id, just bring the app forward.
         if p.app == "codex" {
-            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/Codex.app"), configuration: NSWorkspace.OpenConfiguration())
+            if let id = p.sessionId, let url = URL(string: "codex://threads/\(id)") { NSWorkspace.shared.open(url) }
+            else { NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/Applications/Codex.app"), configuration: NSWorkspace.OpenConfiguration()) }
             return
         }
         if let id = p.desktopSessionId, let url = URL(string: "claude://code/continue?session=\(id)") {
