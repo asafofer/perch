@@ -4,7 +4,9 @@ import CoreGraphics
 /// Fires once when you come back after being away. Reads the system idle counter, which needs no permission.
 @MainActor
 final class ActivityMonitor {
-    var onReturn: (() -> Void)?
+    /// Called with when you left: the last input before the break, or when the Mac went to sleep.
+    var onReturn: ((Date?) -> Void)?
+    private var awaySince: Date?
     var threshold: TimeInterval
     private var armed = false
     private var timer: Timer?
@@ -22,7 +24,7 @@ final class ActivityMonitor {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                if let t = self.asleepAt, Date().timeIntervalSince(t) >= self.threshold { self.armed = true }
+                if let t = self.asleepAt, Date().timeIntervalSince(t) >= self.threshold { self.armed = true; self.awaySince = self.awaySince ?? t }
                 self.asleepAt = nil
             }
         }
@@ -36,7 +38,7 @@ final class ActivityMonitor {
     private func tick() {
         if Self.screenLocked { return }
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
-        if idle >= threshold { armed = true }
-        else if armed && idle < 3 { armed = false; onReturn?() }
+        if idle >= threshold { if !armed { awaySince = Date().addingTimeInterval(-idle) }; armed = true }
+        else if armed && idle < 3 { armed = false; let since = awaySince; awaySince = nil; onReturn?(since) }
     }
 }

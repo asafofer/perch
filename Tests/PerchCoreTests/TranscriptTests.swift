@@ -168,6 +168,22 @@ import Foundation
         #expect(Recap.isAcknowledgement("ok go ahead")); #expect(Recap.isAcknowledgement("LGTM!")); #expect(Recap.isAcknowledgement("\u{05DB}\u{05DF}"))
         #expect(!Recap.isAcknowledgement("yes but rename it first")); #expect(!Recap.isAcknowledgement("fix the login"))
     }
+    @Test func theTopLineSaysWhatHappenedWhileYouWereAway() {
+        let now = Date(), left = now.addingTimeInterval(-3600)
+        let line = { (kind: String, ago: TimeInterval, fresh: Bool, away: Date?) in
+            WhileAway.line(kind: kind, lastActive: now.addingTimeInterval(-ago), now: now, awaySince: away, fresh: fresh)
+        }
+        #expect(line("done", 2880, true, left) == "Finished 12m after you left")
+        #expect(line("done", 3570, true, left) == "Finished just after you left")
+        #expect(line("attention", 2400, true, left) == "Waiting on you for 40m")
+        #expect(line("idle", 1800, true, left) == "Stopped 30m after you left")
+        #expect(line("running", 10, true, left) == "Working now")
+        // Before you left, or no break to measure against: plain age, and "Finished" only while it is news.
+        #expect(line("done", 7200, true, left) == "Finished 2h ago")
+        #expect(line("done", 7200, false, left) == "Last active 2h ago")
+        #expect(line("done", 64_800, false, nil) == "Last active 18h ago")
+        #expect(line("attention", 600, false, nil) == "Waiting on you for 10m")
+    }
     @Test func readsHowTheSessionWasStarted() {
         let headless = #"{"type":"user","entrypoint":"sdk-cli","sessionId":"s3","cwd":"/x","message":{"content":"summarise"}}"#
         #expect(TranscriptParser.digest(lines: [headless]).entrypoint == "sdk-cli")

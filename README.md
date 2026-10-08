@@ -113,4 +113,4 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-Claude-quality summaries, "waiting for permission" and "hit an error" statuses, sending a reply in the background, notarized releases, more sources (Cursor, terminals). See [AGENTS.md](AGENTS.md).
+Claude-quality summaries, a "hit an error" status, sending a reply in the background, notarized releases, more sources (Cursor, terminals). See [AGENTS.md](AGENTS.md).

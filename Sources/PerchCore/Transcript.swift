@@ -279,6 +279,27 @@ public enum Recap {
     }
 }
 
+/// The line above the headline: what happened, measured against when you left rather than a bare age.
+public enum WhileAway {
+    /// `kind` is the card status ("attention", "done", "running", "idle"). `fresh`: you have not seen this since it changed.
+    public static func line(kind: String, lastActive: Date?, now: Date, awaySince: Date?, fresh: Bool) -> String {
+        guard let t = lastActive else { return "" }
+        let ago = RelativeTime.away(from: t, to: now), recent = now.timeIntervalSince(t) < 90
+        if kind == "running" { return "Working now" }
+        if let left = awaySince, t > left {
+            let after = t.timeIntervalSince(left) < 90 ? "just after you left" : "\(RelativeTime.away(from: left, to: t)) after you left"
+            switch kind {
+            case "attention": return "Waiting on you for \(ago)"
+            case "done": return "Finished \(after)"
+            default: return "Stopped \(after)"
+            }
+        }
+        if kind == "attention" { return "Waiting on you for \(ago)" }
+        if kind == "done" && fresh { return recent ? "Finished just now" : "Finished \(ago) ago" }
+        return recent ? "Active just now" : "Last active \(ago) ago"
+    }
+}
+
 public enum RelativeTime {
     public static func away(from: Date, to now: Date) -> String {
         let s = max(0, Int(now.timeIntervalSince(from)))

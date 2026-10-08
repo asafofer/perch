@@ -80,7 +80,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var GROUPS = [
     ['Coming back', [
       ['Needs you', 'Codex is waiting on you. Orange glow.', function () { d.project(0); d.show('open'); }],
-      ['Replied', 'The agent finished. Green glow.', function () { d.project(1); d.show('open'); }],
+      ['Replied', 'Finished while you were away. Green glow, and when.', function () { d.project(1); d.show('open'); }],
+      ['Replied, already seen', 'You saw it finish before. No green, just its age. Perch would not pop up for this on its own.', function () { d.variant(1, { fresh: false, line: 'Last active 20h ago' }); }],
+      ['Waiting for your OK', 'A tool call with no result for a while: usually a permission prompt.', function () { d.variant(2, { status: { kind: 'attention', text: 'Claude is waiting for your OK', app: 'claude' }, attention: true, line: 'Waiting on you for 25m' }); }],
       ['Asked a question', 'Shows Reply and the question under Next.', function () { d.project(3); d.show('open'); }],
       ['Working now', 'The agent is mid-run. Spinner on its icon, and in Other projects.', function () { d.project(2); d.show('open'); }]
     ]],

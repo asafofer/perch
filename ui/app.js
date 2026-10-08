@@ -152,7 +152,8 @@
   var snap = null;
 
   function fill(p) {
-    q('.o-away').textContent = 'While you were away \u00b7 ' + p.away;
+    /* what happened, measured against your break ("Finished 12m after you left"); older snapshots only have the age */
+    q('.o-away').textContent = p.line || ('While you were away \u00b7 ' + p.away);
     q('.o-h').innerHTML = md(p.headline);
     q('.o-c').innerHTML = md(p.context);
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -238,9 +239,11 @@
     var canSend = s.canSend !== false;
     q('.x-send-l').textContent = canSend ? 'Send' : 'Copy and open';
     q('.x-send').title = canSend ? '' : 'Perch needs Accessibility to type for you. Your reply is copied, ready to paste.';
-    var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
+    /* green only while a finished session is news; one you have already seen glows in the character's colour */
+    var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] };
+    var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
-    n.dataset.g = (st === 'open' && p && glow[p.status.kind]) ? 'status' : 'char';
+    n.dataset.g = gk ? 'status' : 'char';
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
     n.style.setProperty('--gcol', allDone ? '#4ADE80' : (s.character ? s.character.color : charNow.color));
     lastSt = st;
@@ -563,10 +566,10 @@
   }
   if (!NATIVE) {
     var P = [
-      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, status: { kind: 'attention', text: 'Codex needs you', app: 'codex' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, status: { kind: 'running', text: 'Claude Code is working', app: 'claude' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
+      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, fresh: true, line: 'Waiting on you for 2h 14m', status: { kind: 'attention', text: 'Codex needs you', app: 'codex' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
+      { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
+      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, fresh: false, line: 'Last active 3d ago', status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
     ];
     var hash = (location.hash || '#open').slice(1);
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
@@ -592,6 +595,7 @@
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
           onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources } }));
       },
+      variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       noAccess: function () { base.canSend = false; base.once = true; },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },

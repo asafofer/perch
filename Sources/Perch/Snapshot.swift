@@ -11,6 +11,10 @@ struct UISnapshot: Encodable {
         let branch: String?
         let away, at, headline, context, next, topic, app: String
         let attention: Bool
+        /// Changed since you last looked. Only then does a finished session glow green.
+        let fresh: Bool
+        /// What happened, measured against your break: "Finished 12m after you left".
+        let line: String
         let status: Status
         let steps: [Step]
     }
@@ -47,7 +51,7 @@ struct UISnapshot: Encodable {
     /// Perch can type a reply for you (Accessibility). Without it, Reply copies and opens the session.
     let canSend: Bool
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, onboarding: Onboarding? = nil, settings: Settings? = nil) {
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
         self.onboarding = onboarding; self.settings = settings
         character = Character(shape: Prefs.shape, color: Prefs.color)
         self.icons = icons; self.setup = setup; self.activeId = activeId; self.scanning = scanning; self.canSend = canSend
@@ -59,6 +63,7 @@ struct UISnapshot: Encodable {
         self.projects = projects.map { p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
+                      fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
                       status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) })
         }

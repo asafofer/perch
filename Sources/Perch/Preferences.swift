@@ -18,6 +18,10 @@ enum Prefs {
     }
     /// The terminal app you used most recently, so Pick up opens sessions there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
+    /// When you last saw each session's latest activity (session id to time). Perch speaks up only about what changed since.
+    static var seen: [String: Double] { get { d.dictionary(forKey: "seen") as? [String: Double] ?? [:] } set { d.set(newValue, forKey: "seen") } }
+    /// Set once the sessions that existed before Perch was installed have been marked as seen.
+    static var seenBaselined: Bool { get { d.bool(forKey: "seen.baselined") } set { d.set(newValue, forKey: "seen.baselined") } }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
         get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }

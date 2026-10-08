@@ -38,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }
             for hit in LiveSessions.claude() { print("live terminal session: pid \(hit.pid) in \(hit.cwd) on \(hit.tty)") }
+            print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }
         // Demos and snapshots always use sample data, so they never open Terminal.
@@ -59,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let monitor = ActivityMonitor(threshold: seconds)
             if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
             c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
-            monitor.onReturn = { c.comeBack(proactive: true) }
+            monitor.onReturn = { since in c.comeBack(proactive: true, awaySince: since) }
             activity = monitor
             installStatusItem()
             // First run (or a restart in the middle of setup): the guided onboarding.

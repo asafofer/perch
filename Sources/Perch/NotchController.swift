@@ -45,6 +45,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     var snoozeSeconds: Double = 30 * 60
     /// "Not now" holds until then: coming back from a break does not override it.
     private var snoozedUntil = Date.distantPast
+    /// When you last saw each session's latest activity, by session id.
+    private var seen = Prefs.seen
+    /// The project on the welcome card right now, and since when. A second on screen counts as seen.
+    private var viewing: (id: String, since: Date)?
+    /// Your last break: when you left and when you came back.
+    private var lastAway: (since: Date, back: Date)?
+    /// A proactive card held back by a call; it shows when the call is over.
+    private var held: (reminder: Bool, until: Date)?
+    private var heldTask: Task<Void, Never>?
     /// The first scan has finished, so an empty list really is empty.
     private var scannedOnce = false
     /// You asked for the card before the first scan finished: the list shows "Looking" and turns into the card when it can.
@@ -88,17 +97,30 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `proactive` is Perch speaking up on its own (you came back from being away, a snooze ended). Then it never
     /// talks about the session you are already in: that one goes to the back, and if it is the only one, nothing shows.
     /// `reminder` is a "Not now" coming due; it is the one proactive open a snooze allows.
-    func comeBack(byHover: Bool = false, proactive: Bool = false, reminder: Bool = false) {
+    /// `awaySince` is when you left, for "Finished 12m after you left".
+    func comeBack(byHover: Bool = false, proactive: Bool = false, reminder: Bool = false, awaySince: Date? = nil) {
         guard machine.phase == .idle else { return }
+        if let since = awaySince { lastAway = (since, Date()) }
         if proactive && !reminder && Date() < snoozedUntil { return }
+        // On a call, on camera or presenting: hold the card until that is over.
+        if proactive, let why = Quiet.reason() { holdUntilQuiet(reminder: reminder, why: why); return }
         if !proactive && !byHover {
             // You asked for it yourself, so the snooze is over. With nothing to show yet, the list says so instead of doing nothing.
-            snoozeTask?.cancel(); snoozedUntil = .distantPast
+            snoozeTask?.cancel(); snoozedUntil = .distantPast; held = nil
             if projects.isEmpty { openWhenScanned = !scannedOnce; toggleSwitcher(); return }
         }
-        if proactive, let i = activeProjectIndex() {
-            guard projects.count > 1 else { return }
-            projects.append(projects.remove(at: i))
+        if proactive {
+            let active = activeProjectIndex().map { projects[$0].id }
+            if reminder {
+                guard projects.contains(where: { $0.id != active }) else { return }
+            } else {
+                // Speak up only when something happened since you last looked: a session finished, asked you something or stopped.
+                let news = projects.filter { $0.id != active && isNews($0) }.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
+                guard !news.isEmpty else { return }
+                let first = Set(news.map(\.id))
+                projects = news + projects.filter { !first.contains($0.id) }
+            }
+            if let active, let i = projects.firstIndex(where: { $0.id == active }) { projects.append(projects.remove(at: i)) }
         }
         openedByHover = byHover; proactiveOpen = proactive; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.comeBack)
         refreshProjects()   // the card shows what we have now and updates itself a moment later
@@ -212,12 +234,69 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// New data while the card is up: swap it in, keep the same project selected, and redraw.
+    // MARK: what you have seen
+    private func isFresh(_ p: Project) -> Bool {
+        guard let t = p.lastActive else { return false }
+        return t.timeIntervalSince1970 > (seen[p.id] ?? 0) + 0.5
+    }
+    /// News: changed since you last looked and not still working.
+    private func isNews(_ p: Project) -> Bool { isFresh(p) && p.status.kind != "running" }
+
+    private func markSeen(_ p: Project) {
+        guard let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) < t else { return }
+        seen[p.id] = t
+        if seen.count > 300 { seen = Dictionary(uniqueKeysWithValues: seen.sorted { $0.value > $1.value }.prefix(200).map { ($0.key, $0.value) }) }
+        Prefs.seen = seen
+    }
+
+    /// Sessions from before Perch was installed are not news. The session you are in counts as seen while you are at the Mac.
+    private func noteSeen() {
+        if !Prefs.seenBaselined { projects.forEach(markSeen); Prefs.seenBaselined = true }
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+        if idle < 60, let i = activeProjectIndex() { markSeen(projects[i]) }
+    }
+
+    /// Called on every redraw: a project that stayed on the welcome card for a second has been seen.
+    private func trackViewing() {
+        let current = machine.phase == .open && projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
+        guard viewing?.id != current else { return }
+        if let v = viewing, Date().timeIntervalSince(v.since) >= 1, let p = projects.first(where: { $0.id == v.id }) { markSeen(p) }
+        viewing = current.map { ($0, Date()) }
+    }
+
+    /// The break the card is about, while you are just back from it.
+    private var awaySinceForCard: Date? {
+        guard let a = lastAway, Date().timeIntervalSince(a.back) < 15 * 60 else { return nil }
+        return a.since
+    }
+
+    private func holdUntilQuiet(reminder: Bool, why: String) {
+        NSLog("Perch: holding the welcome card, \(why)")
+        held = (reminder || (held?.reminder ?? false), Date().addingTimeInterval(3 * 3600))
+        guard heldTask == nil else { return }
+        heldTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self, let h = self.held else { break }
+                if Date() > h.until { self.held = nil; break }
+                guard self.machine.phase == .idle, Quiet.reason() == nil else { continue }
+                // The call is over and you are here: a good moment. It counts as coming back now.
+                self.held = nil; self.heldTask = nil
+                if let a = self.lastAway { self.lastAway = (a.since, Date()) }
+                self.comeBack(proactive: true, reminder: h.reminder)
+                return
+            }
+            self?.heldTask = nil
+        }
+    }
+
     private func installLive(_ list: [Project]) {
         guard list != projects else { return }
         let keep = projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
         projects = list
         machine.send(.projectsChanged(count: list.count, selected: list.firstIndex { $0.id == keep } ?? 0))
         applyCachedRecaps()
+        noteSeen()
         enrich()
         push()
     }
@@ -225,6 +304,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func install(_ list: [Project]) {
         projects = list
         machine.projectCount = list.count
+        noteSeen()
         applyCachedRecaps()
         enrich()
         push()
@@ -312,6 +392,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func pickUp(_ index: Int, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
         guard projects.indices.contains(index) else { return }
+        markSeen(projects[index])
         Restorer.resume(projects[index], then: done)
         let old = machine.phase
         machine.send(.dismiss)
@@ -320,10 +401,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func push() {
+        trackViewing()
         guard ready else { return }
+        let away = awaySinceForCard, now = Date()
+        let fresh = Set(projects.filter(isFresh).map(\.id))
+        let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
         let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
                           activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
-                          scanning: !scannedOnce, canSend: AXIsProcessTrusted(),
+                          scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         iconsSent = true

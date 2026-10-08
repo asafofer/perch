@@ -35,7 +35,9 @@ ui/                 The interface, plain JS and Tailwind v3 (shadcn-style classe
 
 Data flow: Swift decides state (`NotchMachine`), builds a `UISnapshot`, calls `window.perch.apply(json)`. The page draws and posts events (`confirm`, `snooze`, `reply`, `settings`, `onb`, `character`, `source`, `setting`, ...). Handle new events in `NotchController.userContentController`.
 
-Sessions: Claude Code writes `~/.claude/projects/*/*.jsonl`; the Claude app's own ids map via `~/Library/Application Support/Claude/claude-code-sessions`. Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Pick up opens `claude://code/continue?session=local_<id>` or `codex://threads/<id>`. A session is "working" when its last record is an open agent turn and the file changed in the last 150 seconds. A file watcher (FSEvents) refreshes within about half a second.
+Sessions: Claude Code writes `~/.claude/projects/*/*.jsonl`; the Claude app's own ids map via `~/Library/Application Support/Claude/claude-code-sessions`. Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Pick up opens `claude://code/continue?session=local_<id>` or `codex://threads/<id>`; a terminal session that is still running is focused in its own tab (found from the process table, `LiveSessions`), otherwise it resumes in the terminal you used last. Status comes from the transcript's shape (`Recap.statusAndNext`): an open turn whose file changed in the last 150 seconds is working; a tool call with no result past its plausible run time is "waiting for your OK"; AskUserQuestion and ExitPlanMode need you at once. Headless `claude -p` sessions are skipped. A file watcher (FSEvents) refreshes within about half a second.
+
+When Perch speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped), never during a call, camera or presentation (`Quiet`), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in.
 
 ## Running and building
 
@@ -75,4 +77,4 @@ Useful flags: `--show`, `--simulate`, `--setup`, `--demo`, `--idle <s>`, `--snap
 
 ## Where things are headed
 
-Open ideas, roughly in order: Claude-quality summaries when the `claude` CLI is logged in (on-device summaries are shallow), "waiting for a permission" and "hit an error" statuses, answering a question without opening the session in the background (`claude -p --resume`, `codex exec resume`), notarized releases, more sources (Cursor, terminals), a sound and haptics option, launch at login that survives distribution.
+Open ideas, roughly in order: Claude-quality summaries when the `claude` CLI is logged in (on-device summaries are shallow), a "hit an error" status, answering a question without opening the session in the background (`claude -p --resume`, `codex exec resume`), notarized releases, more sources (Cursor, terminals), a sound and haptics option, launch at login that survives distribution.
