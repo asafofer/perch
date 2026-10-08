@@ -16,7 +16,7 @@ import CoreGraphics
     @Test func panelIsTopCentred() {
         let f = NotchGeometry.panelFrame(for: notched)
         #expect(f.midX == notched.frame.midX)
-        #expect(f.maxY == notched.frame.maxY)
+        #expect(f.maxY == notched.frame.maxY + NotchGeometry.overscan)
     }
     @Test func panelIsWiderThanTheCard() {
         #expect(NotchGeometry.panelSize.width > NotchGeometry.cardWidth)

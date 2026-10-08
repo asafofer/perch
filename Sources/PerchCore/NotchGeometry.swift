@@ -12,6 +12,9 @@ public enum NotchGeometry {
     public static let cardWidth: CGFloat = 400
     /// One fixed, transparent panel hosts every phase. It holds the tallest card plus room for the shadow.
     public static let panelSize = CGSize(width: 480, height: 320)
+    /// The panel reaches this far above the top of the screen, and the card draws a black cap into it,
+    /// so a rounding gap or a slight offset can never show the desktop above an open card.
+    public static let overscan: CGFloat = 10
     public static let fallbackIdleHeight: CGFloat = 32
 
     /// Width of the stand-in tab drawn where a notch would be, on a screen without one.
@@ -25,7 +28,7 @@ public enum NotchGeometry {
     /// The panel, top-centred on the screen.
     public static func panelFrame(for screen: ScreenInfo) -> CGRect {
         CGRect(x: screen.frame.midX - panelSize.width / 2, y: screen.frame.maxY - panelSize.height,
-               width: panelSize.width, height: panelSize.height)
+               width: panelSize.width, height: panelSize.height + overscan)
     }
 
     /// Screen-space rect of the visible card, used for hover and click-through. `height` comes from the UI.

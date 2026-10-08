@@ -6,7 +6,7 @@
 
 html, body { margin: 0; background: transparent; overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; cursor: default; }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; }
-#scene { position: relative; width: 480px; height: 320px; }
+#scene { position: relative; top: 10px; width: 480px; height: 320px; }
 .perch { --background: 0 0% 0%; --foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 11%; --accent-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%; --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%; --ring: 240 4.9% 83.9%; color: hsl(var(--foreground)); letter-spacing: -.011em; }
 
@@ -20,6 +20,8 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 /* the stand-in notch on a screen without one: a quiet black tab that leans toward you when the cursor is near */
 .n[data-virt="1"][data-s=idle] { border-radius: 0 0 9px 9px; box-shadow: 0 0 0 .5px rgba(255,255,255,.08); }
 .n[data-virt="1"][data-hot="1"][data-s=idle] { transform: scale(1.07, 1.2); transform-origin: 50% 0; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 8px 20px -6px rgba(0,0,0,.65); }
+/* a black cap above the open card, off the top of the screen; it only shows if something nudges the card down */
+.n:not([data-s=idle])::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; background: #000; }
 .ear { position: absolute; top: 0; width: 12px; height: 12px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
 .ear.l { left: -12px; transform-origin: 100% 0; background: radial-gradient(circle at 0 100%, transparent 11.5px, #000 12px); }
 .ear.r { right: -12px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 11.5px, #000 12px); }
