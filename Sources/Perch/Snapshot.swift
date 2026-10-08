@@ -48,7 +48,7 @@ struct UISnapshot: Encodable {
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken
-        self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? 32)
+        self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? NotchGeometry.idleSize(for: screen).height)
         self.projects = projects.map { p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,

@@ -4,7 +4,8 @@ import CoreGraphics
 public struct ScreenInfo: Equatable, Sendable {
     public var frame: CGRect          // screen frame in global coordinates (origin bottom-left)
     public var notchSize: CGSize?     // hardware notch size, nil on Macs without one
-    public init(frame: CGRect, notchSize: CGSize?) { self.frame = frame; self.notchSize = notchSize }
+    public var menuBarHeight: CGFloat // height of the menu bar here; sizes the stand-in tab on screens without a notch
+    public init(frame: CGRect, notchSize: CGSize?, menuBarHeight: CGFloat = 24) { self.frame = frame; self.notchSize = notchSize; self.menuBarHeight = menuBarHeight }
 }
 
 public enum NotchGeometry {
@@ -13,9 +14,12 @@ public enum NotchGeometry {
     public static let panelSize = CGSize(width: 480, height: 320)
     public static let fallbackIdleHeight: CGFloat = 32
 
-    /// Idle footprint: the hardware notch, or nothing visible on a Mac without one.
+    /// Width of the stand-in tab drawn where a notch would be, on a screen without one.
+    public static let tabWidth: CGFloat = 148
+
+    /// Idle footprint: the hardware notch, or a small black tab in the menu bar on a screen without one.
     public static func idleSize(for screen: ScreenInfo) -> CGSize {
-        screen.notchSize ?? CGSize(width: 0, height: fallbackIdleHeight)
+        screen.notchSize ?? CGSize(width: tabWidth, height: min(max(screen.menuBarHeight, 22), 28))
     }
 
     /// The panel, top-centred on the screen.

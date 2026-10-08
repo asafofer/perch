@@ -22,6 +22,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var activity: NSObjectProtocol?
     private var snoozeTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
+    /// The cursor is on the tab or notch, so it leans toward you.
+    private var tabHot = false
+    /// When the cursor left a hover-opened card. It closes only if it stays away for a moment.
+    private var leftCardAt: Date?
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
     private var openedByHover = false
     private var openedAt = Date.distantPast
@@ -81,7 +85,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard projects.count > 1 else { return }
             projects.append(projects.remove(at: i))
         }
-        snoozeTask?.cancel(); openedByHover = onHome; proactiveOpen = proactive; openedAt = Date(); prepareToShow(onHome: onHome); send(.comeBack)
+        snoozeTask?.cancel(); openedByHover = onHome; proactiveOpen = proactive; openedAt = Date(); leftCardAt = nil; prepareToShow(onHome: onHome); send(.comeBack)
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
@@ -310,7 +314,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
-                self.place(on: ScreenChooser.home())
+                self.place(on: ScreenChooser.current())
                 if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
                 self.refreshProjects()
             }
@@ -626,6 +630,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Resting the cursor on the notch for a moment opens the welcome card.
     private func hoverIdle() {
         let inside = notchHoverRect().contains(NSEvent.mouseLocation)
+        if inside != tabHot { tabHot = inside; web.evaluateJavaScript("window.perch && window.perch.hot(\(inside))", completionHandler: nil) }
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
         if hoverLatched || hoverTask != nil || NSEvent.pressedMouseButtons != 0 { return }
         hoverTask = Task { [weak self] in
@@ -638,12 +643,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func mouseMoved() {
-        if machine.phase == .idle { hoverIdle(); return }
+        if machine.phase == .idle {
+            // The tab (or notch) lives on whichever screen the cursor is on, so an external display gets one too.
+            if let under = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }), under !== screen { place(on: under); push() }
+            hoverIdle(); return
+        }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
         if inside, panel.allowsKey, !panel.isKeyWindow, !proactiveOpen { panel.makeKey() }
-        if !inside, openedByHover, Date().timeIntervalSince(openedAt) > 0.5 { send(.dismiss); return }
+        if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
+            // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
+            if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
+            else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }
+            else { leftCardAt = Date() }
+        }
         if inside != machine.hovering {
             send(.hoverChanged(inside))
             if machine.phase == .open { restartTimer(); push() }

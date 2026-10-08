@@ -19,7 +19,7 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .6s .05s cubic-bezier(.3,1.5,.45,1), border-radius .4s, box-shadow .6s, transform .35s cubic-bezier(.3,1.5,.5,1); }
 /* the stand-in notch on a screen without one: a quiet black tab that leans toward you when the cursor is near */
 .n[data-virt="1"][data-s=idle] { border-radius: 0 0 9px 9px; box-shadow: 0 0 0 .5px rgba(255,255,255,.08); }
-.n[data-hot="1"][data-s=idle] { transform: scale(1.07, 1.2); transform-origin: 50% 0; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 8px 20px -6px rgba(0,0,0,.65); }
+.n[data-virt="1"][data-hot="1"][data-s=idle] { transform: scale(1.07, 1.2); transform-origin: 50% 0; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 8px 20px -6px rgba(0,0,0,.65); }
 .ear { position: absolute; top: 0; width: 12px; height: 12px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
 .ear.l { left: -12px; transform-origin: 100% 0; background: radial-gradient(circle at 0 100%, transparent 11.5px, #000 12px); }
 .ear.r { right: -12px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 11.5px, #000 12px); }

@@ -10,7 +10,8 @@ import CoreGraphics
         #expect(NotchGeometry.idleSize(for: notched) == CGSize(width: 185, height: 32))
     }
     @Test func idleIsInvisibleWithoutNotch() {
-        #expect(NotchGeometry.idleSize(for: plain).width == 0)
+        #expect(NotchGeometry.idleSize(for: plain).width == NotchGeometry.tabWidth)
+        #expect(NotchGeometry.idleSize(for: ScreenInfo(frame: plain.frame, notchSize: nil, menuBarHeight: 40)).height == 28)
     }
     @Test func panelIsTopCentred() {
         let f = NotchGeometry.panelFrame(for: notched)

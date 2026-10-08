@@ -8,7 +8,9 @@ extension NSScreen {
               let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea else { return nil }
         return CGSize(width: frame.width - left.width - right.width, height: safeAreaInsets.top)
     }
-    var screenInfo: ScreenInfo { ScreenInfo(frame: frame, notchSize: notchSize) }
+    /// The menu bar's height on this display (0 when it hides itself, so a default is used).
+    var menuBarHeight: CGFloat { max(0, frame.maxY - visibleFrame.maxY) }
+    var screenInfo: ScreenInfo { ScreenInfo(frame: frame, notchSize: notchSize, menuBarHeight: menuBarHeight > 0 ? menuBarHeight : 24) }
 }
 
 enum ScreenChooser {
