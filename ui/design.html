@@ -22,6 +22,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
 .now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
 
+/* display switch */
+.disp{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
+.disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.desk.ext .mb{height:24px}
 /* scenarios */
 .groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
 .group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px}
@@ -55,7 +60,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </header>
 
   <div class="deskwrap">
-    <div class="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
+    <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
+    <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button></div>
   </div>
 
   <section>
@@ -84,6 +90,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(0); d.show('open'); setTimeout(function () { document.querySelector('.x-esc').click(); }, 700); }],
       ['Other projects', 'Press Tab. Shows which sessions are working. Tab goes back.', function () { d.show('switcher'); }]
     ]],
+    ['External display', [
+      ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', 'off', true); }],
+      ['Hover the tab', 'Move the cursor onto the tab: it leans toward you.', function () { setDisplay(0); d.show('idle', 'off', true); }],
+      ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
+    ]],
     ['Resting', [
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
       ['Something needs you', 'The character pops out with an orange dot.', function () { d.show('idle'); }]
@@ -97,8 +108,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['5. All set', 'The three ways to reach Perch.', function () { d.onboarding(4, true, 'ready'); }]
     ]]
   ];
-  var now = document.getElementById('now'), btns = [];
-  function run(b, name, fn) { btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
+  var now = document.getElementById('now'), btns = [], lastRun = null;
+  function setDisplay(has) {
+    d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
+    document.querySelectorAll('#disp button').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
+  }
+  document.querySelectorAll('#disp button').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

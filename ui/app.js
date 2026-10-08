@@ -175,15 +175,17 @@
     if (on) { void r.getBoundingClientRect(); r.style.transition = 'stroke-dashoffset 9s linear'; r.style.strokeDashoffset = '62.83'; }
   }
   function layout(st, s) {
-    var scr = s.screen, idleW = scr.hasNotch ? scr.notchW : 0, idleH = scr.hasNotch ? scr.notchH : 32;
+    /* No hardware notch (an external display): draw a small black tab at the top centre, so there is always something to aim at. */
+    var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
-    n.style.opacity = (st === 'idle' && !scr.hasNotch) ? 0 : 1;
+    n.style.opacity = 1;
+    n.dataset.virt = virt ? '1' : '';
     n.dataset.s = st;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
-      cr.style.transform = 'translate(' + (scr.hasNotch ? (-scr.notchW / 2 - d - 6) : -d / 2) + 'px,' + (scr.hasNotch ? (idleH - d) / 2 : 6) + 'px)';
+      cr.style.transform = 'translate(' + (-idleW / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)';
     } else {
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
@@ -247,6 +249,12 @@
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
+  if (!NATIVE) scene.addEventListener('mousemove', function (e) {
+    if (!snap || snap.phase !== 'idle') return;
+    var r = n.getBoundingClientRect(), pad = 10;
+    window.perch.hot(e.clientX > r.left - pad - 26 && e.clientX < r.right + pad && e.clientY < r.bottom + pad);
+  });
+  if (!NATIVE) scene.addEventListener('mouseleave', function () { window.perch.hot(false); });
   /* blinks at irregular intervals, sometimes twice */
   function blink() {
     if (cr.dataset.m === 'awake') {
@@ -366,7 +374,7 @@
     pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
   }
 
-  window.perch = { onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
+  window.perch = { hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -411,6 +419,10 @@
     var autoTimer;
     window.perchDev = {
       show: function (ph, setup, quiet) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      setNotch: function (has) {
+        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
+        if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
+      },
       onboarding: function (step, accessibility, summaries) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
