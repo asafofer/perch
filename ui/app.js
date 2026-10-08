@@ -202,6 +202,7 @@
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     bRep.style.display = (st === 'open' && p) ? 'inline-flex' : 'none';
+    if (p) rIn.placeholder = 'Reply to ' + (p.status.app === 'codex' ? 'Codex' : 'Claude') + '\u2026';
     if (st === 'setup') setup(s.setup);
     if (p) { fill(p); if (st === 'switch') list(s); if (st === 'restore') rest(p); }
     var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] }, g = (st === 'open' && p && glow[p.status.kind]) || ['245,184,59', '255,222,140'];
