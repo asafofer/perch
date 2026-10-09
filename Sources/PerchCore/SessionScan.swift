@@ -139,7 +139,8 @@ public final class SessionScanner: @unchecked Sendable {
         for s in sessions {
             guard out.count < limit else { break }
             guard var digest = cachedDigest(s.url, mtime: s.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
-                  !Recap.isTrivial(digest), let cwd = digest.cwd ?? s.entry.cwd, usable(cwd) else { continue }
+                  // The app's folder for the session wins: the transcript's follows every `cd` the agent makes.
+                  !Recap.isTrivial(digest), let cwd = s.entry.cwd ?? digest.cwd, usable(cwd) else { continue }
             digest.cwd = cwd
             if let t = s.entry.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             let git = cachedGit(cwd).info

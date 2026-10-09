@@ -77,6 +77,14 @@ private final class Home {
         #expect(found.first?.project.focusedAt != nil)
     }
 
+    @Test func aSessionKeepsItsFolderWhenTheAgentChangesDirectory() {
+        let h = Home(), site = h.folder("code/site"), ui = h.folder("code/site/ui")
+        h.claude("a", cwd: site, title: "Hero spacing")
+        // The agent ran `cd ui`: the transcript's newest lines carry the subfolder.
+        let path = h.url.appendingPathComponent(".claude/projects/" + String(site.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" }) + "/a.jsonl")
+        h.write(path.path.replacingOccurrences(of: h.url.path + "/", with: ""), Home.transcript("a", cwd: ui, at: h.now))
+        #expect(h.scanner.claude(limit: 15, now: h.now).first?.project.name == "site")
+    }
     @Test func archivedSessionsAreLeftOut() {
         let h = Home(), site = h.folder("code/site")
         h.claude("a", cwd: site, title: "Hero spacing")
