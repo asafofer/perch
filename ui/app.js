@@ -227,13 +227,28 @@
   }
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
+  /* Eased by hand, frame by frame, toward where the keys want it; a held key keeps adding to the same glide. */
+  var glide = { to: 0, at: 0, raf: 0 };
+  function saidScroll(d) {
+    var box = q('.o-said-in'), max = Math.max(0, box.scrollHeight - box.clientHeight);
+    if (!glide.raf) glide.at = glide.to = box.scrollTop;   /* start from wherever a trackpad left it */
+    glide.to = Math.max(0, Math.min(max, glide.to + d));
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { box.scrollTop = glide.to; return; }
+    if (glide.raf) return;
+    var step = function () {
+      glide.at += (glide.to - glide.at) * 0.18;
+      if (Math.abs(glide.to - glide.at) < 0.4) glide.at = glide.to;
+      box.scrollTop = glide.at;
+      glide.raf = glide.at === glide.to ? 0 : requestAnimationFrame(step);
+    };
+    glide.raf = requestAnimationFrame(step);
+  }
   rIn.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
     else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
     /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
-      e.preventDefault(); var box = q('.o-said-in');
-      box.scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * 57, behavior: window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      e.preventDefault(); saidScroll((e.key === 'ArrowDown' ? 1 : -1) * 57);
     }
     e.stopPropagation();
   });
