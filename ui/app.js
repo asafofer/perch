@@ -76,10 +76,12 @@
     '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading (the project sits up beside the character); its status, in words, ends the line */
       '<div class="rv mt-1.5 flex h-[18px] items-center gap-2 px-4" style="--i:1"><span class="o-app flex flex-none"></span><span dir="auto" class="o-name min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
+      /* under the title, in grey, what you were doing; then, apart, what happened; then Next. Read top to bottom in a glance. */
+      '<p dir="auto" class="o-sub rv mt-0.5 truncate pl-[38px] pr-4 text-[13px] leading-[18px] text-muted-foreground" style="--i:1"></p>' +
       '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
-      '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
+      '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('Tab'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose grid size-7 flex-none cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">' + svg('x', 'size-3') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
@@ -274,7 +276,8 @@
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
     var pj = q('.o-proj'); pj.textContent = p.topic ? p.name : ''; pj.title = pj.textContent;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
-    h.classList.remove('line-clamp-2'); h.title = '';
+    h.classList.remove('line-clamp-2', 'mt-2.5'); h.title = ''; h.style.display = '';
+    var sub = q('.o-sub'); sub.textContent = ''; sub.style.display = 'none';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
@@ -284,13 +287,17 @@
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
         : '';
     } else {
-      /* the title is on the heading now, so a headline that only repeats it gives its place to what happened */
+      /* "You were creating a database." becomes the grey line under the title, "Creating a database"; a headline that only
+         repeats the title is left out. What happened is the body, in white, two lines at most. */
       var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
-      if (p.topic && norm(p.headline) === norm(p.topic) && p.context) { h.innerHTML = md(p.context); h.classList.add('line-clamp-2'); c.innerHTML = ''; }
-      else { h.innerHTML = md(p.headline); c.innerHTML = md(p.context); }
-      box.innerHTML = '';
+      var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
+      var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
+      if (!(p.topic && norm(p.headline) === norm(p.topic)) && was) { sub.textContent = was.charAt(0).toUpperCase() + was.slice(1); sub.title = p.headline; sub.style.display = ''; }
+      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); if (sub.textContent) h.classList.add('mt-2.5'); }
+      else h.innerHTML = sub.textContent ? '' : md(p.headline);
+      c.innerHTML = ''; box.innerHTML = '';
     }
-    c.style.display = c.innerHTML ? '' : 'none';
+    c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
     var nx = a || /^\W*(next:\s*)?(commit|push|merge|rebase|stage)\b(?! notification)|\b(pull request|uncommitted|git (add|commit|push|merge|rebase))\b|\bopen (a|the) pr\b/i.test(p.next || '') ? '' : (p.next || '');
     nx = nx.replace(/^\s*next\s*[:,-]\s*/i, '');   /* the row is already labelled Next (old cache, model output) */
