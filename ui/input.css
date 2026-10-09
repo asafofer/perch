@@ -260,3 +260,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .o-said-in::-webkit-scrollbar { display: none; }
 .o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
 .o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
+/* working: the blue light breathes up from the bottom edge and settles back, slow and soft */
+.n[data-run="1"] .glow { transform-origin: 50% 100%; animation: glowrise 3.4s ease-in-out infinite; }
+.n[data-run="1"] .glow::after { animation: glowline 3.4s ease-in-out infinite; }
+@keyframes glowrise { 0%, 100% { scale: 1 .8; } 50% { scale: 1 1.25; } }
+@keyframes glowline { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .n[data-run="1"] .glow, .n[data-run="1"] .glow::after { animation: none; } }

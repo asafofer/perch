@@ -722,6 +722,7 @@
     var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
+    n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
     n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
     lastSt = st;

@@ -37,7 +37,8 @@ final class HookServer: @unchecked Sendable {
     /// Answers a held request. An empty body means "no decision": the app's own prompt decides.
     func answer(_ askId: String, with body: Data) {
         queue.async { [weak self] in
-            guard let self, let h = self.held.removeValue(forKey: askId) else { return }
+            guard let self, let h = self.held.removeValue(forKey: askId) else { Self.trace("answer for \(askId.prefix(8)) came too late: no longer held"); return }
+            Self.trace("answered \(askId.prefix(8)): \(String(decoding: body.prefix(400), as: UTF8.self))")
             h.watch.cancel()
             Self.respond(h.fd, body)
         }
@@ -63,12 +64,14 @@ final class HookServer: @unchecked Sendable {
                 guard let self, self.held[id] != nil else { return }
                 var b: UInt8 = 0
                 if recv(c, &b, 1, MSG_PEEK) <= 0 {
+                    Self.trace("\(id.prefix(8)) closed by the app before Perch answered")
                     self.held[id]?.watch.cancel(); self.held[id] = nil; close(c)
                     DispatchQueue.main.async { MainActor.assumeIsolated { self.onAbandoned?(id) } }
                 }
             }
             held[id] = (c, watch)
             watch.resume()
+            Self.trace("holding \(id.prefix(8)) for \(event.sessionId.prefix(8)): \(ask.kind)")
         } else {
             Self.respond(c, Data())
             // Answered already (with no decision): the card shows it, and Pick up takes you to where it is asked.
@@ -102,6 +105,9 @@ final class HookServer: @unchecked Sendable {
         guard request.count >= 2 else { return nil }
         return (String(request[1]), Data(data[r.upperBound...].prefix(length)))
     }
+
+    /// With PERCH_TRACE set: what happens to each request Perch holds.
+    private static func trace(_ s: String) { if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hook: \(s)") } }
 
     private static func respond(_ c: Int32, _ body: Data) {
         let head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
