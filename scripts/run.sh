@@ -22,6 +22,8 @@ else
   codesign --force --sign - "$APP" >/dev/null 2>&1
 fi
 if [ "${1:-}" = "--package-only" ]; then exit 0; fi
+# The design page's real app icons, from this Mac. Leaves a running Perch alone.
+if [ "${1:-}" = "--design-icons" ]; then "$APP/Contents/MacOS/Perch" --design-icons ui/icons.local.json; exit 0; fi
 pkill -x Perch 2>/dev/null || true
 # Wait for the old copy to quit: opening while it is still going hands the launch to the dying process.
 for _ in $(seq 50); do pgrep -x Perch >/dev/null || break; sleep 0.1; done

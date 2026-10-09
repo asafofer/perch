@@ -18,7 +18,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 .meta h3 { margin: 0; font: 600 15px/20px Inter, sans-serif; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
 .meta p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 18px; }
 .lvl { white-space: nowrap; font: 500 11px/16px Inter, sans-serif; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 9%, transparent); color: var(--muted); }
-.rec { background: color-mix(in srgb, #4ADE80 18%, transparent); color: #4ADE80; }
+.rec { background: color-mix(in srgb, #8CCFA4 18%, transparent); color: #8CCFA4; }
 .replay { margin-top: 8px; font: 500 12px Inter, sans-serif; color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
 
 /* the top of the screen: wallpaper, menu bar, notch */
@@ -45,11 +45,11 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 .isl.r { left: calc(50% + 79px); gap: 6px; }
 .isl img, .isl .ic { width: 15px; height: 15px; border-radius: 4px; flex: none; }
 .isl .name { color: #fafafa; font-weight: 500; }
-.isl .done { color: #4ADE80; }
-.check { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(74,222,128,.18); color: #4ADE80; }
+.isl .done { color: #8CCFA4; }
+.check { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(140,207,164,.18); color: #8CCFA4; }
 
 /* when it needs you: an orange mark, the question or the command, sometimes the answers right there */
-.mark { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(251,146,60,.2); color: #FB923C; font: 700 10px/1 Inter, sans-serif; }
+.mark { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(233,168,119,.2); color: #E9A877; font: 700 10px/1 Inter, sans-serif; }
 .row1 .q { color: #fafafa; overflow: hidden; text-overflow: ellipsis; }
 .cmd { font: 500 11.5px/18px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e4e4e7; background: rgba(255,255,255,.09); border-radius: 4px; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .chip { flex: none; font-size: 11.5px; line-height: 18px; padding: 0 7px; border-radius: 6px; background: rgba(255,255,255,.1); color: #fafafa; }
@@ -72,7 +72,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 h2 { font: 600 17px/1.2 Inter, sans-serif; letter-spacing: -.01em; margin: 14px 0 0; }
 /* 5: a soft green glow seeping out under the notch */
 .under { position: absolute; top: 18px; left: 50%; width: 170px; height: 34px; margin-left: -85px; z-index: 4; border-radius: 50%; opacity: 0;
-  background: radial-gradient(closest-side, rgba(74,222,128,.55), rgba(74,222,128,0)); filter: blur(6px); transition: opacity 1.2s ease; }
+  background: radial-gradient(closest-side, rgba(140,207,164,.55), rgba(140,207,164,0)); filter: blur(6px); transition: opacity 1.2s ease; }
 @media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation: none !important; } }
 </style>
 
