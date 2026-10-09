@@ -17,7 +17,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 @media (min-width: 760px) { .opt { grid-template-columns: 440px minmax(0, 1fr); align-items: center; } }
 .meta h3 { margin: 0; font: 600 15px/20px Inter, sans-serif; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
 .meta p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 18px; }
-.lvl { font: 500 11px/16px Inter, sans-serif; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 9%, transparent); color: var(--muted); }
+.lvl { white-space: nowrap; font: 500 11px/16px Inter, sans-serif; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 9%, transparent); color: var(--muted); }
 .rec { background: color-mix(in srgb, #4ADE80 18%, transparent); color: #4ADE80; }
 .replay { margin-top: 8px; font: 500 12px Inter, sans-serif; color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
 
@@ -48,6 +48,17 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 .isl .done { color: #4ADE80; }
 .check { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(74,222,128,.18); color: #4ADE80; }
 
+/* when it needs you: an orange mark, the question or the command, sometimes the answers right there */
+.mark { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(251,146,60,.2); color: #FB923C; font: 700 10px/1 Inter, sans-serif; }
+.row1 .q { color: #fafafa; overflow: hidden; text-overflow: ellipsis; }
+.cmd { font: 500 11.5px/18px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e4e4e7; background: rgba(255,255,255,.09); border-radius: 4px; padding: 0 5px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.chip { flex: none; font-size: 11.5px; line-height: 18px; padding: 0 7px; border-radius: 6px; background: rgba(255,255,255,.1); color: #fafafa; }
+.mini { flex: none; font: 500 11.5px/20px Inter, sans-serif; padding: 0 8px; border-radius: 6px; color: #a1a1aa; }
+.mini.go { background: #fafafa; color: #0a0a0a; }
+.row1.w { width: 300px; margin-left: -150px; }
+.isl.l.w { right: auto; left: calc(50% - 150px); }
+.isl.r.w { left: auto; right: calc(50% - 150px); }
+h2 { font: 600 17px/1.2 Inter, sans-serif; letter-spacing: -.01em; margin: 14px 0 0; }
 /* 5: a soft green glow seeping out under the notch */
 .under { position: absolute; top: 18px; left: 50%; width: 170px; height: 34px; margin-left: -85px; z-index: 4; border-radius: 50%; opacity: 0;
   background: radial-gradient(closest-side, rgba(74,222,128,.55), rgba(74,222,128,0)); filter: blur(6px); transition: opacity 1.2s ease; }
@@ -60,6 +71,11 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
     <p class="sub">An agent finished or replied in a session you are not looking at. Six ways to say so, from quietest to most noticeable. Today Perch does a two-second happy pop beside the notch, with no words. Each one replays every few seconds.</p>
   </div>
   <div id="opts"></div>
+  <div>
+    <h2>2b when it needs you</h2>
+    <p class="sub">A question, or a command to run. The row says what it wants, then the notch folds to small wings, the app on the left and an orange mark on the right, that stay until you answer. Hover the notch for the full card.</p>
+  </div>
+  <div id="needs"></div>
 </div>
 
 <script>
@@ -130,6 +146,46 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
       } }
   ];
 
+  var QMARK = '<span class="mark">?</span>', RUN = '<span class="mark"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg></span>';
+  /* expand with the row, hold, then fold to wings that stay while it waits */
+  function waiting(mark, row, wide) {
+    var w = wide ? ' w' : '';
+    return { setup: function () { return '<div class="isl l wide' + w + '">' + CLAUDE + '</div><div class="isl r wide' + w + '">' + mark + '</div><div class="row1' + w + '">' + row + '</div>'; },
+      play: function (s) {
+        var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl'), r = s.querySelector('.row1'), full = wide ? 330 : 270;
+        isl.forEach(function (e) { e.classList.add('wide'); if (wide) e.classList.add('w'); e.style.opacity = 0; }); r.classList.remove('on'); nt.classList.remove('tall'); nt.style.width = ''; nt.style.marginLeft = '';
+        at(s, 300, function () { nt.style.width = full + 'px'; nt.style.marginLeft = (-full / 2) + 'px'; nt.classList.add('tall'); });
+        at(s, 600, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
+        at(s, 720, function () { r.classList.add('on'); });
+        /* folds to wings: the icon and the mark tuck in beside the camera, and stay */
+        at(s, 4400, function () { r.classList.remove('on'); });
+        at(s, 4600, function () { nt.classList.remove('tall'); nt.style.width = '206px'; nt.style.marginLeft = '-103px'; isl.forEach(function (e) { e.classList.remove('wide', 'w'); }); });
+      } };
+  }
+  var NEEDS = [
+    Object.assign({ title: 'Asked you something', lvl: 'Stays until you answer', text: 'The row is the question. The wings stay, with an orange question mark, until you answer it.', clears: 'Answered here (hover for the card) or in the app.' },
+      waiting(QMARK, '<span class="name">Website</span><span class="q">Which layout should the hero use?</span>')),
+    Object.assign({ title: 'Asked you something, with its choices', lvl: 'Stays until you answer', text: 'The same, with the first choices on the row. Click one to answer without opening anything.', clears: 'Answered here or in the app. More than three choices: hover for the card.' },
+      waiting(QMARK, '<span class="name">Website</span><span class="q">Hero layout?</span><span style="flex:1"></span><span class="chip">Centered</span><span class="chip">Split</span><span class="chip">+1</span>', true)),
+    Object.assign({ title: 'Wants to run a command', lvl: 'Stays until you answer', text: 'The row shows the command itself. The wings stay, with an orange prompt mark, until you allow or deny it.', clears: 'Answered here (hover for the card) or in the app.' },
+      waiting(RUN, '<span class="name">Website</span><span class="cmd">npm run build && npm test</span>')),
+    Object.assign({ title: 'Wants to run, with Allow and Deny', lvl: 'Stays until you answer', text: 'The command with Deny and Allow right on the row. One click from anywhere, nothing opens.', clears: 'Answered here or in the app. Codex and terminal sessions answer in their own window, so they get the row without buttons.' },
+      waiting(RUN, '<span class="name">Website</span><span class="cmd">npm run build && npm test</span><span style="flex:1"></span><span class="mini">Deny</span><span class="mini go">Allow</span>', true))
+  ];
+  function render(list, into, numbered) {
+    into.style.cssText = 'display:flex;flex-direction:column;gap:12px';
+    list.forEach(function (o, i) {
+      var el = document.createElement('section'); el.className = 'opt';
+      el.innerHTML = '<div class="stage"><i class="bar"></i><i class="notch"></i>' + o.setup() + '</div>' +
+        '<div class="meta"><h3>' + (numbered ? (o.num || (i < 2 ? i + 1 : i)) + '. ' : '') + o.title + ' <span class="lvl' + (o.rec ? ' rec' : '') + '">' + (o.rec ? 'Recommended \u00b7 ' : '') + o.lvl + '</span></h3><p>' + o.text + '</p><p>' + o.clears + '</p><button class="replay">Replay</button></div>';
+      into.appendChild(el);
+      var stage = el.querySelector('.stage'); stage._t = [];
+      var run = function () { stage._t.forEach(clearTimeout); stage._t = []; o.play(stage); };
+      el.querySelector('.replay').onclick = run;
+      run(); setInterval(run, numbered ? 6500 : 8000);
+    });
+  }
+  render(NEEDS, document.getElementById('needs'), false);
   var box = document.getElementById('opts');
   box.style.cssText = 'display:flex;flex-direction:column;gap:12px';
   OPTIONS.forEach(function (o, i) {
