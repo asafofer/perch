@@ -204,7 +204,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     var snapshotWallpaper: NSImage?
 
     /// Debug: write the web view's current pixels to a PNG, over the wallpaper as the top of this screen shows it.
-    func snapshot(to path: String) {
+    /// `top`: keep only that much of the panel from its top edge, in points (the live activity is a strip, not a card).
+    func snapshot(to path: String, top: CGFloat? = nil) {
         let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
         let screen = info.frame.size, panel = NotchGeometry.panelSize, wall = snapshotWallpaper
         web.evaluateJavaScript("window.perch && window.perch.still && window.perch.still()", completionHandler: nil)
@@ -227,8 +228,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             image.draw(in: NSRect(origin: .zero, size: size))
             out.unlockFocus()
-            if let tiff = out.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-               let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
+            guard let tiff = out.tiffRepresentation, var rep = NSBitmapImageRep(data: tiff) else { return }
+            if let top, let cg = rep.cgImage {
+                let px = Int(top / (panel.height + NotchGeometry.overscan) * CGFloat(cg.height))
+                if let cut = cg.cropping(to: CGRect(x: 0, y: 0, width: cg.width, height: min(px, cg.height))) { rep = NSBitmapImageRep(cgImage: cut) }
+            }
+            if let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
         }
     }
 

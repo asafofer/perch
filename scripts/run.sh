@@ -36,6 +36,6 @@ case "${1:-}" in
   --hello) open -n "$APP" --args --hello ;;
   --activity) open -n "$APP" --args --activity ;;
   --idle) open -n "$APP" --args --idle "${2:-15}" ;;
-  --snapshot) "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
+  --snapshot) PERCH_CHARACTER="${PERCH_CHARACTER:-octo,#B9A2F5}" "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
   *) open "$APP" ;;
 esac

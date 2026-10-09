@@ -619,7 +619,7 @@
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
     bb.style.width = 'max-content'; var bw = bb.offsetWidth + 28; bb.style.width = '';
-    var w = Math.min(420, Math.max(idleW + 2 * side, idleW + 150, bw));
+    var w = Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw));   /* the panel is 480 wide */
     return [w, idleH + (actEl.querySelector('.act-body') ? 24 : 0) + 44];
   }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
@@ -680,10 +680,10 @@
     /* right after launch the first scan may not be in yet */
     if (!ps.length || s0.phase !== 'idle') { if ((tries || 0) < 40) setTimeout(function () { actDemo((tries || 0) + 1); }, 500); return; }
     post({ type: 'log', text: 'activity demo over ' + ps.length + ' sessions' });
-    actDemoOn = true;
+    actDemoOn = true; known = null;   /* no All clear for the request the demo starts after */
     var a = ps[0], b = ps[1] || a, c = ps[2] || a;
     var calm = s0.projects.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
-    var show = function (id, o) { apply(Object.assign({}, s0, { phase: 'idle', demo: true, projects: calm.map(function (x) { return x.id === id ? Object.assign({}, x, o) : x; }) })); };
+    var show = function (id, o) { apply(Object.assign({}, s0, { phase: 'idle', demo: true, quiet: false, projects: calm.map(function (x) { return x.id === id ? Object.assign({}, x, o) : x; }) })); };
     var ask = function (o) { return Object.assign({ status: { kind: 'attention', text: 'Claude needs you', app: 'claude' }, attention: true }, o); };
     show('', {});
     setTimeout(function () { show(a.id, { status: { kind: 'done', text: 'Claude finished', app: a.app }, fresh: true }); }, 800);

@@ -5,8 +5,8 @@
 <h1 align="center">Perch</h1>
 
 <p align="center">
-  A notch app for macOS that shows where you left off in Claude Code and Codex,<br>
-  and lets you pick up, reply or snooze without leaving the notch.
+  A notch app for macOS that shows where you left off in Claude Code and Codex, in their apps or any terminal,<br>
+  and lets you switch back, reply or answer without leaving the notch.
 </p>
 
 <p align="center">
@@ -16,11 +16,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/card.png" width="400" alt="Where you were: the project, what the agent did, and what is next"> &nbsp;
+  <img src="docs/assets/activity.png" width="808" alt="While you work, a session you are not in finishes: the notch grows with its name, Finished, and buttons to reply or switch to it">
+</p>
+<p align="center">
+  <img src="docs/assets/card.png" width="400" alt="Where you were: the session, the project, what the agent did, and what is next"> &nbsp;
   <img src="docs/assets/ask.png" width="400" alt="Claude asks to run a command; allow or deny from the notch">
 </p>
 <p align="center">
-  <img src="docs/assets/list.png" width="400" alt="All sessions, what needs you first">
+  <img src="docs/assets/list.png" width="400" alt="All sessions: what needs you, today, earlier">
 </p>
 <p align="center"><sub>Wallpaper by <a href="https://www.raycast.com/wallpapers">Raycast</a>.</sub></p>
 
@@ -28,13 +31,15 @@
 
 Developers run several agent sessions at once and lose their place when they step away. Perch lives in the notch and answers one question when you come back: **what was I doing, and what is waiting for me?**
 
-- **Where was I.** After a break, a card drops from the notch: which project, what you were doing, what the agent did, and the next step when there is a real one.
-- **What needs you.** With live status on, Claude Code and Codex tell Perch the moment they finish or need your OK. The character peeks out beside the notch, and sessions that need you come first.
+- **Where was I.** After a break, a card drops from the notch: the session, its project and what you were doing, what the agent did, and the next step when there is a real one. While a session works, the card says what it is doing right now.
+- **While you work.** When a session you are not in finishes or asks for something, the notch grows with its name and what happened, and a row of buttons: switch to it, reply, allow or deny, or a question's answers. A finish folds away after a few seconds; a request folds to small wings until you answer.
+- **What needs you.** With live status on, Claude Code and Codex tell Perch the moment they finish or need your OK, and sessions that need you come first.
 - **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's question, without leaving what you are doing. Codex approvals open in Codex.
-- **Jump back in.** One key opens the exact session in the Claude app or Codex. Reply pastes and sends a message for you.
-- **All sessions.** Every recent session with its status in words: needs your OK, finished, working.
+- **Jump back in.** One key switches to the exact session: in the Claude app, in Codex, or in the terminal tab it runs in.
+- **Reply.** Reply shows the agent's own last message and sends yours: straight into a terminal session, or into the Claude or Codex app.
+- **All sessions.** Every recent session, grouped into what needs you, today and earlier, newest first. Type to filter.
 - **Private by design.** Summaries are written on your Mac by Apple Intelligence. Perch reads local session files and sends nothing anywhere.
-- **Yours.** Choose your character's shape and colour in onboarding or Settings.
+- **Yours.** Choose your character (ears, an octopus, a bao, a robot or an onigiri) and its colour in onboarding or Settings.
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
@@ -44,7 +49,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 |---|---|
 | macOS | 26 or later, Apple silicon. A notch is optional: other screens get a small tab at the top centre. |
 | Build tools | Xcode 26 and Node 20+ (for the Tailwind build) |
-| Agents | The Claude app (Code) and/or Codex. Perch reads their local session files, and with live status on, adds a small hook to each. |
+| Agents | The Claude app (Code), Codex, and Claude Code or Codex in a terminal (Terminal, iTerm2, Ghostty, cmux and others). Perch reads their local session files, and with live status on, adds a small hook to each. |
 
 ## Installation
 
@@ -73,14 +78,16 @@ On first launch Perch walks you through setup: character, Accessibility, which a
 | Open or close Perch | Tap Command + Option |
 | Where was I | Control + Option + P |
 | All sessions | Control + Option + L |
-| Switch between the card and the list | Tab |
-| Pick up the session | Return |
+| Between the card and the list | Left and Right (or Tab) |
+| Switch to the session | Return |
 | Allow or deny what the agent asks | A or D |
 | Pick an answer to a question | 1 to 4 |
-| Reply | R |
+| Reply, then scroll the agent's message | R, then Up and Down |
 | Not now (30 min, 2 hours, tomorrow) | N |
-| Settings | S |
+| Settings (Left goes back) | S, or Command + comma in the list |
 | Close | Esc |
+
+While the notch shows something that finished or asks for you, its buttons answer to keys too, and only then: Command + Option + Return switches to it, Command + R replies, Command + Option + Y or N allows or denies, Command + Option + 1 to 3 picks an answer, and Command + Option + period puts it away.
 
 The menu bar item also offers the card, all sessions, app choices, character, setup and quit.
 
@@ -88,7 +95,8 @@ The menu bar item also offers the card, all sessions, app choices, character, se
 
 | Permission | Why | Without it |
 |---|---|---|
-| Accessibility | Command + Option, and pasting a reply into Claude or Codex | A reply is copied for you to paste |
+| Accessibility | Command + Option, and typing a reply into the Claude or Codex app | A reply is copied for you to paste |
+| Automation (your terminal) | Going back to the exact tab, and typing a reply into it | The terminal comes forward; you find the tab |
 | Files | Reading project folders (macOS asks once per folder) | That project is skipped |
 | Apple Intelligence | On-device summaries (optional) | Plain recaps from the transcript |
 
@@ -118,10 +126,11 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 - **The card never appears on its own.** It needs you to be away for the "Come back after" time (20 minutes by default). To test quickly: `./scripts/run.sh --idle 15`.
 - **macOS asks for permissions again after every build.** Run `./scripts/make-dev-cert.sh` once so builds are signed with a stable identity.
-- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`. Only Claude app sessions and Codex threads are listed.
+- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`, and which sessions are running in a terminal. Claude app sessions, Codex threads, and sessions started in a terminal are listed; headless runs (`claude -p`, `codex exec`) are not.
+- **See the notch while you work.** `./scripts/run.sh --activity` plays a finish, a command to allow and a question over your real sessions.
 - **Status lags or guesses.** Turn on Live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
 - **README screenshots.** `./scripts/run.sh --snapshot docs/assets --wallpaper ui/wallpapers/blue-distortion-1.webp`.
 
 ## Roadmap
 
-Claude-quality summaries, a "hit an error" status, sending a reply in the background, notarized releases, more sources (Cursor, terminals). See [AGENTS.md](AGENTS.md).
+Claude-quality summaries, sending a reply into the Claude app without bringing it forward, notarized releases, more sources (Cursor). See [AGENTS.md](AGENTS.md).

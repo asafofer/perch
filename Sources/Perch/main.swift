@@ -106,7 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.4) { c.send(.dismiss) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.8) { c.showSetup() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 12.4) { c.snapshot(to: dir + "/setup.png") }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 13.4) { NSApp.terminate(nil) }
+            // The live activity: a session you are not in finishes while you work.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12.8) { c.send(.dismiss) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 13.6) { c.playActivityDemo() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15.6) { c.snapshot(to: dir + "/activity.png", top: 105) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 16.4) { NSApp.terminate(nil) }
         }
         if args.contains("--simulate") {
             // "I was away, I'm back": asleep for a few seconds, then you return and the card stays open.
