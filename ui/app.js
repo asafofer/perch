@@ -170,7 +170,7 @@
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
     q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
-    var h = q('.o-h'); h.textContent = qn.text; h.title = qn.text; h.classList.add('line-clamp-2');
+    var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
