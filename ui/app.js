@@ -74,7 +74,7 @@
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
       '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-back flex cursor-pointer items-center gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Back</button><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-center gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -108,7 +108,9 @@
     else if (a === 'reply') replyMenu(true);
     else if (a === 'snooze') snoozeMenu(true);
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
-    else if (a === 'opt') post({ type: 'answer', choice: b.dataset.v });
+    else if (a === 'pick') askKey(String(+b.dataset.i + 1));
+    else if (a === 'qback') askKey('back');
+    else if (a === 'qnext') askKey('next');
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
   var fMain = q('.f-main'), fSnz = q('.f-snz');
@@ -160,20 +162,63 @@
   var last = { phase: null, token: null };
   var snap = null;
 
+  /* Questions, one at a time: a number answers and moves on, Back returns, the last one sends them all together. */
+  var asking = { key: '', step: 0, picks: [], p: null };
+  function questionCard(p, a) {
+    var key = p.id + '|' + a.subject + '|' + a.questions.length;
+    if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
+    asking.p = p;
+    var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
+    var h = q('.o-h'); h.textContent = qn.text; h.title = qn.text; h.classList.add('line-clamp-2');
+    var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
+    q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
+      var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
+      return '<button data-act="pick" data-i="' + i + '" title="' + esc(note) + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+        Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
+        (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
+        (qn.multi ? '<span class="flex-none ' + (on ? 'text-emerald-400' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+    q('.o-nx').style.display = 'none';
+    var last = asking.step === n - 1, ready = qn.multi && picks.length;
+    q('.o-acts').innerHTML = (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Act('ghost', 'Not now', 'N', 'snooze')) +
+      (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', 'Pick up', ENTER, 'go'));
+  }
+  function askKey(k) {
+    var a = asking.p && asking.p.ask; if (!a || !a.questions || !a.questions.length) return;
+    var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    var redraw = function () {
+      questionCard(asking.p, a); if (snap) layout(lastSt, snap);
+      if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) [q('.o-h'), q('.o-ask')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.2,.9,.3,1)' }); });
+    };
+    var forward = function () {
+      if (asking.step < n - 1) { asking.step++; redraw(); return; }
+      var answers = {}; a.questions.forEach(function (x, i) { answers[x.text] = asking.picks[i].join(', '); });
+      post({ type: 'answer', answers: answers });
+    };
+    if (/^[1-9]$/.test(k)) {
+      var o = qn.options[+k - 1]; if (!o) return;
+      if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw(); }
+      else { asking.picks[asking.step] = [o]; forward(); }
+    } else if (k === 'back') { if (asking.step) { asking.step--; redraw(); } }
+    else if (k === 'next') { if (picks.length) forward(); }
+    else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
+  }
+
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     q('.o-app').innerHTML = App(p.app, 'size-3.5');
     q('.o-name').textContent = p.name;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
+    h.classList.remove('line-clamp-2'); h.title = '';
+    if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
       h.textContent = a.kind === 'question' ? a.subject : a.title;
       c.textContent = a.kind === 'plan' ? a.subject : '';
       box.innerHTML = a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
-        : (a.kind === 'question' && a.options.length ? '<div class="mt-2.5 flex flex-wrap gap-1.5">' + a.options.map(function (o, i) {
-            return '<button data-act="opt" data-v="' + esc(o) + '" title="' + esc((a.notes || [])[i] || '') + '" class="inline-flex h-7 max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white/[0.07] pl-1.5 pr-2.5 text-[13px] transition-colors hover:bg-white/[0.13]">' + Kbd(String(i + 1)) + '<span class="truncate">' + esc(o) + '</span></button>';
-          }).join('') + '</div>' : '');
+        : '';
     } else {
       h.innerHTML = md(p.headline); c.innerHTML = md(p.context); box.innerHTML = '';
     }
@@ -203,7 +248,8 @@
         '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + esc(p.name) + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span></span>' +
         '<span class="flex flex-none items-center gap-1.5 text-xs tabular-nums">' + Phrase(phrase(p, true)) + '</span></div>';
     }).join('');
-    scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
+    /* a row shows that session's card in the notch; Return (or the card's Pick up) opens it */
+    scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); }; r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
   }
   /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
@@ -253,7 +299,7 @@
     if (p) rIn.placeholder = 'Reply to ' + (p.app === 'codex' || p.status.app === 'codex' || /codex/i.test(p.status.text) ? 'Codex' : 'Claude') + '\u2026';
     applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
-    if (st === 'set') settingsApply(s.settings); else setSig = '';
+    if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; setAppAt = 0; }
     if (st === 'setup') setup(s.setup);
     if (p) fill(p);
     moments(s, st);
@@ -582,7 +628,7 @@
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw relative h-[18px] w-[30px] flex-none cursor-pointer rounded-full transition-colors duration-200 ' + (on ? 'bg-emerald-400' : 'bg-white/20') + '"><i class="absolute top-[2px] block size-[14px] rounded-full bg-white shadow transition-all duration-200 ' + (on ? 'left-[14px]' : 'left-[2px]') + '"></i></button>';
   }
-  function srow(left, right) { return '<div class="flex h-[30px] items-center gap-2.5 px-4 text-[13px]">' + left + '<span class="flex-none">' + right + '</span></div>'; }
+  function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   function slabel(t, sub) { return '<span class="min-w-0 flex-1 truncate">' + t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '') + '</span>'; }
   function settingsRender(o) {
     setLast = o;
@@ -604,7 +650,11 @@
     ].join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
-      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5">' + Button('ghost', 'Replay onboarding', '', 's-replay') + Button('ghost', 'Quit Perch', '', 's-quit') + '<span class="flex-1"></span>' + Button('default', 'Done', Kbd('esc', 1), 's-done') + '</div>';
+      /* the keys, like the list's: every setting can be changed without the mouse */
+      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
+      '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', 'Done', Kbd('esc', 1), 's-done') + '</div>';
+    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
+    paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
       setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
@@ -617,11 +667,40 @@
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
-    on('.s-replay', function () { post({ type: 'onbOpen', step: 0 }); });
     on('.s-sum', function () { post({ type: 'openSettings' }); });
     on('.s-ax', function () { post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
     on('.s-done', function () { post({ type: 'dismiss' }); });
+  }
+  /* the highlighted row, moved with the arrow keys or the pointer; on Apps, which app */
+  var setFocus = 0, setAppAt = 0;
+  function paintFocus() {
+    var box = q('.set'), rows = box.querySelectorAll('.s-row');
+    setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
+    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus); });
+    var apps = rows[setFocus] ? rows[setFocus].querySelectorAll('.s-app') : [];
+    box.querySelectorAll('.s-app').forEach(function (b) { b.classList.remove('ring-1', 'ring-white/40'); });
+    if (apps.length) { setAppAt = Math.min(setAppAt, apps.length - 1); apps[setAppAt].classList.add('ring-1', 'ring-white/40'); }
+  }
+  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
+  function settingsKey(k) {
+    var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
+    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
+    if (!row) return;
+    var seg = row.querySelectorAll('.s-idle'), apps = row.querySelectorAll('.s-app');
+    if (k === 'left' || k === 'right') {
+      var d = k === 'right' ? 1 : -1;
+      if (apps.length) { setAppAt = (setAppAt + d + apps.length) % apps.length; paintFocus(); }
+      else if (seg.length && setLast) {
+        var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast.idleMinutes));
+        post({ type: 'setting', key: 'idleMinutes', value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
+      }
+      return;
+    }
+    /* Return or Space: flip the switch, pick the app, or press the row's button */
+    if (apps.length) { apps[setAppAt].click(); return; }
+    if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }); post({ type: 'setting', key: 'idleMinutes', value: v[(v.indexOf(setLast.idleMinutes) + 1) % v.length] }); return; }
+    var c = row.querySelector('.s-sw, button'); if (c) c.click();
   }
   function settingsApply(o) {
     if (!o) return;
@@ -643,7 +722,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -660,7 +739,7 @@
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */
       s.projects[s.selected] = Object.assign({}, s.projects[s.selected], { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } });
-      var nowEl = document.getElementById('now'); if (nowEl) nowEl.textContent = m.choice === 'deny' ? 'Denied. Claude is told no and goes on.' : (m.choice === 'allow' ? 'Allowed. Claude runs it.' : 'Answered: ' + m.choice);
+      var nowEl = document.getElementById('now'); if (nowEl) nowEl.textContent = m.answers ? 'Sent: ' + Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ') : (m.choice === 'deny' ? 'Denied. Claude is told no and goes on.' : 'Allowed. Claude runs it.');
     }
     if (m.type === 'hooks') { if (s.settings) s.settings.live = m.on ? 'on' : 'off'; if (s.onboarding) s.onboarding.live = m.on ? 'on' : 'off'; }
     if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
@@ -681,6 +760,7 @@
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
+    if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = 'open';
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
   }
@@ -750,6 +830,14 @@
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter')) { e.preventDefault(); onbKey(arrows[e.key] || 'enter'); return; }
+      if (ph === 'settings' && (arrows[e.key] || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); settingsKey(arrows[e.key] || 'enter'); return; }
+      /* the same keys as the app when the card asks something: A allows, D denies; for questions a number, Return, Left and Right */
+      var ask = ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask;
+      if (ask && ask.answerable && fRep.style.display !== 'flex') {
+        var k = e.key.toLowerCase();
+        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
+        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
+      }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
@@ -757,12 +845,7 @@
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
-      else if (ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask && snap.projects[snap.selected].ask.answerable) {
-        /* the same keys as the app: A allows, D denies, a digit picks an option */
-        var ask = snap.projects[snap.selected].ask, k = e.key.toLowerCase();
-        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' });
-        else if (/^[1-4]$/.test(k) && ask.options[+k - 1]) dev({ type: 'answer', choice: ask.options[+k - 1] });
-      }
+
     });
   }
 })();

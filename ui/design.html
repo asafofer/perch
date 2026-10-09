@@ -79,12 +79,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 (function () {
   var d = window.perchDev; if (!d) return;
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
-    ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', options: ['Vendor first', 'Amount first', 'Both, vendor wins'], notes: ['Group by vendor, then match amounts', 'Exact amounts first, any vendor', 'Try vendor first, fall back to amount'], answerable: true } };
+    ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', answerable: true,
+      questions: [Q('Match invoices by vendor first, or by amount?', 'Matching', [['Vendor first', 'Group by vendor, then match amounts'], ['Amount first', 'Exact amounts first, any vendor'], ['Both, vendor wins', 'Try vendor first, fall back to amount']])] } };
+  /* the real one from a room-planner session: four questions at once */
+  var FOUR_ASKS = { name: 'room-planner-prototype', status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 1m',
+    ask: { kind: 'question', title: 'Claude asked you something', subject: 'When no environment is set, what should the shelter stand in?', answerable: true, questions: [
+      Q('When no environment is set, what should the shelter stand in?', 'Backdrop', [['Photo studio (Recommended)', 'A seamless light backdrop that curves from floor to wall, soft studio light and a soft contact shadow'], ['Engineering stage', 'A light floor with a fine measured grid and subtle dimension marks'], ['Dark showroom', 'A deep charcoal backdrop with a key light and rim light'], ['Concrete yard', 'The shelter on a concrete pad in a neutral, light-grey yard']]),
+      Q('How should it be lit?', 'Lighting', [['Soft daylight (Recommended)', 'Even, slightly cool light from above with gentle shadows'], ['Dramatic key light', 'A strong light from one side with a rim light'], ['Warm late sun', 'Low, warm light and long shadows; it shifts the paint colours']]),
+      Q('What should the floor do?', 'Floor', [['Subtle reflection (Recommended)', 'A satin floor that reflects the shelter faintly'], ['Matte with shadow', 'A plain matte floor with a soft contact shadow'], ['Measured grid', 'A matte floor with a fine metric grid']]),
+      Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
+    ] } };
   var GROUPS = [
     ['Coming back', [
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
       ['Asked you something', 'One question with a few choices: press 1, 2 or 3.', function () { d.variant(3, CLAUDE_ASKS); }],
+      ['Asked you four things', 'A real one: four questions, one at a time. A number answers and moves on; the last is pick-several. Left goes back.', function () { d.variant(0, FOUR_ASKS); }],
       ['Has a plan', 'A plan is for reading, so Pick up opens it.', function () { d.variant(3, { status: { kind: 'attention', text: 'Claude has a plan for you', app: 'claude' }, attention: true, line: 'Waiting on you for 6m', ask: { kind: 'plan', title: 'Claude has a plan for you', subject: 'Move the invoice matcher to a background job and add a review screen', options: [], answerable: false } }); }],
       ['Codex needs your OK', 'Codex approves in its own app: Pick up goes there.', function () { d.variant(2, { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'Codex wants to run a command', subject: 'rm -rf build && swift build -c release', options: [], answerable: false } }); }],
       ['Finished', 'Finished while you were away: what it did, and what is next.', function () { d.project(1); d.show('open'); }],

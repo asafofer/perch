@@ -2,6 +2,13 @@ import Testing
 @testable import PerchCore
 
 @Suite struct NotchMachineTests {
+    @Test func aRowInTheListShowsItsCardWithoutOpeningIt() {
+        var m = NotchMachine(projectCount: 3)
+        m.send(.openSwitcher); m.send(.show(2))
+        #expect(m.phase == .open); #expect(m.selected == 2)
+        m.send(.openSwitcher); m.send(.show(7))
+        #expect(m.phase == .switcher)   // out of range: stays on the list
+    }
     private func machine(_ n: Int = 3) -> NotchMachine { NotchMachine(projectCount: n) }
 
     @Test func comeBackOpensCard() {

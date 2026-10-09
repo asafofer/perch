@@ -5,6 +5,8 @@ public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restori
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
     case choose(Int)
+    /// From the list: that session's card, without opening it.
+    case show(Int)
     case openSetup
     case openOnboarding
     case openSettings
@@ -34,6 +36,9 @@ public struct NotchMachine: Equatable, Sendable {
         case (.switcher, .back):
             guard projectCount > 0 else { return }   // no card to go back to
             phase = .open
+        case (.switcher, .show(let i)):
+            guard (0..<projectCount).contains(i) else { return }
+            selected = i; phase = .open
         case (.idle, .openSetup):
             phase = .setup
         case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):

@@ -7,7 +7,8 @@ struct UISnapshot: Encodable {
     struct Status: Encodable { let kind: String; let text: String; let app: String }
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
-    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let options: [String]; let notes: [String]; let answerable: Bool }
+    struct UIQuestion: Encodable { let text: String; let header: String; let multi: Bool; let options: [String]; let notes: [String] }
+    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let questions: [UIQuestion]; let answerable: Bool }
     struct UIProject: Encodable {
         let id, name: String
         let branch: String?
@@ -74,7 +75,9 @@ struct UISnapshot: Encodable {
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
                       status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
-                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject, options: $0.options, notes: $0.notes, answerable: $0.answerable) })
+                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
+                                                 questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
+                                                 answerable: $0.answerable) })
         }
     }
 }

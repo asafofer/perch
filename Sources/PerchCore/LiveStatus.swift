@@ -54,14 +54,19 @@ public struct Ask: Equatable, Sendable {
     public let title: String
     /// The command, the file, the host, or the question itself.
     public let subject: String
-    /// The choices of a single question, by label. Empty for anything else.
-    public let options: [String]
-    /// What each choice means, as the agent described it, in the same order.
-    public let notes: [String]
-    /// Perch can answer this from the notch. Codex approvals and multi-part questions are answered in the app.
+    /// Every question the agent asked, in order. Empty unless this is a question.
+    public let questions: [Question]
+    /// Perch can answer this from the notch. Codex approvals are answered in the app.
     public let answerable: Bool
-    /// The question's own text, needed to send its answer back.
-    public let questionText: String?
+
+    /// One question, its choices by label, and what each choice means as the agent described it.
+    public struct Question: Equatable, Sendable {
+        public let text: String
+        public let header: String
+        public let multiSelect: Bool
+        public let options: [String]
+        public let notes: [String]
+    }
     /// The tool's input, as JSON, so an answer can be sent back with it.
     public let inputJSON: Data
 
@@ -71,21 +76,22 @@ public struct Ask: Equatable, Sendable {
         let who = agent == "codex" ? "Codex" : "Claude"
         switch tool {
         case "AskUserQuestion":
-            let qs = input["questions"] as? [[String: Any]] ?? []
-            let q = qs.first
-            let text = q?["question"] as? String ?? "A question for you"
-            let opts = (q?["options"] as? [[String: Any]] ?? []).filter { $0["label"] is String }
-            let labels = opts.compactMap { $0["label"] as? String }
-            let single = qs.count == 1 && (q?["multiSelect"] as? Bool ?? false) == false && (2...4).contains(labels.count)
-            kind = .question; title = "\(who) asked you something"; subject = Recap.clip(text, 140)
-            options = single ? labels : []; notes = single ? opts.map { $0["description"] as? String ?? "" } : []; questionText = text
-            answerable = agent == "claude" && single
+            let qs = (input["questions"] as? [[String: Any]] ?? []).map { q -> Question in
+                let opts = (q["options"] as? [[String: Any]] ?? []).filter { $0["label"] is String }
+                return Question(text: q["question"] as? String ?? "A question for you", header: q["header"] as? String ?? "",
+                                multiSelect: q["multiSelect"] as? Bool ?? false,
+                                options: opts.compactMap { $0["label"] as? String }, notes: opts.map { $0["description"] as? String ?? "" })
+            }
+            kind = .question; title = "\(who) asked you something"; subject = Recap.clip(qs.first?.text ?? "A question for you", 140)
+            questions = qs
+            // Up to nine choices fit the number keys; a question with none can only be answered in the app.
+            answerable = agent == "claude" && !qs.isEmpty && qs.allSatisfy { (1...9).contains($0.options.count) }
         case "ExitPlanMode":
             kind = .plan; title = "\(who) has a plan for you"
             subject = Ask.firstLine(input["plan"] as? String) ?? "Read it before it starts"
-            options = []; notes = []; questionText = nil; answerable = false
+            questions = []; answerable = false
         default:
-            kind = .permission; questionText = nil; options = []; notes = []
+            kind = .permission; questions = []
             let (verb, what) = Ask.describe(tool: tool, input: input)
             title = "\(who) wants to \(verb)"; subject = what
             answerable = agent == "claude"
@@ -132,13 +138,19 @@ public struct Ask: Equatable, Sendable {
         }
     }
 
-    /// The hook reply that answers this request. `choice` is "allow", "deny", or an option label for a question.
+    /// The hook reply that answers a question: each question's text to the chosen label (several joined with commas).
+    public func reply(answers: [String: String]) -> Data {
+        var input = (try? JSONSerialization.jsonObject(with: inputJSON)) as? [String: Any] ?? [:]
+        input["answers"] = answers
+        let out: [String: Any] = ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": ["behavior": "allow", "updatedInput": input]]]
+        return (try? JSONSerialization.data(withJSONObject: out)) ?? Data()
+    }
+
+    /// The hook reply that answers this request. `choice` is "allow", "deny", or, for a single question, an option label.
     public func reply(_ choice: String) -> Data {
         var decision: [String: Any]
-        if kind == .question, let q = questionText, choice != "deny" {
-            var input = (try? JSONSerialization.jsonObject(with: inputJSON)) as? [String: Any] ?? [:]
-            input["answers"] = [q: choice]
-            decision = ["behavior": "allow", "updatedInput": input]
+        if kind == .question, let q = questions.first, choice != "deny" {
+            return reply(answers: [q.text: choice])
         } else if choice == "allow" {
             decision = ["behavior": "allow"]
         } else {

@@ -34,7 +34,7 @@ import Foundation
     @Test func aSingleQuestionCanBeAnsweredFromTheNotch() throws {
         let body = #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which database?","header":"DB","multiSelect":false,"options":[{"label":"Postgres","description":""},{"label":"SQLite","description":""}]}]}}"#
         guard case .asks(let a)? = event("PermissionRequest", body)?.kind else { Issue.record("not an ask"); return }
-        #expect(a.kind == .question); #expect(a.options == ["Postgres", "SQLite"]); #expect(a.answerable)
+        #expect(a.kind == .question); #expect(a.questions.first?.options == ["Postgres", "SQLite"]); #expect(a.answerable)
         let reply = try #require(JSONSerialization.jsonObject(with: a.reply("SQLite")) as? [String: Any])
         let decision = try #require((reply["hookSpecificOutput"] as? [String: Any])?["decision"] as? [String: Any])
         #expect(decision["behavior"] as? String == "allow")
@@ -42,10 +42,20 @@ import Foundation
         #expect((input["answers"] as? [String: String]) == ["Which database?": "SQLite"])
         #expect((input["questions"] as? [Any])?.count == 1)   // the original questions go back with the answer
     }
-    @Test func multiPartQuestionsAreAnsweredInTheApp() {
-        let body = #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"A?","options":[{"label":"x"},{"label":"y"}]},{"question":"B?","options":[{"label":"x"},{"label":"y"}]}]}}"#
+    @Test func severalQuestionsAreAnsweredTogether() throws {
+        let body = #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Backdrop?","header":"Backdrop","options":[{"label":"Studio","description":"Light"},{"label":"Yard"}]},{"question":"Lights?","multiSelect":true,"options":[{"label":"Key"},{"label":"Rim"},{"label":"Fill"}]}]}}"#
         guard case .asks(let a)? = event("PermissionRequest", body)?.kind else { Issue.record("not an ask"); return }
-        #expect(a.options.isEmpty); #expect(!a.answerable)
+        #expect(a.answerable); #expect(a.questions.count == 2)
+        #expect(a.questions[0].header == "Backdrop"); #expect(a.questions[0].notes == ["Light", ""]); #expect(a.questions[1].multiSelect)
+        let reply = try #require(JSONSerialization.jsonObject(with: a.reply(answers: ["Backdrop?": "Yard", "Lights?": "Key, Rim"])) as? [String: Any])
+        let input = try #require(((reply["hookSpecificOutput"] as? [String: Any])?["decision"] as? [String: Any])?["updatedInput"] as? [String: Any])
+        #expect((input["answers"] as? [String: String]) == ["Backdrop?": "Yard", "Lights?": "Key, Rim"])
+        #expect((input["questions"] as? [Any])?.count == 2)
+    }
+    @Test func aQuestionWithoutChoicesIsAnsweredInTheApp() {
+        let body = #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Name it?","options":[]}]}}"#
+        guard case .asks(let a)? = event("PermissionRequest", body)?.kind else { Issue.record("not an ask"); return }
+        #expect(!a.answerable)
     }
     @Test func allowAndDenyAreHookDecisions() throws {
         let a = Ask(id: "1", agent: "claude", tool: "Bash", input: ["command": "ls"])

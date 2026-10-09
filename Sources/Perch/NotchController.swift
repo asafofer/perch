@@ -385,10 +385,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Allow, deny, or one of a question's options, for the request on the card. The card closes; the agent goes on.
-    private func answer(_ choice: String) {
+    private func answer(_ choice: String, answers: [String: String]? = nil) {
         guard projects.indices.contains(machine.selected), let ask = projects[machine.selected].ask, ask.answerable else { return }
         let p = projects[machine.selected]
-        hookServer.answer(ask.id, with: ask.reply(choice))
+        hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice))
         if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
         markSeen(p)
         send(.dismiss)
@@ -574,7 +574,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
         switch type {
         case "confirm": send(.confirm)
-        case "answer": if let c = body["choice"] as? String { answer(c) }
+        case "answer":
+            if let a = body["answers"] as? [String: String] { answer("", answers: a) }
+            else if let c = body["choice"] as? String { answer(c) }
+        case "details": if let i = body["index"] as? Int { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
             for agent in ["claude", "codex"] where Prefs.enabledSources.contains(agent) || !on {
@@ -835,6 +838,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return nil
             }
+            if self.machine.phase == .settings {
+                // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done.
+                let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]
+                if let k = keys[e.keyCode] { self.web.evaluateJavaScript("window.perch && window.perch.setKey('\(k)')", completionHandler: nil); return nil }
+                if e.keyCode == 53 { self.send(.dismiss); return nil }
+                return e
+            }
             if self.replyOpen {
                 if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
                 return e
@@ -850,6 +860,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 return nil
             }
             let list = self.machine.phase == .open || self.machine.phase == .switcher
+            // A question on the card: the page keeps which one you are on, so its keys go there.
+            if self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
+               let ask = self.projects[self.machine.selected].ask, ask.kind == .question, ask.answerable {
+                let keys: [UInt16: String] = [36: "enter", 76: "enter", 51: "back", 123: "back", 124: "next"]
+                let k = keys[e.keyCode] ?? (ch.count == 1 && "123456789".contains(ch) ? ch : nil)
+                if let k { self.web.evaluateJavaScript("window.perch && window.perch.askKey('\(k)')", completionHandler: nil); self.restartTimer(); return nil }
+            }
+            if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
             case (36, _), (76, _): self.send(.confirm)
             case (53, _): self.send(.dismiss)
@@ -859,12 +877,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (_, ","): if list { self.send(.openSettings) } else { return e }
             case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
-            case (_, "a"), (_, "d"), (_, "1"), (_, "2"), (_, "3"), (_, "4"):
-                // Answering what the agent asked: A allows, D denies, a digit picks a question's option.
+            case (_, "a"), (_, "d"):
+                // A permission on the card: A allows, D denies.
                 guard self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
-                      let ask = self.projects[self.machine.selected].ask, ask.answerable else { return e }
-                if let n = Int(ch) { guard ask.options.indices.contains(n - 1) else { return e }; self.answer(ask.options[n - 1]); return nil }
-                guard ask.kind == .permission else { return e }
+                      let ask = self.projects[self.machine.selected].ask, ask.answerable, ask.kind == .permission else { return e }
                 self.answer(ch == "a" ? "allow" : "deny"); return nil
             default: return e
             }
