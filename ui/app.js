@@ -72,11 +72,10 @@
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<span dir="auto" class="o-proj rv absolute left-[44px] top-[7px] z-10 h-[18px] truncate text-[12.5px] font-medium leading-[18px] tracking-[-0.01em] text-foreground/75" style="--i:0"></span>' +
     '<div class="inner pt-8 pb-1.5">' +
-      /* the chat's title is the heading (the project sits up beside the character); its status, in words, ends the line */
+      /* the chat's title is the heading; its status, in words, ends the line */
       '<div class="rv mt-1.5 flex h-[18px] items-center gap-2 px-4" style="--i:1"><span class="o-app flex flex-none"></span><span dir="auto" class="o-name min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-      /* under the title, in grey, what you were doing; then, apart, what happened; then Next. Read top to bottom in a glance. */
+      /* under the title, in grey, the project and what you were doing; then, apart, what happened; then Next. Read top to bottom in a glance. */
       '<p dir="auto" class="o-sub rv mt-0.5 truncate pl-[38px] pr-4 text-[13px] leading-[18px] text-muted-foreground" style="--i:1"></p>' +
       '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
@@ -272,16 +271,18 @@
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     q('.o-app').innerHTML = AppOf(p, 'size-3.5');
-    /* a chat started without a project is named by its title alone, so nothing goes up top */
+    /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    var pj = q('.o-proj'); pj.textContent = p.topic ? p.name : ''; pj.title = pj.textContent;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
     h.classList.remove('line-clamp-2', 'mt-2.5'); h.title = ''; h.style.display = '';
-    var sub = q('.o-sub'); sub.textContent = ''; sub.style.display = 'none';
-    if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
+    /* the grey line: the project, then (on a plain card) what you were doing */
+    var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
+    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    /* a question card is the tallest there is: it keeps every line for the choices */
+    if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { sub.style.display = 'none'; questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
-      h.textContent = a.kind === 'question' ? a.subject : a.title;
+      h.textContent = a.kind === 'question' ? a.subject : a.title; if (proj) h.classList.add('mt-2.5');
       c.textContent = a.kind === 'plan' ? a.subject : '';
       box.innerHTML = a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
@@ -292,9 +293,11 @@
       var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
-      if (!(p.topic && norm(p.headline) === norm(p.topic)) && was) { sub.textContent = was.charAt(0).toUpperCase() + was.slice(1); sub.title = p.headline; sub.style.display = ''; }
-      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); if (sub.textContent) h.classList.add('mt-2.5'); }
-      else h.innerHTML = sub.textContent ? '' : md(p.headline);
+      var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
+      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
+      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
+      else h.innerHTML = said ? '' : md(p.headline);
+      if (sub.style.display !== 'none') h.classList.add('mt-2.5');
       c.innerHTML = ''; box.innerHTML = '';
     }
     c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
@@ -461,7 +464,6 @@
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
-      q('.o-proj').style.maxWidth = (virt ? CARD_W - 44 - 64 : (CARD_W - scr.notchW) / 2 - 44 - 6) + 'px';
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
