@@ -21,6 +21,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastAsk: String?
     /// The agent used a tool (edited, ran, searched) somewhere in the part of the session that was read.
     public var didWork = false
+    /// Codex: not a thread you started in the app. A `codex exec` run, an MCP call, or a subagent another thread spawned.
+    public var headless = false
     /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
     public var entrypoint: String?
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
@@ -171,7 +173,9 @@ public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
     public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude", quietFor: TimeInterval? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
-        let name = URL(fileURLWithPath: cwd).lastPathComponent
+        // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
+        let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
+        let name = titled ? title! : URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
         let context = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
@@ -179,13 +183,18 @@ public enum Recap {
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
-                       topic: clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 28), app: app, agents: agents,
+                       topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: app, agents: agents,
                        steps: desktopSessionId != nil
                            ? [RestoreStep(icon: "win", text: "Opened the \(app == "codex" ? "Codex" : "Claude") app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
         return p
+    }
+
+    /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
+    public static func isFolderless(_ cwd: String) -> Bool {
+        cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
     /// The agent's outcome in a sentence or two: the first statement in its last message that says something.
@@ -435,6 +444,8 @@ public enum CodexTranscript {
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }
+                let source = payload["source"]
+                if payload["originator"] as? String == "codex_exec" || source is [String: Any] || ["exec", "mcp"].contains(source as? String ?? "") { d.headless = true }
                 continue
             }
             guard type == "response_item", payload["type"] as? String == "message",

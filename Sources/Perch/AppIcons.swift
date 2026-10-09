@@ -2,19 +2,25 @@ import AppKit
 
 /// The real icons of the apps the UI talks about, read from this Mac and handed to the web view as data URLs.
 enum AppIcons {
-    private static let paths: [String: String] = [
-        "claude": "/Applications/Claude.app",
-        "codex": "/Applications/Codex.app",
-        "xcode": "/Applications/Xcode.app",
-        "numbers": "/Applications/Numbers.app",
-        "terminal": "/System/Applications/Utilities/Terminal.app",
+    /// Found by bundle id: Codex installs as Codex.app or ChatGPT.app, in /Applications or ~/Applications.
+    private static let apps: [String: (bundle: String, fallback: String)] = [
+        "claude": ("com.anthropic.claudefordesktop", "/Applications/Claude.app"),
+        "codex": ("com.openai.codex", "/Applications/Codex.app"),
+        "xcode": ("com.apple.dt.Xcode", "/Applications/Xcode.app"),
+        "numbers": ("com.apple.iWork.Numbers", "/Applications/Numbers.app"),
+        "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
     ]
+
+    /// Where an app lives on this Mac, if it is installed.
+    static func url(_ key: String) -> URL? {
+        guard let app = apps[key] else { return nil }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle) { return url }
+        return FileManager.default.fileExists(atPath: app.fallback) ? URL(fileURLWithPath: app.fallback) : nil
+    }
 
     static func all() -> [String: String] {
         var out: [String: String] = [:]
-        for (key, path) in paths where FileManager.default.fileExists(atPath: path) {
-            if let url = dataURL(forFile: path) { out[key] = url }
-        }
+        for key in apps.keys { if let path = url(key)?.path, let data = dataURL(forFile: path) { out[key] = data } }
         return out
     }
 

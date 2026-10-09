@@ -19,7 +19,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var keyMonitor: Any?
     private var mouseMonitors: [Any] = []
     private var ready = false
-    private var iconsSent = false
+    /// The app icons this page has. Nil until sent, and again after the page reloads.
+    private var iconKeys: Set<String>?
+    private var iconsCheckedAt = Date.distantPast
     private var activity: NSObjectProtocol?
     private var snoozeTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
@@ -489,14 +491,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let away = awaySinceForCard, now = Date()
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), setup: AppleRecapEngine.setupState, allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
                           activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
-        iconsSent = true
         guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
+    }
+
+    /// Icons go once per page load. An app missing from them (installed later, or mid-update at launch) is looked for again each minute.
+    private func iconsToSend() -> [String: String]? {
+        if let keys = iconKeys {
+            guard projects.contains(where: { !keys.contains($0.app) }), Date().timeIntervalSince(iconsCheckedAt) > 60 else { return nil }
+        }
+        iconsCheckedAt = Date()
+        let icons = AppIcons.all()
+        if let keys = iconKeys, Set(icons.keys) == keys { return nil }
+        iconKeys = Set(icons.keys)
+        return icons
     }
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
@@ -568,7 +581,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: web view
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { ready = true; push() }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { ready = true; iconKeys = nil; push() }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) { NSLog("Perch: web load failed: \(error)") }
 
     func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {

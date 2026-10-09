@@ -61,6 +61,27 @@ import Foundation
         #expect(CodexTranscript.digest(lines: started).turnOpen)
         #expect(!CodexTranscript.digest(lines: started + [#"{"type":"event_msg","payload":{"type":"task_complete"}}"#]).turnOpen)
     }
+    @Test func codexHeadlessRunsAreMarked() {
+        func meta(_ extra: String) -> SessionDigest { CodexTranscript.digest(lines: [#"{"type":"session_meta","payload":{"id":"t1","cwd":"/Users/a/site","# + extra + "}}"]) }
+        #expect(!meta(#""originator":"Codex Desktop","source":"vscode""#).headless)
+        #expect(!meta(#""originator":"codex_cli_rs","source":"cli""#).headless)
+        #expect(meta(#""originator":"codex_exec","source":"exec""#).headless)
+        #expect(meta(#""originator":"Codex Desktop","source":{"subagent":{"thread_spawn":{}}}"#).headless)
+        #expect(meta(#""originator":"Codex Desktop","source":"vscode""#).sessionId == "t1")
+    }
+    @Test func sessionsWithoutAProjectAreNamedByTitle() {
+        #expect(Recap.isFolderless("/Users/a/Library/Application Support/Claude/scratch-workspaces/x/y/scratch-2026-10-09-ab78ac"))
+        #expect(Recap.isFolderless("/Users/a/Documents/Codex/2026-09-27/new-chat"))
+        #expect(!Recap.isFolderless("/Users/a/Documents/Codex/perch"))
+        #expect(!Recap.isFolderless("/Users/a/site"))
+        var d = TranscriptParser.digest(lines: lines)
+        d.cwd = "/Users/a/Documents/Codex/2026-09-27/new-chat"
+        let p = Recap.project(digest: d, git: nil, now: Date())!
+        #expect(p.name == "Fix the review sign"); #expect(p.topic == "")
+        d.cwd = "/Users/a/site"
+        let q = Recap.project(digest: d, git: nil, now: Date())!
+        #expect(q.name == "site"); #expect(q.topic == "Fix the review sign")
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")
