@@ -201,6 +201,7 @@ public enum Recap {
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
         p.now = working ? d.step : nil
+        p.said = Recap.said(d.lastAssistantText)
         return p
     }
 
@@ -238,6 +239,12 @@ public enum Recap {
         let longestAsk = d.recent.filter { $0.role == "user" }.map(\.text.count).max() ?? 0
         let answered = d.recent.filter { $0.role == "assistant" }.map(\.text.count).reduce(0, +)
         return longestAsk <= 24 && answered < 400
+    }
+
+    /// The last message for the card to show while you reply: as written, trimmed, and only its end when it is very long.
+    public static func said(_ text: String?) -> String? {
+        guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t.count > 4000 ? "\u{2026}" + String(t.suffix(4000)) : t
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
@@ -374,7 +381,7 @@ extension Project {
         let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
                         topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via
+        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.said = said
         return p
     }
 }
@@ -453,7 +460,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via
+        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via; p.said = said
         return p
     }
 }

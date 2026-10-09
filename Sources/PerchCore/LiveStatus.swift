@@ -218,6 +218,7 @@ extension Project {
         p.ask = live.kind == .asking ? live.asks.last : nil
         p.focusedAt = focusedAt; p.terminal = terminal; p.via = via
         p.now = live.kind == .working ? now : nil
+        p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p
     }
 }

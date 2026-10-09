@@ -27,6 +27,8 @@ struct UISnapshot: Encodable {
         let via: String?
         /// The list's section: "Needs you", "Today" or "Earlier".
         let section: String
+        /// The agent's own last message, shown while you reply.
+        let said: String?
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -93,7 +95,7 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil,
-                      section: ListFilter.section(p, now: now).rawValue)
+                      section: ListFilter.section(p, now: now).rawValue, said: p.said)
         }
     }
 }

@@ -46,6 +46,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var terminal = false
     /// The terminal app it runs in, or would open in (a bundle id).
     public var via: String?
+    /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
+    public var said: String?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,

@@ -76,6 +76,7 @@ private final class Home {
         #expect(found.map(\.project.topic) == ["Hero spacing", "Footer links"])
         #expect(found.first?.project.desktopSessionId == "local_a")
         #expect(found.first?.project.focusedAt != nil)
+        #expect(found.first?.project.said == "The hero now fits at phone width.")
     }
 
     @Test func aSessionKeepsItsFolderWhenTheAgentChangesDirectory() {
