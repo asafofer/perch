@@ -53,7 +53,8 @@ html[data-glow="external"] .glow { opacity: 0 !important; }
 html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px rgba(var(--glow, 245,184,59), .42), 0 26px 46px -12px rgba(0,0,0,.4); }
 
 /* character: a flat dome with flat eyes */
-.cr { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; z-index: 10; --et: 44%;
+/* a size container, so the eyes' strokes scale with the character instead of staying a fixed hairline */
+.cr { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; z-index: 10; --et: 44%; container-type: size;
   transition: transform .5s cubic-bezier(.3,1.35,.5,1), width .5s cubic-bezier(.3,1.35,.5,1), height .5s cubic-bezier(.3,1.35,.5,1), opacity .3s; }
 /* something needs you: the words on a black pill beside the character, centred on it so the screen edge never cuts it */
 .cr .dot { position: absolute; right: calc(100% + 7px); top: 50%; height: 18px; padding: 0 8px; border-radius: 9px; background: #000; white-space: nowrap;
@@ -84,22 +85,26 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .pv-bloom { background: radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--cr) 34%, transparent), transparent 68%); }
 .onb.go .o-i { animation: onbin .42s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i, 0) * .05s); }
 @keyframes onbin { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
-.cr .ey { position: absolute; top: var(--et); width: 14%; height: 24%; border-radius: 50%; background: #2B1B0E; transition: all .22s; translate: var(--lx, 0px) var(--ly, 0px); }
+.cr .ey { position: absolute; top: var(--et); width: var(--ew, 14%); height: 24%; border-radius: 50%; background: #2B1B0E; transition: all .22s; translate: var(--lx, 0px) var(--ly, 0px); }
 .cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
+/* Bun's cheeks: flat blush under the eyes */
+.cr .ck { display: none; position: absolute; top: 70%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: .75; }
+.cr .ck.l { left: 18%; } .cr .ck.r { left: 68%; }
+.cr[data-shape=bun] .ck { display: block; }
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
-.cr[data-m=sleep] .ey { height: 5%; border-radius: 3px; top: calc(var(--et) + 13%); }
+.cr[data-m=sleep] .ey { height: max(1.2px, 5%); border-radius: 3px; top: calc(var(--et) + 13%); }
 .cr[data-m=awake] .ey { transition: all .12s; }
 .cr.blink .ey { transform: scaleY(.1); }
 .cr[data-m=awake] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); transition: translate .15s; }
 /* something needs you: eyes open wide */
-.cr[data-m=alert] .ey { width: 16%; height: 30%; top: calc(var(--et) - 3%); }
+.cr[data-m=alert] .ey { width: calc(var(--ew, 14%) + 2%); height: 30%; top: calc(var(--et) - 3%); }
 /* a word beside the character, black like the notch it hangs from */
 .cr .say { position: absolute; right: calc(100% + 7px); top: 50%; translate: 0 -50%; white-space: nowrap; height: 18px; padding: 0 8px; border-radius: 9px; background: #000;
   color: rgba(255,255,255,.86); font: 500 11px/18px Inter, sans-serif; letter-spacing: -.005em; opacity: 0; transition: opacity .25s; pointer-events: none; }
 .cr .say:empty { display: none; }
 .cr[data-say="1"] .say { opacity: 1; transition-delay: .35s; }
-.cr[data-m=happy] .ey { width: 17%; height: 15%; border-radius: 100% 100% 0 0; background: none; border-top: 2.2px solid #2B1B0E; top: calc(var(--et) + 5%); transform: translateX(-8%); }
+.cr[data-m=happy] .ey { width: calc(var(--ew, 14%) + 3%); height: 15%; border-radius: 100% 100% 0 0; background: none; border-top: max(1.2px, 6cqw) solid #2B1B0E; top: calc(var(--et) + 5%); transform: translateX(-8%); }
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
 @keyframes hop { 0%,100% { translate: 0 0; } 40% { translate: 0 -5px; } 70% { translate: 0 1px; } }
 @keyframes bl { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
