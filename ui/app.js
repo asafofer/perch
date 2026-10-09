@@ -284,10 +284,11 @@
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
   }
-  /* a row's status in words when it is news or needs you, and always how long ago, at the right edge */
+  /* a row's status in words when it is news or needs you, and how long ago at the right edge. Working has no age: it sits at the edge itself. */
   function rowStatus(p) {
-    var ph = phrase(p, true), age = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0];
-    return (ph.c ? '<span class="flex items-center gap-1.5">' + Phrase(ph) + '</span>' : '') + '<span class="min-w-[22px] text-right text-muted-foreground">' + esc(age) + '</span>';
+    var ph = phrase(p, true), word = ph.c ? '<span class="flex items-center gap-1.5">' + Phrase(ph) + '</span>' : '';
+    if (p.status.kind === 'running') return word;
+    return word + '<span class="min-w-[22px] text-right text-muted-foreground">' + esc(String(p.away || '').split(' ')[0]) + '</span>';
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;
