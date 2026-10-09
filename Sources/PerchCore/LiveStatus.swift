@@ -56,6 +56,8 @@ public struct Ask: Equatable, Sendable {
     public let subject: String
     /// The choices of a single question, by label. Empty for anything else.
     public let options: [String]
+    /// What each choice means, as the agent described it, in the same order.
+    public let notes: [String]
     /// Perch can answer this from the notch. Codex approvals and multi-part questions are answered in the app.
     public let answerable: Bool
     /// The question's own text, needed to send its answer back.
@@ -72,17 +74,18 @@ public struct Ask: Equatable, Sendable {
             let qs = input["questions"] as? [[String: Any]] ?? []
             let q = qs.first
             let text = q?["question"] as? String ?? "A question for you"
-            let labels = (q?["options"] as? [[String: Any]] ?? []).compactMap { $0["label"] as? String }
+            let opts = (q?["options"] as? [[String: Any]] ?? []).filter { $0["label"] is String }
+            let labels = opts.compactMap { $0["label"] as? String }
             let single = qs.count == 1 && (q?["multiSelect"] as? Bool ?? false) == false && (2...4).contains(labels.count)
             kind = .question; title = "\(who) asked you something"; subject = Recap.clip(text, 140)
-            options = single ? labels : []; questionText = text
+            options = single ? labels : []; notes = single ? opts.map { $0["description"] as? String ?? "" } : []; questionText = text
             answerable = agent == "claude" && single
         case "ExitPlanMode":
             kind = .plan; title = "\(who) has a plan for you"
             subject = Ask.firstLine(input["plan"] as? String) ?? "Read it before it starts"
-            options = []; questionText = nil; answerable = false
+            options = []; notes = []; questionText = nil; answerable = false
         default:
-            kind = .permission; questionText = nil; options = []
+            kind = .permission; questionText = nil; options = []; notes = []
             let (verb, what) = Ask.describe(tool: tool, input: input)
             title = "\(who) wants to \(verb)"; subject = what
             answerable = agent == "claude"

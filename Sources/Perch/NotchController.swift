@@ -369,8 +369,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // Requests this event settled (answered in the app, or the turn moved on) let their hooks go.
         for a in before?.asks ?? [] where !now.asks.contains(where: { $0.id == a.id }) { hookServer.release(a.id) }
         live[e.sessionId] = now
+        if live.count > 120 { live = Dictionary(uniqueKeysWithValues: live.sorted { $0.value.at > $1.value.at }.prefix(80).map { ($0.key, $0.value) }) }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hook: \(e.agent) \(e.sessionId.prefix(8)) \(e.kind)") }
-        if !base.contains(where: { ($0.sessionId ?? $0.id) == e.sessionId }) { refreshProjects() }
+        // A session Perch has not listed yet may be new: look again, but not on every tool call of a session it skips on purpose.
+        if !base.contains(where: { ($0.sessionId ?? $0.id) == e.sessionId }) {
+            if case .toolRan = e.kind {} else { sessionFilesChanged() }
+            return
+        }
         redecorate()
     }
 

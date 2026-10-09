@@ -29,6 +29,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
+            for agent in ["claude", "codex"] {
+                do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
+                catch { print("\(agent): \(error.localizedDescription)") }
+            }
+            exit(0)
+        }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
                 let opens = p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"

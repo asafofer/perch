@@ -54,7 +54,9 @@ final class HookServer: @unchecked Sendable {
         guard parts.count == 2, ["claude", "codex"].contains(parts[0]) else { Self.respond(c, Data()); return }
         let id = UUID().uuidString
         guard let event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
-        if case .asks(let ask) = event.kind, ask.answerable {
+        // Only the Claude app runs this hook alongside its own prompt. Anywhere else (a terminal, `claude -p`) the
+        // prompt waits for the hook, so holding it would freeze the session: those are answered at once, with no decision.
+        if case .asks(let ask) = event.kind, ask.answerable, DesktopSessions.shared.index()[event.sessionId] != nil {
             // Hold the hook open. If it goes away first (the app answered, the session ended), say so.
             let watch = DispatchSource.makeReadSource(fileDescriptor: c, queue: queue)
             watch.setEventHandler { [weak self] in
@@ -108,11 +110,13 @@ final class HookServer: @unchecked Sendable {
 
 /// Installs the hook script and the config entries that run it. Perch only touches entries it wrote itself.
 enum HookInstaller {
-    static let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/perch")
+    /// PERCH_HOME points the installer at a stand-in home folder, so it can be tried without touching real config.
+    static let home = ProcessInfo.processInfo.environment["PERCH_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser
+    static let dir = home.appendingPathComponent(".config/perch")
     static let script = dir.appendingPathComponent("hook")
     static let socket = dir.appendingPathComponent("perch.sock")
-    static let claudeSettings = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json")
-    static let codexHooks = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/hooks.json")
+    static let claudeSettings = home.appendingPathComponent(".claude/settings.json")
+    static let codexHooks = home.appendingPathComponent(".codex/hooks.json")
 
     /// A request Perch can answer waits up to an hour for you; everything else is told "go on" at once.
     static let scriptBody = """
@@ -160,7 +164,8 @@ enum HookInstaller {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
         try edit(agent) { hooks in
             for h in Self.hooks(agent) {
-                var handler: [String: Any] = ["type": "command", "command": "\(script.path) \(agent) \(h.event)", "timeout": h.timeout]
+                let path = script.path.contains(" ") ? "\"\(script.path)\"" : script.path
+                var handler: [String: Any] = ["type": "command", "command": "\(path) \(agent) \(h.event)", "timeout": h.timeout]
                 if h.async { handler["async"] = true }
                 var group: [String: Any] = ["hooks": [handler]]
                 if let m = h.matcher { group["matcher"] = m }
@@ -180,7 +185,7 @@ enum HookInstaller {
     }
 
     private static func isOurs(_ group: [String: Any]) -> Bool {
-        (group["hooks"] as? [[String: Any]] ?? []).contains { ($0["command"] as? String)?.hasPrefix(script.path) == true }
+        (group["hooks"] as? [[String: Any]] ?? []).contains { ($0["command"] as? String)?.contains(script.path) == true }
     }
 
     private static func read(_ url: URL) -> [String: Any]? {

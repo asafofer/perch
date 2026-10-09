@@ -80,7 +80,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
-    ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', options: ['Vendor first', 'Amount first', 'Both, vendor wins'], answerable: true } };
+    ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', options: ['Vendor first', 'Amount first', 'Both, vendor wins'], notes: ['Group by vendor, then match amounts', 'Exact amounts first, any vendor', 'Try vendor first, fall back to amount'], answerable: true } };
   var GROUPS = [
     ['Coming back', [
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],

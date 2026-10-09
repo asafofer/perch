@@ -172,7 +172,7 @@
       box.innerHTML = a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
         : (a.kind === 'question' && a.options.length ? '<div class="mt-2.5 flex flex-wrap gap-1.5">' + a.options.map(function (o, i) {
-            return '<button data-act="opt" data-v="' + esc(o) + '" class="inline-flex h-7 max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white/[0.07] pl-1.5 pr-2.5 text-[13px] transition-colors hover:bg-white/[0.13]">' + Kbd(String(i + 1)) + '<span class="truncate">' + esc(o) + '</span></button>';
+            return '<button data-act="opt" data-v="' + esc(o) + '" title="' + esc((a.notes || [])[i] || '') + '" class="inline-flex h-7 max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white/[0.07] pl-1.5 pr-2.5 text-[13px] transition-colors hover:bg-white/[0.13]">' + Kbd(String(i + 1)) + '<span class="truncate">' + esc(o) + '</span></button>';
           }).join('') + '</div>' : '');
     } else {
       h.innerHTML = md(p.headline); c.innerHTML = md(p.context); box.innerHTML = '';
