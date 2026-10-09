@@ -43,7 +43,9 @@ struct UISnapshot: Encodable {
     }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
-    struct Settings: Encodable { let sources: [Source]; let summaries: String; let accessibility: Bool; let idleMinutes: Int; let login: Bool; let live: String }
+    struct Settings: Encodable { let sources: [Source]; let summaries: String; let accessibility: Bool; let idleMinutes: Int; let login: Bool; let live: String
+        /// It came from the card or the list, so Esc goes back there.
+        var back = false }
 
     let phase: String
     let settings: Settings?

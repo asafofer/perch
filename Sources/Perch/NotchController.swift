@@ -814,7 +814,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
         }
         return UISnapshot.Settings(sources: sources, summaries: AppleRecapEngine.setupState, accessibility: AXIsProcessTrusted(),
-                                   idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState)
+                                   idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState,
+                                   back: machine.settingsFrom != nil)
     }
 
     /// "on" when every enabled app has Perch's hook installed.
@@ -940,7 +941,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done.
                 let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]
                 if let k = keys[e.keyCode] { self.web.evaluateJavaScript("window.perch && window.perch.setKey('\(k)')", completionHandler: nil); return nil }
-                if e.keyCode == 53 { self.send(.dismiss); return nil }
+                if e.keyCode == 53 { self.send(.back); return nil }   // back to the card or list it came from, or closed
                 return e
             }
             if self.replyOpen {

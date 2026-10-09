@@ -154,6 +154,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @property --mql { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .mq-on { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 .mq-on .mq-in { display: inline-block; }
+/* switches: narrow, in the character's colour when on; the knob keeps a hairline so it reads on Cream */
+.sw { position: relative; width: 26px; height: 16px; flex: none; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; transition: background-color .2s; }
+.sw[aria-checked="true"] { background: var(--cr); }
+.sw > i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 .5px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.3); transition: left .2s cubic-bezier(.3,1.3,.5,1); }
+.sw[aria-checked="true"] > i { left: 12px; }
 .mq-on.mq-rtl { -webkit-mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 /* the caret after what you typed in the list */
 .s-caret { display: inline-block; width: 1.5px; height: 15px; margin-left: 1px; vertical-align: -2px; background: currentColor; border-radius: 1px; animation: caret 1.1s steps(1) infinite; }

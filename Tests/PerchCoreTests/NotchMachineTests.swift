@@ -11,6 +11,17 @@ import Testing
     }
     private func machine(_ n: Int = 3) -> NotchMachine { NotchMachine(projectCount: n) }
 
+    @Test func settingsGoesBackWhereItCameFrom() {
+        var m = machine(); m.send(.openSwitcher); m.send(.next); m.send(.openSettings)
+        #expect(m.settingsFrom == .switcher)
+        m.send(.back); #expect(m.phase == .switcher); #expect(m.selected == 1)
+        m.send(.show(2)); m.send(.openSettings); m.send(.back)
+        #expect(m.phase == .open); #expect(m.selected == 2)
+        // from the menu bar or a shortcut there is nothing to go back to: it closes
+        var n = machine(); n.send(.openSettings); n.send(.back)
+        #expect(n.phase == .idle); #expect(n.settingsFrom == nil)
+    }
+
     @Test func comeBackOpensCard() {
         var m = machine(); m.send(.comeBack)
         #expect(m.phase == .open); #expect(m.selected == 0)

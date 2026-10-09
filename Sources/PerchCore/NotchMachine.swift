@@ -19,6 +19,8 @@ public enum NotchEvent: Equatable, Sendable {
 /// Pure state machine for the notch. No UI, no timers.
 public struct NotchMachine: Equatable, Sendable {
     public private(set) var phase: NotchPhase = .idle
+    /// The card or list Settings was opened from: Back (Esc) returns there. Nil when it came from the menu bar or a shortcut.
+    public private(set) var settingsFrom: NotchPhase?
     public private(set) var selected = 0
     public private(set) var hovering = false
     public var projectCount: Int
@@ -42,7 +44,10 @@ public struct NotchMachine: Equatable, Sendable {
         case (.idle, .openSetup):
             phase = .setup
         case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):
+            settingsFrom = phase == .idle ? nil : phase
             phase = .settings
+        case (.settings, .back):
+            if let from = settingsFrom { phase = from } else { close() }
         case (.settings, .dismiss):
             close()
         case (.setup, .dismiss), (.onboarding, .dismiss):
@@ -86,5 +91,5 @@ public struct NotchMachine: Equatable, Sendable {
         }
     }
 
-    private mutating func close() { phase = .idle; hovering = false }
+    private mutating func close() { phase = .idle; hovering = false; settingsFrom = nil }
 }
