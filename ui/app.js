@@ -290,7 +290,8 @@
   }
   new MutationObserver(function () {
     var m = cr.dataset.m;
-    if ((m === 'awake' || m === 'alert') && wasMood !== m && wasMood !== 'peek') { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
+    /* it hops when it wakes up, not every time its face changes */
+    if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek')) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
@@ -527,7 +528,7 @@
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { post({ type: 'source', id: b.dataset.id, enabled: b.getAttribute('aria-checked') !== 'true' }); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
@@ -535,6 +536,13 @@
     if (!o) return;
     var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
+    /* only a switch changed: slide it in place */
+    var same = function (s) { return s.split('|').slice(0, 6).join('|'); };
+    if (onbSig && o.step === onbStep && same(sig) === same(onbSig) && onbLast && onbLast.sources.map(function (x) { return x.id + x.count; }).join() === o.sources.map(function (x) { return x.id + x.count; }).join()) {
+      onbSig = sig; onbLast = o;
+      q('.onb').querySelectorAll('.o-sw').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.id) setSw(b, x.enabled); }); });
+      return;
+    }
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
@@ -557,6 +565,18 @@
 
   /* ---- settings, inside the notch ---- */
   var setLast = null, setSig = '';
+  /* a switch changes in place so it slides; redrawing it would just snap to the new state */
+  function setSw(b, on) {
+    b.setAttribute('aria-checked', String(on));
+    b.classList.toggle('bg-emerald-400', on); b.classList.toggle('bg-white/20', !on);
+    var k = b.querySelector('i'); k.classList.toggle('left-[14px]', on); k.classList.toggle('left-[2px]', !on);
+  }
+  var APP_ON = 'bg-white/[0.12] text-foreground', APP_OFF = 'text-muted-foreground opacity-60 hover:opacity-100';
+  function setApp(b, on) {
+    b.setAttribute('aria-checked', String(on));
+    (on ? APP_OFF : APP_ON).split(' ').forEach(function (c) { b.classList.remove(c); });
+    (on ? APP_ON : APP_OFF).split(' ').forEach(function (c) { b.classList.add(c); });
+  }
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw relative h-[18px] w-[30px] flex-none cursor-pointer rounded-full transition-colors duration-200 ' + (on ? 'bg-emerald-400' : 'bg-white/20') + '"><i class="absolute top-[2px] block size-[14px] rounded-full bg-white shadow transition-all duration-200 ' + (on ? 'left-[14px]' : 'left-[2px]') + '"></i></button>';
   }
@@ -570,11 +590,11 @@
     }).join('');
     var sum = { ready: 'On your Mac', off: 'Apple Intelligence is off', downloading: 'Downloading the model\u2026', unsupported: 'Not supported on this Mac' }[o.summaries] || '';
     var rows = [
-      srow('<span class="flex-none">' + crHtml('cr-mini', 20, sh) + '</span>' + slabel('Character', '<span class="text-muted-foreground">' + sh[1] + ', ' + colorName + '</span>'), Button('ghost', 'Change', '', 's-change')),
+      srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), '<span class="flex gap-1">' + o.sources.map(function (x) {
-        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? 'bg-white/[0.12] text-foreground' : 'text-muted-foreground opacity-60 hover:opacity-100') + '">' + App(x.id, 'size-4') + (x.id === 'codex' ? 'Codex' : 'Claude') + '</button>';
+        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? APP_ON : APP_OFF) + '">' + App(x.id, 'size-4') + (x.id === 'codex' ? 'Codex' : 'Claude') + '</button>';
       }).join('') + '</span>'),
-      srow(slabel('Live status', o.live === 'on' ? 'on' : 'off'), swHtml(o.live === 'on', 'live', 'Live status')),
+      srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
       srow(slabel('Summaries', sum), o.summaries === 'off' ? Button('ghost', 'Set up', '', 's-sum') : ''),
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : 'needs access'), o.accessibility ? '' : Button('ghost', 'Allow', '', 's-ax')),
@@ -585,10 +605,13 @@
       '<div class="mt-2 flex h-9 items-center gap-1 px-2.5">' + Button('ghost', 'Replay onboarding', '', 's-replay') + Button('ghost', 'Quit Perch', '', 's-quit') + '<span class="flex-1"></span>' + Button('default', 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
+      setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
       if (b.dataset.k === 'login') post({ type: 'setting', key: 'login', value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    box.querySelectorAll('.s-app').forEach(function (b) { b.onclick = function () { post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); }; });
+    box.querySelectorAll('.s-app').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setApp(b, on); post({ type: 'source', id: b.dataset.k, enabled: on }); }; });
+    var row = box.querySelector('.s-char');
+    if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
@@ -600,7 +623,22 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var sig = JSON.stringify([o, charNow]); if (sig === setSig) return; setSig = sig; settingsRender(o);
+    var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
+    /* the same rows with new values: change them in place, so switches and the segment animate */
+    var shape = JSON.stringify([o.summaries, o.accessibility, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    if (setSig && box.dataset.shape === shape) {
+      setSig = sig; setLast = o;
+      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
+      box.querySelectorAll('.s-app').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.k) setApp(b, x.enabled); }); });
+      var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
+      box.querySelectorAll('.s-idle').forEach(function (b) {
+        var on = +b.dataset.m === o.idleMinutes;
+        ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
+        ['text-muted-foreground', 'hover:text-foreground'].forEach(function (c) { b.classList.toggle(c, !on); });
+      });
+      return;
+    }
+    setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
   window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
@@ -617,6 +655,11 @@
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
+    if (m.type === 'answer' && s.projects[s.selected]) {
+      /* the agent goes on: the request is settled and it is working again */
+      s.projects[s.selected] = Object.assign({}, s.projects[s.selected], { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } });
+      var nowEl = document.getElementById('now'); if (nowEl) nowEl.textContent = m.choice === 'deny' ? 'Denied. Claude is told no and goes on.' : (m.choice === 'allow' ? 'Allowed. Claude runs it.' : 'Answered: ' + m.choice);
+    }
     if (m.type === 'hooks') { if (s.settings) s.settings.live = m.on ? 'on' : 'off'; if (s.onboarding) s.onboarding.live = m.on ? 'on' : 'off'; }
     if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
     if (m.type === 'onb' && s.onboarding) {
@@ -681,6 +724,22 @@
       clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
         setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
       say: function (t) { window.perch.say(t); },
+      /* the whole permission moment: working quietly, a request arrives, you look, you answer, all clear */
+      permission: function () {
+        d0(); base.selected = 0;
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });
+        var now = document.getElementById('now'), say = function (t) { if (now) now.textContent = t; };
+        apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', timerToken: Math.random() }));
+        say('You are working. Claude is busy in Onboarding flow.');
+        autoTimer = setTimeout(function () {
+          apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
+          say('Claude wants to run a command. The character pops out, eyes wide.');
+          autoTimer = setTimeout(function () {
+            apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'open', autoCollapse: false, timerToken: Math.random() }));
+            say('You hover the notch. Click Allow or Deny, or press A or D.');
+          }, 2200);
+        }, 1600);
+      },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }
@@ -696,6 +755,12 @@
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
+      else if (ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask && snap.projects[snap.selected].ask.answerable) {
+        /* the same keys as the app: A allows, D denies, a digit picks an option */
+        var ask = snap.projects[snap.selected].ask, k = e.key.toLowerCase();
+        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' });
+        else if (/^[1-4]$/.test(k) && ask.options[+k - 1]) dev({ type: 'answer', choice: ask.options[+k - 1] });
+      }
     });
   }
 })();

@@ -904,9 +904,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         cursorTimer = t
     }
 
-    /// A click anywhere outside the card closes it.
+    /// A click anywhere outside the card closes it. Not during onboarding: you click into System Settings in the middle of it.
     private func clickedElsewhere() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .settings else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding else { return }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
     }

@@ -14,7 +14,7 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n { position: absolute; top: 0; left: 50%; width: 185px; height: 32px; margin-left: -92.5px; background: #000; border-radius: 0 0 10px 10px; z-index: 9;
   /* closing: the card drops back first, then narrows into the notch */
   transition: height .26s cubic-bezier(.55,0,.8,.3), width .32s .07s cubic-bezier(.4,0,.2,1), margin-left .32s .07s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1), --gcol .7s cubic-bezier(.3,.9,.4,1); }
-.n:not([data-s=idle]) { border-radius: 0 0 20px 20px; box-shadow: 0 26px 46px -12px rgba(0,0,0,.5);
+.n:not([data-s=idle]) { border-radius: 0 0 20px 20px;
   /* opening: it widens with a springy overshoot, then drops down and settles */
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .6s .05s cubic-bezier(.3,1.5,.45,1), border-radius .4s, box-shadow .6s, transform .35s cubic-bezier(.3,1.5,.5,1), --gcol .7s cubic-bezier(.3,.9,.4,1); }
 /* the stand-in notch on a screen without one: a quiet black tab that leans toward you when the cursor is near */

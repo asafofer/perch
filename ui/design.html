@@ -103,6 +103,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
     ['While you work', [
+      ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
       ['Something needs you', 'The character pops out, eyes wide, with a count.', function () { d.show('idle'); }],
       ['A session finished', 'One you are not in: a happy peek, then gone.', function () { d.finish(); }],
