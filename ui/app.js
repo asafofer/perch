@@ -30,7 +30,7 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[22px]' : 'min-w-4') + ' items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
-    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
+    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[k] + '" alt="">';
     /* stand-ins for the design page; the app always has the real icons */
     var g = {
       claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
@@ -43,11 +43,11 @@
   var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed' };
   function AppOf(p, c) {
     if (!p.via) return App(p.app, c);
-    var small = c === 'size-3.5', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
-    var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[p.via] + '" alt="">'
+    var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
+    var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[p.via] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     return '<span class="relative flex flex-none" title="' + (p.app === 'codex' ? 'Codex' : 'Claude Code') + ' in ' + esc(TERMS[p.via] || 'a terminal') + '">' + term +
-      '<span class="absolute ' + b + ' flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(p.app, 'size-full') + '</span></span>';
+      '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, 'size-full') + '</span></span>';
   }
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
@@ -74,14 +74,16 @@
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading; its status, in words, ends the line */
-      '<div class="rv mt-1.5 flex h-[18px] items-center gap-2 px-4" style="--i:1"><span class="o-app flex flex-none"></span><span dir="auto" class="o-name min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-      /* under the title, in grey, the project and what you were doing; then, apart, what happened; then Next. Read top to bottom in a glance. */
-      '<p dir="auto" class="o-sub rv mt-0.5 truncate pl-[38px] pr-4 text-[13px] leading-[18px] text-muted-foreground" style="--i:1"></p>' +
-      '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
+      /* the app's icon at full size, like a notification, beside two lines: the title with its status, and in grey the
+         project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
+      '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
+        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
+        '<p dir="auto" class="o-sub truncate text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
+      '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('Tab'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
+      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose grid size-7 flex-none cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">' + svg('x', 'size-3') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
@@ -91,7 +93,7 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[184px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -234,10 +236,11 @@
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
     q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
+    h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" title="' + esc(note) + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" title="' + esc(note) + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
@@ -270,19 +273,18 @@
 
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
-    q('.o-app').innerHTML = AppOf(p, 'size-3.5');
+    q('.o-app').innerHTML = AppOf(p, 'size-[34px]');
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
-    h.classList.remove('line-clamp-2', 'mt-2.5'); h.title = ''; h.style.display = '';
+    h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    /* a question card is the tallest there is: it keeps every line for the choices */
-    if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { sub.style.display = 'none'; questionCard(p, a); return; }
+    if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
-      h.textContent = a.kind === 'question' ? a.subject : a.title; if (proj) h.classList.add('mt-2.5');
+      h.textContent = a.kind === 'question' ? a.subject : a.title;
       c.textContent = a.kind === 'plan' ? a.subject : '';
       box.innerHTML = a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
@@ -297,7 +299,6 @@
       if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
       if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
       else h.innerHTML = said ? '' : md(p.headline);
-      if (sub.style.display !== 'none') h.classList.add('mt-2.5');
       c.innerHTML = ''; box.innerHTML = '';
     }
     c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
