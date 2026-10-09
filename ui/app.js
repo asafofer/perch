@@ -54,9 +54,9 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
-    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd(',') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
       /* the project is the heading; its status, in words, sits on the same line */
@@ -69,7 +69,7 @@
       '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
-    '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
+    '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd(',') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
@@ -373,13 +373,17 @@
 
   /* ---- character: shape and colour, chosen in onboarding ---- */
   var SHAPES = [
-    /* [id, name, path, eye top, left eye, right eye, eye width] */
-    ['ears', 'Ears', 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '46%'],
-    ['dome', 'Dome', 'M2 19V12a10 10 0 0 1 20 0v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '44%'],
-    /* a bao, after the Bun mascot: wide and soft, the little pinch on top, blush cheeks (only Bun has them) */
-    ['bun', 'Bun', 'M1.8 16.4C1.8 10.6 5.9 6.7 10.4 6.3Q11.2 4.2 12 3.9Q12.8 4.2 13.6 6.3C18.1 6.7 22.2 10.6 22.2 16.4C22.2 19.4 20.3 21 17.4 21H6.6C3.7 21 1.8 19.4 1.8 16.4Z', '54%', '31%', '55%', '14%'],
-    ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '38%'],
-    ['peak', 'Peak', 'M10.2 3.6Q12 .9 13.8 3.6L22 17.2Q23.8 21 19.6 21H4.4Q.2 21 2 17.2Z', '58%', '33%', '55%', '12%']
+    /* [id, name, path, eye top, left eye, right eye, eye width, line details, filled details]. Details show from 22px up. */
+    ['ears', 'Ears', 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '46%', '', '', '',
+      'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
+    ['dome', 'Ghost', 'M2 19V12a10 10 0 0 1 20 0v9.2c0 .9-.9 1.3-1.6.8l-1.4-1c-.6-.4-1.3-.4-1.9 0l-1.6 1.1c-.6.4-1.4.4-2 0l-1.6-1.1c-.6-.4-1.3-.4-1.9 0l-1.4 1c-.7.5-1.6.1-1.6-.8z', '42%'],
+    /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
+    ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
+      'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
+    /* a small robot: an antenna on a rounded tile */
+    ['tile', 'Tile', 'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z', '40%', '', '', '', 'M12 3.2V1.6', 'M12 .3a1.15 1.15 0 1 1 0 2.3a1.15 1.15 0 1 1 0-2.3z'],
+    /* an onigiri: a soft rice triangle with its band of nori */
+    ['peak', 'Onigiri', 'M10.2 3.6Q12 .9 13.8 3.6L22 17.2Q23.8 21 19.6 21H4.4Q.2 21 2 17.2Z', '47%', '33%', '55%', '12%', '', 'M8.2 16.4h7.6v4.6H8.2z']
   ];
   var PALETTE = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
   var charNow = { shape: 'ears', color: '#F5B83D' };
@@ -388,13 +392,15 @@
     if (!c) return;
     charNow = { shape: c.shape, color: c.color };
     var sh = shapeOf(c.shape);
-    scene.querySelectorAll('.cr:not(.cr-mini) .f path').forEach(function (p) { p.setAttribute('d', sh[2]); });
+    scene.querySelectorAll('.cr:not(.cr-mini) .f path:not(.pl):not(.fd)').forEach(function (p) { p.setAttribute('d', sh[2]); });
+    scene.querySelectorAll('.cr:not(.cr-mini) .f path.fd').forEach(function (p) { p.setAttribute('d', sh[8] || ''); });
+    scene.querySelectorAll('.cr:not(.cr-mini) .f path.pl').forEach(function (p) { p.setAttribute('d', sh[7] || ''); });
     scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); e.style.setProperty('--el', sh[4] || '30%'); e.style.setProperty('--er', sh[5] || '56%'); e.style.setProperty('--ew', sh[6] || '14%'); e.dataset.shape = sh[0]; });
     document.documentElement.style.setProperty('--cr', c.color);
     if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: six short steps inside the notch ---- */

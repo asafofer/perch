@@ -88,9 +88,20 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr .ey { position: absolute; top: var(--et); width: var(--ew, 14%); height: 24%; border-radius: 50%; background: #2B1B0E; transition: all .22s; translate: var(--lx, 0px) var(--ly, 0px); }
 .cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
 /* Bun's cheeks: flat blush under the eyes */
-.cr .ck { display: none; position: absolute; top: 70%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: .75; }
+.cr .ck { display: none; position: absolute; top: 72%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: .75; }
 .cr .ck.l { left: 18%; } .cr .ck.r { left: 68%; }
 .cr[data-shape=bun] .ck { display: block; }
+/* each shape's details, flat: lines a shade darker than its colour (pleats, whiskers), filled marks (inner ears),
+   the onigiri's nori, the robot's antenna in its own colour */
+.cr .f path.pl { fill: none; stroke: #2B1B0E; stroke-opacity: .22; stroke-width: 1.1; stroke-linecap: round; }
+.cr .f path.fd { fill: #2B1B0E; fill-opacity: .2; }
+.cr[data-shape=peak] .f path.fd { fill: #1E2524; fill-opacity: 1; }
+.cr[data-shape=tile] .f path.fd { fill: var(--cr); fill-opacity: 1; }
+.cr[data-shape=tile] .f path.pl { stroke: var(--cr); stroke-opacity: 1; stroke-width: 1.3; }
+/* a white sparkle in each eye; gone where it would only be noise: tiny sizes, closed or smiling eyes */
+.cr .ey::after { content: ""; position: absolute; left: 20%; top: 14%; width: 40%; height: 28%; border-radius: 50%; background: #fff; }
+.cr[data-m=happy] .ey::after, .cr[data-m=sleep] .ey::after, .cr[data-m=peek] .ey::after { display: none; }
+@container (max-width: 21px) { .cr .ey::after, .cr .f path.pl, .cr .f path.fd { display: none; } }
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
 .cr[data-m=sleep] .ey { height: max(1.2px, 5%); border-radius: 3px; top: calc(var(--et) + 13%); }
