@@ -26,7 +26,7 @@
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + (extra ? '<span class="inline-flex items-baseline gap-1">' + label + extra + '</span>' : label) + '</button>';
   }
   /* an icon key gets an invisible character, so it has a text baseline like a letter key */
-  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
+  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[22px]' : 'min-w-4') + ' items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
@@ -269,7 +269,9 @@
       var p = s.projects[k];
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         App(p.app) +
-        '<span class="mq min-w-0 flex-1 truncate"><span class="mq-in"><span class="font-medium">' + esc(p.name) + '</span>' + (p.topic ? '<span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span>' : '') + '</span></span>' +
+        /* name and title each truncate on their own, so a Hebrew title loses its end, not its start */
+        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span class="mq nm min-w-0 flex-[0_1_auto] truncate font-medium"><span class="mq-in">' + esc(p.name) + '</span></span>' +
+        (p.topic ? '<span dir="auto" class="mq tp min-w-0 flex-[1_1_0%] truncate text-left text-muted-foreground"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '') + '</span>' +
         '<span class="st flex flex-none items-center gap-2 text-xs tabular-nums"></span></div>';
     }).join('');
     if (html !== listSig) {
@@ -308,18 +310,19 @@
   function marquee(row) {
     if (row && mq.el === row) return;
     clearTimeout(mq.t); mq.anims.forEach(function (a) { a.cancel(); });
-    if (mq.el) mq.el.querySelector('.mq').classList.remove('mq-on');
+    if (mq.el) mq.el.querySelectorAll('.mq-on').forEach(function (b) { b.classList.remove('mq-on', 'mq-rtl'); });
     mq = { el: row, t: 0, anims: [] };
     if (!row || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     mq.t = setTimeout(function () {
-      var box = row.querySelector('.mq'), inner = box.querySelector('.mq-in');
-      var over = box.scrollWidth - box.clientWidth;
-      if (over < 4 || mq.el !== row) return;
-      over += 14;   /* clear of the fade at the right edge */
-      box.classList.add('mq-on');
+      /* the title if it is cut short, else the name; a right-to-left title glides the other way */
+      var box = [row.querySelector('.tp'), row.querySelector('.nm')].filter(function (b) { return b && b.scrollWidth - b.clientWidth >= 4; })[0];
+      if (!box || mq.el !== row) return;
+      var inner = box.querySelector('.mq-in'), rtl = getComputedStyle(box).direction === 'rtl';
+      var over = box.scrollWidth - box.clientWidth + 14;   /* clear of the fade at the far edge */
+      box.classList.add('mq-on'); if (rtl) box.classList.add('mq-rtl');
       var go = over / 45 * 1000, rest = 1600, back = 600, wait = 1400, all = go + rest + back + wait;
       var at = function (ms) { return ms / all; };
-      var x = function (v) { return { transform: 'translateX(' + v + 'px)' }; };
+      var x = function (v) { return { transform: 'translateX(' + (rtl ? -v : v) + 'px)' }; };
       mq.anims.push(inner.animate([
         Object.assign(x(0), { offset: 0, easing: 'cubic-bezier(.45,0,.55,1)' }), Object.assign(x(-over), { offset: at(go) }),
         Object.assign(x(-over), { offset: at(go + rest), easing: 'cubic-bezier(.4,0,.2,1)' }), Object.assign(x(0), { offset: at(go + rest + back) }), Object.assign(x(0), { offset: 1 })
@@ -862,7 +865,7 @@
       /* more than five: the list scrolls. Long topics read themselves out after a second on the row. */
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
-      { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
     ];
