@@ -1,0 +1,195 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card and List Options</title>
+<link rel="stylesheet" href="dist/ui.css">
+<style>
+/* Options for the top of the card: where the app icon, the chat's title and the project go. Same words in each. */
+:root { --bg: #0E1210; --fg: #E8ECE9; --muted: #8C9690; --line: #252B28; --panel: #131815; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #F2F3F1; --fg: #141816; --muted: #5E6762; --line: #D8DDD9; --panel: #FAFBFA; color-scheme: light; } }
+:root[data-theme="dark"] { --bg: #0E1210; --fg: #E8ECE9; --muted: #8C9690; --line: #252B28; --panel: #131815; }
+html, body { margin: 0; background: var(--bg) !important; color: var(--fg); overflow: auto !important; -webkit-user-select: text !important; user-select: text !important; }
+body { font-family: Inter, -apple-system, system-ui, sans-serif; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 28px 16px 64px; display: flex; flex-direction: column; gap: 18px; }
+h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 20px; max-width: 640px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
+.opt { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.opt h3 { margin: 0; font: 600 15px/20px Inter, sans-serif; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.opt p { margin: 0; color: var(--muted); font-size: 13px; line-height: 18px; }
+.lvl { white-space: nowrap; font: 500 11px/16px Inter, sans-serif; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 9%, transparent); color: var(--muted); }
+.rec { background: color-mix(in srgb, #8CCFA4 18%, transparent); color: #8CCFA4; }
+.stage { border-radius: 10px; overflow: hidden; background: #16201e url(wallpapers/blue-distortion-1.webp) center 40% / cover; padding: 0 0 18px; display: flex; justify-content: center; }
+.stage + .stage { margin-top: -4px; }
+
+/* the card, drawn as the app draws it */
+.card { width: 400px; max-width: 100%; background: #000; border-radius: 0 0 20px 20px; color: #fafafa; letter-spacing: -.011em; padding-bottom: 6px; }
+.bar { height: 32px; display: flex; align-items: center; padding: 0 10px 0 16px; }
+.me { width: 20px; height: 20px; }
+.me path { fill: #8CCFA4; }
+.bar .sp { flex: 1; }
+.gear { display: flex; align-items: center; gap: 4px; color: #a1a1aa; margin-right: 10px; }
+.k { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 3px; background: #27272a; color: #a1a1aa; font: 500 10.5px/1 Inter, sans-serif; }
+.x { color: #a1a1aa; }
+.ic { flex: none; border-radius: 22%; display: block; }
+.st { margin-left: auto; flex: none; font-size: 12px; color: #a1a1aa; }
+.st.ok { color: #8CCFA4; }
+.t { font-weight: 600; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.g { color: #a1a1aa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g b { font-weight: 400; color: rgba(250,250,250,.7); }
+.body { padding: 0 16px; margin-top: 10px; font-size: 13px; line-height: 18px; }
+.nx { padding: 0 16px; margin-top: 10px; font-size: 13px; line-height: 18px; display: flex; gap: 8px; }
+.nx span:first-child { color: #a1a1aa; font-weight: 500; }
+.foot { height: 36px; margin-top: 8px; padding: 0 10px; display: flex; align-items: center; gap: 4px; font-size: 13px; color: #a1a1aa; }
+.foot .b { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 8px; border-radius: 8px; }
+.foot .go { background: #fafafa; color: #0a0a0a; padding-right: 3px; }
+.foot .go .k { background: rgba(0,0,0,.1); color: #3f3f46; }
+.foot .k { transform: translateY(-1px); }
+.badge { position: absolute; right: -3px; bottom: -3px; border-radius: 3px; box-shadow: 0 0 0 1.5px #000; }
+.rel { position: relative; flex: none; }
+
+/* A: today */
+.a .head { display: flex; align-items: center; gap: 8px; padding: 0 16px; margin-top: 6px; height: 18px; }
+.a .t { font-size: 13.5px; }
+.a .g { padding-left: 38px; padding-right: 16px; margin-top: 2px; }
+/* B: a tile, like a notification: the icon beside a two-line heading */
+.b .head { display: flex; align-items: center; gap: 11px; padding: 0 16px; margin-top: 6px; }
+.b .two { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.b .row { display: flex; align-items: baseline; gap: 8px; }
+.b .t { font-size: 14px; line-height: 19px; }
+/* C: the project as an eyebrow, the title large under it */
+.c .eye { display: flex; align-items: center; gap: 7px; padding: 0 16px; margin-top: 4px; height: 18px; font-size: 12.5px; color: rgba(250,250,250,.7); }
+.c .t { display: block; padding: 0 16px; margin-top: 3px; font-size: 15px; line-height: 20px; }
+.c .g { padding: 0 16px; margin-top: 1px; }
+/* D: the title alone on top; the app sits with the project in the grey line, where it says where the session lives */
+.d .head { display: flex; align-items: baseline; gap: 8px; padding: 0 16px; margin-top: 6px; }
+.d .t { font-size: 14px; line-height: 19px; }
+.d .g { display: flex; align-items: center; gap: 6px; padding: 0 16px; margin-top: 3px; }
+.d .g .rel { transform: translateY(0); }
+
+/* the list */
+.list { width: 400px; max-width: 100%; background: #000; border-radius: 0 0 20px 20px; color: #fafafa; letter-spacing: -.011em; padding-bottom: 4px; }
+.lh { display: flex; align-items: baseline; padding: 6px 16px 6px; font-size: 14px; font-weight: 500; }
+.lh span:last-child { margin-left: auto; font-size: 12px; font-weight: 400; color: #a1a1aa; }
+.rows { height: 212px; overflow-y: auto; padding: 0 6px 4px; scrollbar-width: none; -webkit-mask-image: linear-gradient(#000 calc(100% - 24px), transparent); mask-image: linear-gradient(#000 calc(100% - 24px), transparent); }
+.rows::-webkit-scrollbar { display: none; }
+.sec { padding: 8px 10px 3px; font-size: 11.5px; font-weight: 500; color: #71717a; letter-spacing: 0; }
+.sec:first-child { padding-top: 2px; }
+.r { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 6px; border-radius: 6px; font-size: 14px; }
+.r.on { background: #1c1c1f; }
+.r .nm { font-weight: 500; white-space: nowrap; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.r .tp { color: #a1a1aa; white-space: nowrap; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.r .rs { margin-left: auto; flex: none; display: flex; gap: 8px; font-size: 12px; color: #a1a1aa; font-variant-numeric: tabular-nums; }
+.r .w { color: #8DC8E8; } .r .ok { color: #8CCFA4; } .r .need { color: #E9A877; }
+.r .more { color: #71717a; font-size: 12.5px; padding-left: 28px; }
+.lf { height: 32px; display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 12px; color: #a1a1aa; }
+.lf span { display: inline-flex; align-items: baseline; gap: 6px; }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>The top of the card</h1>
+    <p class="sub">Where the app icon, the chat's title and the project go. Same session in each, a Claude app session on top and a terminal session (Ghostty, with Claude as a badge) below it.</p>
+  </div>
+  <div class="grid" id="opts"></div>
+  <div>
+    <h1 style="margin-top:18px">The list</h1>
+    <p class="sub">Your idea, projects as small headers with the sessions under them, next to two ways that keep the list in order of recency. Same nine sessions in each; the list shows about five at a time and scrolls.</p>
+  </div>
+  <div class="grid" id="lists"></div>
+</div>
+
+<script>
+(function () {
+  var EARS = 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z';
+  var icons = { claude: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#D97757"/><g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g></svg>'),
+    ghostty: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>') };
+  var S = [
+    { app: 'claude', title: 'Codex icon bug fixes', project: 'perch', was: 'Fixing a bug in the Codex icon', st: '29m ago', ok: false,
+      body: 'Moved the project name out of the top bar into the grey line under the title, where it is never cut off.', next: '' },
+    { app: 'claude', via: 'ghostty', title: 'Rate limiter for the public API', project: 'api-server', was: 'Adding a rate limiter', st: 'Finished', ok: true,
+      body: 'Limits are per key, with a burst allowance. The tests pass.', next: 'Try the burst limit against staging' }
+  ];
+  function icon(s, size) {
+    var main = '<img class="ic" style="width:' + size + 'px;height:' + size + 'px" src="' + icons[s.via || s.app] + '" alt="">';
+    if (!s.via) return '<span class="rel">' + main + '</span>';
+    var b = Math.round(size * 0.55);
+    return '<span class="rel">' + main + '<img class="ic badge" style="width:' + b + 'px;height:' + b + 'px" src="' + icons[s.app] + '" alt=""></span>';
+  }
+  function card(kind, s) {
+    var st = '<span class="st' + (s.ok ? ' ok' : '') + '">' + s.st + '</span>', head;
+    if (kind === 'a') head = '<div class="head">' + icon(s, 14) + '<span class="t">' + s.title + '</span>' + st + '</div><div class="g"><b>' + s.project + '</b> · ' + s.was + '</div>';
+    if (kind === 'b') head = '<div class="head">' + icon(s, 34) + '<div class="two"><div class="row"><span class="t">' + s.title + '</span>' + st + '</div><div class="g"><b>' + s.project + '</b> · ' + s.was + '</div></div></div>';
+    if (kind === 'c') head = '<div class="eye">' + icon(s, 14) + '<span>' + s.project + '</span>' + st + '</div><span class="t">' + s.title + '</span><div class="g">' + s.was + '</div>';
+    if (kind === 'd') head = '<div class="head"><span class="t">' + s.title + '</span>' + st + '</div><div class="g">' + icon(s, 13) + '<span><b>' + s.project + '</b> · ' + s.was + '</span></div>';
+    return '<div class="card ' + kind + '"><div class="bar"><svg class="me" viewBox="0 0 24 24"><path d="' + EARS + '"/><circle cx="9" cy="14" r="1.6" fill="#2B1B0E"/><circle cx="15" cy="14" r="1.6" fill="#2B1B0E"/></svg><span class="sp"></span>' +
+      '<span class="gear"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="k">S</span></span><span class="x">✕</span></div>' +
+      head + '<div class="body">' + s.body + '</div>' + (s.next ? '<div class="nx"><span>Next</span><span>' + s.next + '</span></div>' : '') +
+      '<div class="foot"><span class="b">All sessions <span class="k">←</span></span><span style="flex:1"></span><span class="b">Reply <span class="k">R</span></span><span class="b">Not now <span class="k">N</span></span><span class="b go">Pick up <span class="k">↩</span></span></div></div>';
+  }
+  var OPTS = [
+    ['a', 'A. Today', 'As built', 'A small icon before the title; the project and what you were doing in grey beneath, lined up with the title.'],
+    ['b', 'B. A tile beside two lines', 'Most like macOS', 'The icon at full size, like a notification, beside the title and the grey line. The icon reads at a glance, and a terminal badge is legible.', true],
+    ['c', 'C. The project on top', 'Where, then what', 'A small eyebrow, the app and the project, with the status at its end. The title below it, larger. Then what you were doing.'],
+    ['d', 'D. The title alone', 'Quietest', 'The title gets the whole top line. The app moves into the grey line with the project, where it says where the session lives.']
+  ];
+  function draw() {
+    var box = document.getElementById('opts');
+    box.innerHTML = OPTS.map(function (o) {
+      return '<section class="opt"><h3>' + o[1] + ' <span class="lvl' + (o[4] ? ' rec' : '') + '">' + (o[4] ? 'Recommended · ' : '') + o[2] + '</span></h3><p>' + o[3] + '</p>' +
+        S.map(function (s) { return '<div class="stage">' + card(o[0], s) + '</div>'; }).join('') + '</section>';
+    }).join('');
+  }
+  /* newest first; minutes ago */
+  var L = [
+    { t: 'Codex icon bug fixes', p: 'perch', ago: 0, st: 'w' },
+    { t: 'Personal Notion project access', p: 'Business', ago: 4, st: 'need' },
+    { t: 'Live activity in the notch', p: 'perch', ago: 12, st: 'ok' },
+    { t: 'Rate limiter for the public API', p: 'api-server', ago: 29, via: 'ghostty' },
+    { t: 'Terminal sessions in the list', p: 'perch', ago: 65 },
+    { t: 'September invoices', p: 'Business', ago: 190 },
+    { t: 'Team on the town map', p: 'lukatz_website', ago: 1500 },
+    { t: 'Video to 3D world with measured walls', p: 'room-planner-prototype', ago: 2900 },
+    { t: 'Onboarding hello', p: 'perch', ago: 3000 }
+  ];
+  function age(m) { return m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; }
+  function status(s) {
+    if (s.st === 'w') return '<span class="w">Working</span>';
+    if (s.st === 'need') return '<span class="need">Needs your OK</span><span>' + age(s.ago) + '</span>';
+    if (s.st === 'ok') return '<span class="ok">Finished</span><span>' + age(s.ago) + '</span>';
+    return '<span>' + age(s.ago) + '</span>';
+  }
+  function row(s, first, second, on) {
+    return '<div class="r' + (on ? ' on' : '') + '">' + icon({ app: 'claude', via: s.via }, 20) + '<span class="nm">' + first + '</span>' + (second ? '<span class="tp">' + second + '</span>' : '<span class="tp"></span>') + '<span class="rs">' + status(s) + '</span></div>';
+  }
+  function list(rows) {
+    return '<div class="list"><div class="bar" style="height:32px"></div><div class="lh"><span>Jump back in</span><span>Type to filter</span></div><div class="rows">' + rows + '</div>' +
+      '<div class="lf"><span><span class="k">\u2191\u2193</span>Choose</span><span><span class="k">\u2192</span>Details</span><span><span class="k">\u21a9</span>Open</span><span><span class="k">esc</span>Close</span></div></div>';
+  }
+  var flat = L.map(function (s, i) { return row(s, s.p, s.t, i === 0); }).join('');
+  /* your idea: a header per project, the project you touched last first, its three newest sessions under it */
+  var order = [], by = {};
+  L.forEach(function (s) { if (!by[s.p]) { by[s.p] = []; order.push(s.p); } by[s.p].push(s); });
+  var grouped = order.map(function (p, gi) {
+    var all = by[p], shown = all.slice(0, 3);
+    return '<div class="sec">' + p + '</div>' + shown.map(function (s, i) { return row(s, s.t, '', gi === 0 && i === 0); }).join('') + (all.length > 3 ? '<div class="r"><span class="more">' + (all.length - 3) + ' more</span></div>' : '');
+  }).join('');
+  /* by time, like Raycast: what needs you, today, earlier; the title first, the project after it in grey */
+  var secs = [['Needs you', L.filter(function (s) { return s.st === 'need'; })], ['Today', L.filter(function (s) { return s.st !== 'need' && s.ago < 1440; })], ['Earlier', L.filter(function (s) { return s.st !== 'need' && s.ago >= 1440; })]];
+  var timed = secs.map(function (x, gi) { return '<div class="sec">' + x[0] + '</div>' + x[1].map(function (s, i) { return row(s, s.t, s.p, gi === 0 && i === 0); }).join(''); }).join('');
+  var LISTS = [
+    ['L1. Today', 'As built', 'One row per session, newest first, the project in white and the title in grey after it.', flat],
+    ['L2. By project', 'Your idea', 'A small header per project, the project you touched last at the top, its three newest sessions under it. Each row is all title. Recency holds within a project, not across them, and the headers take rows: about four sessions fit where five did.', grouped],
+    ['L3. By time, title first', 'Like Raycast', 'Headers for what needs you, today and earlier, so the order stays newest first. Each row leads with the session\u2019s title, the project after it in grey, like Raycast\u2019s command and its extension. Three headers at most.', timed, true]
+  ];
+  function drawLists() {
+    document.getElementById('lists').innerHTML = LISTS.map(function (o) {
+      return '<section class="opt"><h3>' + o[0] + ' <span class="lvl' + (o[4] ? ' rec' : '') + '">' + (o[4] ? 'Recommended \u00b7 ' : '') + o[1] + '</span></h3><p>' + o[2] + '</p><div class="stage">' + list(o[3]) + '</div></section>';
+    }).join('');
+  }
+  draw(); drawLists();
+  /* this Mac's real icons, when ./scripts/run.sh --design-icons has written them */
+  fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { Object.assign(icons, o); draw(); drawLists(); } }).catch(function () {});
+})();
+</script>
