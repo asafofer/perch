@@ -3,7 +3,7 @@
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
   var CARD_W = 400;
-  var COLORS = { attention: '#FB923C', done: '#4ADE80', idle: '#71717A', running: '#7DD3FC' };
+  var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
   /* ---- shadcn recipes ---- */
@@ -71,8 +71,9 @@
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<span dir="auto" class="o-proj rv absolute left-[44px] top-[7px] z-10 h-[18px] truncate text-[12.5px] font-medium leading-[18px] tracking-[-0.01em] text-foreground/75" style="--i:0"></span>' +
     '<div class="inner pt-8 pb-1.5">' +
-      /* the project is the heading; its status, in words, sits on the same line */
+      /* the chat's title is the heading (the project sits up beside the character); its status, in words, ends the line */
       '<div class="rv mt-1.5 flex h-[18px] items-center gap-2 px-4" style="--i:1"><span class="o-app flex flex-none"></span><span dir="auto" class="o-name min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
       '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
@@ -87,7 +88,7 @@
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
-      '<div class="rv s-l max-h-[184px] overflow-y-auto px-1.5 pb-1" style="--i:1"></div>' +
+      '<div class="rv relative" style="--i:1"><div class="s-l max-h-[184px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -183,7 +184,7 @@
     /* the character follows it with its eyes, then hops with a smile when it lands */
     look(2.8, -1.6);
     setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 560);
-    n.dataset.g = 'status'; n.style.setProperty('--glow', '74,222,128'); n.style.setProperty('--glow-hi', '166,247,196');
+    n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
   }
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
@@ -268,7 +269,9 @@
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     q('.o-app').innerHTML = AppOf(p, 'size-3.5');
-    q('.o-name').textContent = p.name;
+    /* a chat started without a project is named by its title alone, so nothing goes up top */
+    q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
+    var pj = q('.o-proj'); pj.textContent = p.topic ? p.name : ''; pj.title = pj.textContent;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
     h.classList.remove('line-clamp-2'); h.title = '';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
@@ -280,7 +283,11 @@
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
         : '';
     } else {
-      h.innerHTML = md(p.headline); c.innerHTML = md(p.context); box.innerHTML = '';
+      /* the title is on the heading now, so a headline that only repeats it gives its place to what happened */
+      var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
+      if (p.topic && norm(p.headline) === norm(p.topic) && p.context) { h.innerHTML = md(p.context); h.classList.add('line-clamp-2'); c.innerHTML = ''; }
+      else { h.innerHTML = md(p.headline); c.innerHTML = md(p.context); }
+      box.innerHTML = '';
     }
     c.style.display = c.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -302,8 +309,37 @@
   function edges() {
     var up = sl.scrollTop > 1, down = sl.scrollTop + sl.clientHeight < sl.scrollHeight - 1;
     sl.style.webkitMaskImage = sl.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
+    sbar(false);
   }
-  sl.addEventListener('scroll', edges, { passive: true });
+  sl.addEventListener('scroll', function () { edges(); sbar(true); }, { passive: true });
+  /* A thin scrollbar that shows only while you scroll, reach for it near the right edge, or drag it; it fades a moment after. */
+  var sb = q('.s-bar'), sbT = 0, sbDrag = null;
+  function sbar(wake) {
+    var h = sl.clientHeight, all = sl.scrollHeight, track = sb.clientHeight;
+    if (all <= h + 1) { sb.classList.remove('on'); return; }
+    var th = Math.max(18, track * h / all), y = (track - th) * sl.scrollTop / (all - h);
+    sb.firstChild.style.height = th + 'px'; sb.firstChild.style.transform = 'translateY(' + y + 'px)';
+    if (!wake) return;
+    sb.classList.add('on'); clearTimeout(sbT);
+    sbT = setTimeout(function () { if (!sbDrag && !sb.matches(':hover')) sb.classList.remove('on'); }, 900);
+  }
+  sl.parentNode.addEventListener('mousemove', function (e) {
+    var r = sl.getBoundingClientRect(); if (e.clientX > r.right - 16) sbar(true);
+  });
+  sb.addEventListener('mouseleave', function () { if (!sbDrag) sbar(true); });
+  /* drag the thumb, or press the track to jump there */
+  sb.addEventListener('pointerdown', function (e) {
+    var t = sb.firstChild.getBoundingClientRect(), track = sb.getBoundingClientRect();
+    if (e.target !== sb.firstChild) sl.scrollTop = (e.clientY - track.top - t.height / 2) / (track.height - t.height) * (sl.scrollHeight - sl.clientHeight);
+    sbDrag = { y: e.clientY, top: sl.scrollTop }; sb.classList.add('drag'); sb.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  sb.addEventListener('pointermove', function (e) {
+    if (!sbDrag) return;
+    var th = sb.firstChild.offsetHeight, room = sb.clientHeight - th;
+    sl.scrollTop = sbDrag.top + (e.clientY - sbDrag.y) / Math.max(1, room) * (sl.scrollHeight - sl.clientHeight);
+  });
+  function sbUp() { if (!sbDrag) return; sbDrag = null; sb.classList.remove('drag'); sbar(true); }
+  sb.addEventListener('pointerup', sbUp); sb.addEventListener('pointercancel', sbUp);
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
@@ -415,6 +451,7 @@
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
+      q('.o-proj').style.maxWidth = (virt ? CARD_W - 44 - 64 : (CARD_W - scr.notchW) / 2 - 44 - 6) + 'px';
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
@@ -455,12 +492,12 @@
     q('.x-send-l').textContent = canSend ? 'Send' : 'Copy and open';
     q('.x-send').title = canSend ? '' : 'Perch needs Accessibility to type for you. Your reply is copied, ready to paste.';
     /* green only while a finished session is news; one you have already seen glows in the character's colour */
-    var glow = { attention: ['251,146,60', '255,196,140'], done: ['74,222,128', '166,247,196'] };
+    var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'] };
     var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
-    n.style.setProperty('--gcol', allDone ? '#4ADE80' : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
+    n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
     lastSt = st;
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
@@ -597,7 +634,7 @@
     }, 1900);
   }
   function confetti() {
-    var host = q('.p-onb'), cols = ['#4ADE80', '#86EFAC', charNow.color, '#FDE68A', '#FFFFFF'], k, html = '';
+    var host = q('.p-onb'), cols = [COLORS.done, '#B7E4C7', charNow.color, '#FDE68A', '#FFFFFF'], k, html = '';
     for (k = 0; k < 18; k++) {
       var a = (k / 18) * Math.PI * 2 + Math.random() * 0.5, dist = 70 + Math.random() * 60;
       html += '<i class="cf" style="--x:' + Math.round(Math.cos(a) * dist) + 'px;--y:' + Math.round(Math.sin(a) * dist * 0.75 - 16) + 'px;--r:' + Math.round(Math.random() * 360) + 'deg;--d:' + (0.05 + Math.random() * 0.2).toFixed(2) + 's;background:' + cols[k % cols.length] + '"></i>';
@@ -819,8 +856,8 @@
       hi.dataset.m = mood; play('hop', 600);
       introGlow = glow; n.style.setProperty('--gcol', glow || charNow.color);
     };
-    var finished = function () { status(0, { t: 'Finished', c: COLORS.done }, 'happy', '#4ADE80'); };
-    var needs = function () { status(1, { t: 'Needs your OK', c: COLORS.attention }, 'alert', '#FB923C'); };
+    var finished = function () { status(0, { t: 'Finished', c: COLORS.done }, 'happy', COLORS.done); };
+    var needs = function () { status(1, { t: 'Needs your OK', c: COLORS.attention }, 'alert', COLORS.attention); };
     if (reduce || !animate) {
       say.textContent = words; ghost.textContent = ''; hi.dataset.m = 'awake';
       rows[0].querySelector('.hi-st').innerHTML = Phrase({ t: 'Finished', c: COLORS.done });
@@ -1054,7 +1091,7 @@
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
-      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', headline: 'Adding a rate limiter to the public API.', context: 'Limits are per key, with a burst allowance.', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
+      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', headline: 'Rate limiter for the public API.', context: 'You asked: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', via: 'terminal', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
     ];
