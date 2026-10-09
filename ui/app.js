@@ -342,6 +342,7 @@
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
+    q('.o-x').classList.toggle('line-clamp-2', !now);   /* WebKit paints clipped text as a box when it is also line-clamped */
     q('.o-x').innerHTML = md(nx);
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
