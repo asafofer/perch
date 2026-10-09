@@ -69,7 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let activityIds = Dictionary(uniqueKeysWithValues: activityCodes.keys.sorted().enumerated().map { ($1, UInt32(20 + $0)) })
         c.onActivityKeys = { [hotkeys] keys in
             for (name, id) in activityIds where !keys.contains(name) { hotkeys.unregister(id: id) }
-            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: cmdKey | optionKey, id: id) { c.activityKey(name) } } }
+            // Reply is Command+R, the rest Command+Option and a key.
+            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
         }
         hotkeys.onChordTap = { c.chordTap() }
         c.onAccessibilityGranted = { [hotkeys] in hotkeys.restartChordMonitor() }

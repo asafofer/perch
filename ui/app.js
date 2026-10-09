@@ -163,34 +163,105 @@
   function sendReply() {
     var t = rIn.value.trim(); if (!t) return;
     var p = snap && snap.projects[snap.selected];
-    if (p && p.via) sendFly(t);   /* a terminal session takes it right here: the words fly off into the notch */
+    /* a terminal session takes it right here: the card clears and the words go off into the notch */
+    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t }); return; }
     replyMenu(false, true); post({ type: 'reply', text: t });
   }
-  /* Sent to a terminal: the words lift out of the field as a bubble and fly up into the notch, a puff of dust behind them.
-     The character watches them go and hops when they land; the glow turns green. The card closes after (Swift waits). */
+  /* Sent to a terminal. Everything above the field clears first, nearest first, so only the words are moving; then they
+     go into the notch in one of these ways. The character watches and hops when they land; the glow turns green. The card
+     closes after (Swift waits about 0.8 s). The design page plays each; the one chosen stays. */
+  var sendStyle = 'lift';
   function sendFly(text) {
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
     var pane = q('.p-open'), pr = pane.getBoundingClientRect(), fr = rIn.getBoundingClientRect();
-    var b = document.createElement('div'); b.className = 'fly'; b.textContent = text; pane.appendChild(b);
-    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + (fr.height - b.offsetHeight) / 2;
-    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
-    /* into the notch: the top centre of the card */
-    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = -y0 - b.offsetHeight / 2 + 4;
-    var at = function (k, s, r) { return 'translate(' + (dx * k).toFixed(1) + 'px,' + (dy * k * k - 10 * Math.sin(Math.PI * k)).toFixed(1) + 'px) scale(' + s + ') rotate(' + r + 'deg)'; };
-    b.animate([
-      { transform: 'translateY(2px) scale(.96)', opacity: 0 },
-      { transform: 'translateY(-3px) scale(1.04)', opacity: 1, offset: .14 },
-      { transform: at(.3, .92, -3), opacity: 1, offset: .38 },
-      { transform: at(.7, .55, -6), opacity: .9, offset: .7 },
-      { transform: at(1, .12, -10), opacity: 0 }
-    ], { duration: 720, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'forwards' });
-    /* two puffs where it took off */
-    var puff = document.createElement('i'); puff.className = 'fly-puff'; puff.style.left = (x0 + 6) + 'px'; puff.style.top = (y0 + b.offsetHeight / 2) + 'px'; pane.appendChild(puff);
-    setTimeout(function () { b.remove(); puff.remove(); }, 900);
+    var foot = fRep.parentNode, rows = [].slice.call(foot.parentNode.children).filter(function (el) { return el !== foot && el.offsetHeight; }).reverse();
+    var gone = rows.map(function (el, i) { return el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 240, delay: 40 + i * 35, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }); });
+    var f = { x: fr.left - pr.left, y: fr.top - pr.top, w: fr.width, h: fr.height }, to = { x: CARD_W / 2, y: 2 };
+    var keep = sendStyle === 'check';   /* the check grows out of the Send button, so the field row stays a moment */
+    gone.push(fRep.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, delay: keep ? 420 : 60, fill: 'forwards' }));
+    rIn.value = '';
+    var made = [], add = function (cls, html) { var el = document.createElement('div'); el.className = cls; if (html) el.innerHTML = html; pane.appendChild(el); made.push(el); return el; };
+    var land = ({ lift: sendLift, plane: sendPlane, gulp: sendGulp, check: sendCheck, stream: sendStream }[sendStyle] || sendLift)(text, f, to, add);
     /* the character follows it with its eyes, then hops with a smile when it lands */
     look(2.8, -1.6);
-    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 560);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, land);
     n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
+    /* once the card has closed, put it back as it was for next time */
+    setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); made.forEach(function (el) { el.remove(); }); replyMenu(false, true); }, (window.__closeAfter || 760) + 390);
+    return true;
+  }
+  /* a bubble of your words, where the field was */
+  function sendBubble(text, f, add) {
+    var b = add('fly'); b.textContent = text;
+    b.style.left = (f.x + 8) + 'px'; b.style.top = (f.y + (f.h - b.offsetHeight) / 2) + 'px';
+    return { el: b, x: f.x + 8 + b.offsetWidth / 2, y: f.y + f.h / 2 };
+  }
+  /* 1. Lift off: the words rise as a bubble and arc into the notch, a puff of dust where they left */
+  function sendLift(text, f, to, add) {
+    var b = sendBubble(text, f, add), dx = to.x - b.x, dy = to.y - b.y;
+    var at = function (k, sc, r) { return 'translate(' + (dx * k).toFixed(1) + 'px,' + (dy * k * k - 10 * Math.sin(Math.PI * k)).toFixed(1) + 'px) scale(' + sc + ') rotate(' + r + 'deg)'; };
+    b.el.animate([{ transform: 'translateY(2px) scale(.96)', opacity: 0 }, { transform: 'translateY(-3px) scale(1.04)', opacity: 1, offset: .14 },
+      { transform: at(.3, .92, -3), opacity: 1, offset: .38 }, { transform: at(.7, .55, -6), opacity: .9, offset: .7 }, { transform: at(1, .12, -10), opacity: 0 }],
+      { duration: 720, delay: 60, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'both' });
+    var puff = add('fly-puff'); puff.style.left = (f.x + 14) + 'px'; puff.style.top = (f.y + f.h / 2) + 'px';
+    return 620;
+  }
+  /* 2. Paper plane: the bubble folds into a plane that loops once and glides into the notch, a dotted trail behind it */
+  function sendPlane(text, f, to, add) {
+    var b = sendBubble(text, f, add);
+    b.el.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(.15) rotate(-20deg)', opacity: 0 }], { duration: 200, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
+    var pl = add('fly-plane', '<svg viewBox="0 0 24 24"><path d="M2.5 11.2 21.5 3l-7 18.2-3.3-7.4z" fill="#fafafa"/><path d="M11.2 13.8 21.5 3" stroke="#000" stroke-opacity=".3" stroke-width="1.3" fill="none"/></svg>');
+    var x0 = b.x - 9, y0 = b.y - 9; pl.style.left = x0 + 'px'; pl.style.top = y0 + 'px';
+    /* a curve that swings right, loops back over itself, and comes down into the notch */
+    var P = [[0, 0], [150, -30], [120, -120], [40, -70], [to.x - b.x - 30, to.y - b.y + 30], [to.x - b.x, to.y - b.y]];
+    var pt = function (k) { var n2 = P.length - 1, i = Math.min(n2 - 1, Math.floor(k * n2)), t = k * n2 - i, a = P[Math.max(0, i - 1)], p0 = P[i], p1 = P[i + 1], c = P[Math.min(n2, i + 2)];
+      var cr2 = function (j) { return .5 * (2 * p0[j] + (-a[j] + p1[j]) * t + (2 * a[j] - 5 * p0[j] + 4 * p1[j] - c[j]) * t * t + (-a[j] + 3 * p0[j] - 3 * p1[j] + c[j]) * t * t * t); };
+      return [cr2(0), cr2(1)]; };
+    var frames = [], N = 24;
+    for (var i = 0; i <= N; i++) {
+      var k = i / N, p = pt(k), q2 = pt(Math.min(1, k + .02)), ang = Math.atan2(q2[1] - p[1], q2[0] - p[0]) * 180 / Math.PI + 45;
+      frames.push({ transform: 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px) rotate(' + ang.toFixed(0) + 'deg) scale(' + (i === 0 ? .2 : k > .85 ? 1 - (k - .85) * 5 : 1).toFixed(2) + ')', opacity: k > .92 ? 0 : 1 });
+      if (i % 3 === 1 && k < .85) (function (p, d) { var dot = add('fly-dot'); dot.style.left = (b.x + p[0]) + 'px'; dot.style.top = (b.y + p[1]) + 'px'; dot.style.animationDelay = d + 'ms'; })(p, 160 + k * 640);
+    }
+    pl.animate(frames, { duration: 640, delay: 160, easing: 'cubic-bezier(.35,0,.45,1)', fill: 'both' });
+    return 780;
+  }
+  /* 3. Gulp: the bubble shoots straight up, stretching as it goes, and the notch swallows it with a ripple */
+  function sendGulp(text, f, to, add) {
+    var b = sendBubble(text, f, add), dx = to.x - b.x, dy = to.y - b.y;
+    b.el.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
+      { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
+      { duration: 460, delay: 80, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = add('fly-ring'); ring.style.left = (to.x - 30) + 'px'; ring.style.top = (to.y - 30) + 'px'; ring.style.animationDelay = '500ms';
+    return 520;
+  }
+  /* 4. Check: the words slide into the Send button, which turns into a green check */
+  function sendCheck(text, f, to, add) {
+    var sb = q('.x-send').getBoundingClientRect(), pr = q('.p-open').getBoundingClientRect();
+    var t = add('fly-txt'); t.textContent = text; t.style.left = (f.x + 10) + 'px'; t.style.top = (f.y + (f.h - 18) / 2) + 'px'; t.style.maxWidth = (f.w - 20) + 'px';
+    t.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateX(' + (sb.left - pr.left - f.x - 30) + 'px) scale(.8)', opacity: 0 }], { duration: 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
+    var ok = add('fly-ok', '<svg viewBox="0 0 24 24"><path d="M6 12.5l4 4 8-9" fill="none" stroke="#0a0a0a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    var cx = sb.left - pr.left + sb.width / 2, cy = sb.top - pr.top + sb.height / 2;
+    ok.style.left = (sb.left - pr.left) + 'px'; ok.style.top = (sb.top - pr.top) + 'px'; ok.style.width = sb.width + 'px';
+    ok.animate([{ width: sb.width + 'px', left: (sb.left - pr.left) + 'px', background: '#fafafa' }, { width: '28px', left: (cx - 14) + 'px', background: '#8CCFA4' }],
+      { duration: 280, delay: 240, easing: 'cubic-bezier(.3,1.3,.5,1)', fill: 'both' });
+    ok.firstChild.animate([{ strokeDashoffset: 20 }, { strokeDashoffset: 0 }], { duration: 220, delay: 440, fill: 'both' });
+    ok.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }], { duration: 260, delay: 600 });
+    return 560;
+  }
+  /* 5. Stream: the letters lift off one after another and pour into the notch */
+  function sendStream(text, f, to, add) {
+    var line = add('fly-line'); line.style.left = (f.x + 10) + 'px'; line.style.top = (f.y + (f.h - 18) / 2) + 'px';
+    var shown = text.length > 36 ? text.slice(0, 35) + '\u2026' : text;
+    line.innerHTML = shown.split('').map(function (c) { return '<span>' + (c === ' ' ? '&nbsp;' : esc(c)) + '</span>'; }).join('');
+    var lx = f.x + 10, ly = f.y + (f.h - 18) / 2 + 9, spans = line.children, n2 = spans.length;
+    for (var i = 0; i < n2; i++) {
+      var sp = spans[i], x = lx + sp.offsetLeft + sp.offsetWidth / 2, dx = to.x - x, dy = to.y - ly, lift = -14 - (i % 3) * 4;
+      sp.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .3).toFixed(1) + 'px,' + (dy * .45 + lift).toFixed(1) + 'px) rotate(' + ((i % 2 ? 1 : -1) * 18) + 'deg)', opacity: 1, offset: .45 },
+        { transform: 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) scale(.3)', opacity: 0 }],
+        { duration: 420, delay: 60 + Math.round(i * Math.min(12, 300 / n2)), easing: 'cubic-bezier(.5,0,.5,1)', fill: 'both' });
+    }
+    return 640;
   }
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
@@ -547,7 +618,7 @@
     var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
-        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '"><span class="act-bl">' + esc(b[1]) + '</span><kbd>' + (choices ? '' : CMDOPT) + b[2] + '</kbd></button>';
+        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '"><span class="act-bl">' + esc(b[1]) + '</span><kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd></button>';
       }).join('');
     actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(p.name) + '</span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
@@ -852,6 +923,12 @@
     cr.style.setProperty('--run', (idleD + 24) + 'px');
     cr.dataset.m = 'awake'; look(2.6, 0);
     cr.classList.add('running'); ci.classList.remove('run'); void ci.offsetWidth; ci.classList.add('run');
+    /* as it ducks in under the notch, the notch gives a little: a bump down and a nudge the way it ran, then settles */
+    setTimeout(function () {
+      n.style.transformOrigin = '50% 0';
+      n.animate([{ transform: 'none' }, { transform: 'translateX(1.5px) scale(1.02, 1.16)', offset: .28 }, { transform: 'translateX(-.6px) scale(.995, .95)', offset: .6 }, { transform: 'none' }],
+        { duration: 480, easing: 'cubic-bezier(.3,.7,.4,1)' }).onfinish = function () { n.style.transformOrigin = ''; };
+    }, 620);
     setTimeout(function () {
       cr.style.transition = 'none'; cr.style.opacity = 0;
       ci.classList.remove('run'); cr.classList.remove('running'); look(0, 0);
@@ -1199,7 +1276,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, sendStyle: function (v) { sendStyle = v; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -1214,7 +1291,7 @@
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, 760); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, window.__closeAfter || 760); return; }
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */

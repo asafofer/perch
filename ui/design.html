@@ -80,6 +80,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
+  /* a reply to a terminal session, sent a second after the field opens, in one of the ways it can go */
+  function sendAs(style) { return function () { window.perch.sendStyle(style); d.project(7); d.show('open');
+    setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit, then run it'; }, 600);
+    setTimeout(function () { document.querySelector('.x-send').click(); }, 1700); }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
     ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', answerable: true,
@@ -112,9 +116,16 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { document.querySelector('[data-act=snooze]').click(); }, 700); }],
       ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
-      ['All sessions', 'Press Tab. What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
+      ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
+    ]],
+    ['Sending a reply', [
+      ['1. Lift off', 'The card clears, then your words rise as a bubble and arc into the notch, a puff of dust behind.', sendAs('lift')],
+      ['2. Paper plane', 'The bubble folds into a paper plane that loops once and glides into the notch, a dotted trail behind it.', sendAs('plane')],
+      ['3. Gulp', 'The bubble shoots straight up, stretching as it goes, and the notch swallows it with a green ripple.', sendAs('gulp')],
+      ['4. Check', 'The words slide into Send, which turns into a green check. Nothing flies.', sendAs('check')],
+      ['5. Stream', 'The letters lift off one after another and pour into the notch.', sendAs('stream')]
     ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],

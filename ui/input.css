@@ -225,3 +225,17 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   animation: shimmer 1.9s cubic-bezier(.4,0,.6,1) infinite; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 @media (prefers-reduced-motion: reduce) { .shimmer { animation: none; color: hsl(var(--muted-foreground)); background: none; } }
+/* the other ways a reply can go into the notch (app.js sendFly) */
+.fly-plane { position: absolute; z-index: 20; width: 18px; height: 18px; pointer-events: none; }
+.fly-plane svg { width: 100%; height: 100%; display: block; }
+.fly-dot { position: absolute; z-index: 19; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; pointer-events: none; animation: flydot .7s ease-out both; }
+@keyframes flydot { 0% { opacity: 0; } 15% { opacity: .9; } 100% { opacity: 0; transform: scale(.4); } }
+.fly-ring { position: absolute; z-index: 19; width: 60px; height: 60px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(140,207,164,.9), 0 0 18px rgba(140,207,164,.5); opacity: 0; pointer-events: none;
+  animation: flyring .55s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes flyring { 0% { opacity: .9; transform: scale(.1); } 100% { opacity: 0; transform: scale(1.4); } }
+.fly-txt, .fly-line { position: absolute; z-index: 20; height: 18px; font-size: 13px; line-height: 18px; color: #fafafa; white-space: nowrap; overflow: visible; pointer-events: none; }
+.fly-txt { overflow: hidden; text-overflow: ellipsis; }
+.fly-line span { display: inline-block; }
+.fly-ok { position: absolute; z-index: 21; height: 28px; border-radius: 999px; display: grid; place-items: center; pointer-events: none; }
+.fly-ok svg { width: 16px; height: 16px; }
+.fly-ok path { stroke-dasharray: 20; }
