@@ -1187,6 +1187,8 @@
     var seg = row.querySelectorAll('.s-idle'), apps = row.querySelectorAll('.s-app');
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
+      /* on a row that has no sideways choice, Left goes back to where Settings came from */
+      if (!apps.length && !(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
       if (apps.length) { setAppAt = (setAppAt + d + apps.length) % apps.length; paintFocus(); }
       else if (seg.length && setLast) {
         var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast.idleMinutes));
