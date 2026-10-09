@@ -249,3 +249,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr.tickled .ck { display: block; top: calc(var(--et) + 17%); animation: blush 1.45s ease-out both; }
 @keyframes blush { 0% { opacity: 0; } 14% { opacity: .9; } 65% { opacity: .85; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .cr-in.giggle, .cr.tickled .ck { animation: none; } }
+/* replying (app.js showSaid): the agent's message takes the summary's place */
+.o-said { display: none; }
+.p-open[data-rep="1"] .o-said { display: block; }
+.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
+.o-said-in { scrollbar-width: none; overscroll-behavior: contain; }
+.o-said-in::-webkit-scrollbar { display: none; }
+.o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
+.o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
