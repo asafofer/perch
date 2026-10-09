@@ -65,7 +65,8 @@ enum Restorer {
             let agent = p.app, preferred = Terminals.preferred
             DispatchQueue.global(qos: .userInitiated).async {
                 let landing: Landing
-                let hits = LiveSessions.all().filter { $0.agent == agent && $0.cwd == cwd }
+                let live = LiveSessions.all(), hits = live.filter { $0.agent == agent && $0.cwd == cwd }
+                if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch pick up: \(agent) in \(cwd); live: \(live.map { "\($0.agent) \($0.cwd) \($0.app ?? "-")" })") }
                 if let hit = hits.first, let app = Terminals.focus(hit) {
                     landing = .app(app, exact: hits.count == 1)   // two sessions in one folder: the tab may be the other one
                 } else {

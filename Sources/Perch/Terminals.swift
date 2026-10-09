@@ -162,10 +162,18 @@ enum LiveSessions {
         var pid = start
         for _ in 0..<12 where pid > 1 {
             if let app = NSRunningApplication(processIdentifier: pid), let id = app.bundleIdentifier, app.activationPolicy == .regular { return id }
-            var bsd = proc_bsdinfo()
-            guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, Int32(MemoryLayout<proc_bsdinfo>.size)) > 0 else { return nil }
-            pid = pid_t(bsd.pbi_ppid)
+            guard let up = parent(of: pid) else { return nil }
+            pid = up
         }
         return nil
+    }
+
+    /// A process's parent, from the process table. Unlike proc_pidinfo it also works for processes owned by root,
+    /// like the `login` that Terminal puts between itself and your shell.
+    static func parent(of pid: pid_t) -> pid_t? {
+        var info = kinfo_proc(), size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        return info.kp_eproc.e_ppid
     }
 }

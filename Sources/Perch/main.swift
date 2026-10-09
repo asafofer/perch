@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }
+            for hit in LiveSessions.all() { print("live in a terminal: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(hit.app ?? "no app")") }
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }

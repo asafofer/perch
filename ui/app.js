@@ -37,13 +37,16 @@
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
   }
-  /* a terminal session: its agent's icon, with the terminal it lives in as a small badge on the corner */
+  /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex) as a
+     small badge on its corner. A session in the Claude or Codex app keeps that app's icon. */
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed' };
   function AppOf(p, c) {
     if (!p.via) return App(p.app, c);
-    var small = c === 'size-3.5', b = small ? 'size-2 -bottom-[2px] -right-[3px] rounded-[2px]' : 'size-[11px] -bottom-[3px] -right-[3px] rounded-[3px]';
-    var badge = icons[p.via] ? '<img class="absolute ' + b + ' ring-[1.5px] ring-black" src="' + icons[p.via] + '" alt="">'
-      : '<svg class="absolute ' + b + ' ring-[1.5px] ring-black" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#18181B"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="In ' + esc({ terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed' }[p.via] || 'a terminal') + '">' + App(p.app, c) + badge + '</span>';
+    var small = c === 'size-3.5', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
+    var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[p.via] + '" alt="">'
+      : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<span class="relative flex flex-none" title="' + (p.app === 'codex' ? 'Codex' : 'Claude Code') + ' in ' + esc(TERMS[p.via] || 'a terminal') + '">' + term +
+      '<span class="absolute ' + b + ' flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(p.app, 'size-full') + '</span></span>';
   }
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
