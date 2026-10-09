@@ -257,7 +257,7 @@
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         App(p.app) +
         '<span class="mq min-w-0 flex-1 truncate"><span class="mq-in"><span class="font-medium">' + esc(p.name) + '</span>' + (p.topic ? '<span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span>' : '') + '</span></span>' +
-        '<span class="flex flex-none items-center gap-1.5 text-xs tabular-nums">' + Phrase(phrase(p, true)) + '</span></div>';
+        '<span class="st flex flex-none items-center gap-2 text-xs tabular-nums"></span></div>';
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
@@ -270,7 +270,10 @@
       });
     }
     var sel = null;
-    sl.querySelectorAll('.row').forEach(function (r) { var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r; });
+    sl.querySelectorAll('.row').forEach(function (r) {
+      var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r;
+      var st = rowStatus(s.projects[+r.dataset.i]), el = r.querySelector('.st'); if (el.innerHTML !== st) el.innerHTML = st;
+    });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel) {
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
@@ -280,6 +283,11 @@
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
+  }
+  /* a row's status in words when it is news or needs you, and always how long ago, at the right edge */
+  function rowStatus(p) {
+    var ph = phrase(p, true), age = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0];
+    return (ph.c ? '<span class="flex items-center gap-1.5">' + Phrase(ph) + '</span>' : '') + '<span class="min-w-[22px] text-right text-muted-foreground">' + esc(age) + '</span>';
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;

@@ -82,6 +82,31 @@ import Foundation
         let q = Recap.project(digest: d, git: nil, now: Date())!
         #expect(q.name == "site"); #expect(q.topic == "Fix the review sign")
     }
+    @Test func oldNewsIsHistory() {
+        let now = Date()
+        // back from a weekend: everything since you left still counts
+        let weekend = now.addingTimeInterval(-60 * 3600)
+        #expect(WhileAway.newsSince(now: now, lastLeft: weekend) == weekend)
+        // a short break, or no break known: the last day counts
+        #expect(WhileAway.newsSince(now: now, lastLeft: now.addingTimeInterval(-3600)) == now.addingTimeInterval(-86_400))
+        #expect(WhileAway.newsSince(now: now, lastLeft: nil) == now.addingTimeInterval(-86_400))
+    }
+    @Test func aQuestionFromDaysAgoNoLongerNeedsYou() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "What would you change first?"
+        var p = Recap.project(digest: d, git: nil, now: Date())!
+        #expect(p.needsAttention)
+        let since = Date().addingTimeInterval(-86_400)
+        p.lastActive = since.addingTimeInterval(-3600)
+        let old = p.settled(since: since)
+        #expect(!old.needsAttention); #expect(old.status.kind == "idle"); #expect(old.status.text == p.status.text)
+        p.lastActive = since.addingTimeInterval(3600)
+        #expect(p.settled(since: since).needsAttention)
+        // a request still open is never history
+        p.lastActive = since.addingTimeInterval(-3600)
+        p.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
+        #expect(p.settled(since: since).needsAttention)
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")

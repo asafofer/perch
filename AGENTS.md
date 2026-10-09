@@ -41,7 +41,7 @@ Sessions: one row per session, newest first, up to 15 (the list shows five and s
 
 Status, two sources. With live status on, hooks say exactly what happened (`LiveStatus.apply`) and win over the transcript. Claude's PermissionRequest hook runs alongside the app's own prompt, whichever answers first wins, so Perch can allow, deny or answer a question (`answers` in `updatedInput`). Codex's runs before its prompt, so Perch answers Codex at once with no decision and only shows the status. Without hooks, status is guessed from the transcript's shape (`Recap.statusAndNext`). Test the socket without touching any config: `echo '{"session_id":"…","tool_name":"Bash","tool_input":{"command":"ls"}}' | ~/.config/perch/hook claude PermissionRequest` (it waits for your answer on the card).
 
-When Perch speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped), never during a call, camera or presentation (`Quiet`), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in.
+When Perch speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped) and since your last break or within the last day (`WhileAway.newsSince`; older is history, and a guessed "needs you" from then reads as idle, `Project.settled`), never during a call, camera or presentation (`Quiet`), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in.
 
 ## Running and building
 

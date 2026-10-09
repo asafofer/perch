@@ -261,9 +261,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// New data while the card is up: swap it in, keep the same project selected, and redraw.
     // MARK: what you have seen
     private func isFresh(_ p: Project) -> Bool {
-        guard let t = p.lastActive else { return false }
+        guard let t = p.lastActive, t > newsSince else { return false }
         return t.timeIntervalSince1970 > (seen[p.id] ?? 0) + 0.5
     }
+    /// Since your last break, or the last day: anything older is history, seen or not.
+    private var newsSince: Date { WhileAway.newsSince(now: Date(), lastLeft: lastAway?.since) }
     /// News: changed since you last looked and not still working.
     private func isNews(_ p: Project) -> Bool { isFresh(p) && p.status.kind != "running" }
 
@@ -344,7 +346,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard let l = live[p.sessionId ?? p.id], l.at >= (p.lastActive ?? .distantPast).addingTimeInterval(-30) else { return p }
             return p.applying(l)
         }
-        return urgent(recapped(withLive))
+        let since = newsSince
+        return urgent(recapped(withLive.map { $0.settled(since: since) }))
     }
 
     /// Asking you first, then what finished since you looked, then what is working, then the rest; newest first in each.

@@ -345,6 +345,26 @@ public enum WhileAway {
     }
 }
 
+extension WhileAway {
+    /// Where news starts: everything since you last left the Mac, and everything from the last day. Before that is
+    /// history, even if you never looked: a question from two days ago is not waiting on you any more.
+    public static func newsSince(now: Date, lastLeft: Date?) -> Date {
+        min(now.addingTimeInterval(-86_400), lastLeft ?? .distantFuture)
+    }
+}
+
+extension Project {
+    /// The same project with a "needs you" from before `since` read as history. A request still open (`ask`) always counts.
+    public func settled(since: Date) -> Project {
+        guard needsAttention, ask == nil, let t = lastActive, t < since else { return self }
+        let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
+        var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
+                        topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+        p.lastActive = lastActive
+        return p
+    }
+}
+
 public enum RelativeTime {
     public static func away(from: Date, to now: Date) -> String {
         let s = max(0, Int(now.timeIntervalSince(from)))
