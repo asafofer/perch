@@ -28,10 +28,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
-/* scenarios */
-.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
-.group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px}
-.group h3{font:600 12px Inter,sans-serif;letter-spacing:.02em;color:var(--pg-muted);margin:0 0 8px;text-transform:uppercase}
+/* scenarios: one category at a time, picked with tabs like Display and Wallpaper */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.tabs button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.tabs button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.tabs button i{font-style:normal;color:var(--pg-muted);margin-left:5px;font-variant-numeric:tabular-nums}
+.group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px 6px}
+.group[hidden]{display:none}
 .sc{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;transition:background .15s}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
 .sc b{font:500 13px Inter,sans-serif}.sc span{font-size:12px;line-height:1.4;color:var(--pg-muted)}
@@ -174,8 +177,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };
   wrap.parentNode.insertBefore(play, wrap); play.style.marginBottom = '10px';
-  GROUPS.forEach(function (g) {
-    var box = document.createElement('div'); box.className = 'group'; box.innerHTML = '<h3>' + g[0] + '</h3>';
+  var tabs = document.createElement('div'); tabs.className = 'tabs'; tabs.setAttribute('role', 'tablist'); wrap.parentNode.insertBefore(tabs, wrap);
+  var boxes = [];
+  /* which category you had open is remembered here only, for the next reload */
+  function showTab(i) {
+    boxes.forEach(function (b, k) { b.hidden = k !== i; });
+    tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
+    try { localStorage.setItem('perch-design-tab', String(i)); } catch (e) {}
+  }
+  GROUPS.forEach(function (g, gi) {
+    var t = document.createElement('button'); t.setAttribute('role', 'tab'); t.innerHTML = g[0] + '<i>' + g[1].length + '</i>'; t.onclick = function () { showTab(gi); }; tabs.appendChild(t);
+    var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
       b.innerHTML = '<b>' + s[0] + '</b><span>' + s[1] + '</span>';
@@ -184,6 +196,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
+  var saved = 0; try { saved = +localStorage.getItem('perch-design-tab') || 0; } catch (e) {}
+  showTab(saved < boxes.length ? saved : 0);
   btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
 })();
