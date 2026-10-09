@@ -589,7 +589,7 @@
   }
   /* `left` sits where Back would be: the keyboard hints on the character step */
   function ofoot(i, back, mid, label, action, left) {
-    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', '', 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
+    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
   }
   function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
@@ -679,7 +679,7 @@
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
         oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
-        ofoot(5, true, g ? '' : Button('ghost', 'Skip', '', 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
+        ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       var rows = o.sources.map(function (x) {
         var sub = o.scanning ? 'Scanning\u2026' : (x.count ? esc(x.names.slice(0, 2).join(', ')) + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
@@ -695,14 +695,14 @@
       h = otitle(o, 'Know the moment they need you', 'Claude Code and Codex tell Perch when they finish or need your OK, and you can answer from the notch.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each app. You can remove it in Settings.') + '</p>') +
-        ofoot(5, true, live ? '' : Button('ghost', 'Skip', '', 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
+        ofoot(5, true, live ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
     } else if (st === 5) {
       var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
       var off = o.summaries === 'off';
       h = otitle(o, 'Better summaries', 'Written on your Mac. Nothing leaves it.') +
         oi(3, '<div class="mt-3 px-4">' + orow(o.summaries === 'downloading' ? '<span class="grid size-4 flex-none place-items-center">' + Spinner('size-3.5') + '</span>' : tick(o.summaries === 'ready'), sm[0], '') + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + sm[1] + '</p>') +
-        ofoot(5, true, off ? Button('ghost', 'Skip', '', 'o-skip') : '', off ? 'Open Settings' : 'Next', off ? 'settings' : 'next');
+        ofoot(5, true, off ? Button('ghost', 'Skip', Kbd('S'), 'o-skip') : '', off ? 'Open Settings' : 'Next', off ? 'settings' : 'next');
     } else {
       h = otitle(o, 'You\u2019re all set', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -790,6 +790,9 @@
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
+    /* S skips a step that can be skipped; Left goes back, except on the character page where it changes the shape */
+    if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
+    if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
     /* left and right change the shape, up and down the colour; both wrap */
     var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
@@ -1043,7 +1046,7 @@
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
-      if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter')) { e.preventDefault(); onbKey(arrows[e.key] || 'enter'); return; }
+      if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }
       if (ph === 'settings' && (arrows[e.key] || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); settingsKey(arrows[e.key] || 'enter'); return; }
       /* the same keys as the app when the card asks something: A allows, D denies; for questions a number, Return, Left and Right */
       var ask = ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask;

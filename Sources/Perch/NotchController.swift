@@ -856,6 +856,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard let self, self.machine.phase != .idle else { return e }
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
             if self.machine.phase == .onboarding {
+                if e.charactersIgnoringModifiers?.lowercased() == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
                 switch e.keyCode {
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
                 case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)
