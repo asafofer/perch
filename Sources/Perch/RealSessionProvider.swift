@@ -89,11 +89,11 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         var seen = Set<String>(), out: [Found] = []
         let now = Date()
         let desktop = DesktopSessions.shared.index()
-        let live = Set(LiveSessions.claude().map(\.cwd))
         for folder in folders.prefix(12) {
+            // Only sessions that live in the Claude app: Pick up opens them there. Terminal and headless runs are skipped.
             let hit = folder.lazy.compactMap { item -> (item: (url: URL, mtime: Date), digest: SessionDigest)? in
                 guard let d = self.cachedDigest(item.url, mtime: item.mtime, parse: TranscriptParser.digest), d.lastTimestamp != nil,
-                      !(d.entrypoint?.hasPrefix("sdk") ?? false) else { return nil }
+                      let id = d.sessionId, desktop[id] != nil, !Recap.isTrivial(d) else { return nil }
                 return (item, d)
             }.first
             guard let hit, let cwd = hit.digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
@@ -103,8 +103,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             let app = digest.sessionId.flatMap { desktop[$0] }
             if let t = app?.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             let git = cachedGit(cwd).info
-            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
-                p.liveInTerminal = app == nil && live.contains(cwd)
+            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: app?.id, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 out.append((p, digest, git, last))
             }
         }
@@ -139,7 +138,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         for item in candidates.prefix(20) {
             guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: CodexTranscript.digest) else { continue }
             if digest.cwd == nil || digest.sessionId == nil, let head = Self.head(of: item.url) { digest.cwd = digest.cwd ?? head.cwd; digest.sessionId = digest.sessionId ?? head.sessionId }
-            guard let cwd = digest.cwd, !seen.contains(cwd), usable(cwd) else { continue }
+            guard let cwd = digest.cwd, !seen.contains(cwd), usable(cwd), !Recap.isTrivial(digest) else { continue }
             seen.insert(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
@@ -256,13 +255,9 @@ enum Landing {
     case none
     /// The app now coming forward. `exact`: once it has loaded, its focused input belongs to this session.
     case app(String, exact: Bool)
-    /// A new terminal window that is starting `claude --resume` in `cwd`.
-    case newTerminal(String, cwd: String)
 }
 
-/// What "Pick up" does for a real session: reopen it where you were working.
-/// Claude app sessions open in the Claude app, Codex threads in Codex. A terminal session that is still running is
-/// brought to the front in its own tab; otherwise it resumes in a new window of the terminal you use.
+/// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex.
 @MainActor
 enum Restorer {
     static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex"
@@ -278,25 +273,6 @@ enum Restorer {
             NSWorkspace.shared.open(url); done(.app(claudeApp, exact: true))
             return
         }
-        guard let cwd = p.cwd, let id = p.sessionId else { done(.none); return }   // sample data does nothing
-        // AppleScript waits while macOS asks for Automation permission, so it runs off the main thread.
-        let preferred = Terminals.preferred
-        DispatchQueue.global(qos: .userInitiated).async {
-            let landing: Landing
-            let hits = LiveSessions.claude().filter { $0.cwd == cwd }
-            if let hit = hits.first {
-                // Already open in a tab: go there instead of starting a second copy. Two sessions in one folder are ambiguous.
-                if let app = Terminals.focus(hit) { landing = .app(app, exact: hits.count == 1) }
-                else { landing = .none; DispatchQueue.main.async { MainActor.assumeIsolated { activate(preferred) } } }
-            } else {
-                Terminals.open("claude --resume \(id)", in: cwd, app: preferred)
-                landing = .newTerminal(preferred, cwd: cwd)
-            }
-            DispatchQueue.main.async { MainActor.assumeIsolated { done(landing) } }
-        }
-    }
-
-    private static func activate(_ bundle: String) {
-        NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
+        done(.none)   // sample data does nothing
     }
 }

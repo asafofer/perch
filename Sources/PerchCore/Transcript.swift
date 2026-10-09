@@ -19,6 +19,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var interrupted = false
     /// The last thing you asked that says something: "yes", "ok go ahead" and "push it" are skipped.
     public var lastAsk: String?
+    /// The agent used a tool (edited, ran, searched) somewhere in the part of the session that was read.
+    public var didWork = false
     /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
     public var entrypoint: String?
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
@@ -68,7 +70,7 @@ public enum TranscriptParser {
             if type == "assistant" {
                 let done: Set<String> = ["end_turn", "stop_sequence", "max_tokens", "refusal"]
                 d.turnOpen = !done.contains(message?["stop_reason"] as? String ?? "")
-                for b in blocks where b["type"] as? String == "tool_use" { open.append((b["id"] as? String ?? "", PendingTool(block: b))) }
+                for b in blocks where b["type"] as? String == "tool_use" { open.append((b["id"] as? String ?? "", PendingTool(block: b))); d.didWork = true }
             } else if isInterrupt(message?["content"]) {
                 d.turnOpen = false; d.interrupted = true; open = []
             } else {
@@ -171,7 +173,8 @@ public enum Recap {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         let name = URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
-        let context = (d.lastAsk ?? d.lastUserText).map { "You last asked: “\(clip($0, 140))”" } ?? "Your last session is ready to resume."
+        // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
+        let context = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
@@ -183,6 +186,36 @@ public enum Recap {
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
         return p
+    }
+
+    /// The agent's outcome in a sentence or two: the first statement in its last message that says something.
+    /// Markdown structure, filler ("Done.", "Sure!"), questions and list lead-ins ("Here is what changed:") are skipped.
+    public static func outcome(_ text: String?) -> String? {
+        guard var s = text, !s.isEmpty else { return nil }
+        // Headings and list markers start a new piece, so "## Summary - Fixed it" does not read as one sentence.
+        s = s.replacingOccurrences(of: #"(^|\s)(#{1,6}|[-*•>]|\d+\.)\s+"#, with: "\u{1}", options: .regularExpression)
+        s = s.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
+        s = s.replacingOccurrences(of: #"(?<=[.!?])\s+(?=[A-Z0-9`“"'(])"#, with: "\u{1}", options: .regularExpression)
+        let sentences = s.components(separatedBy: CharacterSet(charactersIn: "\u{1}\n")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let filler = ["sure", "okay", "ok", "got it", "great", "perfect", "alright", "all right", "done", "all done", "fixed", "nice", "good news"]
+        func says(_ t: String, words min: Int = 4) -> Bool {
+            let lower = t.lowercased(), words = t.split(separator: " ").count
+            if words < min || t.hasSuffix("?") || t.hasSuffix(":") { return false }
+            return !filler.contains { lower.hasPrefix($0 + ".") || lower.hasPrefix($0 + "!") || lower.hasPrefix($0 + ",") || lower == $0 }
+        }
+        guard let i = sentences.firstIndex(where: { says($0) }) else { return nil }
+        var out = sentences[i]
+        if i + 1 < sentences.count, says(sentences[i + 1], words: 3), out.count + sentences[i + 1].count < 140 { out += " " + sentences[i + 1] }
+        return clip(out, 150)
+    }
+
+    /// A session with nothing in it worth going back to: a hello and a one-line answer.
+    public static func isTrivial(_ d: SessionDigest) -> Bool {
+        guard !d.turnOpen, d.pendingTool == nil, !d.didWork else { return false }
+        // Small talk: you never wrote more than a few words at a time and the agent never did any real work.
+        let longestAsk = d.recent.filter { $0.role == "user" }.map(\.text.count).max() ?? 0
+        let answered = d.recent.filter { $0.role == "assistant" }.map(\.text.count).reduce(0, +)
+        return longestAsk <= 24 && answered < 400
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
@@ -244,14 +277,17 @@ public enum Recap {
 
     /// A next step the assistant stated itself: a line or sentence like "Next: …", "Then …", "Still to do: …".
     static func explicitNext(in text: String) -> String? {
-        let cues = ["next:", "next,", "next I", "then ", "still to do", "remaining:", "to do:", "todo:", "left to do", "next step"]
+        // Only cues that hand you a step. "Then …" is usually the agent narrating its own plan ("Then run the scanner:").
+        let cues = ["next:", "next step:", "next step is to", "still to do:", "remaining:", "to do:", "todo:", "left to do:"]
         let pieces = text.replacingOccurrences(of: "\n", with: ". ").components(separatedBy: CharacterSet(charactersIn: ".!"))
         for raw in pieces.reversed() {
             var t = raw.trimmingCharacters(in: CharacterSet(charactersIn: " -•*\t"))
             guard t.count > 8 else { continue }
             let lower = t.lowercased()
-            guard let cue = cues.first(where: { lower.hasPrefix($0.lowercased()) }) else { continue }
-            t = String(t.dropFirst(cue.count)).trimmingCharacters(in: CharacterSet(charactersIn: " :,-"))
+            guard let cue = cues.first(where: { lower.hasPrefix($0) }) else { continue }
+            t = String(t.dropFirst(cue.count)).trimmingCharacters(in: CharacterSet(charactersIn: " ,-"))
+            // A lead-in to a list, or the agent talking about itself, is not a step for you.
+            if t.hasSuffix(":") || t.range(of: #"^(I|I'll|I'm|I've|we|we'll|let me)\b"#, options: [.regularExpression, .caseInsensitive]) != nil { continue }
             if t.count > 6 { return t.prefix(1).uppercased() + t.dropFirst() }
         }
         return nil
@@ -333,10 +369,12 @@ public enum RecapPrompt {
     You write the welcome-back card for a developer returning to a coding session. \
     Use ONLY facts stated in the conversation or the git facts below. Never invent topics, files, bugs or tasks.
     - headline: what they were doing at the END of the conversation, about the latest messages and not older topics. \
-    Second person, past tense, starting with "You were". Max 60 characters, ends with a period.
-    - context: the key decision or where things stand now, in plain words. Max 110 characters.
-    - next: the single most useful next step, as a short imperative. Base it on the LATEST messages and the git facts. \
-    Never suggest something already done or merged, never suggest committing, pushing or merging, and never repeat a suggestion the user rejected. Max 60 characters.
+    Second person, past tense, starting with "You were", never the word "now". Max 60 characters, ends with a period.
+    - context: the outcome. What the assistant did, found or changed in its LAST message, in plain past-tense words. \
+    Not what the user asked. Max 110 characters.
+    - next: the single most useful next step for the developer, as a short imperative. Base it on the LATEST messages. \
+    Never something the assistant already did or said it is doing, never committing, pushing or merging, \
+    and never a suggestion the user rejected. Max 60 characters.
     No markdown, no emoji, no quotation marks around the fields.
     """
 
@@ -372,7 +410,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.liveInTerminal = liveInTerminal
+        p.lastActive = lastActive
         return p
     }
 }
@@ -393,6 +431,7 @@ public enum CodexTranscript {
             if type == "event_msg", let kind = payload["type"] as? String {
                 if kind == "task_started" { d.turnOpen = true; d.interrupted = false } else if kind == "task_complete" { d.turnOpen = false } else if kind == "turn_aborted" { d.turnOpen = false; d.interrupted = true }
             }
+            if type == "response_item", let kind = payload["type"] as? String, kind.hasSuffix("_call") { d.didWork = true }
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }

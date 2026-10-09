@@ -184,6 +184,44 @@ import Foundation
         #expect(line("done", 64_800, false, nil) == "Last active 18h ago")
         #expect(line("attention", 600, false, nil) == "Waiting on you for 10m")
     }
+    // MARK: the card says what the agent did, not what you typed
+    @Test func contextIsTheAgentsOutcome() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "Done. Settings now fits the panel: the title moved into the top strip. Want me to rebuild?"
+        let p = Recap.project(digest: d, git: nil, now: Date())!
+        #expect(p.context == "Settings now fits the panel: the title moved into the top strip.")
+    }
+    @Test func outcomeSkipsFillerMarkdownAndListLeadIns() {
+        #expect(Recap.outcome("Sure! ## Summary - Fixed the clipping on small windows. - Added a test.") == "Fixed the clipping on small windows. Added a test.")
+        #expect(Recap.outcome("Here is what changed:") == nil)
+        #expect(Recap.outcome("Done.") == nil)
+        #expect(Recap.outcome("**Build passes** and the three flaky tests are gone.") == "Build passes and the three flaky tests are gone.")
+    }
+    @Test func withNoOutcomeTheCardFallsBackToYourAsk() {
+        let p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: Date())!   // "Done. Want a table next?"
+        #expect(p.context == "You asked: “make the sign centred”")
+    }
+    @Test func theAgentNarratingItsOwnPlanIsNotYourNextStep() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "The summary screen works. Then run the design scanner over the changed code:"
+        #expect(Recap.project(digest: d, git: nil, now: Date())!.next == "")
+        d.lastAssistantText = "All wired up. Next: I'll clean up the CSS."
+        #expect(Recap.project(digest: d, git: nil, now: Date())!.next == "")
+        d.lastAssistantText = "All wired up. Next step: check the hero at phone width."
+        #expect(Recap.project(digest: d, git: nil, now: Date())!.next == "Check the hero at phone width")
+    }
+    @Test func aHelloIsNotASessionWorthGoingBackTo() {
+        var d = SessionDigest(); d.recent = [.init(role: "user", text: "nothin much"), .init(role: "assistant", text: "Not much here either. What should we build?")]
+        #expect(Recap.isTrivial(d))
+        d.recent = ["hey", "Hey!", "how are you", "Doing well, thanks.", "doing fine", "Glad to hear it.", "nothin much", "Fair enough.", "yep", "Okay"]
+            .enumerated().map { .init(role: $0.offset % 2 == 0 ? "user" : "assistant", text: $0.element) }
+        #expect(Recap.isTrivial(d))
+        d.recent = [.init(role: "user", text: "fix the tests"), .init(role: "assistant", text: "Fixed the flaky login test.")]; d.didWork = true
+        #expect(!Recap.isTrivial(d))   // short words, real work
+        d.didWork = false
+        d.recent = [.init(role: "user", text: "hi")]; d.turnOpen = true
+        #expect(!Recap.isTrivial(d))   // still working: it may become something
+    }
     @Test func readsHowTheSessionWasStarted() {
         let headless = #"{"type":"user","entrypoint":"sdk-cli","sessionId":"s3","cwd":"/x","message":{"content":"summarise"}}"#
         #expect(TranscriptParser.digest(lines: [headless]).entrypoint == "sdk-cli")

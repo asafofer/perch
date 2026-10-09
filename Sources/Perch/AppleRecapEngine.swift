@@ -4,11 +4,11 @@ import PerchCore
 
 @Generable
 struct GeneratedRecap {
-    @Guide(description: "What the developer was doing, taken from the conversation. Starts with You were. Under 60 characters.")
+    @Guide(description: "What the developer was doing, taken from the conversation. Starts with You were, past tense, never 'now'. Under 60 characters.")
     var headline: String
-    @Guide(description: "The key decision or where things stand now, taken from the conversation. Under 110 characters.")
+    @Guide(description: "What the assistant did, found or changed in its last message, past tense. Not what the user asked. Under 110 characters.")
     var context: String
-    @Guide(description: "The single most useful next step, taken from the latest messages. Under 60 characters. Never something already done.")
+    @Guide(description: "The single most useful next step for the developer, taken from the latest messages. Under 60 characters. Never something the assistant already did.")
     var next: String
 }
 
@@ -62,7 +62,7 @@ final class RecapCache: @unchecked Sendable {
 
     static func key(for d: SessionDigest) -> String? {
         guard let id = d.sessionId, let t = d.lastTimestamp else { return nil }
-        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v3"
+        return "\(id)|\(Int(t.timeIntervalSince1970))|apple-v4"
     }
     func get(_ key: String) -> RecapText? { lock.lock(); defer { lock.unlock() }; return store[key] }
     func set(_ key: String, _ value: RecapText) {
@@ -94,8 +94,11 @@ enum RecapMerge {
         r.next = r.next.prefix(1).uppercased() + r.next.dropFirst()
         var headline = r.headline
         if !headline.hasSuffix(".") { headline += "." }
+        // "You were running the check now." mixes tenses; the card is about the past.
         let headlineOK = oneSentence && r.headline.hasPrefix("You were") && (8...64).contains(r.headline.count) && grounded(r.headline)
-        let contextOK = !repeats && (8...120).contains(r.context.count) && grounded(r.context) && !Grounding.copiesUserMessage(r.context, p.context)
+            && r.headline.range(of: #"\bnow\b"#, options: [.regularExpression, .caseInsensitive]) == nil
+        let asked = grounding?.lastAsk ?? ""
+        let contextOK = !repeats && (8...120).contains(r.context.count) && grounded(r.context) && (asked.isEmpty || !Grounding.copiesUserMessage(r.context, asked))
         let nextOK = oneSentence && (4...64).contains(r.next.count) && grounded(r.next) && !Recap.isGitChore(r.next)
         return p.withRecap(RecapText(headline: headlineOK ? headline : p.headline,
                                      context: contextOK ? r.context : p.context,
@@ -107,9 +110,10 @@ enum Grounding {
     private static let stop: Set<String> = ["were", "that", "with", "this", "your", "from", "have", "been", "into", "than", "then", "them", "they", "will", "what", "when", "where", "which", "about", "there", "their", "also", "just", "more", "some", "only", "need", "does", "make", "made"]
 
     /// True when the model just parroted the plain recap's quoted message back.
-    static func copiesUserMessage(_ modelText: String, _ plain: String) -> Bool {
-        let a = modelText.lowercased(), b = plain.lowercased()
-        return b.contains(a) || a.contains(String(b.dropFirst(16).prefix(40)))
+    /// True when the model only repeated your own prompt back instead of saying what the agent did.
+    static func copiesUserMessage(_ modelText: String, _ asked: String) -> Bool {
+        let a = modelText.lowercased(), b = asked.lowercased()
+        return b.contains(a) || (b.count >= 12 && a.contains(String(b.prefix(40))))
     }
 
     /// At least half the meaningful words of the text must appear in what the developer and Claude actually said.

@@ -126,14 +126,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
-    /// The most recent session of whichever app is in front: Claude, Codex or a terminal.
+    /// The most recent session of whichever app is in front: Claude or Codex.
     private func activeProjectIndex() -> Int? {
         guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
         return projects.firstIndex { p in
             switch bid {
             case Restorer.claudeApp: return p.app == "claude" && p.desktopSessionId != nil
             case Restorer.codexApp: return p.app == "codex"
-            default: return Terminals.all.contains(bid) && p.app == "claude" && p.desktopSessionId == nil
+            default: return false
             }
         }
     }
@@ -313,11 +313,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func startRefreshing() {
         // Switching apps changes which session counts as "the one you are in", so the resting character is re-evaluated.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            MainActor.assumeIsolated {
-                // Pick up opens terminal sessions in the terminal you use.
-                if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier, Terminals.all.contains(bid) { Prefs.lastTerminal = bid }
-                if self?.machine.phase == .idle { self?.push() }
-            }
+            MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
         }
         refreshProjects()
         startWatching()
@@ -352,8 +348,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Writes missing recaps with the on-device model, one at a time, and updates the card as each lands.
     func enrich() {
         guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
+        // Only sessions that have settled: a working session changes every few seconds, and each change would cost a model run.
         let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
-            guard let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
+            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
             return (p.id, input.digest, input.git, p.name, key, p.app == "codex" ? "Codex" : "Claude")
         }
         guard !todo.isEmpty else { return }
@@ -406,7 +403,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let away = awaySinceForCard, now = Date()
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsSent ? nil : AppIcons.all(), setup: AppleRecapEngine.setupState, allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
                           activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
@@ -476,7 +473,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
-        guard machine.autoCollapses, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen else { return }
+        // Only a card Perch opened on its own counts down. One you asked for stays until you are done with it.
+        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -590,18 +588,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Already in front means the app navigates inside itself, which takes longer than coming forward.
                 target = app; let wait = frontBefore == app ? 1.6 : 0.9
                 settle = { try? await Task.sleep(for: .seconds(wait)); return true }
-            case .newTerminal(let app, let cwd):
-                // Type only once claude is running, never into the shell before it.
-                target = app
-                settle = {
-                    for _ in 0..<60 {
-                        if await Task.detached(operation: { LiveSessions.claude().contains { $0.cwd == cwd } }).value {
-                            try? await Task.sleep(for: .seconds(1.5)); return true
-                        }
-                        try? await Task.sleep(for: .milliseconds(250))
-                    }
-                    return false
-                }
             default:
                 NSLog("Perch: reply left on the clipboard (no exact session to type into)"); return
             }
@@ -833,7 +819,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
         if hoverLatched || hoverTask != nil || NSEvent.pressedMouseButtons != 0 { return }
         hoverTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(120))
+            try? await Task.sleep(for: .milliseconds(250))
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hover: dwell done") }
@@ -850,7 +836,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
-        if inside, panel.allowsKey, !panel.isKeyWindow, !proactiveOpen { panel.makeKey() }
+        // Only a card you asked for takes the keyboard. Hover and Perch speaking up never do: you may be typing elsewhere,
+        // and Return would pick up a session. A click on the card gives it the keyboard.
+        if inside, panel.allowsKey, !panel.isKeyWindow, !proactiveOpen, !openedByHover { panel.makeKey() }
         if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }

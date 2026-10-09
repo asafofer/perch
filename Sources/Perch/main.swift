@@ -31,13 +31,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
-                let opens = p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")"
-                    : p.desktopSessionId.map { "claude://code/continue?session=" + $0 }
-                    ?? (p.liveInTerminal ? "the terminal tab it is running in" : "\(Terminals.preferred): claude --resume \(p.sessionId ?? "?")")
+                let opens = p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }
-            for hit in LiveSessions.claude() { print("live terminal session: pid \(hit.pid) in \(hit.cwd) on \(hit.tty)") }
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }
