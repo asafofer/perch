@@ -106,6 +106,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Acting on it', [
       ['Reply: empty', 'Press R. The field rises in where the buttons were; the cross or Esc puts them back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
+      ['Reply to a terminal', 'Return sends it into its terminal tab: the words fly up into the notch, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
       ['Reply: no Accessibility', 'Perch cannot type for you, so Send becomes Copy and open.', function () { d.noAccess(); reply(true)(); }],
       ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { document.querySelector('[data-act=snooze]').click(); }, 700); }],

@@ -712,7 +712,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let p = projects[machine.selected]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, who = agent == "codex" ? "Codex" : "Claude", line = text.replacingOccurrences(of: "\n", with: " ")
-            let preferred = Terminals.preferred
+            let preferred = Terminals.preferred, sentAt = Date()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let hits = LiveSessions.all().filter { $0.agent == agent && $0.cwd == cwd }
@@ -725,8 +725,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if done { let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push(); self.say("Sent to \(who)") }
-                        else { self.pasteReply(text) }
+                        guard done else { self.pasteReply(text); return }
+                        // The words are already in the terminal; the card closes once they have flown into the notch.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, 0.78 - Date().timeIntervalSince(sentAt))) {
+                            guard self.machine.phase == .open else { return }
+                            let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push(); self.say("Sent to \(who)")
+                        }
                     }
                 }
             }

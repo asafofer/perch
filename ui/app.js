@@ -153,7 +153,38 @@
     if (open) setTimeout(function () { rIn.focus(); }, 30); else { rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
-  function sendReply() { var t = rIn.value.trim(); if (!t) return; replyMenu(false, true); post({ type: 'reply', text: t }); }
+  function sendReply() {
+    var t = rIn.value.trim(); if (!t) return;
+    var p = snap && snap.projects[snap.selected];
+    if (p && p.via) sendFly(t);   /* a terminal session takes it right here: the words fly off into the notch */
+    replyMenu(false, true); post({ type: 'reply', text: t });
+  }
+  /* Sent to a terminal: the words lift out of the field as a bubble and fly up into the notch, a puff of dust behind them.
+     The character watches them go and hops when they land; the glow turns green. The card closes after (Swift waits). */
+  function sendFly(text) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var pane = q('.p-open'), pr = pane.getBoundingClientRect(), fr = rIn.getBoundingClientRect();
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = text; pane.appendChild(b);
+    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + (fr.height - b.offsetHeight) / 2;
+    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
+    /* into the notch: the top centre of the card */
+    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = -y0 - b.offsetHeight / 2 + 4;
+    var at = function (k, s, r) { return 'translate(' + (dx * k).toFixed(1) + 'px,' + (dy * k * k - 10 * Math.sin(Math.PI * k)).toFixed(1) + 'px) scale(' + s + ') rotate(' + r + 'deg)'; };
+    b.animate([
+      { transform: 'translateY(2px) scale(.96)', opacity: 0 },
+      { transform: 'translateY(-3px) scale(1.04)', opacity: 1, offset: .14 },
+      { transform: at(.3, .92, -3), opacity: 1, offset: .38 },
+      { transform: at(.7, .55, -6), opacity: .9, offset: .7 },
+      { transform: at(1, .12, -10), opacity: 0 }
+    ], { duration: 720, easing: 'cubic-bezier(.45,0,.55,1)', fill: 'forwards' });
+    /* two puffs where it took off */
+    var puff = document.createElement('i'); puff.className = 'fly-puff'; puff.style.left = (x0 + 6) + 'px'; puff.style.top = (y0 + b.offsetHeight / 2) + 'px'; pane.appendChild(puff);
+    setTimeout(function () { b.remove(); puff.remove(); }, 900);
+    /* the character follows it with its eyes, then hops with a smile when it lands */
+    look(2.8, -1.6);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 560);
+    n.dataset.g = 'status'; n.style.setProperty('--glow', '74,222,128'); n.style.setProperty('--glow-hi', '166,247,196');
+  }
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
   rIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendReply(); } else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); } e.stopPropagation(); });
@@ -981,6 +1012,8 @@
   function dev(m) {
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
+    /* a reply to a terminal session flies off first, then the card closes */
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); setTimeout(function () { pop('happy', 1500, 'Sent to Claude'); }, 300); }, 760); return; }
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */
