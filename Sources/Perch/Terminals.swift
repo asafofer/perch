@@ -104,6 +104,55 @@ enum Terminals {
         return app
     }
 
+    /// Types a line into the tab running this session and presses Return, without bringing it forward, the clipboard or
+    /// Accessibility. Terminal and iTerm2 find the tab by its tty, Ghostty and cmux by its folder. False where it cannot.
+    static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
+        let text = appleQuote(line), tty = appleQuote(live.tty), cwd = appleQuote(live.cwd)
+        let script: String
+        switch live.app {
+        case terminal:
+            script = """
+            tell application "Terminal"
+              repeat with w in windows
+                repeat with t in tabs of w
+                  if tty of t is \(tty) then
+                    do script \(text) in t
+                    return "ok"
+                  end if
+                end repeat
+              end repeat
+            end tell
+            """
+        case iterm:
+            script = """
+            tell application "iTerm2"
+              repeat with w in windows
+                repeat with t in tabs of w
+                  repeat with s in sessions of t
+                    if tty of s is \(tty) then
+                      tell s to write text \(text)
+                      return "ok"
+                    end if
+                  end repeat
+                end repeat
+              end repeat
+            end tell
+            """
+        case ghostty, cmux:
+            let name = live.app == ghostty ? "Ghostty" : "cmux"
+            script = """
+            tell application "\(name)"
+              set hits to (every terminal whose working directory is \(cwd))
+              if (count of hits) is 0 then return "no"
+              input text \(appleQuote(line + "\r")) to item 1 of hits
+              return "ok"
+            end tell
+            """
+        default: return false
+        }
+        return run(script) == "ok"
+    }
+
     /// Runs AppleScript and returns its result, or nil when it fails (not installed, permission refused).
     /// It blocks while macOS asks for Automation permission, so call it off the main thread.
     @discardableResult

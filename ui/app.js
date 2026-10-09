@@ -419,7 +419,8 @@
     moments(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Reply copies the answer and opens the session. */
-    var canSend = s.canSend !== false;
+    /* a terminal session takes a reply without Accessibility: Perch types it into its tab */
+    var canSend = s.canSend !== false || !!(p && p.via);
     q('.x-send-l').textContent = canSend ? 'Send' : 'Copy and open';
     q('.x-send').title = canSend ? '' : 'Perch needs Accessibility to type for you. Your reply is copied, ready to paste.';
     /* green only while a finished session is news; one you have already seen glows in the character's colour */

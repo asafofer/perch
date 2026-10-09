@@ -707,6 +707,37 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// the reply stays on the clipboard for you to paste. When it was typed, your clipboard is put back.
     private func reply(_ text: String) {
         guard projects.indices.contains(machine.selected) else { return }
+        // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
+        // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
+        let p = projects[machine.selected]
+        if p.terminal, let cwd = p.cwd, let id = p.sessionId {
+            let agent = p.app, who = agent == "codex" ? "Codex" : "Claude", line = text.replacingOccurrences(of: "\n", with: " ")
+            let preferred = Terminals.preferred
+            markSeen(p)
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let hits = LiveSessions.all().filter { $0.agent == agent && $0.cwd == cwd }
+                var done = false
+                if let hit = hits.first { done = Terminals.type(line, into: hit) }
+                else {
+                    Terminals.open("\(agent == "codex" ? "codex resume" : "claude --resume") \(id) \(Terminals.shellQuote(line))", in: cwd, app: preferred)
+                    done = true
+                }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if done { let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push(); self.say("Sent to \(who)") }
+                        else { self.pasteReply(text) }
+                    }
+                }
+            }
+            return
+        }
+        pasteReply(text)
+    }
+
+    /// Reply by pasting: Pick up brings the session forward, then the words are pasted and sent. Needs Accessibility.
+    private func pasteReply(_ text: String) {
+        guard projects.indices.contains(machine.selected) else { return }
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
