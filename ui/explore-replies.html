@@ -25,7 +25,18 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 .stage { position: relative; height: 92px; border-radius: 10px; overflow: hidden; background: #16201e url(wallpapers/blue-distortion-1.webp) center 62% / cover; }
 .stage .bar { position: absolute; inset: 0 0 auto; height: 32px; background: rgba(255,255,255,.1); backdrop-filter: blur(24px) saturate(1.4); }
 .notch { position: absolute; top: 0; left: 50%; width: 150px; height: 32px; margin-left: -75px; background: #000; border-radius: 0 0 10px 10px; z-index: 5;
-  transition: width .45s cubic-bezier(.3,1.25,.45,1), margin-left .45s cubic-bezier(.3,1.25,.45,1); }
+  transition: width .45s cubic-bezier(.3,1.25,.45,1), margin-left .45s cubic-bezier(.3,1.25,.45,1), height .45s cubic-bezier(.3,1.25,.45,1), border-radius .45s; }
+/* 2b: it also grows down by one row that names the session */
+.notch.tall { height: 60px; border-radius: 0 0 16px 16px; }
+.row1 { position: absolute; top: 34px; left: 50%; width: 240px; margin-left: -120px; height: 20px; display: flex; align-items: center; gap: 8px; z-index: 6;
+  opacity: 0; transform: translateY(-4px); transition: opacity .25s, transform .35s cubic-bezier(.2,.9,.3,1); font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+.row1.on { opacity: 1; transform: none; }
+/* in 2b the icon and the check line up with the row's ends */
+.isl.l.wide { right: auto; left: calc(50% - 120px); }
+.isl.r.wide { left: auto; right: calc(50% - 120px); }
+.row1 .name { color: #fafafa; font-weight: 500; }
+.row1 .topic { color: #a1a1aa; overflow: hidden; text-overflow: ellipsis; }
+.row1 .ago { margin-left: auto; color: #71717a; font-size: 11.5px; }
 .stage .cr { position: absolute; left: 50%; top: 7px; width: 18px; height: 18px; z-index: 4; --et: 46%; --el: 30%; --er: 56%; --ew: 14%; transition: transform .5s cubic-bezier(.3,1.35,.5,1), opacity .3s; }
 
 /* 2, 3: the notch grows a little to the sides, like a live activity */
@@ -46,7 +57,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 <div class="wrap">
   <div>
     <h1>When an answer arrives</h1>
-    <p class="sub">An agent finished or replied in a session you are not looking at. Five ways to say so, from quietest to most noticeable. Today Perch does a two-second happy pop beside the notch, with no words. Each one replays every few seconds.</p>
+    <p class="sub">An agent finished or replied in a session you are not looking at. Six ways to say so, from quietest to most noticeable. Today Perch does a two-second happy pop beside the notch, with no words. Each one replays every few seconds.</p>
   </div>
   <div id="opts"></div>
 </div>
@@ -71,7 +82,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
         at(s, 300, function () { cr.style.transform = 'translateX(' + (x - 4) + 'px) rotate(-8deg)'; });
         at(s, 4300, function () { cr.style.transform = 'translateX(' + (x + 14) + 'px)'; });
       } },
-    { title: 'Live activity', lvl: 'Gentle', rec: true, text: 'The notch grows a little to each side: the app it came from on the left, a green check on the right. No words.', clears: 'Folds back after a few seconds. Hover it for the card.',
+    { title: 'Live activity', lvl: 'Gentle', text: 'The notch grows a little to each side: the app it came from on the left, a green check on the right. No words.', clears: 'Folds back after a few seconds. Hover it for the card.',
       setup: function () { return '<div class="isl l">' + CLAUDE + '</div><div class="isl r">' + CHECK + '</div>'; },
       play: function (s) {
         var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl');
@@ -79,6 +90,16 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
         at(s, 600, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
         at(s, 3800, function () { isl.forEach(function (e) { e.style.opacity = 0; }); });
         at(s, 4000, function () { nt.style.width = ''; nt.style.marginLeft = ''; });
+      } },
+    { title: 'Live activity with a row', num: '2b', lvl: 'Gentle', rec: true, text: 'As in 2, and it also grows down by one row that says which session it was. Still glanceable, and you know where to go.', clears: 'Folds back after a few seconds. Hover it for the card, or click the row to pick it up.',
+      setup: function () { return '<div class="isl l wide">' + CLAUDE + '</div><div class="isl r wide">' + CHECK + '</div><div class="row1"><span class="name">Website</span><span class="topic">Hero spacing</span><span class="ago">now</span></div>'; },
+      play: function (s) {
+        var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl'), row = s.querySelector('.row1');
+        at(s, 300, function () { nt.style.width = '270px'; nt.style.marginLeft = '-135px'; nt.classList.add('tall'); });
+        at(s, 600, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
+        at(s, 720, function () { row.classList.add('on'); });
+        at(s, 4100, function () { row.classList.remove('on'); isl.forEach(function (e) { e.style.opacity = 0; }); });
+        at(s, 4300, function () { nt.classList.remove('tall'); nt.style.width = ''; nt.style.marginLeft = ''; });
       } },
     { title: 'Live activity, in words', lvl: 'Gentle', text: 'The same, wider: which session, and what happened. You know without opening anything.', clears: 'Folds back after a few seconds. Hover it for the card.',
       setup: function () { return '<div class="isl l"><span class="name">Website</span>' + CLAUDE + '</div><div class="isl r"><span class="done">Finished</span></div>'; },
@@ -114,7 +135,7 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
   OPTIONS.forEach(function (o, i) {
     var el = document.createElement('section'); el.className = 'opt';
     el.innerHTML = '<div class="stage"><i class="bar"></i><i class="notch"></i>' + o.setup() + '</div>' +
-      '<div class="meta"><h3>' + (i + 1) + '. ' + o.title + ' <span class="lvl' + (o.rec ? ' rec' : '') + '">' + (o.rec ? 'Recommended · ' : '') + o.lvl + '</span></h3><p>' + o.text + '</p><p>' + o.clears + '</p><button class="replay">Replay</button></div>';
+      '<div class="meta"><h3>' + (o.num || (i < 2 ? i + 1 : i)) + '. ' + o.title + ' <span class="lvl' + (o.rec ? ' rec' : '') + '">' + (o.rec ? 'Recommended · ' : '') + o.lvl + '</span></h3><p>' + o.text + '</p><p>' + o.clears + '</p><button class="replay">Replay</button></div>';
     box.appendChild(el);
     var stage = el.querySelector('.stage'); stage._t = [];
     var run = function () { stage._t.forEach(clearTimeout); stage._t = []; o.play(stage); };
