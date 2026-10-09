@@ -69,14 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let dir = args[i + 1]
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.snapshot(to: dir + "/idle.png") }
+            if let w = args.firstIndex(of: "--wallpaper"), args.indices.contains(w + 1) { c.snapshotWallpaper = NSImage(contentsOfFile: args[w + 1]) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { c.comeBack() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { c.snapshot(to: dir + "/open.png") }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.6) { c.send(.openSwitcher) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6.2) { c.snapshot(to: dir + "/switcher.png") }
-            if !args.contains("--real") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 6.6) { c.confirm() }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 8.6) { c.snapshot(to: dir + "/restoring.png") }
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { c.snapshot(to: dir + "/ask.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) { c.send(.next) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) { c.snapshot(to: dir + "/card.png") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.3) { c.send(.openSwitcher) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { c.snapshot(to: dir + "/list.png") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.4) { c.send(.dismiss) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.8) { c.showSetup() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 12.4) { c.snapshot(to: dir + "/setup.png") }

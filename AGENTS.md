@@ -1,13 +1,13 @@
 # Perch: guide for people and agents picking this up
 
-Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their Claude Code and Codex sessions and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count.
+Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their Claude Code and Codex sessions and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Only the Claude app (Code) and Codex are in scope; terminal sessions are not.
 
 Read this file first. `README.md` has install and usage.
 
 ## How the work is done here
 
 1. **Show it in the design page first.** New UI or a visible change goes into `ui/design.html` (the real UI with sample data) and gets looked at before it is built into the app. The owner will say "build it" when approved. Small fixes and bugs can go straight in.
-2. **Look at it before you say it is done.** Render the design page in a browser (`cd ui && python3 -m http.server 8765`, open `/design.html`) and check each state. Say plainly what you checked and what you did not.
+2. **Look at it before you say it is done.** Render the design page in a browser (`cd ui && python3 -m http.server 8765`, open `/design.html`) and check each state. Say plainly what you checked and what you did not. Mock-ups and README screenshots sit on Raycast wallpapers (`ui/wallpapers/`, from raycast.com/wallpapers): `./scripts/run.sh --snapshot <dir> --wallpaper ui/wallpapers/blue-distortion-1.webp`.
 3. **Commits:** one-line messages, no mention of AI or co-authors. Commit after every working step.
 4. **Tests must stay green:** `swift test`.
 
@@ -18,10 +18,12 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   NotchMachine        State machine: idle, open, switcher, restoring, setup, onboarding, settings.
   NotchGeometry       Panel and tab sizes, hover rects. Takes ScreenInfo so it is testable.
   Project, Transcript Session model, JSONL parsing (Claude Code and Codex), recap text, git parsing.
+  LiveStatus          Hook events (HookEvent), what an agent asks (Ask: words for the card, the reply JSON), live status per session.
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
   NotchController     Owns the machine, the panel, the WKWebView, timers, hover, keys, refresh.
   RealSessionProvider Scans ~/.claude/projects and ~/.codex/sessions, caches digests and git.
+  HookServer          Unix socket (~/.config/perch/perch.sock) the hooks post to; holds a request open until you answer. HookInstaller writes the hook entries.
   AppleRecapEngine    On-device summaries (FoundationModels), cache, guards against bad output.
   Snapshot            The JSON Swift sends to the page. The page never decides anything.
   Preferences         UserDefaults: onboarded, character, enabled apps, idle minutes.
@@ -35,7 +37,9 @@ ui/                 The interface, plain JS and Tailwind v3 (shadcn-style classe
 
 Data flow: Swift decides state (`NotchMachine`), builds a `UISnapshot`, calls `window.perch.apply(json)`. The page draws and posts events (`confirm`, `snooze`, `reply`, `settings`, `onb`, `character`, `source`, `setting`, ...). Handle new events in `NotchController.userContentController`.
 
-Sessions: Claude Code writes `~/.claude/projects/*/*.jsonl`; the Claude app's own ids map via `~/Library/Application Support/Claude/claude-code-sessions`. Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Pick up opens `claude://code/continue?session=local_<id>` or `codex://threads/<id>`; a terminal session that is still running is focused in its own tab (found from the process table, `LiveSessions`), otherwise it resumes in the terminal you used last. Status comes from the transcript's shape (`Recap.statusAndNext`): an open turn whose file changed in the last 150 seconds is working; a tool call with no result past its plausible run time is "waiting for your OK"; AskUserQuestion and ExitPlanMode need you at once. Headless `claude -p` sessions are skipped. A file watcher (FSEvents) refreshes within about half a second.
+Sessions: Claude Code writes `~/.claude/projects/*/*.jsonl`; only sessions the Claude app knows (mapped via `~/Library/Application Support/Claude/claude-code-sessions`) are listed. Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Small talk with no tool use is skipped (`Recap.isTrivial`). Pick up opens `claude://code/continue?session=local_<id>` or `codex://threads/<id>`. The card's body is the agent's outcome (`Recap.outcome`), not your prompt. A file watcher (FSEvents) refreshes within about half a second.
+
+Status, two sources. With live status on, hooks say exactly what happened (`LiveStatus.apply`) and win over the transcript. Claude's PermissionRequest hook runs alongside the app's own prompt, whichever answers first wins, so Perch can allow, deny or answer a question (`answers` in `updatedInput`). Codex's runs before its prompt, so Perch answers Codex at once with no decision and only shows the status. Without hooks, status is guessed from the transcript's shape (`Recap.statusAndNext`). Test the socket without touching any config: `echo '{"session_id":"…","tool_name":"Bash","tool_input":{"command":"ls"}}' | ~/.config/perch/hook claude PermissionRequest` (it waits for your answer on the card).
 
 When Perch speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped), never during a call, camera or presentation (`Quiet`), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in.
 
@@ -74,7 +78,10 @@ Useful flags: `--show`, `--simulate`, `--setup`, `--demo`, `--idle <s>`, `--snap
 - The panel is one fixed transparent window (480 x 320 plus a 10 pt overscan above the screen). Cards must fit inside it.
 - Self-signed and ad-hoc builds cannot register for launch at login reliably.
 - Opening a notch app over full-screen apps depends on window level and collection behavior; see `NotchPanel`.
+- The settings and onboarding cards must stay at or under about 300 pt tall (the panel is 320). Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
+- Hooks only change behaviour once installed (Settings, Live status). Codex skips a new hook until you trust it once. Never write to `~/.claude/settings.json` or `~/.codex/hooks.json` except through `HookInstaller`, which only touches its own entries.
+- Seeing the real panel: computer-use screenshots hide it. Use `screencapture -x -R 496,0,520,340 out.png` with keys sent by `osascript`, in the same command (a card that Perch opened by itself closes after 9 s).
 
 ## Where things are headed
 
-Open ideas, roughly in order: Claude-quality summaries when the `claude` CLI is logged in (on-device summaries are shallow), a "hit an error" status, answering a question without opening the session in the background (`claude -p --resume`, `codex exec resume`), notarized releases, more sources (Cursor, terminals), a sound and haptics option, launch at login that survives distribution.
+Open ideas, roughly in order: Claude-quality summaries when the `claude` CLI is logged in (on-device summaries are shallow), approving Codex from the notch if its hooks ever run alongside its prompt, notarized releases, a sound and haptics option, launch at login that survives distribution.

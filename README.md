@@ -16,22 +16,27 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/card.png" width="400" alt="The welcome-back card"> &nbsp;
-  <img src="docs/assets/list.png" width="400" alt="Other projects">
+  <img src="docs/assets/card.png" width="400" alt="Where you were: the project, what the agent did, and what is next"> &nbsp;
+  <img src="docs/assets/ask.png" width="400" alt="Claude asks to run a command; allow or deny from the notch">
 </p>
+<p align="center">
+  <img src="docs/assets/list.png" width="400" alt="All sessions, what needs you first">
+</p>
+<p align="center"><sub>Wallpaper by <a href="https://www.raycast.com/wallpapers">Raycast</a>.</sub></p>
 
 ## Overview
 
 Developers run several agent sessions at once and lose their place when they step away. Perch lives in the notch and answers one question when you come back: **what was I doing, and what is waiting for me?**
 
-- **Welcome back.** After you have been away, a card drops from the notch with what you were working on, what the agent is doing now (working, replied, waiting on you) and the next step when there is a real one.
-- **Pick up.** One key opens the exact Claude Code or Codex session.
-- **Reply.** Answer from the card. Perch opens the session, pastes your reply and sends it.
-- **Other projects.** A list of recent sessions with a live "working" indicator.
+- **Where was I.** After a break, a card drops from the notch: which project, what you were doing, what the agent did, and the next step when there is a real one.
+- **What needs you.** With live status on, Claude Code and Codex tell Perch the moment they finish or need your OK. The character peeks out beside the notch, and sessions that need you come first.
+- **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's question, without leaving what you are doing. Codex approvals open in Codex.
+- **Jump back in.** One key opens the exact session in the Claude app or Codex. Reply pastes and sends a message for you.
+- **All sessions.** Every recent session with its status in words: needs your OK, finished, working.
 - **Private by design.** Summaries are written on your Mac by Apple Intelligence. Perch reads local session files and sends nothing anywhere.
 - **Yours.** Choose your character's shape and colour in onboarding or Settings.
 
-Perch never takes the keyboard when it opens on its own, and it stays quiet about the session you are already in.
+Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
 ## Requirements
 
@@ -39,7 +44,7 @@ Perch never takes the keyboard when it opens on its own, and it stays quiet abou
 |---|---|
 | macOS | 26 or later, Apple silicon. A notch is optional: other screens get a small tab at the top centre. |
 | Build tools | Xcode 26 and Node 20+ (for the Tailwind build) |
-| Agents | Claude Code and/or Codex. Perch only reads their local session files. |
+| Agents | The Claude app (Code) and/or Codex. Perch reads their local session files, and with live status on, adds a small hook to each. |
 
 ## Installation
 
@@ -56,7 +61,9 @@ cd perch
 
 **Package your own build:** `./scripts/package.sh` writes `build/Perch.zip`.
 
-On first launch Perch walks you through setup: character, Accessibility, which apps to read, and on-device summaries. You can replay it any time from Settings.
+On first launch Perch walks you through setup: character, Accessibility, which apps to read, live status, and on-device summaries. You can replay it any time from Settings.
+
+**Live status** adds a hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`. The hook talks to Perch over a local socket, only you can use it, and it does nothing when Perch is not running. Codex asks you once to trust a new hook. Turn it off in Settings and the entries are removed; your files are backed up the first time as `*.before-perch`.
 
 ## Usage
 
@@ -64,16 +71,18 @@ On first launch Perch walks you through setup: character, Accessibility, which a
 |---|---|
 | Open the card | Hover the notch (or the tab) |
 | Open or close Perch | Tap Command + Option |
-| Welcome card | Control + Option + P |
-| Other projects | Control + Option + L |
+| Where was I | Control + Option + P |
+| All sessions | Control + Option + L |
 | Switch between the card and the list | Tab |
 | Pick up the session | Return |
+| Allow or deny what the agent asks | A or D |
+| Pick an answer to a question | 1 to 4 |
 | Reply | R |
 | Not now (30 min, 2 hours, tomorrow) | N |
 | Settings | , |
 | Close | Esc |
 
-The menu bar item also offers the welcome card, other projects, app choices, character, setup and quit.
+The menu bar item also offers the card, all sessions, app choices, character, setup and quit.
 
 ## Permissions
 
@@ -100,8 +109,8 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 | Path | Contents |
 |---|---|
-| `Sources/PerchCore` | State machine, geometry, transcript parsing and recaps. Pure and tested. |
-| `Sources/Perch` | AppKit shell: panel, web view, hotkeys, session scanning, on-device summaries. |
+| `Sources/PerchCore` | State machine, geometry, transcript parsing, recaps, live status from hooks. Pure and tested. |
+| `Sources/Perch` | AppKit shell: panel, web view, hotkeys, session scanning, the hook socket, on-device summaries. |
 | `ui/` | The interface: plain JavaScript, Tailwind and shadcn-style classes, Inter. |
 | `scripts/` | Build, run, package, install and certificate scripts. |
 
@@ -109,7 +118,9 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 - **The card never appears on its own.** It needs you to be away for the "Come back after" time (20 minutes by default). To test quickly: `./scripts/run.sh --idle 15`.
 - **macOS asks for permissions again after every build.** Run `./scripts/make-dev-cert.sh` once so builds are signed with a stable identity.
-- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`.
+- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`. Only Claude app sessions and Codex threads are listed.
+- **Status lags or guesses.** Turn on Live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
+- **README screenshots.** `./scripts/run.sh --snapshot docs/assets --wallpaper ui/wallpapers/blue-distortion-1.webp`.
 
 ## Roadmap
 

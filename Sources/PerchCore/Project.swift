@@ -64,32 +64,35 @@ public protocol SessionProviding: Sendable {
 
 public struct FakeSessionProvider: SessionProviding {
     public init() {}
+    /// The same sessions the design page uses, for demos and the README screenshots.
     public func parkedProjects() -> [Project] {
-        [
-            Project(id: "onboarding", name: "Onboarding flow", branch: "main", away: "2h 14m", at: "11:32 AM",
-                    headline: "You were fixing the permissions screen.",
-                    context: "You swapped the sheet for a popover because it clipped on small windows.",
-                    next: "Add the tooltip to the Accessibility row", topic: "Permissions screen", app: "xcode",
-                    agents: [AgentStatus(kind: .done, text: "Claude Code done"), AgentStatus(kind: .needsYou, text: "Codex needs you", app: "codex")],
-                    steps: [RestoreStep(icon: "win", text: "Put 3 windows back"),
-                            RestoreStep(icon: "file", text: "Opened PermissionsView.swift"),
-                            RestoreStep(icon: "term", text: "Resumed your Claude Code session")]),
-            Project(id: "website", name: "Website", branch: "feature/hero", away: "20h", at: "Yesterday 5:05 PM",
+        var asks = Project(id: "onboarding", name: "Onboarding flow", branch: "main", away: "4m", at: "11:32 AM",
+                           headline: "You were fixing the permissions screen.",
+                           context: "Swapped the sheet for a popover because it clipped on small windows.",
+                           next: "", topic: "Permissions screen", app: "claude",
+                           agents: [AgentStatus(kind: .needsYou, text: "Claude wants to run a command")], steps: [])
+        asks.ask = Ask(id: "demo", agent: "claude", tool: "Bash", input: ["command": "npm run build && npm test -- --watch=false"])
+        let now = Date()
+        asks.lastActive = now.addingTimeInterval(-240)
+        var list = [
+            asks,
+            Project(id: "website", name: "Website", branch: "feature/hero", away: "48m", at: "10:44 AM",
                     headline: "You were tightening the hero spacing.",
-                    context: "You dropped the full-bleed video because it slowed the page down.",
-                    next: "Check the hero at phone width", topic: "Hero spacing", app: "claude",
-                    agents: [AgentStatus(kind: .done, text: "Build passing")],
-                    steps: [RestoreStep(icon: "win", text: "Put 2 windows back"),
-                            RestoreStep(icon: "term", text: "Started the dev server on :3000"),
-                            RestoreStep(icon: "term", text: "Resumed your Claude Code session")]),
+                    context: "The hero now fits at phone width. The full-bleed video is gone because it slowed the page.",
+                    next: "Check the hero on a real phone", topic: "Hero spacing", app: "claude",
+                    agents: [AgentStatus(kind: .done, text: "Claude finished")], steps: []),
+            Project(id: "docs", name: "Docs", branch: "main", away: "1m", at: "11:58 AM",
+                    headline: "You were rewriting the install guide.",
+                    context: "Moved the setup steps above troubleshooting and cut the duplicate FAQ.",
+                    next: "", topic: "Install guide", app: "codex",
+                    agents: [AgentStatus(kind: .running, text: "Codex is working", app: "codex")], steps: []),
             Project(id: "finance", name: "Finance", branch: nil, away: "3d", at: "Mon 3:40 PM",
                     headline: "You were reconciling September invoices.",
-                    context: "You are matching by vendor and amount, not by date.",
-                    next: "Two invoices are still unmatched", topic: "September invoices", app: "numbers",
-                    agents: [AgentStatus(kind: .idle, text: "No agents running")],
-                    steps: [RestoreStep(icon: "win", text: "Put 2 windows back"),
-                            RestoreStep(icon: "file", text: "Opened Invoices, September"),
-                            RestoreStep(icon: "file", text: "Scrolled to row 41")]),
+                    context: "Matched 41 of 43 invoices by vendor and amount; two are still open.",
+                    next: "", topic: "September invoices", app: "claude",
+                    agents: [AgentStatus(kind: .idle, text: "Claude finished")], steps: []),
         ]
+        for (i, ago) in [(1, 2880.0), (2, 60), (3, 3 * 86_400)] { list[i].lastActive = now.addingTimeInterval(-ago) }
+        return list
     }
 }

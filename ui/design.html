@@ -16,8 +16,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
 /* the desktop stays in view while you pick scenarios */
 .deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
+/* a real desktop: Raycast wallpapers (raycast.com/wallpapers), seen from the top of the screen like the notch sees it */
 .desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:340px;
-  background:radial-gradient(700px 360px at 14% -10%,#3b5b50 0%,transparent 62%),radial-gradient(640px 420px at 100% 110%,#6a4331 0%,transparent 58%),#16201e}
+  background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
 .now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
@@ -61,7 +62,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
   <div class="deskwrap">
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
-    <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button></div>
+    <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
+      <span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
   </div>
 
   <section>
@@ -70,7 +72,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     <div class="groups" id="groups"></div>
   </section>
 
-  <p class="note">The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, saffron otherwise). At rest the character is hidden. It pops out beside the notch with an orange dot only when something needs you.</p>
+  <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, saffron otherwise). At rest the character is hidden. It pops out beside the notch with an orange dot only when something needs you.</p>
 </main>
 <script src="app.js"></script>
 <script>
@@ -129,9 +131,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var now = document.getElementById('now'), btns = [], lastRun = null;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
-    document.querySelectorAll('#disp button').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
+    document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
-  document.querySelectorAll('#disp button').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  /* wallpaper: the glow and the card are judged against a real desktop */
+  document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
+    document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
+    document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  }; });
   function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';

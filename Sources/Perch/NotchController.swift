@@ -156,16 +156,30 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false; place(on: ScreenChooser.current()); send(.openSetup)
     }
 
-    /// Debug: write the web view's current pixels to a PNG, composited over a desktop-like colour.
+    /// The desktop behind snapshots: a wallpaper (Raycast's, for the README) seen from the top of the screen.
+    var snapshotWallpaper: NSImage?
+
+    /// Debug: write the web view's current pixels to a PNG, over the wallpaper as the top of this screen shows it.
     func snapshot(to path: String) {
         let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
+        let screen = info.frame.size, panel = NotchGeometry.panelSize, wall = snapshotWallpaper
         web.takeSnapshot(with: cfg) { image, _ in
             guard let image else { return }
             let size = image.size
             let out = NSImage(size: size)
             out.lockFocus()
-            NSColor(calibratedRed: 0.13, green: 0.19, blue: 0.18, alpha: 1).setFill()
-            NSRect(origin: .zero, size: size).fill()
+            if let wall, wall.size.width > 0 {
+                // Scale the wallpaper to fill the screen and take the strip under the panel, centred, a little way down
+                // where the colour is: the very top of most wallpapers is dark, and the card is black.
+                let k = max(screen.width / wall.size.width, screen.height / wall.size.height)
+                let x = ((wall.size.width * k - screen.width) / 2 + (screen.width - panel.width) / 2) / k
+                let h = (panel.height + NotchGeometry.overscan) / k
+                let top = wall.size.height * 0.2
+                wall.draw(in: NSRect(origin: .zero, size: size), from: NSRect(x: x, y: wall.size.height - top - h, width: panel.width / k, height: h), operation: .copy, fraction: 1)
+            } else {
+                NSColor(calibratedRed: 0.13, green: 0.19, blue: 0.18, alpha: 1).setFill()
+                NSRect(origin: .zero, size: size).fill()
+            }
             image.draw(in: NSRect(origin: .zero, size: size))
             out.unlockFocus()
             if let tiff = out.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
