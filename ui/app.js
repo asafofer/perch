@@ -49,6 +49,8 @@
     return '<span class="relative flex flex-none" title="' + (p.app === 'codex' ? 'Codex' : 'Claude Code') + ' in ' + esc(TERMS[p.via] || 'a terminal') + '">' + term +
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, 'size-full') + '</span></span>';
   }
+  /* where the main button takes you, by name: "Switch to Claude", "Switch to Ghostty" */
+  function goLabel(p) { return 'Switch to ' + (p && p.via ? TERMS[p.via] || 'Terminal' : p && (p.app === 'codex' || (p.status && p.status.app === 'codex')) ? 'Codex' : 'Claude'); }
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
   function phrase(p, short) {
@@ -83,7 +85,7 @@
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
+      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
@@ -248,7 +250,7 @@
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
     q('.o-acts').innerHTML = (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Act('ghost', 'Not now', 'N', 'snooze')) +
-      (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', 'Pick up', ENTER, 'go'));
+      (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go'));
   }
   function askKey(k) {
     var a = asking.p && asking.p.ask; if (!a || !a.questions || !a.questions.length) return;
@@ -308,14 +310,14 @@
     /* while it works, the same row says what it is doing right now */
     var now = !a && p.status.kind === 'running' && p.now;
     if (now) nx = now;
-    q('.o-nl').textContent = now ? 'Now' : 'Next';
+    q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').innerHTML = md(nx);
     q('.o-nx').style.display = nx ? '' : 'none';
-    q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', 'Pick up', ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
-      : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go');
+    q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
+      : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', goLabel(p), ENTER, 'go')
+      : Act('ghost', 'Reply', 'R', 'reply') + Act('ghost', 'Not now', 'N', 'snooze') + Act('default', goLabel(p), ENTER, 'go');
   }
   /* About five rows show at a time, with their section headers; the rest scroll, with a soft edge where there is more. */
   var sl = q('.s-l'), listSig = '', lastSel = -1;
@@ -388,7 +390,7 @@
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
-      /* a row shows that session's card in the notch; Return (or the card's Pick up) opens it */
+      /* a row shows that session's card in the notch; Return (or the card's Switch to) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
         r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
         r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
@@ -518,12 +520,12 @@
   /* what you can do from here, as [action, label, key]; the first one is the main one */
   function actButtons(p, k) {
     var a = p.ask;
-    if (k === 'done') return [['pick', 'Pick up', '\u21a9'], ['reply', 'Reply', 'R']];
+    if (k === 'done') return [['pick', goLabel(p), '\u21a9'], ['reply', 'Reply', 'R']];
     if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'Y'], ['deny', 'Deny', 'N']];
     var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
     if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
     if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
-    return [['pick', 'Pick up', '\u21a9']];
+    return [['pick', goLabel(p), '\u21a9']];
   }
   function actWords(p, k) {
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;

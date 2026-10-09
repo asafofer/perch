@@ -144,7 +144,11 @@ import Foundation
         #expect(Activity.step(tool: "Grep", input: ["pattern": "isFresh"]) == "Searching for “isFresh”")
         #expect(Activity.step(tool: "WebFetch", input: ["url": "https://raycast.com/x"]) == "Reading raycast.com")
         #expect(Activity.step(tool: "exec_command", input: ["command": ["bash", "-lc", "npm test"]]) == "Running `npm test`")
-        #expect(Activity.step(tool: "Bash", input: ["command": "S=/tmp/x; swift test", "description": "Run the test suite"]) == "Run the test suite")
+        #expect(Activity.step(tool: "Bash", input: ["command": "x", "description": "Check how the list selection is set on open"]) == "Checking how the list selection is set on open")
+        let said = ["Run the tests", "Make a build", "Stop the server", "Grep for it", "Commit the fix", "Verify it", "Open the app", "Write a test", "See logs", "Fix it", "Show status", "Git status", "npm test", "Reading it", "Re-run it"]
+        #expect(said.map(Activity.ongoing) == ["Running the tests", "Making a build", "Stopping the server", "Grepping for it", "Committing the fix", "Verifying it",
+                                               "Opening the app", "Writing a test", "Seeing logs", "Fixing it", "Showing status", "Git status", "npm test", "Reading it", "Re-run it"])
+        #expect(Activity.step(tool: "Bash", input: ["command": "S=/tmp/x; swift test", "description": "Run the test suite"]) == "Running the test suite")
         #expect(Activity.step(tool: "mcp__linear__save_issue", input: [:]) == "Using issue")
         #expect(Activity.step(tool: "TodoWrite", input: [:]) == nil)
     }

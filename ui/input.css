@@ -221,7 +221,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-sec.first { padding-top: 0; }
 /* the Now row while a session works: grey, with a light passing over the words, so it reads as happening rather than as yours to do */
 .shimmer { color: transparent; -webkit-background-clip: text; background-clip: text; background-size: 250% 100%; background-repeat: no-repeat;
-  background-image: linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--muted-foreground)) 38%, rgba(255,255,255,.92) 50%, hsl(var(--muted-foreground)) 62%, hsl(var(--muted-foreground)) 100%);
-  animation: shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite; }
+  background-image: linear-gradient(90deg, hsl(var(--muted-foreground) / .7) 0%, hsl(var(--muted-foreground) / .7) 32%, #fff 50%, hsl(var(--muted-foreground) / .7) 68%, hsl(var(--muted-foreground) / .7) 100%);
+  animation: shimmer 1.9s cubic-bezier(.4,0,.6,1) infinite; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 @media (prefers-reduced-motion: reduce) { .shimmer { animation: none; color: hsl(var(--muted-foreground)); background: none; } }

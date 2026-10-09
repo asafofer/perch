@@ -184,9 +184,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func toggleSwitcher() {
         let fromIdle = machine.phase == .idle
         openedByHover = false; proactiveOpen = false; prepareToShow()
-        // Opened by itself, the list starts on its top row: what needs you, or what you touched last.
-        if fromIdle, let top = ListFilter.ordered(projects, "", now: Date()).first { machine.send(.projectsChanged(count: projects.count, selected: top)) }
-        send(.openSwitcher); refreshProjects()
+        send(.openSwitcher)
+        // Opened by itself, the list starts on its top row: what needs you, or what you touched last. (Closed, the machine
+        // keeps no selection, so this comes once it is open.)
+        if fromIdle, machine.phase == .switcher, let top = ListFilter.ordered(projects, "", now: Date()).first {
+            machine.send(.projectsChanged(count: projects.count, selected: top)); push()
+        }
+        refreshProjects()
     }
     func confirm() { send(.confirm) }
 

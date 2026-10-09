@@ -522,7 +522,8 @@ public enum Activity {
         switch tool {
         case "Bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
             // Claude Code describes each command in words ("Run the test suite"); that reads better than the command.
-            if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(about, 70) }
+            // It is written as an order ("Check the tests"); the Now row says what is happening ("Checking the tests").
+            if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(ongoing(about), 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
         case "Read", "view_image": return "Reading \(file(input["file_path"] != nil ? "file_path" : "path"))"
@@ -541,6 +542,29 @@ public enum Activity {
             if tool.hasPrefix("mcp__") { return "Using " + (tool.split(separator: "_").last.map(String.init) ?? tool).replacingOccurrences(of: "-", with: " ") }
             return "Using \(tool)"
         }
+    }
+
+    /// "Check how the list is set" becomes "Checking how the list is set": the first word, if it is a capitalised verb, in
+    /// its -ing form. Lowercase starts and tool names ("npm test", "Git status") are left as they are.
+    public static func ongoing(_ s: String) -> String {
+        guard let first = s.split(separator: " ", maxSplits: 1).first.map(String.init), first.count > 1,
+              first.first?.isUppercase == true, first.allSatisfy({ $0.isLetter && $0.isASCII }) else { return s }
+        let w = first.lowercased()
+        let tools: Set = ["git", "swift", "python", "node", "docker", "xcode", "github", "cargo", "yarn", "pnpm", "brew", "curl", "sqlite", "npm", "gh"]
+        guard !w.hasSuffix("ing"), !tools.contains(w) else { return s }
+        let irregular = ["be": "being", "see": "seeing", "lie": "lying", "die": "dying", "tie": "tying", "quit": "quitting"]
+        let doubles: Set = ["commit", "submit", "admit", "omit", "permit", "refer", "prefer", "begin", "forget", "control", "upset", "regret", "rerun", "unzip", "unwrap"]
+        let vowels = Set("aeiou"), c = Array(w)
+        let groups = zip(c, [" "] + c.dropLast()).filter { vowels.contains($0.0) && !vowels.contains($0.1) }.count
+        let cvc = c.count >= 3 && groups == 1 && !vowels.contains(c[c.count - 1]) && !"wxy".contains(c[c.count - 1])
+            && vowels.contains(c[c.count - 2]) && !vowels.contains(c[c.count - 3])
+        let g: String
+        if let i = irregular[w] { g = i }
+        else if doubles.contains(w) || cvc { g = w + String(c[c.count - 1]) + "ing" }
+        else if w.hasSuffix("ie") { g = String(w.dropLast(2)) + "ying" }
+        else if w.hasSuffix("e"), !w.hasSuffix("ee"), !w.hasSuffix("ye"), !w.hasSuffix("oe") { g = String(w.dropLast()) + "ing" }
+        else { g = w + "ing" }
+        return g.prefix(1).uppercased() + g.dropFirst() + s.dropFirst(first.count)
     }
 
     /// Codex wraps commands as ["bash", "-lc", "…"]; the last part is what you would read.
