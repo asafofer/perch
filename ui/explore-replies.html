@@ -1,0 +1,125 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reply Arrived Options</title>
+<link rel="stylesheet" href="dist/ui.css">
+<style>
+/* Options for: an agent answered in a session you are not looking at. Each stage is the top of a MacBook screen. */
+:root { --bg: #0E1210; --fg: #E8ECE9; --muted: #8C9690; --line: #252B28; --card: #131815; --cr: #F5B83D; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #F2F3F1; --fg: #141816; --muted: #5E6762; --line: #D8DDD9; --card: #FAFBFA; color-scheme: light; } }
+:root[data-theme="dark"] { --bg: #0E1210; --fg: #E8ECE9; --muted: #8C9690; --line: #252B28; --card: #131815; }
+html, body { margin: 0; background: var(--bg) !important; color: var(--fg); overflow: auto !important; -webkit-user-select: text !important; user-select: text !important; }
+body { font-family: Inter, -apple-system, system-ui, sans-serif; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 64px; display: flex; flex-direction: column; gap: 18px; }
+h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 20px; max-width: 640px; }
+.opt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+@media (min-width: 760px) { .opt { grid-template-columns: 440px minmax(0, 1fr); align-items: center; } }
+.meta h3 { margin: 0; font: 600 15px/20px Inter, sans-serif; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.meta p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 18px; }
+.lvl { font: 500 11px/16px Inter, sans-serif; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--fg) 9%, transparent); color: var(--muted); }
+.rec { background: color-mix(in srgb, #4ADE80 18%, transparent); color: #4ADE80; }
+.replay { margin-top: 8px; font: 500 12px Inter, sans-serif; color: var(--fg); background: color-mix(in srgb, var(--fg) 8%, transparent); border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+
+/* the top of the screen: wallpaper, menu bar, notch */
+.stage { position: relative; height: 92px; border-radius: 10px; overflow: hidden; background: #16201e url(wallpapers/blue-distortion-1.webp) center 62% / cover; }
+.stage .bar { position: absolute; inset: 0 0 auto; height: 32px; background: rgba(255,255,255,.1); backdrop-filter: blur(24px) saturate(1.4); }
+.notch { position: absolute; top: 0; left: 50%; width: 150px; height: 32px; margin-left: -75px; background: #000; border-radius: 0 0 10px 10px; z-index: 5;
+  transition: width .45s cubic-bezier(.3,1.25,.45,1), margin-left .45s cubic-bezier(.3,1.25,.45,1); }
+.stage .cr { position: absolute; left: 50%; top: 7px; width: 18px; height: 18px; z-index: 4; --et: 46%; --el: 30%; --er: 56%; --ew: 14%; transition: transform .5s cubic-bezier(.3,1.35,.5,1), opacity .3s; }
+
+/* 2, 3: the notch grows a little to the sides, like a live activity */
+.isl { position: absolute; top: 0; height: 32px; display: flex; align-items: center; z-index: 6; opacity: 0; transition: opacity .25s; font-size: 12px; white-space: nowrap; }
+.isl.l { right: calc(50% + 79px); flex-direction: row-reverse; gap: 6px; }
+.isl.r { left: calc(50% + 79px); gap: 6px; }
+.isl img, .isl .ic { width: 15px; height: 15px; border-radius: 4px; flex: none; }
+.isl .name { color: #fafafa; font-weight: 500; }
+.isl .done { color: #4ADE80; }
+.check { width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: rgba(74,222,128,.18); color: #4ADE80; }
+
+/* 5: a soft green glow seeping out under the notch */
+.under { position: absolute; top: 18px; left: 50%; width: 170px; height: 34px; margin-left: -85px; z-index: 4; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, rgba(74,222,128,.55), rgba(74,222,128,0)); filter: blur(6px); transition: opacity 1.2s ease; }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>When an answer arrives</h1>
+    <p class="sub">An agent finished or replied in a session you are not looking at. Five ways to say so, from quietest to most noticeable. Today Perch does a two-second happy pop beside the notch, with no words. Each one replays every few seconds.</p>
+  </div>
+  <div id="opts"></div>
+</div>
+
+<script>
+(function () {
+  var EARS = 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z';
+  var CLAUDE = '<svg class="ic" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#D97757"/><g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g></svg>';
+  var CHECK = '<span class="check"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
+  function character() {
+    return '<div class="cr" data-shape="ears" data-m="happy"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + EARS + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i></div>';
+  }
+  var at = function (stage, ms, fn) { var t = setTimeout(fn, ms); stage._t.push(t); };
+  var replay = function (ci, cls) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); };
+
+  var OPTIONS = [
+    { title: 'Peek', lvl: 'Quietest', text: 'It peeks out from under the notch’s edge, half hidden, with a smile. No words, nothing grows.', clears: 'Slips back when you hover the notch or go to that session.',
+      setup: function (s) { return character(); },
+      play: function (s) {
+        var cr = s.querySelector('.cr'), x = -75 - 9;
+        cr.style.transition = 'none'; cr.style.transform = 'translateX(' + (x + 14) + 'px)'; void cr.offsetWidth; cr.style.transition = '';
+        at(s, 300, function () { cr.style.transform = 'translateX(' + (x - 4) + 'px) rotate(-8deg)'; });
+        at(s, 4300, function () { cr.style.transform = 'translateX(' + (x + 14) + 'px)'; });
+      } },
+    { title: 'Live activity', lvl: 'Gentle', rec: true, text: 'The notch grows a little to each side: the app it came from on the left, a green check on the right. No words.', clears: 'Folds back after a few seconds. Hover it for the card.',
+      setup: function () { return '<div class="isl l">' + CLAUDE + '</div><div class="isl r">' + CHECK + '</div>'; },
+      play: function (s) {
+        var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl');
+        at(s, 300, function () { nt.style.width = '206px'; nt.style.marginLeft = '-103px'; });
+        at(s, 600, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
+        at(s, 3800, function () { isl.forEach(function (e) { e.style.opacity = 0; }); });
+        at(s, 4000, function () { nt.style.width = ''; nt.style.marginLeft = ''; });
+      } },
+    { title: 'Live activity, in words', lvl: 'Gentle', text: 'The same, wider: which session, and what happened. You know without opening anything.', clears: 'Folds back after a few seconds. Hover it for the card.',
+      setup: function () { return '<div class="isl l"><span class="name">Website</span>' + CLAUDE + '</div><div class="isl r"><span class="done">Finished</span></div>'; },
+      play: function (s) {
+        var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl');
+        at(s, 300, function () { nt.style.width = '330px'; nt.style.marginLeft = '-165px'; });
+        at(s, 650, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
+        at(s, 4300, function () { isl.forEach(function (e) { e.style.opacity = 0; }); });
+        at(s, 4500, function () { nt.style.width = ''; nt.style.marginLeft = ''; });
+      } },
+    { title: 'Pop, a word, and home', lvl: 'Noticeable', text: 'It pops out beside the notch with “Website replied”, hops, then winds up and runs home behind the notch.', clears: 'Gone on its own in about four seconds.',
+      setup: function () { return character(); },
+      play: function (s) {
+        var cr = s.querySelector('.cr'), ci = cr.querySelector('.cr-in'), dot = cr.querySelector('.dot'), x = -75 - 24;
+        dot.textContent = 'Website replied'; cr.classList.remove('running'); ci.classList.remove('run');
+        cr.style.transition = 'none'; cr.style.opacity = 0; cr.style.transform = 'translateX(' + (x + 22) + 'px) scale(.55)'; cr.dataset.news = ''; void cr.offsetWidth; cr.style.transition = '';
+        at(s, 300, function () { cr.style.opacity = 1; cr.style.transform = 'translateX(' + x + 'px)'; replay(ci, 'arrive'); });
+        at(s, 700, function () { replay(ci, 'hop'); cr.dataset.news = '1'; });
+        at(s, 3100, function () { cr.dataset.news = ''; cr.style.setProperty('--run', '42px'); cr.style.setProperty('--lx', '2.6px'); cr.classList.add('running'); replay(ci, 'run'); });
+        at(s, 4100, function () { cr.style.transition = 'none'; cr.style.opacity = 0; ci.classList.remove('run'); cr.classList.remove('running'); cr.style.setProperty('--lx', '0px'); });
+      } },
+    { title: 'Underglow', lvl: 'Quietest, lingers', text: 'Nothing moves. A soft green glow seeps out under the notch and stays, like a light left on, until you look.', clears: 'Fades when you hover the notch or go to that session.',
+      setup: function () { return '<i class="under"></i>'; },
+      play: function (s) {
+        var u = s.querySelector('.under');
+        at(s, 300, function () { u.style.opacity = 1; });
+        at(s, 4800, function () { u.style.opacity = 0; });
+      } }
+  ];
+
+  var box = document.getElementById('opts');
+  box.style.cssText = 'display:flex;flex-direction:column;gap:12px';
+  OPTIONS.forEach(function (o, i) {
+    var el = document.createElement('section'); el.className = 'opt';
+    el.innerHTML = '<div class="stage"><i class="bar"></i><i class="notch"></i>' + o.setup() + '</div>' +
+      '<div class="meta"><h3>' + (i + 1) + '. ' + o.title + ' <span class="lvl' + (o.rec ? ' rec' : '') + '">' + (o.rec ? 'Recommended · ' : '') + o.lvl + '</span></h3><p>' + o.text + '</p><p>' + o.clears + '</p><button class="replay">Replay</button></div>';
+    box.appendChild(el);
+    var stage = el.querySelector('.stage'); stage._t = [];
+    var run = function () { stage._t.forEach(clearTimeout); stage._t = []; o.play(stage); };
+    el.querySelector('.replay').onclick = run;
+    run(); setInterval(run, 6500);
+  });
+})();
+</script>
