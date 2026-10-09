@@ -216,6 +216,7 @@ extension Project {
                         topic: topic, app: app, agents: [status], steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
+        p.focusedAt = focusedAt
         return p
     }
 }

@@ -360,7 +360,7 @@ extension Project {
         let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
                         topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive
+        p.lastActive = lastActive; p.focusedAt = focusedAt
         return p
     }
 }
@@ -439,7 +439,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask
+        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt
         return p
     }
 }

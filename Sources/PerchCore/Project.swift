@@ -38,6 +38,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var lastActive: Date?
     /// What the agent is asking right now, when its hooks said so. The card can answer it.
     public var ask: Ask?
+    /// The last time the session was in front of you in its app (the Claude app records it). Changes before it are not news.
+    public var focusedAt: Date?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
