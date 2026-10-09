@@ -67,8 +67,8 @@
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
-      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('Tab'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
-      '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('Tab'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
+      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose grid size-7 flex-none cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">' + svg('x', 'size-3') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
@@ -115,20 +115,35 @@
     else if (a === 'qnext') askKey('next');
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
-  var fMain = q('.f-main'), fSnz = q('.f-snz');
+  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), footers = [fMain, fSnz, fRep];
+  /* The footer changes between its actions, Reply and Not now. The old row fades up and away while the new one rises in. */
+  function footer(el) {
+    footers.forEach(function (f) { if (f._out) { f._out.cancel(); f._out = null; f.style.position = f.style.left = f.style.right = f.style.top = ''; f.style.display = 'none'; } });
+    var was = footers.filter(function (f) { return f.style.display !== 'none' && getComputedStyle(f).display !== 'none'; })[0];
+    if (was === el) return;
+    footers.forEach(function (f) { if (f !== was) f.style.display = f === el ? 'flex' : 'none'; });
+    if (!was) return;
+    if (!n.offsetParent || n.dataset.s !== 'open' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { was.style.display = 'none'; return; }
+    was.style.position = 'absolute'; was.style.left = was.style.right = '10px'; was.style.top = '0';
+    var out = was._out = was.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 150, easing: 'cubic-bezier(.4,0,1,1)' });
+    var done = function () { if (was._out !== out) return; was._out = null; out.cancel(); was.style.display = 'none'; was.style.position = was.style.left = was.style.right = was.style.top = ''; };
+    out.onfinish = done; setTimeout(done, 220);   /* the timer finishes it even when animations are paused */
+    el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 70, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+  }
   function snoozeMenu(open, quiet) {
-    fMain.style.display = open ? 'none' : ''; fSnz.style.display = open ? 'flex' : 'none';
+    footer(open ? fSnz : fMain);
     if (!quiet) post({ type: 'snoozeMenu', open: open });
   }
   /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
-  var fRep = q('.f-rep'), rIn = q('.r-in');
+  var rIn = q('.r-in');
   function replyMenu(open, quiet) {
-    fMain.style.display = open ? 'none' : ''; fRep.style.display = open ? 'flex' : 'none';
+    footer(open ? fRep : fMain);
     if (open) setTimeout(function () { rIn.focus(); }, 30); else { rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
   function sendReply() { var t = rIn.value.trim(); if (!t) return; replyMenu(false, true); post({ type: 'reply', text: t }); }
   q('.x-send').onclick = sendReply;
+  q('.x-rclose').onclick = function () { replyMenu(false); };
   rIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendReply(); } else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); } e.stopPropagation(); });
   [['.x-s1', '30m'], ['.x-s2', '2h'], ['.x-s3', 'tomorrow']].forEach(function (b) { q(b[0]).onclick = function () { snoozeMenu(false, true); post({ type: 'snooze', when: b[1] }); }; });
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
@@ -365,7 +380,10 @@
     var dotEl = cr.querySelector('.dot');
     if (news) { var one = s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; })[0]; dotEl.textContent = needN > 1 ? needN + ' need you' : phrase(one, true).t; }
     if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
-    cr.style.opacity = (st === 'idle' && !news && !hello) ? 0 : 1;
+    /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
+    var choosing = st === 'onb' && onbStep === 0 && !celebrating;
+    if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
+    cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' ? s.projects[s.selected] : null;
@@ -460,7 +478,8 @@
     /* [id, name, path, eye top, left eye, right eye, eye width, line details, filled details]. Details show from 22px up. */
     ['ears', 'Ears', 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '46%', '', '', '',
       'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
-    ['dome', 'Ghost', 'M2 19V12a10 10 0 0 1 20 0v9.2c0 .9-.9 1.3-1.6.8l-1.4-1c-.6-.4-1.3-.4-1.9 0l-1.6 1.1c-.6.4-1.4.4-2 0l-1.6-1.1c-.6-.4-1.3-.4-1.9 0l-1.4 1c-.7.5-1.6.1-1.6-.8z', '42%'],
+    /* a ghost: a dome over a hem of three even lobes, edge to edge */
+    ['dome', 'Ghost', 'M2 20.6V12a10 10 0 0 1 20 0v8.6Q18.67 24.6 15.33 20.8Q12 24.6 8.67 20.8Q5.33 24.6 2 20.6z', '42%'],
     /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
     ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
       'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
@@ -599,6 +618,7 @@
       });
     }
     if (pv) {
+      pv._busy = Date.now() + 1500;
       pv.dataset.m = 'happy';
       var ci = pv.querySelector('.cr-in'); ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
       clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850);
@@ -606,9 +626,24 @@
   }
   /* the preview and the little shape tiles are alive: they blink and glance about while you choose */
   function blinkEl(el) { el.classList.add('blink'); setTimeout(function () { el.classList.remove('blink'); }, 150); }
+  /* while you choose, the big preview plays: a hop, a wiggle, a flip, a squish, a short nap, a happy bounce. Never the same twice in a row. */
+  var TRICKS = ['hop', 'wiggle', 'flip', 'squish', 'nap', 'happy'], lastTrick = '';
+  function trick(pv) {
+    var ci = pv.querySelector('.cr-in'), pick = TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
+    lastTrick = pick; pv._busy = Date.now() + 1800;
+    var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
+    if (pick === 'nap') {
+      pv.dataset.m = 'sleep'; pv.style.setProperty('--lx', '0px'); pv.style.setProperty('--ly', '0px');
+      setTimeout(function () { if (pv.dataset.m === 'sleep') { pv.dataset.m = 'awake'; play('hop', 600); } }, 1500);
+    } else if (pick === 'happy') {
+      pv.dataset.m = 'happy'; play('hop', 600);
+      setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
+    } else play(pick, 950);
+  }
   (function previewLife() {
     var pv = q('.cr-pv');
-    if (pv && pv.dataset.m === 'awake') {
+    if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now()) && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && Math.random() < 0.4) trick(pv);
+    else if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now())) {
       blinkEl(pv); if (Math.random() < 0.3) setTimeout(function () { blinkEl(pv); }, 280);
       pv.style.setProperty('--lx', ((Math.random() - 0.5) * 5).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((Math.random() - 0.5) * 3).toFixed(2) + 'px');
     }
@@ -722,6 +757,7 @@
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   function slabel(t, sub) { return '<span class="min-w-0 flex-1 truncate">' + t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '') + '</span>'; }
+  var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
     var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
@@ -737,7 +773,7 @@
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
       srow(slabel('Summaries', sum), o.summaries === 'off' ? Button('ghost', 'Set up', '', 's-sum') : ''),
-      srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : 'needs access'), o.accessibility ? '' : Button('ghost', 'Allow', '', 's-ax')),
+      srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch off and on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings. If Perch is already on there, switch it off and on again: a new build of Perch needs a fresh grant.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ].join('');
     var box = q('.set');
@@ -760,7 +796,7 @@
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
     on('.s-sum', function () { post({ type: 'openSettings' }); });
-    on('.s-ax', function () { post({ type: 'onb', action: 'accessibility' }); });
+    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
     on('.s-done', function () { post({ type: 'dismiss' }); });
   }
