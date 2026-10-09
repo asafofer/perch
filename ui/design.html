@@ -35,6 +35,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .tabs button i{font-style:normal;color:var(--pg-muted);margin-left:5px;font-variant-numeric:tabular-nums}
 .group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px 6px}
 .group[hidden]{display:none}
+.tune{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:6px 9px 8px;font-size:12.5px;color:var(--pg-muted)}
+.tune input{flex:1;max-width:260px;accent-color:var(--pg-fg)}
+.tune output{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);font-variant-numeric:tabular-nums;min-width:52px}
+.tune button{font:500 12px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:4px 8px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;transition:background .15s}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
 .sc b{font:500 13px Inter,sans-serif}.sc span{font-size:12px;line-height:1.4;color:var(--pg-muted)}
@@ -194,6 +198,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       b.onclick = function () { run(b, g[0] + ': ' + s[0], s[2]); };
       btns.push(b); box.appendChild(b);
     });
+    /* sending: try how soon the card closes after the words go, then play a style */
+    if (g[0] === 'Sending a reply') {
+      var tune = document.createElement('div'); tune.className = 'tune';
+      tune.innerHTML = 'Card closes after <input type="range" min="250" max="1000" step="10" value="480"><output></output><button>Each style\u2019s own</button>';
+      var rg = tune.querySelector('input'), out = tune.querySelector('output'), own = tune.querySelector('button');
+      var set = function (v) { window.__closeAfter = v; out.textContent = v ? v + ' ms' : 'its own'; };
+      rg.oninput = function () { set(+rg.value); }; own.onclick = function () { set(0); };
+      set(0); box.insertBefore(tune, box.firstChild);
+    }
     wrap.appendChild(box);
   });
   var saved = 0; try { saved = +localStorage.getItem('perch-design-tab') || 0; } catch (e) {}

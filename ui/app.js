@@ -170,9 +170,9 @@
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only the words are moving; then they
      go into the notch in one of these ways. The character watches and hops when they land; the glow turns green. The card
      closes after (Swift waits about 0.8 s). The design page plays each; the one chosen stays. */
-  var sendStyle = 'lift';
+  var sendStyle = 'gulp';
   /* when the card closes after sending, in seconds: a beat after the words land */
-  function sendClose() { return window.__closeAfter ? window.__closeAfter / 1000 : { lift: .78, plane: .9, gulp: .62, check: .8, stream: .74 }[sendStyle] || .78; }
+  function sendClose() { return window.__closeAfter ? window.__closeAfter / 1000 : { lift: .78, plane: .9, gulp: .48, check: .8, stream: .74 }[sendStyle] || .78; }
   function sendFly(text) {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
     var pane = q('.p-open'), pr = pane.getBoundingClientRect(), fr = rIn.getBoundingClientRect();
@@ -233,9 +233,9 @@
     var b = sendBubble(text, f, add), dx = to.x - b.x, dy = to.y - b.y;
     b.el.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
       { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
-      { duration: 460, delay: 80, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
-    var ring = add('fly-ring'); ring.style.left = (to.x - 30) + 'px'; ring.style.top = (to.y - 30) + 'px'; ring.style.animationDelay = '500ms';
-    return 520;
+      { duration: 360, delay: 40, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = add('fly-ring'); ring.style.left = (to.x - 30) + 'px'; ring.style.top = (to.y - 30) + 'px'; ring.style.animationDelay = '370ms';
+    return 400;
   }
   /* 4. Check: the words slide into the Send button, which turns into a green check */
   function sendCheck(text, f, to, add) {
