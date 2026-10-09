@@ -79,7 +79,7 @@ On first launch Perch walks you through setup: character, Accessibility, which a
 | Pick an answer to a question | 1 to 4 |
 | Reply | R |
 | Not now (30 min, 2 hours, tomorrow) | N |
-| Settings | , |
+| Settings | S |
 | Close | Esc |
 
 The menu bar item also offers the card, all sessions, app choices, character, setup and quit.

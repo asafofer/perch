@@ -874,7 +874,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (48, _): self.send(self.machine.phase == .open ? .openSwitcher : .back)
             case (125, _): self.send(.next)
             case (126, _): self.send(.previous)
-            case (_, ","): if list { self.send(.openSettings) } else { return e }
+            case (_, "s"), (_, ","): if list { self.send(.openSettings) } else { return e }   // S; the comma still works
             case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             case (_, "a"), (_, "d"):
