@@ -108,24 +108,20 @@ public final class SessionScanner: @unchecked Sendable {
         let fm = FileManager.default
         let root = home.appendingPathComponent(".claude/projects")
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        // Claude Code names a session's folder after its path. Long or unusual paths are found by a full listing instead.
-        var listing: [String: URL]?
+        // Every transcript by id. Claude Code names a session's folder after its path, but long or unusual paths differ.
+        var all: [String: URL] = [:]
+        for dir in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
+            for f in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] where f.pathExtension == "jsonl" {
+                all[f.deletingPathExtension().lastPathComponent] = f
+            }
+        }
         func transcript(_ cli: String, cwd: String?) -> URL? {
             if let cwd {
                 let dir = String(cwd.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
                 let url = root.appendingPathComponent(dir).appendingPathComponent(cli + ".jsonl")
                 if fm.fileExists(atPath: url.path) { return url }
             }
-            if listing == nil {
-                var all: [String: URL] = [:]
-                for dir in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
-                    for f in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] where f.pathExtension == "jsonl" {
-                        all[f.deletingPathExtension().lastPathComponent] = f
-                    }
-                }
-                listing = all
-            }
-            return listing?[cli]
+            return all[cli]
         }
         let sessions = desktop.index()
             .filter { !$0.value.archived }
@@ -136,8 +132,26 @@ public final class SessionScanner: @unchecked Sendable {
             .sorted { $0.mtime > $1.mtime }
 
         var out: [Found] = []
+        // Sessions started in a terminal: the transcripts the app does not list, started from the command line.
+        // Headless runs (`claude -p`, SDKs) and sessions the app has since deleted are not.
+        let listed = Set(desktop.index().keys)
+        let terminal = all.compactMap { cli, url -> (url: URL, mtime: Date)? in
+            guard !listed.contains(cli), let m = Self.mtime(url), m > cutoff else { return nil }
+            return (url, m)
+        }.sorted { $0.mtime > $1.mtime }
+        var fromTerminal = 0
+        for t in terminal {
+            guard fromTerminal < limit else { break }
+            guard let digest = cachedDigest(t.url, mtime: t.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
+                  digest.entrypoint == nil || digest.entrypoint == "cli", !Recap.isTrivial(digest), let cwd = digest.cwd, usable(cwd) else { continue }
+            let git = cachedGit(cwd).info
+            if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(t.mtime)), let last = digest.lastTimestamp {
+                p.terminal = true
+                out.append((p, digest, git, last)); fromTerminal += 1
+            }
+        }
         for s in sessions {
-            guard out.count < limit else { break }
+            guard out.count < limit + fromTerminal else { break }
             guard var digest = cachedDigest(s.url, mtime: s.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
                   // The app's folder for the session wins: the transcript's follows every `cd` the agent makes.
                   !Recap.isTrivial(digest), let cwd = s.entry.cwd ?? digest.cwd, usable(cwd) else { continue }
@@ -184,7 +198,8 @@ public final class SessionScanner: @unchecked Sendable {
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
             digest.branch = cg.branch
-            if let p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+                p.terminal = head.entrypoint == "cli"   // the Codex CLI in a terminal, not the Codex app
                 out.append((p, digest, git, last))
             }
         }

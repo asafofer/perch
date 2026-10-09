@@ -374,7 +374,7 @@ extension Project {
         let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
                         topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.focusedAt = focusedAt
+        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via
         return p
     }
 }
@@ -453,7 +453,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now
+        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via
         return p
     }
 }
@@ -484,6 +484,7 @@ public enum CodexTranscript {
                 if let id = payload["id"] as? String { d.sessionId = id }
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }
                 let source = payload["source"]
+                if let s = source as? String { d.entrypoint = s }   // "cli" in a terminal, "vscode" in the app
                 if payload["originator"] as? String == "codex_exec" || source is [String: Any] || ["exec", "mcp"].contains(source as? String ?? "") { d.headless = true }
                 continue
             }

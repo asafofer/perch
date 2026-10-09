@@ -145,8 +145,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case Restorer.claudeApp:
             let front = DesktopSessions.shared.index().values.compactMap { e in e.focusedAt.map { (e.id, $0) } }.max { $0.1 < $1.1 }?.0
             return front.flatMap { id in projects.firstIndex { $0.desktopSessionId == id } }
-        case Restorer.codexApp: return projects.firstIndex { $0.app == "codex" }
-        default: return nil
+        case Restorer.codexApp: return projects.firstIndex { $0.app == "codex" && !$0.terminal }
+        // In a terminal: the newest session running in that terminal.
+        default: return Terminals.keys[bid] == nil ? nil : projects.firstIndex { $0.terminal && $0.via == bid }
         }
     }
     /// Command+Option tapped: open the list, or close whatever is showing.
@@ -408,7 +409,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func startRefreshing() {
         // Switching apps changes which session counts as "the one you are in", so the resting character is re-evaluated.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
-            MainActor.assumeIsolated { if self?.machine.phase == .idle { self?.push() } }
+            MainActor.assumeIsolated {
+                // Pick up opens a closed terminal session in the terminal you use.
+                if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier, Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
+                if self?.machine.phase == .idle { self?.push() }
+            }
         }
         refreshProjects()
         startWatching()
@@ -539,6 +544,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 self.refreshProjects()
             }
             timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
+            // The card had the keyboard: hand it back to the app you were in. A key window stays key after it can no
+            // longer become key, and the panel never leaves the screen, so step out and back in.
+            if panel.isKeyWindow { panel.orderOut(nil); panel.orderFrontRegardless() }
         case .open:
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
             restartTimer()
@@ -718,6 +726,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Already in front means the app navigates inside itself, which takes longer than coming forward.
                 target = app; let wait = frontBefore == app ? 1.6 : 0.9
                 settle = { try? await Task.sleep(for: .seconds(wait)); return true }
+            case .newTerminal(let app, let cwd, let agent):
+                // Type only once the agent is running, never into the shell before it.
+                target = app
+                settle = {
+                    for _ in 0..<60 {
+                        if await Task.detached(operation: { LiveSessions.all().contains { $0.cwd == cwd && $0.agent == agent } }).value {
+                            try? await Task.sleep(for: .seconds(1.5)); return true
+                        }
+                        try? await Task.sleep(for: .milliseconds(250))
+                    }
+                    return false
+                }
             default:
                 NSLog("Perch: reply left on the clipboard (no exact session to type into)"); self?.say("Reply copied"); return
             }
@@ -825,6 +845,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "back": onbStep = max(onbStep - 1, 0)
         case "finish": send(.dismiss); return
         case "accessibility":
+            // A switch that is on but not working belongs to an older build of Perch (another signature). Clear Perch's own
+            // entry, only when it is not working anyway, so asking adds a fresh one for this build.
+            if !AXIsProcessTrusted() {
+                let reset = Process(); reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+                reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "app.perch.mac"]
+                try? reset.run(); reset.waitUntilExit()
+            }
             // Asking is what lists Perch in the Accessibility pane; then take them there.
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)

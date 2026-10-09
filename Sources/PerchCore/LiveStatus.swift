@@ -56,8 +56,8 @@ public struct Ask: Equatable, Sendable {
     public let subject: String
     /// Every question the agent asked, in order. Empty unless this is a question.
     public let questions: [Question]
-    /// Perch can answer this from the notch. Codex approvals are answered in the app.
-    public let answerable: Bool
+    /// Perch can answer this from the notch. Codex approvals are answered in the app, terminal ones in the terminal.
+    public var answerable: Bool
 
     /// One question, its choices by label, and what each choice means as the agent described it.
     public struct Question: Equatable, Sendable {
@@ -216,7 +216,7 @@ extension Project {
                         topic: topic, app: app, agents: [status], steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
-        p.focusedAt = focusedAt
+        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via
         p.now = live.kind == .working ? now : nil
         return p
     }

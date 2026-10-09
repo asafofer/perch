@@ -9,13 +9,13 @@ enum AppIcons {
         "xcode": ("com.apple.dt.Xcode", "/Applications/Xcode.app"),
         "numbers": ("com.apple.iWork.Numbers", "/Applications/Numbers.app"),
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
-    ]
+    ].merging(Terminals.keys.filter { $0.value != "terminal" }.map { ($0.value, ($0.key, "")) }, uniquingKeysWith: { a, _ in a })
 
     /// Where an app lives on this Mac, if it is installed.
     static func url(_ key: String) -> URL? {
         guard let app = apps[key] else { return nil }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle) { return url }
-        return FileManager.default.fileExists(atPath: app.fallback) ? URL(fileURLWithPath: app.fallback) : nil
+        return !app.fallback.isEmpty && FileManager.default.fileExists(atPath: app.fallback) ? URL(fileURLWithPath: app.fallback) : nil
     }
 
     static func all() -> [String: String] {

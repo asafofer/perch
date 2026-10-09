@@ -42,10 +42,11 @@ private final class Home {
         write(".claude/projects/\(folder)/\(cli).jsonl", Self.transcript(cli, cwd: cwd, at: now.addingTimeInterval(-ago)), ago: ago)
     }
 
-    static func transcript(_ id: String, cwd: String, at: Date) -> String {
+    /// `entrypoint`: "claude-desktop" for the app, "cli" for a terminal, "sdk-cli" for `claude -p`.
+    static func transcript(_ id: String, cwd: String, at: Date, entrypoint: String = "claude-desktop") -> String {
         let ts = ISO8601DateFormatter().string(from: at)
         return [
-            #"{"type":"user","sessionId":"\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"content":"tighten the hero spacing on the landing page"}}"#,
+            #"{"type":"user","sessionId":"\#(id)","cwd":"\#(cwd)","entrypoint":"\#(entrypoint)","timestamp":"\#(ts)","message":{"content":"tighten the hero spacing on the landing page"}}"#,
             #"{"type":"assistant","sessionId":"\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/x/hero.css"}}]}}"#,
             #"{"type":"user","sessionId":"\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}"#,
             #"{"type":"assistant","sessionId":"\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"The hero now fits at phone width."}]}}"#,
@@ -85,6 +86,28 @@ private final class Home {
         h.write(path.path.replacingOccurrences(of: h.url.path + "/", with: ""), Home.transcript("a", cwd: ui, at: h.now))
         #expect(h.scanner.claude(limit: 15, now: h.now).first?.project.name == "site")
     }
+    @Test func terminalSessionsAreListedAndHeadlessRunsAreNot() {
+        let h = Home(), api = h.folder("code/api"), site = h.folder("code/site")
+        h.claude("app", cwd: site, title: "Hero spacing", ago: 300)
+        h.write(".claude/projects/-code-api/term.jsonl", Home.transcript("term", cwd: api, at: h.now.addingTimeInterval(-60), entrypoint: "cli"), ago: 60)
+        h.write(".claude/projects/-code-api/headless.jsonl", Home.transcript("headless", cwd: api, at: h.now, entrypoint: "sdk-cli"), ago: 10)
+        // a session the app deleted: its transcript stays behind, but it is not a terminal session
+        h.write(".claude/projects/-code-site/gone.jsonl", Home.transcript("gone", cwd: site, at: h.now), ago: 20)
+        let found = h.scanner.claude(limit: 15, now: h.now).sorted { $0.last > $1.last }.map(\.project)
+        #expect(found.map(\.sessionId) == ["term", "app"])
+        #expect(found.first?.terminal == true); #expect(found.first?.desktopSessionId == nil)
+        #expect(found.last?.terminal == false)
+    }
+
+    @Test func codexInATerminalIsATerminalSession() {
+        let h = Home(), docs = h.folder("code/docs")
+        h.codex("cli1", cwd: docs, source: #""cli""#, originator: "codex_cli_rs", ago: 60)
+        h.codex("app1", cwd: docs, ago: 120)
+        let found = h.scanner.codex(limit: 15, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["cli1", "app1"])
+        #expect(found.map(\.terminal) == [true, false])
+    }
+
     @Test func archivedSessionsAreLeftOut() {
         let h = Home(), site = h.folder("code/site")
         h.claude("a", cwd: site, title: "Hero spacing")
@@ -95,8 +118,8 @@ private final class Home {
     @Test func busyFoldersCannotCrowdOutAnAppSession() {
         let h = Home(), finance = h.folder("code/finance")
         h.claude("app", cwd: finance, title: "September invoices", ago: 3 * 3600)
-        // Twenty newer folders of terminal and headless runs the Claude app does not list.
-        for i in 0..<20 { h.write(".claude/projects/-other-\(i)/run\(i).jsonl", Home.transcript("run\(i)", cwd: h.folder("code/o\(i)"), at: h.now), ago: 10) }
+        // Twenty newer folders of headless runs (`claude -p`) the Claude app does not list.
+        for i in 0..<20 { h.write(".claude/projects/-other-\(i)/run\(i).jsonl", Home.transcript("run\(i)", cwd: h.folder("code/o\(i)"), at: h.now, entrypoint: "sdk-cli"), ago: 10) }
         #expect(h.scanner.claude(limit: 15, now: h.now).map(\.project.topic) == ["September invoices"])
     }
 

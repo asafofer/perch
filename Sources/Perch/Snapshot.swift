@@ -23,6 +23,8 @@ struct UISnapshot: Encodable {
         let ask: UIAsk?
         /// While it works: the step it is on.
         let now: String?
+        /// A terminal session: the icon of the terminal it runs in ("ghostty", "terminal").
+        let via: String?
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -83,7 +85,7 @@ struct UISnapshot: Encodable {
                       ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable) },
-                      now: p.now)
+                      now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil)
         }
     }
 }

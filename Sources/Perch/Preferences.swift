@@ -16,6 +16,8 @@ enum Prefs {
         get { Set((d.array(forKey: "sources.enabled") as? [String]) ?? ["claude", "codex"]) }
         set { d.set(Array(newValue), forKey: "sources.enabled") }
     }
+    /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
+    static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// When you last saw each session's latest activity (session id to time). Perch speaks up only about what changed since.
     static var seen: [String: Double] { get { d.dictionary(forKey: "seen") as? [String: Double] ?? [:] } set { d.set(newValue, forKey: "seen") } }
     /// Set once the sessions that existed before Perch was installed have been marked as seen.

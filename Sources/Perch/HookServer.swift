@@ -53,7 +53,7 @@ final class HookServer: @unchecked Sendable {
         let parts = path.split(separator: "/").map(String.init)
         guard parts.count == 2, ["claude", "codex"].contains(parts[0]) else { Self.respond(c, Data()); return }
         let id = UUID().uuidString
-        guard let event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
+        guard var event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
         // Only the Claude app runs this hook alongside its own prompt. Anywhere else (a terminal, `claude -p`) the
         // prompt waits for the hook, so holding it would freeze the session: those are answered at once, with no decision.
         if case .asks(let ask) = event.kind, ask.answerable, DesktopSessions.shared.index()[event.sessionId] != nil {
@@ -71,8 +71,11 @@ final class HookServer: @unchecked Sendable {
             watch.resume()
         } else {
             Self.respond(c, Data())
+            // Answered already (with no decision): the card shows it, and Pick up takes you to where it is asked.
+            if case .asks(var ask) = event.kind, ask.answerable { ask.answerable = false; event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at) }
         }
-        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.onEvent?(event) } }
+        let sent = event
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.onEvent?(sent) } }
     }
 
     /// Request line and body of a small HTTP POST. Nil when it is not one.
