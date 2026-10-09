@@ -8,6 +8,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var title: String?
     public var lastUserText: String?
     public var lastAssistantText: String?
+    /// The same message with its line breaks, for showing it as written.
+    public var lastAssistantFull: String?
     public var lastTimestamp: Date?
     /// "user" or "assistant": who spoke last.
     public var lastRole: String?
@@ -91,7 +93,7 @@ public enum TranscriptParser {
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
-            else { d.lastAssistantText = text; d.narration = text }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
             d.interrupted = false
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
@@ -108,11 +110,12 @@ public enum TranscriptParser {
     }
 
     /// Plain text of a message, without injected reminders or command wrappers. Tool results count as no text.
-    static func text(from content: Any?) -> String? {
+    /// `keepLines`: as written, line breaks and all (the card shows it while you reply); otherwise one line, for summaries.
+    static func text(from content: Any?, keepLines: Bool = false) -> String? {
         var raw = ""
         if let s = content as? String { raw = s }
         else if let blocks = content as? [[String: Any]] {
-            raw = blocks.compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined(separator: " ")
+            raw = blocks.compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined(separator: keepLines ? "\n\n" : " ")
         }
         raw = strip(raw, open: "<system-reminder>", close: "</system-reminder>")
         raw = strip(raw, open: "<command-name>", close: "</command-name>")
@@ -122,7 +125,8 @@ public enum TranscriptParser {
         raw = strip(raw, open: "<bash-stdout>", close: "</bash-stdout>")
         raw = strip(raw, open: "<bash-stderr>", close: "</bash-stderr>")
         raw = strip(raw, open: "<bash-input>", close: "</bash-input>")
-        let t = raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let t = keepLines ? raw.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+            : raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
         if t.hasPrefix("[Request interrupted") || t.hasPrefix("Caveat:") { return nil }
         if isMachineMessage(t) { return nil }
         return t.isEmpty ? nil : t
@@ -201,7 +205,7 @@ public enum Recap {
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
         p.now = working ? d.step : nil
-        p.said = Recap.said(d.lastAssistantText)
+        p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         return p
     }
 
@@ -501,7 +505,7 @@ public enum CodexTranscript {
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
-            else { d.lastAssistantText = text; d.narration = text }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
             if role == "assistant" { d.interrupted = false }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
@@ -510,13 +514,13 @@ public enum CodexTranscript {
         return d
     }
 
-    static func text(from content: Any?) -> String? {
-        guard let blocks = content as? [[String: Any]] else { return TranscriptParser.text(from: content) }
+    static func text(from content: Any?, keepLines: Bool = false) -> String? {
+        guard let blocks = content as? [[String: Any]] else { return TranscriptParser.text(from: content, keepLines: keepLines) }
         let raw = blocks.compactMap { b -> String? in
             let t = b["type"] as? String
             return t == "input_text" || t == "output_text" ? b["text"] as? String : nil
-        }.joined(separator: " ")
-        return TranscriptParser.text(from: raw)
+        }.joined(separator: keepLines ? "\n\n" : " ")
+        return TranscriptParser.text(from: raw, keepLines: keepLines)
     }
 }
 

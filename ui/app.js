@@ -171,10 +171,14 @@
   }
   /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
   var rIn = q('.r-in');
+  /* the notch's clip never scrolls, whatever asks it to (focus, scrollIntoView): its content only ever grows into place */
+  if (window.webkit && window.webkit.messageHandlers) window.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
+  n.querySelector('.clip').addEventListener('scroll', function (e) { if (e.target.scrollTop || e.target.scrollLeft) { e.target.scrollTop = 0; e.target.scrollLeft = 0; } });
   function replyMenu(open, quiet) {
     footer(open ? fRep : fMain);
     showSaid(open);
-    if (open) setTimeout(function () { rIn.focus(); }, 30); else { rIn.value = ''; rIn.blur(); }
+    /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
+    if (open) setTimeout(function () { rIn.focus({ preventScroll: true }); }, 30); else { rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
@@ -342,8 +346,9 @@
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
-    q('.o-x').classList.toggle('line-clamp-2', !now);   /* WebKit paints clipped text as a box when it is also line-clamped */
+    q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
     q('.o-x').innerHTML = md(nx);
+    if (now) q('.o-x').dataset.shine = q('.o-x').textContent; else delete q('.o-x').dataset.shine;   /* the light's copy of the words */
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', goLabel(p), ENTER, 'go')
