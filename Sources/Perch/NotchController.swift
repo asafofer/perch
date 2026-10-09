@@ -768,7 +768,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
         let p = projects[machine.selected]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
-            let agent = p.app, who = agent == "codex" ? "Codex" : "Claude", line = text.replacingOccurrences(of: "\n", with: " ")
+            let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " ")
             let preferred = Terminals.preferred, sentAt = Date()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -786,7 +786,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                         // The words are already in the terminal; the card closes once they have flown into the notch.
                         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, 0.78 - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
-                            let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push(); self.say("Sent to \(who)")
+                            let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push()
                         }
                     }
                 }

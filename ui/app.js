@@ -470,7 +470,8 @@
     curH = h;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
-      idleXf = 'translate(' + (-idleW / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
+      /* beside the notch, or beside the live activity when it has widened the notch */
+      idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
@@ -558,9 +559,9 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
-    bb.style.width = 'max-content'; var bw = bb.offsetWidth + 24; bb.style.width = '';
+    bb.style.width = 'max-content'; var bw = bb.offsetWidth + 28; bb.style.width = '';
     var w = Math.min(420, Math.max(idleW + 2 * side, idleW + 150, bw));
-    return [w, idleH + (actEl.querySelector('.act-body') ? 24 : 0) + 38];
+    return [w, idleH + (actEl.querySelector('.act-body') ? 24 : 0) + 44];
   }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
@@ -1213,7 +1214,7 @@
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); setTimeout(function () { pop('happy', 1500, 'Sent to Claude'); }, 300); }, 760); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, 760); return; }
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */

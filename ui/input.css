@@ -178,7 +178,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* the live activity (app.js activity): the notch grows to the sides with the session and what happened, and down by a row of buttons */
 .n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings] {
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .5s .04s cubic-bezier(.3,1.35,.45,1), border-radius .4s, --gcol .7s; }
-.n[data-s=idle][data-act=full] { border-radius: 0 0 18px 18px; }
+.n[data-s=idle][data-act=full] { border-radius: 0 0 20px 20px; }
 .n[data-s=idle][data-act=full] .ear, .n[data-s=idle][data-act=wings] .ear { transform: scale(1); }
 .act { position: absolute; inset: 0; pointer-events: none; color: #fafafa; font-size: 12.5px; letter-spacing: -.011em; }
 .act > * { position: absolute; opacity: 0; transition: opacity .18s, transform .3s cubic-bezier(.2,.9,.3,1), left .45s cubic-bezier(.3,1.2,.45,1), right .45s cubic-bezier(.3,1.2,.45,1); }
@@ -193,12 +193,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e4e4e7; }
 .act-cmd { min-width: 0; max-width: 100%; font: 500 11.5px/20px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e4e4e7; background: rgba(255,255,255,.08); border-radius: 5px; padding: 0 6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.act-btns { left: 8px; right: 8px; bottom: 8px; height: 24px; display: flex; align-items: center; gap: 4px; transform: translateY(-6px); }
+.act-btns { left: 12px; right: 12px; bottom: 11px; height: 24px; display: flex; align-items: center; gap: 4px; transform: translateY(-6px); }
 .act-gap { flex: 1; }
 .act-x { width: 24px; height: 24px; flex: none; border-radius: 7px; display: grid; place-items: center; color: #a1a1aa; cursor: pointer; transition: background-color .15s, color .15s; }
 .act-x:hover { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
-  transition: background-color .15s, color .15s; max-width: 150px; }
+  transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b:hover { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
 .act-b.go:hover { background: #e4e4e7; }
