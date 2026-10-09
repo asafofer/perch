@@ -80,6 +80,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
+  var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
     ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', answerable: true,
       questions: [Q('Match invoices by vendor first, or by amount?', 'Matching', [['Vendor first', 'Group by vendor, then match amounts'], ['Amount first', 'Exact amounts first, any vendor'], ['Both, vendor wins', 'Try vendor first, fall back to amount']])] } };
@@ -118,8 +119,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
-      ['Something needs you', 'The character pops out, eyes wide, with a count.', function () { d.show('idle'); }],
-      ['A session finished', 'One you are not in: a happy peek, then gone.', function () { d.finish(); }],
+      ['Finished elsewhere', 'A session you are not in finishes. The notch grows: the session on the left, Finished with a check on the right, and Pick up or Reply below, each on a Command+Option key. Gone after six seconds; resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
+      ['Wants to run a command', 'The command, with Allow and Deny. After nine seconds it folds to wings, the app and a mark, that stay until you answer.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
+      ['Asked you something', 'A question with up to three choices puts them on the row: Command+Option+1, 2, 3.', function () { d.arrive(3, CLAUDE_ASKS); }],
+      ['Asks in a terminal', 'A terminal session answers in its own tab, so the row offers Pick up, which goes there.', function () { d.arrive(7, { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, attention: true, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run test -- --runInBand', options: [], answerable: false } }); }],
+      ['Something needs you', 'Already waiting when you look: just the wings.', function () { d.show('idle'); }],
       ['All clear', 'The last thing waiting on you was answered.', function () { d.clear(); }]
     ]],
     ['External display', [

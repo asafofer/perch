@@ -68,6 +68,8 @@ struct UISnapshot: Encodable {
     /// What you typed in the list, and the rows that match it (all of them when nil).
     var query = ""
     var shown: [Int]?
+    /// On a call, on camera or presenting: the notch keeps what arrives to small wings.
+    var quiet = false
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
         self.onboarding = onboarding; self.settings = settings

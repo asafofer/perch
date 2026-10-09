@@ -138,6 +138,35 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
+    // MARK: the live activity
+    /// What the notch shows beside the camera when an answer or a request arrives (app.js activity): "", "wings" or "full".
+    private var activityMode = ""
+    private var activitySize = CGSize.zero
+    /// Registers the Command+Option keys its buttons answer to, and drops them when it goes.
+    var onActivityKeys: (([String]) -> Void)?
+    func playActivityDemo() { web.evaluateJavaScript("window.perch && window.perch.actDemo()", completionHandler: nil) }
+    func activityKey(_ name: String) { web.evaluateJavaScript("window.perch && window.perch.actKey('\(name)')", completionHandler: nil) }
+
+    /// The notch grown for the activity, in screen coordinates.
+    private var activityRect: CGRect {
+        CGRect(x: info.frame.midX - activitySize.width / 2, y: info.frame.maxY - activitySize.height, width: activitySize.width, height: activitySize.height)
+    }
+
+    /// Opens that session's card as if you asked for it, with the keyboard, so A, D and Esc answer it; Reply opens its field.
+    private func openCard(for id: String, reply: Bool) {
+        guard machine.phase == .idle, let i = projects.firstIndex(where: { $0.id == id }) else { return }
+        projects.insert(projects.remove(at: i), at: 0)
+        comeBack()
+        if reply { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in self?.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } }
+    }
+
+    /// Calls and presentations, checked at most every few seconds: push() runs often.
+    private var quietChecked: (at: Date, on: Bool) = (.distantPast, false)
+    private func quietNow() -> Bool {
+        if Date().timeIntervalSince(quietChecked.at) > 5 { quietChecked = (Date(), Quiet.reason() != nil) }
+        return quietChecked.on
+    }
+
     /// The session you are in: in the Claude app, the one it last had in front; in Codex, its most recent thread.
     private func activeProjectIndex() -> Int? {
         guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
@@ -396,9 +425,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Allow, deny, or one of a question's options, for the request on the card. The card closes; the agent goes on.
-    private func answer(_ choice: String, answers: [String: String]? = nil) {
-        guard projects.indices.contains(machine.selected), let ask = projects[machine.selected].ask, ask.answerable else { return }
-        let p = projects[machine.selected]
+    private func answer(_ choice: String, answers: [String: String]? = nil, at index: Int? = nil) {
+        let i = index ?? machine.selected
+        guard projects.indices.contains(i), let ask = projects[i].ask, ask.answerable else { return }
+        let p = projects[i]
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice))
         if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
         markSeen(p)
@@ -510,6 +540,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
         if machine.phase == .switcher, !listQuery.isEmpty { sent.query = listQuery; sent.shown = ListFilter.shown(projects, listQuery) }
+        if machine.phase == .idle { sent.quiet = quietNow() }
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
@@ -672,6 +703,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
+        case "activity":
+            activityMode = body["mode"] as? String ?? ""
+            if let w = body["width"] as? Double, let h = body["height"] as? Double { activitySize = CGSize(width: w, height: h) }
+            if activityMode != "full" { hoverLatched = true }   // what it folds to under the cursor is not a hover
+            onActivityKeys?(body["keys"] as? [String] ?? [])
+        case "activityOpen":
+            if let id = body["id"] as? String { openCard(for: id, reply: body["reply"] as? Bool ?? false) }
+        case "activityPick":
+            if let id = body["id"] as? String, machine.phase == .idle, let i = projects.firstIndex(where: { $0.id == id }) { pickUp(i) }
+        case "activityAnswer":
+            if let id = body["id"] as? String, let i = projects.firstIndex(where: { $0.id == id }) {
+                if let a = body["answers"] as? [String: String] { answer("", answers: a, at: i) } else if let c = body["choice"] as? String { answer(c, at: i) }
+            }
+        case "activitySeen":
+            if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
         case "log": NSLog("Perch UI: \(body["text"] ?? "")")
         default: break
         }
@@ -950,6 +996,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             if self.replyOpen {
                 if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
+                // Perch has no Edit menu, so nothing turns Command+V and friends into actions: send them to the field ourselves.
+                let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
+                if flags.subtracting(.shift) == .command, let action = edits[e.charactersIgnoringModifiers?.lowercased() ?? ""] {
+                    NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
+                }
                 return e
             }
             // Letters by what they type, so N, R and the comma work on any keyboard layout. Digits also by position (AZERTY).
@@ -989,6 +1041,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (36, _), (76, _): self.send(.confirm)
             case (53, _): self.send(.dismiss)
             case (48, _): self.send(self.machine.phase == .open ? .openSwitcher : .back)
+            case (123, _): if self.machine.phase == .open { self.send(.openSwitcher) } else { return e }   // back to the list, as Right came from it
             case (125, _): self.send(.next)
             case (126, _): self.send(.previous)
             case (_, "s"), (_, ","): if list { self.send(.openSettings) } else { return e }   // S on the card; Command+comma anywhere (in the list, letters filter)
@@ -1067,7 +1120,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
         let idle = NotchGeometry.idleSize(for: info)
-        let w = max(idle.width, 150)
+        let w = max(idle.width, 150, activityMode == "wings" ? activitySize.width : 0)
         let left: CGFloat = 30, right: CGFloat = 8     // the character sits just left of the notch
         // Extends above the screen edge so the very top pixel row of the cursor counts.
         return CGRect(x: info.frame.midX - w / 2 - left, y: info.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
@@ -1092,6 +1145,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .idle {
             // The tab (or notch) lives on whichever screen the cursor is on, so an external display gets one too.
             if let under = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }), under !== screen { place(on: under); push() }
+            // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
+            let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
+            if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
+            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; return }
             hoverIdle(); return
         }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)

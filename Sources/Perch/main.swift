@@ -63,6 +63,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.register(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { c.comeBack() }
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
         hotkeys.register(keyCode: kVK_ANSI_Q, modifiers: controlKey | optionKey, id: 3) { NSApp.terminate(nil) }
+        // While the notch says an answer or a request arrived, its buttons answer to Command+Option and a key. Only then.
+        let activityCodes: [String: Int] = ["pick": kVK_Return, "open": kVK_Return, "reply": kVK_ANSI_R, "gone": kVK_ANSI_Period,
+                                            "allow": kVK_ANSI_Y, "deny": kVK_ANSI_N, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3]
+        let activityIds = Dictionary(uniqueKeysWithValues: activityCodes.keys.sorted().enumerated().map { ($1, UInt32(20 + $0)) })
+        c.onActivityKeys = { [hotkeys] keys in
+            for (name, id) in activityIds where !keys.contains(name) { hotkeys.unregister(id: id) }
+            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: cmdKey | optionKey, id: id) { c.activityKey(name) } } }
+        }
         hotkeys.onChordTap = { c.chordTap() }
         c.onAccessibilityGranted = { [hotkeys] in hotkeys.restartChordMonitor() }
         hotkeys.startChordMonitor()
@@ -109,6 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The hello beside the notch after setup, and its run home behind it.
         if args.contains("--hello") { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.sayHello() } }
         if args.contains("--onboarding") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { c.startOnboarding() } }
+        // The live activity over your real sessions: a finish, a command to allow, a question.
+        if args.contains("--activity") { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.playActivityDemo() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.comeBack() }

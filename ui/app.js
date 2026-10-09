@@ -11,6 +11,7 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
@@ -68,7 +69,7 @@
   var scene = document.getElementById('scene');
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
-    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
+    '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<span dir="auto" class="o-proj rv absolute left-[44px] top-[7px] z-10 h-[18px] truncate text-[12.5px] font-medium leading-[18px] tracking-[-0.01em] text-foreground/75" style="--i:0"></span>' +
@@ -198,7 +199,7 @@
   /* ---- render ---- */
   /* ---- guided setup for on-device summaries ---- */
   function stepIcon(state) {
-    if (state === 'done') return '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>';
+    if (state === 'done') return '<span class="grid size-4 flex-none place-items-center rounded-full bg-[#8CCFA4]/15 text-[#8CCFA4]">' + svg('check', 'size-2.5') + '</span>';
     if (state === 'busy') return '<span class="grid size-4 flex-none place-items-center text-muted-foreground">' + svg('load', 'size-3.5 animate-spin') + '</span>';
     return '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>';
   }
@@ -238,7 +239,7 @@
       return '<button data-act="pick" data-i="' + i + '" title="' + esc(note) + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
-        (qn.multi ? '<span class="flex-none ' + (on ? 'text-emerald-400' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+        (qn.multi ? '<span class="flex-none ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
     }).join('') + '</div>';
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
@@ -440,6 +441,8 @@
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
+    else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
+    n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
     n.dataset.virt = virt ? '1' : '';
@@ -455,12 +458,8 @@
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
-    /* idle: nothing there until something needs you, then it pops out beside the notch with an orange dot */
-    var needN = st === 'idle' ? s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; }).length : 0, news = needN > 0;
-    /* what needs you, in words, on a black pill beside the character: never a bare number on its corner */
-    var dotEl = cr.querySelector('.dot');
-    if (news) { var one = s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; })[0]; dotEl.textContent = needN > 1 ? needN + ' need you' : phrase(one, true).t; }
-    if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
+    /* idle: nothing beside the notch. What needs you is said by the notch itself (the live activity below). */
+    var news = false;
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
     var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
@@ -471,8 +470,155 @@
     if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
+    /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
+    var mode = st === 'idle' ? act.mode : '', keys = !mode ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });
+    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
+    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
   }
+
+  /* ---- the live activity ----
+     In a session you are not looking at, an answer or a request arrives, and the notch says so. It grows to the sides:
+     the app and the session's name on the left, what happened on the right, a check when it finished. Below, a row of
+     buttons for what you would do next, each with a Command+Option key so a stray press never answers anything: Pick up
+     or Reply when it finished, Allow or Deny, a question's choices. A request also shows what it wants (the command, the
+     question). A finish folds away after a few seconds; a request folds to small wings, the app and a mark, that stay
+     until you answer. Resting the pointer on it holds it open. During a call or a presentation it skips straight to the
+     wings. When you come back from a break, the welcome card says all this instead. */
+  var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false;
+  var CMDOPT = '\u2318\u2325';
+  var MARK = {
+    done: '<span class="act-m ok">' + svg('check', 'size-2.5') + '</span>',
+    ask: '<span class="act-m">?</span>',
+    run: '<span class="act-m"><svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg></span>',
+    plan: '<span class="act-m">' + svg('list', 'size-2.5') + '</span>',
+    need: '<span class="act-m">!</span>'
+  };
+  function actKind(p) {
+    if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
+    return p.status.kind === 'attention' ? 'need' : 'done';
+  }
+  function actKey(p) { return p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
+  /* what you can do from here, as [action, label, key]; the first one is the main one */
+  function actButtons(p, k) {
+    var a = p.ask;
+    if (k === 'done') return [['pick', 'Pick up', '\u21a9'], ['reply', 'Reply', 'R']];
+    if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'Y'], ['deny', 'Deny', 'N']];
+    var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
+    if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
+    if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
+    return [['pick', 'Pick up', '\u21a9']];
+  }
+  function actWords(p, k) {
+    return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
+  }
+  function renderAct() {
+    actEl.dataset.mode = act.mode;
+    if (!act.mode) return;   /* what was there stays while it fades */
+    var p = act.p, k = act.kind, a = p.ask, body = '';
+    if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
+    else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
+    else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
+    var bs = actButtons(p, k);
+    act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
+    /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
+       their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
+    var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
+    /* choices share one Command+Option, said once, so each keeps room for its words */
+    var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : '<span class="act-gap"></span>') +
+      list.map(function (b, i) {
+        var main = choices ? !!b[3] : i === list.length - 1;
+        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '"><span class="act-bl">' + esc(b[1]) + '</span><kbd>' + (choices ? '' : CMDOPT) + b[2] + '</kbd></button>';
+      }).join('');
+    actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(p.name) + '</span></span>' +
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
+      (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
+  }
+  /* the size follows what it says: both sides as wide as the wider one, so the camera stays in the middle */
+  function actSize(idleW, idleH) {
+    if (act.mode === 'wings') return [idleW + 56, idleH];
+    actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
+    var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
+    var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
+    bb.style.width = 'max-content'; var bw = bb.offsetWidth + 24; bb.style.width = '';
+    var w = Math.min(420, Math.max(idleW + 2 * side, idleW + 150, bw));
+    return [w, idleH + (actEl.querySelector('.act-body') ? 24 : 0) + 38];
+  }
+  /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
+  function placeAct(idleW, idleH, w) {
+    var wing = (w - idleW) / 2, side = act.mode === 'wings' ? Math.round(wing / 2 - 7.5) : 13;
+    actEl.style.setProperty('--as', side + 'px'); actEl.style.setProperty('--ah', idleH + 'px'); actEl.style.setProperty('--aw', Math.max(0, wing - 13 - 10) + 'px');
+  }
+  function setAct(mode, p, quiet) {
+    var kind = p ? actKind(p) : '', next = p ? mode : '';
+    var same = act.mode === next && act.p && p && act.p.id === p.id && act.kind === kind && JSON.stringify(act.p) === JSON.stringify(p);
+    act = { mode: next, p: p || act.p, kind: kind || act.kind, keys: act.keys };
+    if (!same) renderAct();
+    if (!next) actHeld = false;
+    if (!quiet && snap) layout(lastSt, snap);
+  }
+  function waiting(s) { return s.projects.filter(function (p) { return p.id !== s.activeId && p.attention && !actGone[actKey(p)]; }); }
+  function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
+  function activity(s, st) {
+    var others = s.projects.filter(function (p) { return p.id !== s.activeId; });
+    var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
+    var now = { need: need.map(actKey), done: done.map(function (p) { return p.id; }) };
+    var known = actKnown; actKnown = now;
+    if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
+    var arrived = known && need.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
+    var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
+    var full = act.mode === 'full' && act.p;
+    if ((arrived || landed) && !s.quiet) {
+      setAct('full', arrived || landed, true); actLater(arrived ? 9000 : 6000);
+    } else if (full && act.kind !== 'done' && !need.some(function (p) { return p.id === act.p.id; })) {
+      clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true);   /* answered somewhere else while it showed */
+    } else if (full) {
+      var fresh = s.projects.filter(function (p) { return p.id === act.p.id; })[0]; if (fresh) setAct('full', fresh, true);
+    } else setAct(need.length ? 'wings' : '', need[0], true);
+  }
+  /* it has said its piece: whatever still waits on you stays as wings */
+  function actSettle() { if (!snap) return; var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
+  function actDo(a) {
+    var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
+    if (a === 'gone') {
+      actGone[actKey(p)] = 1; clearTimeout(actTimer);
+      if (act.kind === 'done') post({ type: 'activitySeen', id: p.id });
+      actSettle(); return;
+    }
+    if (a === 'allow' || a === 'deny') post({ type: 'activityAnswer', id: p.id, choice: a });
+    else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; post({ type: 'activityAnswer', id: p.id, answers: ans }); }
+    else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
+    actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null);
+  }
+  actEl.addEventListener('click', function (e) {
+    if (act.mode !== 'full') return;
+    var b = e.target.closest('[data-a]'); if (b) actDo(b.dataset.a);
+  });
+  /* --activity: plays the three moments over your real sessions, in the real notch. Updates from Swift wait until it ends. */
+  var actDemoOn = false, actDemoLast = null;
+  function actDemo(tries) {
+    if (actDemoOn) return;
+    var s0 = snap, ps = s0 ? s0.projects.filter(function (p) { return p.id !== s0.activeId; }) : [];
+    /* right after launch the first scan may not be in yet */
+    if (!ps.length || s0.phase !== 'idle') { if ((tries || 0) < 40) setTimeout(function () { actDemo((tries || 0) + 1); }, 500); return; }
+    post({ type: 'log', text: 'activity demo over ' + ps.length + ' sessions' });
+    actDemoOn = true;
+    var a = ps[0], b = ps[1] || a, c = ps[2] || a;
+    var calm = s0.projects.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
+    var show = function (id, o) { apply(Object.assign({}, s0, { phase: 'idle', demo: true, projects: calm.map(function (x) { return x.id === id ? Object.assign({}, x, o) : x; }) })); };
+    var ask = function (o) { return Object.assign({ status: { kind: 'attention', text: 'Claude needs you', app: 'claude' }, attention: true }, o); };
+    show('', {});
+    setTimeout(function () { show(a.id, { status: { kind: 'done', text: 'Claude finished', app: a.app }, fresh: true }); }, 800);
+    setTimeout(function () { show(b.id, ask({ ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test', options: [], answerable: true } })); }, 8500);
+    setTimeout(function () { show(c.id, ask({ ask: { kind: 'question', title: 'Claude asked you something', subject: 'Which layout should the hero use?', answerable: true,
+      questions: [{ text: 'Which layout should the hero use?', header: 'Layout', multi: false, options: ['Centered', 'Split (Recommended)', 'Full bleed'], notes: ['', '', ''] }] } })); }, 21000);
+    setTimeout(function () { actDemoOn = false; actKnown = null; known = null; actGone = {}; apply(actDemoLast || s0); actDemoLast = null; }, 33000);   /* no All clear for a pretend request */
+  }
+  /* resting the pointer on it holds it open; leaving gives it a moment more */
+  actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
+
   function apply(s) {
+    if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[s.phase];
@@ -485,6 +631,7 @@
     if (st === 'setup') setup(s.setup);
     if (p) fill(p);
     moments(s, st);
+    activity(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Reply copies the answer and opens the session. */
     /* a terminal session takes a reply without Accessibility: Perch types it into its tab */
@@ -663,11 +810,8 @@
     if (st !== 'idle') return;
     var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && p.id !== s.activeId; }).map(function (p) { return p.id; });
     var need = s.projects.filter(function (p) { return p.attention && p.id !== s.activeId; }).length;
-    if (known && !need) {
-      var landed = done.some(function (id) { return known.done.indexOf(id) < 0; });
-      if (landed) setTimeout(function () { pop('happy', 1900); }, 250);
-      else if (known.need > 0) setTimeout(function () { pop('happy', 1500, 'All clear'); }, 250);
-    }
+    /* a finish is said by the live activity; the last thing waiting on you being answered gets a word from the character */
+    if (known && !need && known.need > 0) setTimeout(function () { pop('happy', 1500, 'All clear'); }, 450);
     known = { done: done, need: need };
   }
   /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
@@ -709,7 +853,7 @@
     return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
   }
-  function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
+  function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-[#8CCFA4]/15 text-[#8CCFA4]">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
@@ -1035,7 +1179,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -1153,6 +1297,13 @@
             say('You hover the notch. Click Allow or Deny, or press A or D.');
           }, 2200);
         }, 1600);
+      },
+      /* the notch at rest, then one session changes: what the live activity does when an answer or a request arrives */
+      arrive: function (i, o) {
+        d0(); base.selected = 0;
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
+        apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', timerToken: Math.random() }));
+        autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', timerToken: Math.random() })); }, 900);
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },

@@ -4,7 +4,7 @@ import Carbon.HIToolbox
 /// Global shortcuts. Carbon hotkeys need no permission; the bare Cmd+Option tap needs Accessibility.
 @MainActor
 final class HotkeyService {
-    private var refs: [EventHotKeyRef?] = []
+    private var refs: [UInt32: EventHotKeyRef] = [:]
     private var handlers: [UInt32: () -> Void] = [:]
     private var flagsMonitor: Any?
     private var chordStart: Date?
@@ -17,8 +17,14 @@ final class HotkeyService {
         handlers[id] = action
         var ref: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(signature: OSType(0x50524348), id: id)  // 'PRCH'
+        if let old = refs.removeValue(forKey: id) { UnregisterEventHotKey(old) }
         RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hotKeyID, GetApplicationEventTarget(), 0, &ref)
-        refs.append(ref)
+        if let ref { refs[id] = ref }
+    }
+
+    func unregister(id: UInt32) {
+        if let ref = refs.removeValue(forKey: id) { UnregisterEventHotKey(ref) }
+        handlers[id] = nil
     }
 
     private static var handlerInstalled = false
