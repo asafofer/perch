@@ -157,9 +157,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* a reply sent to a terminal flies into the notch (app.js sendFly) */
 .fly { position: absolute; z-index: 20; max-width: 260px; padding: 4px 10px; border-radius: 12px 12px 12px 4px; background: rgba(255,255,255,.14);
   color: #fafafa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transform-origin: 50% 50%; }
-.fly-puff { position: absolute; z-index: 19; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.5); box-shadow: -6px 3px 0 -.5px rgba(255,255,255,.4); pointer-events: none;
-  animation: flypuff .6s .08s ease-out both; }
-@keyframes flypuff { 0% { opacity: 0; transform: none; } 20% { opacity: .8; } 100% { opacity: 0; transform: translate(-8px, 4px) scale(1.6); } }
 /* switches: narrow, in the character's colour when on; the knob keeps a hairline so it reads on Cream */
 .sw { position: relative; width: 26px; height: 16px; flex: none; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; transition: background-color .2s; }
 .sw[aria-checked="true"] { background: var(--cr); }
@@ -225,17 +222,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   animation: shimmer 1.9s cubic-bezier(.4,0,.6,1) infinite; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 @media (prefers-reduced-motion: reduce) { .shimmer { animation: none; color: hsl(var(--muted-foreground)); background: none; } }
-/* the other ways a reply can go into the notch (app.js sendFly) */
-.fly-plane { position: absolute; z-index: 20; width: 18px; height: 18px; pointer-events: none; }
-.fly-plane svg { width: 100%; height: 100%; display: block; }
-.fly-dot { position: absolute; z-index: 19; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: rgba(255,255,255,.55); opacity: 0; pointer-events: none; animation: flydot .7s ease-out both; }
-@keyframes flydot { 0% { opacity: 0; } 15% { opacity: .9; } 100% { opacity: 0; transform: scale(.4); } }
+/* the notch swallowing a reply (app.js sendFly) or the character running home (runHome): a ripple where it went in */
 .fly-ring { position: absolute; z-index: 19; width: 60px; height: 60px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(140,207,164,.9), 0 0 18px rgba(140,207,164,.5); opacity: 0; pointer-events: none;
   animation: flyring .55s cubic-bezier(.2,.8,.3,1) both; }
 @keyframes flyring { 0% { opacity: .9; transform: scale(.1); } 100% { opacity: 0; transform: scale(1.4); } }
-.fly-txt, .fly-line { position: absolute; z-index: 20; height: 18px; font-size: 13px; line-height: 18px; color: #fafafa; white-space: nowrap; overflow: visible; pointer-events: none; }
-.fly-txt { overflow: hidden; text-overflow: ellipsis; }
-.fly-line span { display: inline-block; }
-.fly-ok { position: absolute; z-index: 21; height: 28px; border-radius: 999px; display: grid; place-items: center; pointer-events: none; }
-.fly-ok svg { width: 16px; height: 16px; }
-.fly-ok path { stroke-dasharray: 20; }
+.gulp { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }

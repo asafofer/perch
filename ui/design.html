@@ -35,31 +35,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .tabs button i{font-style:normal;color:var(--pg-muted);margin-left:5px;font-variant-numeric:tabular-nums}
 .group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px 6px}
 .group[hidden]{display:none}
-.tune{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:6px 9px 8px;font-size:12.5px;color:var(--pg-muted)}
-.tune input{flex:1;max-width:260px;accent-color:var(--pg-fg)}
-.tune output{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);font-variant-numeric:tabular-nums;min-width:52px}
-.tune button{font:500 12px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:4px 8px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
-.sc{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;transition:background .15s}
-.sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
-.sc b{font:500 13px Inter,sans-serif}.sc span{font-size:12px;line-height:1.4;color:var(--pg-muted)}
-.sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 22%,transparent)}
-.play{display:inline-flex;align-items:center;gap:8px;font:500 13px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border:0;border-radius:9px;padding:8px 13px;cursor:pointer;align-self:flex-start}
-
-/* avatar matrix */
-.matrix{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);overflow:hidden}
-.mrow{display:grid;grid-template-columns:150px repeat(4,1fr);align-items:center}
-.mrow>*{padding:10px 12px}
-.mhead{font:600 12px Inter,sans-serif;color:var(--pg-muted);text-transform:uppercase;letter-spacing:.02em}
-.pick{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;cursor:pointer;border-radius:0;padding:12px}
-.pick b{font:500 13px Inter,sans-serif}.pick span{font-size:12px;color:var(--pg-muted)}
-.mrow.sel{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
-.mrow:not(.hd):hover{background:color-mix(in srgb,var(--pg-fg) 5%,transparent)}
-.cell{display:grid;place-items:center;height:76px}
-.cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
-.cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
-.badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
-@media (max-height:760px){.deskwrap{position:static}}
-@media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
 <main class="wrap">
   <header>
@@ -87,10 +62,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
-  /* a reply to a terminal session, sent a second after the field opens, in one of the ways it can go */
-  function sendAs(style) { return function () { window.perch.sendStyle(style); d.project(7); d.show('open');
-    setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit, then run it'; }, 600);
-    setTimeout(function () { document.querySelector('.x-send').click(); }, 1700); }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
     ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', answerable: true,
@@ -118,7 +89,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Acting on it', [
       ['Reply: empty', 'Press R. The field rises in where the buttons were; the cross or Esc puts them back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
-      ['Reply to a terminal', 'Return sends it into its terminal tab: the words fly up into the notch, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
+      ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
       ['Reply: no Accessibility', 'Perch cannot type for you, so Send becomes Copy and open.', function () { d.noAccess(); reply(true)(); }],
       ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { document.querySelector('[data-act=snooze]').click(); }, 700); }],
@@ -126,13 +97,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
-    ]],
-    ['Sending a reply', [
-      ['1. Lift off', 'The card clears, then your words rise as a bubble and arc into the notch, a puff of dust behind.', sendAs('lift')],
-      ['2. Paper plane', 'The bubble folds into a paper plane that loops once and glides into the notch, a dotted trail behind it.', sendAs('plane')],
-      ['3. Gulp', 'The bubble shoots straight up, stretching as it goes, and the notch swallows it with a green ripple.', sendAs('gulp')],
-      ['4. Check', 'The words slide into Send, which turns into a green check. Nothing flies.', sendAs('check')],
-      ['5. Stream', 'The letters lift off one after another and pour into the notch.', sendAs('stream')]
     ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
@@ -198,15 +162,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       b.onclick = function () { run(b, g[0] + ': ' + s[0], s[2]); };
       btns.push(b); box.appendChild(b);
     });
-    /* sending: try how soon the card closes after the words go, then play a style */
-    if (g[0] === 'Sending a reply') {
-      var tune = document.createElement('div'); tune.className = 'tune';
-      tune.innerHTML = 'Card closes after <input type="range" min="250" max="1000" step="10" value="480"><output></output><button>Each style\u2019s own</button>';
-      var rg = tune.querySelector('input'), out = tune.querySelector('output'), own = tune.querySelector('button');
-      var set = function (v) { window.__closeAfter = v; out.textContent = v ? v + ' ms' : 'its own'; };
-      rg.oninput = function () { set(+rg.value); }; own.onclick = function () { set(0); };
-      set(0); box.insertBefore(tune, box.firstChild);
-    }
     wrap.appendChild(box);
   });
   var saved = 0; try { saved = +localStorage.getItem('perch-design-tab') || 0; } catch (e) {}
