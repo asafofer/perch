@@ -227,7 +227,16 @@
   }
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
-  rIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendReply(); } else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); } e.stopPropagation(); });
+  rIn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
+    else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
+    /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
+    else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
+      e.preventDefault(); var box = q('.o-said-in');
+      box.scrollBy({ top: (e.key === 'ArrowDown' ? 1 : -1) * 57, behavior: window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+    e.stopPropagation();
+  });
   [['.x-s1', '30m'], ['.x-s2', '2h'], ['.x-s3', 'tomorrow']].forEach(function (b) { q(b[0]).onclick = function () { snoozeMenu(false, true); post({ type: 'snooze', when: b[1] }); }; });
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
