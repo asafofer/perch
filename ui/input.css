@@ -119,4 +119,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
 @keyframes hop { 0%,100% { translate: 0 0; } 40% { translate: 0 -5px; } 70% { translate: 0 1px; } }
 @keyframes bl { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+/* the list scrolls without a scrollbar; a long row reads itself out (app.js marquee), fading at the edges while it moves */
+.s-l { scrollbar-width: none; overscroll-behavior: contain; }
+.s-l::-webkit-scrollbar { display: none; }
+@property --mql { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.mq-on { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
+.mq-on .mq-in { display: inline-block; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }

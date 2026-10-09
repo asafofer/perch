@@ -22,9 +22,11 @@
   var BTN = 'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-6 px-2 cursor-pointer';
   function Button(v, label, extra, cls) {
     var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }[v];
-    return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + label + (extra || '') + '</button>';
+    /* label and key share a baseline: the key's letter sits on the line of the words, its box around it */
+    return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + (extra ? '<span class="inline-flex items-baseline gap-1">' + label + extra + '</span>' : label) + '</button>';
   }
-  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + t + '</kbd>'; }
+  /* an icon key gets an invisible character, so it has a text baseline like a letter key */
+  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
@@ -65,7 +67,7 @@
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
-      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + '<button class="x-list inline-flex h-6 cursor-pointer items-center gap-1.5 whitespace-nowrap pl-1.5 text-xs text-muted-foreground/60 transition-colors outline-none hover:text-foreground focus-visible:text-foreground">All sessions<span class="text-[10.5px] text-muted-foreground/40">Tab</span></button>' + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
+      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + Button('ghost', 'All sessions', Kbd('Tab'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
@@ -73,8 +75,8 @@
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
-      '<div class="rv px-1.5 pb-1 s-l" style="--i:1"></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-center gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-center gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv s-l max-h-[184px] overflow-y-auto px-1.5 pb-1" style="--i:1"></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -232,24 +234,80 @@
       : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go');
   }
+  /* Five rows show at a time; the rest scroll, with a soft edge where there is more. */
+  var sl = q('.s-l'), listSig = '', lastSel = -1;
+  function edges() {
+    var up = sl.scrollTop > 1, down = sl.scrollTop + sl.clientHeight < sl.scrollHeight - 1;
+    sl.style.webkitMaskImage = sl.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
+  }
+  sl.addEventListener('scroll', edges, { passive: true });
   function list(s) {
     var empty = !s.projects.length;
     q('.s-ft').style.display = empty ? 'none' : '';
     if (empty) {
+      listSig = ''; marquee(null);
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
-      q('.s-l').innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
+      sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
           : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Claude Code and Codex sessions from the last two weeks show up here.</span>') + '</div>';
-      return;
+      edges(); return;
     }
-    q('.s-l').innerHTML = s.projects.map(function (p, k) {
-      return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors ' + (k === s.selected ? 'bg-accent' : '') + '" data-i="' + k + '">' +
+    /* rows are drawn again only when they change, so a row that is reading itself out is not cut short */
+    var html = s.projects.map(function (p, k) {
+      return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         App(p.app) +
-        '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + esc(p.name) + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span></span>' +
+        '<span class="mq min-w-0 flex-1 truncate"><span class="mq-in"><span class="font-medium">' + esc(p.name) + '</span>' + (p.topic ? '<span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span>' : '') + '</span></span>' +
         '<span class="flex flex-none items-center gap-1.5 text-xs tabular-nums">' + Phrase(phrase(p, true)) + '</span></div>';
     }).join('');
-    /* a row shows that session's card in the notch; Return (or the card's Pick up) opens it */
-    scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); }; r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
+    if (html !== listSig) {
+      listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
+      /* a row shows that session's card in the notch; Return (or the card's Pick up) opens it */
+      sl.querySelectorAll('.row').forEach(function (r) {
+        r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
+        r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
+        r.onmouseenter = function () { hovered = r; marquee(r); };
+        r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
+      });
+    }
+    var sel = null;
+    sl.querySelectorAll('.row').forEach(function (r) { var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r; });
+    /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
+    if (sel) {
+      var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
+      if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
+      else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
+    }
+    edges();
+    /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
+    if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
+  }
+  /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
+  var mq = { el: null, t: 0, anims: [] }, hovered = null;
+  function marquee(row) {
+    if (row && mq.el === row) return;
+    clearTimeout(mq.t); mq.anims.forEach(function (a) { a.cancel(); });
+    if (mq.el) mq.el.querySelector('.mq').classList.remove('mq-on');
+    mq = { el: row, t: 0, anims: [] };
+    if (!row || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    mq.t = setTimeout(function () {
+      var box = row.querySelector('.mq'), inner = box.querySelector('.mq-in');
+      var over = box.scrollWidth - box.clientWidth;
+      if (over < 4 || mq.el !== row) return;
+      over += 14;   /* clear of the fade at the right edge */
+      box.classList.add('mq-on');
+      var go = over / 45 * 1000, rest = 1600, back = 600, wait = 1400, all = go + rest + back + wait;
+      var at = function (ms) { return ms / all; };
+      var x = function (v) { return { transform: 'translateX(' + v + 'px)' }; };
+      mq.anims.push(inner.animate([
+        Object.assign(x(0), { offset: 0, easing: 'cubic-bezier(.45,0,.55,1)' }), Object.assign(x(-over), { offset: at(go) }),
+        Object.assign(x(-over), { offset: at(go + rest), easing: 'cubic-bezier(.4,0,.2,1)' }), Object.assign(x(0), { offset: at(go + rest + back) }), Object.assign(x(0), { offset: 1 })
+      ], { duration: all, iterations: Infinity }));
+      /* the left edge fades in only while the text is away from its start */
+      mq.anims.push(box.animate([
+        { '--mql': '0px', offset: 0 }, { '--mql': '12px', offset: at(Math.min(300, go)) }, { '--mql': '12px', offset: at(go + rest) },
+        { '--mql': '0px', offset: at(go + rest + back) }, { '--mql': '0px', offset: 1 }
+      ], { duration: all, iterations: Infinity }));
+    }, 1000);
   }
   /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
@@ -303,7 +361,7 @@
     if (st === 'setup') setup(s.setup);
     if (p) fill(p);
     moments(s, st);
-    if (st === 'switch') list(s);
+    if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Reply copies the answer and opens the session. */
     var canSend = s.canSend !== false;
     q('.x-send-l').textContent = canSend ? 'Send' : 'Copy and open';
@@ -489,7 +547,7 @@
   }
   function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
-  function ohint(left, text) { return '<div class="flex items-center gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
+  function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
     if (a === 'settings') post({ type: 'openSettings' }); else if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
@@ -545,7 +603,7 @@
       h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
         oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
         ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
-          '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + Kbd('\u2190\u2192') + 'Shape</span><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Colour</span></span>');
+          '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Kbd('\u2190\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Colour</span></span>');
     } else if (st === 1) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
@@ -660,7 +718,7 @@
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-center gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-center gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
+      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
     paintFocus();
@@ -778,7 +836,13 @@
       { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '4m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'Swapped the sheet for a popover because it clipped on small windows.', next: '', topic: 'Permissions screen', app: 'claude', attention: true, fresh: true, line: 'Waiting on you for 4m', status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '48m', at: '10:44 AM', headline: 'You were tightening the hero spacing.', context: 'The hero now fits at phone width. The full-bleed video is gone because it slowed the page.', next: 'Check the hero on a real phone', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Claude finished', app: 'claude' } },
       { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 AM', headline: 'You were rewriting the install guide.', context: 'Moved the setup steps above troubleshooting and cut the duplicate FAQ.', next: '', topic: 'Install guide', app: 'codex', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Codex is working', app: 'codex' } },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices', app: 'claude', attention: false, fresh: false, line: 'Last active 3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices', app: 'claude', attention: false, fresh: false, line: 'Last active 3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      /* more than five: the list scrolls. Long topics read themselves out after a second on the row. */
+      { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: 'Last active 5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: 'Last active 6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
+      { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8', app: 'claude', attention: false, fresh: false, line: 'Last active 1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      { id: 'fluid', name: 'FluidAgent', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: 'Last active 23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
+      { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: 'Last active 2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
     ];
     var hash = (location.hash || '#open').slice(1);
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
