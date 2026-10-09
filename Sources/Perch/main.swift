@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let monitor = ActivityMonitor(threshold: seconds)
             if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
             c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
+            c.onMenuIcon = { [weak self] image in self?.statusItem?.button?.image = image }
             monitor.onReturn = { since in c.comeBack(proactive: true, awaySince: since) }
             activity = monitor
             installStatusItem()
@@ -96,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
         // Replays the onboarding from the hello, without forgetting your settings.
+        // The hello beside the notch after setup, and its run home behind it.
+        if args.contains("--hello") { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.sayHello() } }
         if args.contains("--onboarding") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { c.startOnboarding() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {
@@ -107,11 +110,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Until the page draws your own character (onMenuIcon), a little dome with eyes.
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in
             let p = NSBezierPath()
             p.move(to: NSPoint(x: 3, y: 3)); p.line(to: NSPoint(x: 3, y: 9))
             p.appendArc(withCenter: NSPoint(x: 9, y: 9), radius: 6, startAngle: 180, endAngle: 0, clockwise: true)
             p.line(to: NSPoint(x: 15, y: 3)); p.close()
+            p.appendOval(in: NSRect(x: 5.6, y: 6.4, width: 2.2, height: 3.6)); p.appendOval(in: NSRect(x: 10.2, y: 6.4, width: 2.2, height: 3.6))
+            p.windingRule = .evenOdd
             NSColor.black.setFill(); p.fill(); return true
         }
         image.isTemplate = true

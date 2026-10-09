@@ -31,6 +31,7 @@ case "${1:-}" in
   --simulate) open -n "$APP" --args --simulate ;;
   --setup) open -n "$APP" --args --setup ;;
   --onboarding) open -n "$APP" --args --onboarding ;;
+  --hello) open -n "$APP" --args --hello ;;
   --idle) open -n "$APP" --args --idle "${2:-15}" ;;
   --snapshot) "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
   *) open "$APP" ;;

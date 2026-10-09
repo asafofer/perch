@@ -56,7 +56,7 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -502,7 +502,31 @@
     scene.querySelectorAll('.cr:not(.cr-mini) .f path.pl').forEach(function (p) { p.setAttribute('d', sh[7] || ''); });
     scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); e.style.setProperty('--el', sh[4] || '30%'); e.style.setProperty('--er', sh[5] || '56%'); e.style.setProperty('--ew', sh[6] || '14%'); e.dataset.shape = sh[0]; });
     document.documentElement.style.setProperty('--cr', c.color);
+    menuIcon(sh);
     if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
+  }
+  /* The menu bar icon is your character: its silhouette with the eyes cut out, drawn here and handed to the app as a template image. */
+  var iconShape = '';
+  function menuIcon(sh) {
+    if (!NATIVE || iconShape === sh[0] || !window.Path2D) return;
+    iconShape = sh[0];
+    var cv = document.createElement('canvas'), g = cv.getContext('2d'), u = 34 / 24;
+    cv.width = cv.height = 36; g.translate(1, 1); g.scale(u, u);
+    g.fillStyle = g.strokeStyle = '#000';
+    var body = new Path2D(sh[2]);
+    g.fill(body); if (sh[8]) g.fill(new Path2D(sh[8]));
+    if (sh[7]) {
+      /* line details: cut in as slits where they cross the body (whiskers, pleats), drawn where they stick out (an antenna) */
+      var lines = new Path2D(sh[7]), outside = new Path2D(); outside.rect(-2, -2, 28, 28); outside.addPath(body);
+      g.lineCap = 'round';
+      g.save(); g.clip(body); g.globalCompositeOperation = 'destination-out'; g.lineWidth = .9; g.stroke(lines); g.restore();
+      g.save(); g.clip(outside, 'evenodd'); g.lineWidth = 1.3; g.stroke(lines); g.restore();
+    }
+    /* the eyes, a touch bigger than on screen so they read at menu bar size */
+    g.globalCompositeOperation = 'destination-out';
+    var top = parseFloat(sh[3]) * .24, w = parseFloat(sh[6] || '14%') * .24 * 1.15, h = 24 * .26;
+    [sh[4] || '30%', sh[5] || '56%'].forEach(function (l) { var x = parseFloat(l) * .24 + parseFloat(sh[6] || '14%') * .12; g.beginPath(); g.ellipse(x, top + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); g.fill(); });
+    post({ type: 'menuIcon', png: cv.toDataURL('image/png') });
   }
   function crHtml(cls, size, sh, mood) {
     return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
@@ -551,8 +575,7 @@
     cr.style.transform = idleXf; cr.style.opacity = 1; cr.dataset.m = 'awake';
     ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
     setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = mood; }, 420);
-    setTimeout(function () { cr.dataset.say = ''; cr.style.transform = idleXf + ' translateX(' + (idleD + 4) + 'px) scale(.55)'; cr.style.opacity = 0; }, ms);
-    setTimeout(function () { hello = false; if (snap) layout(lastSt, snap); }, ms + 600);
+    setTimeout(function () { runHome(function () { hello = false; if (snap) layout(lastSt, snap); }); }, ms);
   }
   /* While you are at the Mac, rare and small: a session you are not in finished, or the last thing waiting on you was answered. */
   var known = null;
@@ -575,8 +598,22 @@
     ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
     setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = 'happy'; }, 700);
     setTimeout(function () { cr.dataset.m = 'awake'; blinkEl(cr); }, 1500);
-    setTimeout(function () { cr.style.transform = idleXf + ' translateX(' + (idleD + 4) + 'px) scale(.55)'; cr.style.opacity = 0; }, 2500);
-    setTimeout(function () { hello = false; if (snap) layout(lastSt, snap); }, 3100);
+    setTimeout(function () { runHome(function () { hello = false; if (snap) layout(lastSt, snap); }); }, 2500);
+  }
+  /* It lives behind the notch: a little wind-up, leaning back with its eyes on the notch, then a dash in under the notch's edge. */
+  function runHome(done) {
+    var ci = cr.querySelector('.cr-in');
+    cr.dataset.say = '';
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { cr.style.opacity = 0; setTimeout(done, 350); return; }
+    cr.style.setProperty('--run', (idleD + 24) + 'px');
+    cr.dataset.m = 'awake'; look(2.6, 0);
+    cr.classList.add('running'); ci.classList.remove('run'); void ci.offsetWidth; ci.classList.add('run');
+    setTimeout(function () {
+      cr.style.transition = 'none'; cr.style.opacity = 0;
+      ci.classList.remove('run'); cr.classList.remove('running'); look(0, 0);
+      void cr.offsetWidth; cr.style.transition = '';
+      done();
+    }, 1000);
   }
 
   var onbStep = -1, onbSig = '', onbLast = null;
@@ -919,7 +956,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */

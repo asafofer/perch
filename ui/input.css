@@ -66,6 +66,23 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes arrive { 0% { transform: translateX(22px) scale(.5); opacity: 0; } 55% { transform: translateX(-3px) scale(1.1); opacity: 1; } 100% { transform: none; opacity: 1; } }
 .cr-in { position: absolute; inset: 0; }
 .cr-in.hop { animation: hop .55s cubic-bezier(.3,1.5,.5,1); }
+/* home is behind the notch (app.js runHome): it crouches and leans back, then dashes right with a bounce in its step, under the notch's edge */
+.cr.running { z-index: 8; }
+.cr-in.run { animation: run 1s both; transform-origin: 50% 100%; }
+@keyframes run {
+  0% { transform: none; animation-timing-function: cubic-bezier(.3,0,.4,1); }
+  30% { transform: translateX(-3px) scale(1.1,.86) rotate(-9deg); }
+  44% { transform: translateX(-5px) scale(1.15,.82) rotate(-12deg); animation-timing-function: cubic-bezier(.6,0,.9,.4); }
+  56% { transform: translateX(calc(var(--run) * .2)) translateY(-2px) scale(1.3,.8) rotate(7deg); animation-timing-function: linear; }
+  70% { transform: translateX(calc(var(--run) * .5)) translateY(0) scale(1.22,.85) rotate(6deg); }
+  84% { transform: translateX(calc(var(--run) * .78)) translateY(-1.5px) scale(1.24,.84) rotate(6deg); }
+  100% { transform: translateX(var(--run)) translateY(0) scale(1.18,.86) rotate(5deg); }
+}
+/* two puffs of dust where it took off */
+.cr .puff { position: absolute; left: 1px; bottom: 0; width: 4px; height: 4px; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: color-mix(in srgb, var(--cr) 50%, #fff); box-shadow: -5px -3px 0 -.5px color-mix(in srgb, var(--cr) 40%, #fff); }
+.cr.running .puff { animation: puff .55s .46s ease-out both; }
+@keyframes puff { 0% { opacity: 0; transform: none; } 15% { opacity: .75; } 100% { opacity: 0; transform: translate(-7px, -3px) scale(1.5); } }
 /* the preview's tricks while you choose (app.js trick) */
 /* the hello: it drops onto the notch and lands with a squash; it bobs while it talks */
 .cr-in.perch { animation: perch .9s cubic-bezier(.3,1.1,.5,1) both; transform-origin: 50% 100%; }

@@ -644,6 +644,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.startOnboarding(step: step) }
             }
         case "quit": NSApp.terminate(nil)
+        case "menuIcon":
+            if let s = body["png"] as? String, let comma = s.firstIndex(of: ","), let data = Data(base64Encoded: String(s[s.index(after: comma)...])),
+               let image = NSImage(data: data) {
+                image.size = NSSize(width: 18, height: 18); image.isTemplate = true
+                onMenuIcon?(image)
+            }
         case "source":
             if let id = body["id"] as? String, let on = body["enabled"] as? Bool {
                 var set = Prefs.enabledSources
@@ -773,6 +779,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     // MARK: onboarding
     var onAccessibilityGranted: (() -> Void)?
+    /// The hello beside the notch that follows setup. For trying it out (`--hello`).
+    func sayHello() { web.evaluateJavaScript("window.perch && window.perch.hi()", completionHandler: nil) }
+    /// The page drew your character for the menu bar.
+    var onMenuIcon: ((NSImage) -> Void)?
     private var onbStep = 0
     /// Hello, then six setup steps: look, Accessibility, apps, live status, summaries, all set.
     private let onbTotal = 7
