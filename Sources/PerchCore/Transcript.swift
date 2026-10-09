@@ -520,8 +520,10 @@ public enum Activity {
         let quoted = { (k: String) in "“\(Recap.clip(input[k] as? String ?? "", 40))”" }
         switch tool {
         case "Bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+            // Claude Code describes each command in words ("Run the test suite"); that reads better than the command.
+            if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(about, 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
-            return c.isEmpty ? (input["description"] as? String).map { Recap.clip($0, 60) } : "Running `\(Recap.clip(c, 60))`"
+            return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
         case "Read", "view_image": return "Reading \(file(input["file_path"] != nil ? "file_path" : "path"))"
         case "Edit", "MultiEdit": return "Editing \(file("file_path"))"
         case "Write": return "Writing \(file("file_path"))"

@@ -101,14 +101,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Finished', 'Finished while you were away: what it did, and what is next.', function () { d.project(1); d.show('open'); }],
       ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: '48m ago' }); }],
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
-      ['Working', 'Codex is mid-run.', function () { d.project(2); d.show('open'); }]
+      ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }]
     ]],
     ['Acting on it', [
-      ['Reply: empty', 'Press R. The field replaces the buttons.', reply(false)],
+      ['Reply: empty', 'Press R. The field rises in where the buttons were; the cross or Esc puts them back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
       ['Reply: no Accessibility', 'Perch cannot type for you, so Send becomes Copy and open.', function () { d.noAccess(); reply(true)(); }],
       ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { document.querySelector('[data-act=snooze]').click(); }, 700); }],
+      ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
       ['All sessions', 'Press Tab. What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]

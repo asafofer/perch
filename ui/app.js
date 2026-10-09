@@ -247,6 +247,7 @@
     var now = !a && p.status.kind === 'running' && p.now;
     if (now) nx = now;
     q('.o-nl').textContent = now ? 'Now' : 'Next';
+    q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').innerHTML = md(nx);
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', 'Pick up', ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')

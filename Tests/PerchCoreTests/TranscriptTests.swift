@@ -144,6 +144,7 @@ import Foundation
         #expect(Activity.step(tool: "Grep", input: ["pattern": "isFresh"]) == "Searching for “isFresh”")
         #expect(Activity.step(tool: "WebFetch", input: ["url": "https://raycast.com/x"]) == "Reading raycast.com")
         #expect(Activity.step(tool: "exec_command", input: ["command": ["bash", "-lc", "npm test"]]) == "Running `npm test`")
+        #expect(Activity.step(tool: "Bash", input: ["command": "S=/tmp/x; swift test", "description": "Run the test suite"]) == "Run the test suite")
         #expect(Activity.step(tool: "mcp__linear__save_issue", input: [:]) == "Using issue")
         #expect(Activity.step(tool: "TodoWrite", input: [:]) == nil)
     }
