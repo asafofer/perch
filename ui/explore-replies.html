@@ -58,6 +58,17 @@ h1 { font: 600 22px/1.15 Inter, sans-serif; letter-spacing: -.02em; margin: 0; }
 .row1.w { width: 300px; margin-left: -150px; }
 .isl.l.w { right: auto; left: calc(50% - 150px); }
 .isl.r.w { left: auto; right: calc(50% - 150px); }
+.notch.tall3 { height: 86px; border-radius: 0 0 18px 18px; }
+.row2 { position: absolute; top: 58px; left: 50%; width: 300px; margin-left: -150px; height: 22px; display: flex; align-items: center; gap: 6px; z-index: 6;
+  opacity: 0; transform: translateY(-4px); transition: opacity .25s, transform .35s cubic-bezier(.2,.9,.3,1); white-space: nowrap; }
+.row2.on { opacity: 1; transform: none; }
+.k { font: 500 10px/14px Inter, sans-serif; padding: 0 4px; border-radius: 4px; background: rgba(0,0,0,.12); margin-left: 5px; }
+.mini .k { background: rgba(255,255,255,.1); color: #a1a1aa; }
+.mini.go .k { background: rgba(0,0,0,.1); color: #3f3f46; }
+.exp { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; background: rgba(255,255,255,.1); color: #fafafa; }
+.x { position: absolute; z-index: 7; top: 8px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; color: #71717a; font-size: 11px; opacity: 0; transition: opacity .25s; }
+.stage.tall3 { height: 112px; }
+.cursor { position: absolute; z-index: 9; width: 12px; height: 18px; opacity: 0; transition: opacity .2s, transform .6s cubic-bezier(.3,.8,.4,1); pointer-events: none; }
 h2 { font: 600 17px/1.2 Inter, sans-serif; letter-spacing: -.01em; margin: 14px 0 0; }
 /* 5: a soft green glow seeping out under the notch */
 .under { position: absolute; top: 18px; left: 50%; width: 170px; height: 34px; margin-left: -85px; z-index: 4; border-radius: 50%; opacity: 0;
@@ -76,6 +87,11 @@ h2 { font: 600 17px/1.2 Inter, sans-serif; letter-spacing: -.01em; margin: 14px 
     <p class="sub">A question, or a command to run. The row says what it wants, then the notch folds to small wings, the app on the left and an orange mark on the right, that stay until you answer. Hover the notch for the full card.</p>
   </div>
   <div id="needs"></div>
+  <div>
+    <h2>Answering from the row</h2>
+    <p class="sub">Where Allow, Deny and a way to put it away live, and which keys reach them without the card. Shortcuts carry &#8984;&#8997; so a stray key never answers anything, and they exist only while a request is showing.</p>
+  </div>
+  <div id="answer"></div>
 </div>
 
 <script>
@@ -186,6 +202,36 @@ h2 { font: 600 17px/1.2 Inter, sans-serif; letter-spacing: -.01em; margin: 14px 
     });
   }
   render(NEEDS, document.getElementById('needs'), false);
+
+  var CHEV = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  var PTR = '<svg class="cursor" viewBox="0 0 12 18"><path d="M1 1v14l3.6-3.4 2.6 5.6 2.2-1-2.6-5.4H12z" fill="#fff" stroke="#000" stroke-width="1"/></svg>';
+  function rows3(row2, hoverReveal) {
+    return { setup: function () { return '<div class="isl l wide w">' + CLAUDE + '</div><div class="isl r wide w">' + RUN + '</div><div class="row1 w"><span class="name">Website</span><span class="cmd">npm run build && npm test</span></div><div class="row2">' + row2 + '</div>' + (hoverReveal ? PTR : ''); },
+      play: function (s) {
+        var nt = s.querySelector('.notch'), isl = s.querySelectorAll('.isl'), r1 = s.querySelector('.row1'), r2 = s.querySelector('.row2'), ptr = s.querySelector('.cursor');
+        s.classList.add('tall3'); r1.classList.remove('on'); r2.classList.remove('on'); nt.classList.remove('tall', 'tall3'); nt.style.width = ''; nt.style.marginLeft = ''; isl.forEach(function (e) { e.style.opacity = 0; });
+        if (ptr) { ptr.style.opacity = 0; ptr.style.transform = 'translate(330px, 90px)'; }
+        at(s, 300, function () { nt.style.width = '330px'; nt.style.marginLeft = '-165px'; nt.classList.add(hoverReveal ? 'tall' : 'tall3'); });
+        at(s, 600, function () { isl.forEach(function (e) { e.style.opacity = 1; }); });
+        at(s, 720, function () { r1.classList.add('on'); if (!hoverReveal) r2.classList.add('on'); });
+        if (hoverReveal) {
+          at(s, 1700, function () { ptr.style.opacity = 1; ptr.style.transform = 'translate(250px, 44px)'; });
+          at(s, 2400, function () { nt.classList.add('tall3'); });
+          at(s, 2600, function () { r2.classList.add('on'); });
+          at(s, 5600, function () { ptr.style.transform = 'translate(330px, 100px)'; ptr.style.opacity = 0; r2.classList.remove('on'); nt.classList.remove('tall3'); });
+        }
+      } };
+  }
+  var ANSWER = [
+    Object.assign({ title: 'A. Three rows', lvl: 'Everything in reach', text: 'The buttons always sit on a third row: Dismiss on the left, Deny and Allow on the right, each with its key.', clears: 'Allow \u2318\u2325Y \u00b7 Deny \u2318\u2325N \u00b7 Dismiss \u2318\u2325. \u00b7 a question\u2019s choices \u2318\u23251, 2, 3' },
+      rows3('<span class="mini">Dismiss<span class="k">\u2318\u2325.</span></span><span style="flex:1"></span><span class="mini">Deny<span class="k">\u2318\u2325N</span></span><span class="mini go">Allow<span class="k">\u2318\u2325Y</span></span>')),
+    Object.assign({ title: 'B. Two rows and an expand button', lvl: 'Calmest', rec: true, text: 'The row ends in a small expand button. It, or \u2318\u2325\u21a9, opens the full card with the keyboard, where A, D and Esc answer as they do today. The \u00d7 puts it away.', clears: 'One shortcut, \u2318\u2325\u21a9, and it only opens: a stray press cannot answer anything.' },
+      { setup: function () { return '<div class="isl l wide w">' + CLAUDE + '</div><div class="isl r wide w">' + RUN + '</div><div class="row1 w"><span class="name">Website</span><span class="cmd">npm run build && npm test</span><span style="flex:1"></span><span class="exp" title="Open (\u2318\u2325\u21a9)">' + CHEV + '</span><span class="exp" style="color:#a1a1aa">\u00d7</span></div>'; },
+        play: waiting(RUN, '', true).play }),
+    Object.assign({ title: 'C. Two rows, the third on hover', lvl: 'Compact until you reach for it', text: 'Two rows as in 2b. Move the pointer onto it and the button row slides open: Dismiss, Deny, Allow.', clears: 'Keys as in A, whether or not it is open.' },
+      rows3('<span class="mini">Dismiss</span><span style="flex:1"></span><span class="mini">Deny</span><span class="mini go">Allow</span>', true))
+  ];
+  render(ANSWER, document.getElementById('answer'), false);
   var box = document.getElementById('opts');
   box.style.cssText = 'display:flex;flex-direction:column;gap:12px';
   OPTIONS.forEach(function (o, i) {
