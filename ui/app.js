@@ -383,7 +383,7 @@
     if (news) { var one = s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; })[0]; dotEl.textContent = needN > 1 ? needN + ' need you' : phrase(one, true).t; }
     if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
-    var choosing = st === 'onb' && onbStep === 0 && !celebrating;
+    var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
     cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
@@ -417,7 +417,7 @@
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
-    n.style.setProperty('--gcol', allDone ? '#4ADE80' : (s.character ? s.character.color : charNow.color));
+    n.style.setProperty('--gcol', allDone ? '#4ADE80' : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
     lastSt = st;
     layout(st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
@@ -452,7 +452,7 @@
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
-    var pv = q('.cr-pv'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * 4.5 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * 3 * pk).toFixed(2) + 'px'); }
+    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * 4.5 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * 3 * pk).toFixed(2) + 'px'); }
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
@@ -582,7 +582,8 @@
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
-    return (o.only ? '' : oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + (o.step + 1) + ' of ' + o.total + '</div>')) +
+    /* the hello is not a step of the setup: the count starts after it */
+    return (o.only ? '' : oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + o.step + ' of ' + (o.total - 1) + '</div>')) +
       oi(1, '<p class="' + (o.only ? 'pt-0.5' : 'mt-1') + ' px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
@@ -649,6 +650,7 @@
       blinkEl(pv); if (Math.random() < 0.3) setTimeout(function () { blinkEl(pv); }, 280);
       pv.style.setProperty('--lx', ((Math.random() - 0.5) * 5).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((Math.random() - 0.5) * 3).toFixed(2) + 'px');
     }
+    var hi = q('.cr-hi'); if (hi && hi.dataset.m === 'awake' && Math.random() < 0.6) blinkEl(hi);
     scene.querySelectorAll('.cr-mini').forEach(function (m, i) { if (Math.random() < 0.55) setTimeout(function () { blinkEl(m); }, i * 130); });
     setTimeout(previewLife, 1700 + Math.random() * 2400);
   })();
@@ -656,22 +658,29 @@
     onbLast = o;
     var box = q('.onb'), h = '', g = o.accessibility, st = o.step;
     if (st === 0) {
+      /* Hello: the character lands on the notch, wakes up and says who it is, then shows what it does with two sessions */
+      h = oi(0, '<div class="flex items-start gap-3 px-4 pt-0.5"><div class="hi-cr relative grid size-[60px] flex-none place-items-center">' + crHtml('cr-hi', 52, shapeOf(charNow.shape), 'sleep') + '</div>' +
+            '<div class="min-w-0 flex-1 pt-1"><p class="hi-say inline-block rounded-2xl rounded-bl-md bg-white/[0.09] px-3 py-1.5 text-[15px] font-semibold leading-5 tracking-[-0.02em]"><span class="hi-t"></span><span class="hi-ghost invisible">Hi, I\u2019m Perch.</span></p>' +
+            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch. While you\u2019re away I keep an eye on Claude Code and Codex, and when you\u2019re back I\u2019ll tell you where you left off.</p></div></div>') +
+        oi(1, '<div class="hi-demo mt-3 flex flex-col gap-1 px-2.5">' + introRow(0, 'claude', 'Website', 'Hero spacing') + introRow(1, 'codex', 'Docs', 'Install guide') + '</div>') +
+        ofoot(2, false, '', 'Nice to meet you', 'next');
+    } else if (st === 1) {
       var shapes = SHAPES.map(function (sh) {
         return '<button class="o-shape grid size-11 cursor-pointer place-items-center rounded-lg transition active:scale-95 ' + (sh[0] === charNow.shape ? 'bg-white/[0.14] ring-1 ring-white/40' : 'bg-white/[0.06] hover:bg-white/[0.1]') + '" data-k="' + sh[0] + '" aria-label="' + sh[1] + '" title="' + sh[1] + '">' + crHtml('cr-mini', 24, sh) + '</button>';
       }).join('');
       var colors = PALETTE.map(function (c) {
         return '<button class="o-color size-5 cursor-pointer rounded-full transition ' + (c[1] === charNow.color ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110') + '" style="background:' + c[1] + '" data-c="' + c[1] + '" aria-label="' + c[0] + '" title="' + c[0] + '"></button>';
       }).join('');
-      h = otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') +
+      h = (o.only ? otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') : otitle(o, 'Make me yours', 'Pick a shape and a colour for me.')) +
         oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
         ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
           '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Kbd('\u2190\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Colour</span></span>');
-    } else if (st === 1) {
+    } else if (st === 2) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
         oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', '', 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
-    } else if (st === 2) {
+    } else if (st === 3) {
       var rows = o.sources.map(function (x) {
         var sub = o.scanning ? 'Scanning\u2026' : (x.count ? esc(x.names.slice(0, 2).join(', ')) + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw relative h-[18px] w-[30px] flex-none cursor-pointer rounded-full transition-colors duration-200 ' + (x.enabled ? 'bg-emerald-400' : 'bg-white/20') + '"><i class="absolute top-[2px] block size-[14px] rounded-full bg-white shadow transition-all duration-200 ' + (x.enabled ? 'left-[14px]' : 'left-[2px]') + '"></i></button>';
@@ -681,13 +690,13 @@
         oi(3, '<div class="mt-3 flex flex-col gap-1.5 px-4">' + rows + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
-    } else if (st === 3) {
+    } else if (st === 4) {
       var live = o.live === 'on';
       h = otitle(o, 'Know the moment they need you', 'Claude Code and Codex tell Perch when they finish or need your OK, and you can answer from the notch.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each app. You can remove it in Settings.') + '</p>') +
         ofoot(5, true, live ? '' : Button('ghost', 'Skip', '', 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
-    } else if (st === 4) {
+    } else if (st === 5) {
       var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
       var off = o.summaries === 'off';
       h = otitle(o, 'Better summaries', 'Written on your Mac. Nothing leaves it.') +
@@ -701,6 +710,8 @@
     }
     box.className = 'onb' + (animate ? ' go' : '');
     box.innerHTML = h;
+    introToken++; introGlow = '';
+    if (st === 0) introduce(animate);
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
@@ -709,10 +720,63 @@
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
+  /* ---- the introduction: Perch says who it is (names start with intro: `hello` is the hello beside the notch after setup) ---- */
+  var introToken = 0, introGlow = '';
+  function introRow(i, app, name, topic) {
+    return '<div class="hi-row flex h-8 items-center gap-2 rounded-md bg-white/[0.045] px-2 text-[13px]" data-i="' + i + '">' + App(app, 'size-4') +
+      '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + name + '</span><span class="ml-2 text-muted-foreground">' + topic + '</span></span>' +
+      '<span class="hi-st flex flex-none items-center gap-1.5 text-xs">' + Phrase({ t: 'Working', c: COLORS.running, spin: true }) + '</span></div>';
+  }
+  function introduce(animate) {
+    var tok = introToken, box = q('.onb'), hi = box.querySelector('.cr-hi'), ci = hi.querySelector('.cr-in');
+    var say = box.querySelector('.hi-t'), ghost = box.querySelector('.hi-ghost'), bubble = box.querySelector('.hi-say'), sub = box.querySelector('.hi-sub'), rows = box.querySelectorAll('.hi-row');
+    var words = 'Hi, I\u2019m Perch.', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var at = function (ms, fn) { setTimeout(function () { if (tok === introToken && onbStep === 0) fn(); }, ms); };
+    var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
+    var status = function (i, ph, mood, glow) {
+      rows[i].querySelector('.hi-st').innerHTML = Phrase(ph);
+      if (!reduce) rows[i].querySelector('.hi-st').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+      hi.dataset.m = mood; play('hop', 600);
+      introGlow = glow; n.style.setProperty('--gcol', glow || charNow.color);
+    };
+    var finished = function () { status(0, { t: 'Finished', c: COLORS.done }, 'happy', '#4ADE80'); };
+    var needs = function () { status(1, { t: 'Needs your OK', c: COLORS.attention }, 'alert', '#FB923C'); };
+    if (reduce || !animate) {
+      say.textContent = words; ghost.textContent = ''; hi.dataset.m = 'awake';
+      rows[0].querySelector('.hi-st').innerHTML = Phrase({ t: 'Finished', c: COLORS.done });
+      rows[1].querySelector('.hi-st').innerHTML = Phrase({ t: 'Needs your OK', c: COLORS.attention });
+      return;
+    }
+    /* 1. it drops onto its perch, asleep, and lands with a squash */
+    bubble.style.opacity = 0; sub.style.opacity = 0; rows.forEach(function (r) { r.style.opacity = 0; });
+    play('perch', 900);
+    /* 2. wakes, blinks, hops, looks at you */
+    at(750, function () { hi.dataset.m = 'awake'; blinkEl(hi); play('hop', 600); });
+    /* 3. says hello, a letter at a time, bobbing as it talks */
+    at(1050, function () {
+      bubble.style.opacity = ''; bubble.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+      ci.classList.add('talk');
+      words.split('').forEach(function (ch, k) { at(120 + k * 48, function () { say.textContent += ch; ghost.textContent = words.slice(say.textContent.length); }); });
+      at(140 + words.length * 48, function () { ci.classList.remove('talk'); });
+    });
+    /* 4. what it does, then two sessions to show it */
+    at(2150, function () { sub.style.opacity = ''; sub.animate([{ opacity: 0, transform: 'translateY(4px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 500, easing: 'cubic-bezier(.2,.9,.3,1)' }); });
+    rows.forEach(function (r, k) { at(2900 + k * 120, function () { r.style.opacity = ''; r.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1)' }); }); });
+    /* 5. one finishes (happy, green), the other needs you (wide-eyed, orange) */
+    at(4400, finished);
+    at(5900, needs);
+    /* 6. back to its own colour, and a glance at the button */
+    at(7500, function () {
+      introGlow = ''; n.style.setProperty('--gcol', charNow.color); hi.dataset.m = 'awake';
+      hi.style.setProperty('--lx', '2.6px'); hi.style.setProperty('--ly', '2px');
+    });
+  }
   function onb(o) {
     if (!o) return;
     var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
+    /* the introduction uses none of this data: a scan finishing must not cut it short */
+    if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
     /* only a switch changed: slide it in place */
     var same = function (s) { return s.split('|').slice(0, 6).join('|'); };
     if (onbSig && o.step === onbStep && same(sig) === same(onbSig) && onbLast && onbLast.sources.map(function (x) { return x.id + x.count; }).join() === o.sources.map(function (x) { return x.id + x.count; }).join()) {
@@ -726,7 +790,7 @@
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
-    if (onbStep !== 0) return;
+    if (onbStep !== 1) return;
     /* left and right change the shape, up and down the colour; both wrap */
     var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
     if (k === 'up' || k === 'down') {
@@ -796,7 +860,7 @@
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
-    on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
+    on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-sum', function () { post({ type: 'openSettings' }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -879,7 +943,7 @@
       else if (m.action === 'back') o.step = Math.max(o.step - 1, 0);
       else if (m.action === 'finish') s.phase = 'idle';
       else if (m.action === 'accessibility') o.accessibility = true;
-      if (o.step === 2 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
+      if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'settings') { s.phase = 'settings'; s.settings = s.settings || { sources: [], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
@@ -934,7 +998,7 @@
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 6, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
+          onboarding: { step: step, total: 7, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },

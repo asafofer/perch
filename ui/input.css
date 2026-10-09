@@ -67,6 +67,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr-in { position: absolute; inset: 0; }
 .cr-in.hop { animation: hop .55s cubic-bezier(.3,1.5,.5,1); }
 /* the preview's tricks while you choose (app.js trick) */
+/* the hello: it drops onto the notch and lands with a squash; it bobs while it talks */
+.cr-in.perch { animation: perch .9s cubic-bezier(.3,1.1,.5,1) both; transform-origin: 50% 100%; }
+@keyframes perch { 0% { transform: translateY(-58px) scale(.9,1.1); opacity: 0; } 18% { opacity: 1; } 52% { transform: translateY(0) scale(.92,1.08); } 64% { transform: translateY(0) scale(1.22,.78); } 80% { transform: translateY(-3px) scale(.95,1.05); } 100% { transform: none; } }
+.cr-in.talk { animation: talk .22s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes talk { 50% { scale: 1.035 .965; } }
 .cr-in.wiggle { animation: wiggle .8s ease-in-out; transform-origin: 50% 100%; }
 .cr-in.flip { animation: flip .9s cubic-bezier(.3,1.2,.5,1); }
 .cr-in.squish { animation: squish .7s cubic-bezier(.3,1.5,.5,1); transform-origin: 50% 100%; }

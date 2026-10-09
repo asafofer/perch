@@ -774,7 +774,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: onboarding
     var onAccessibilityGranted: (() -> Void)?
     private var onbStep = 0
-    private let onbTotal = 6
+    /// Hello, then six setup steps: look, Accessibility, apps, live status, summaries, all set.
+    private let onbTotal = 7
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu bar), not the whole setup.
@@ -787,7 +788,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
         place(on: ScreenChooser.current())
-        if step >= 2 { refreshProjects() }
+        if step >= 3 { refreshProjects() }
         send(.openOnboarding)
     }
 
@@ -810,7 +811,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "next":
             if onbOnly { finishCharacter(); return }
             onbStep = min(onbStep + 1, onbTotal - 1)
-            if onbStep == 2 { refreshProjects() }
+            if onbStep == 3 { refreshProjects() }   // the apps step shows what the scan found
         case "back": onbStep = max(onbStep - 1, 0)
         case "finish": send(.dismiss); return
         case "accessibility":

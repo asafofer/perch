@@ -128,17 +128,18 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Settings', [
       ['Settings', 'The gear on the card, or S.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off', summaries: 'off' }); }],
-      ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(0, true, null, true); }],
+      ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, null, true); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
-      ['1. Make it yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(0); }],
-      ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(1, false); }],
-      ['3. Choose your apps', 'Claude and Codex, on or off.', function () { d.onboarding(2, true); }],
-      ['4. Live status', 'The hook, with consent.', function () { d.onboarding(3, true); }],
-      ['4. Live status: on', 'Ticked.', function () { d.onboarding(3, true, null, false, 'on'); }],
-      ['5. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(4, true, 'off'); }],
-      ['6. All set', 'The three ways to reach Perch.', function () { d.onboarding(5, true, 'ready'); }]
+      ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows a session finishing and one needing you.', function () { d.onboarding(0); }],
+      ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
+      ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
+      ['3. Choose your apps', 'Claude and Codex, on or off.', function () { d.onboarding(3, true); }],
+      ['4. Live status', 'The hook, with consent.', function () { d.onboarding(4, true); }],
+      ['4. Live status: on', 'Ticked.', function () { d.onboarding(4, true, null, false, 'on'); }],
+      ['5. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(5, true, 'off'); }],
+      ['6. All set', 'The three ways to reach Perch.', function () { d.onboarding(6, true, 'ready'); }]
     ]]
   ];
   var now = document.getElementById('now'), btns = [], lastRun = null;

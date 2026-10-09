@@ -95,6 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { c.comeBack() }
         }
         if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
+        // Replays the onboarding from the hello, without forgetting your settings.
+        if args.contains("--onboarding") { DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { c.startOnboarding() } }
         if args.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.comeBack() } }
         if args.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.comeBack() }
@@ -133,8 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
-    @objc private func customize() { controller?.startOnboarding(step: 0, characterOnly: true) }
-    @objc private func chooseApps() { controller?.startOnboarding(step: 2) }
+    @objc private func customize() { controller?.startOnboarding(step: 1, characterOnly: true) }
+    @objc private func chooseApps() { controller?.startOnboarding(step: 3) }
     @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func showSetup() { controller?.showSetup() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
