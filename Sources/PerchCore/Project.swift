@@ -40,6 +40,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var ask: Ask?
     /// The last time the session was in front of you in its app (the Claude app records it). Changes before it are not news.
     public var focusedAt: Date?
+    /// While it works: the step it is on ("Running `swift test`"). The card shows it on a Now row.
+    public var now: String?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
@@ -95,6 +97,7 @@ public struct FakeSessionProvider: SessionProviding {
                     agents: [AgentStatus(kind: .idle, text: "Claude finished")], steps: []),
         ]
         for (i, ago) in [(1, 2880.0), (2, 60), (3, 3 * 86_400)] { list[i].lastActive = now.addingTimeInterval(-ago) }
+        list[2].now = "Editing install.md"
         return list
     }
 }

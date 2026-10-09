@@ -21,6 +21,10 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastAsk: String?
     /// The agent used a tool (edited, ran, searched) somewhere in the part of the session that was read.
     public var didWork = false
+    /// While a turn is open: what the agent last said about what it is doing, and the step it is on ("Editing app.js").
+    /// Both start over with each prompt you send.
+    public var narration: String?
+    public var step: String?
     /// Codex: not a thread you started in the app. A `codex exec` run, an MCP call, or a subagent another thread spawned.
     public var headless = false
     /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
@@ -72,7 +76,10 @@ public enum TranscriptParser {
             if type == "assistant" {
                 let done: Set<String> = ["end_turn", "stop_sequence", "max_tokens", "refusal"]
                 d.turnOpen = !done.contains(message?["stop_reason"] as? String ?? "")
-                for b in blocks where b["type"] as? String == "tool_use" { open.append((b["id"] as? String ?? "", PendingTool(block: b))); d.didWork = true }
+                for b in blocks where b["type"] as? String == "tool_use" {
+                    open.append((b["id"] as? String ?? "", PendingTool(block: b))); d.didWork = true
+                    if let step = Activity.step(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:]) { d.step = step }
+                }
             } else if isInterrupt(message?["content"]) {
                 d.turnOpen = false; d.interrupted = true; open = []
             } else {
@@ -83,7 +90,8 @@ public enum TranscriptParser {
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text } } else { d.lastAssistantText = text }
+            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
+            else { d.lastAssistantText = text; d.narration = text }
             d.interrupted = false
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
@@ -178,9 +186,12 @@ public enum Recap {
         let name = titled ? title! : URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
-        let context = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        let settled = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
+        // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
+        let working = status.kind == .running
+        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? settled
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: app, agents: agents,
@@ -189,6 +200,7 @@ public enum Recap {
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
+        p.now = working ? d.step : nil
         return p
     }
 
@@ -202,7 +214,8 @@ public enum Recap {
     public static func outcome(_ text: String?) -> String? {
         guard var s = text, !s.isEmpty else { return nil }
         // Headings and list markers start a new piece, so "## Summary - Fixed it" does not read as one sentence.
-        s = s.replacingOccurrences(of: #"(^|\s)(#{1,6}|[-*•>]|\d+\.)\s+"#, with: "\u{1}", options: .regularExpression)
+        // A number only starts a list item at the start of a line: "start with item 1. It's cheap" is a sentence.
+        s = s.replacingOccurrences(of: #"(^|\s)(#{1,6}|[-*•>])\s+|(^|\n)[ \t]*\d+\.\s+"#, with: "\u{1}", options: .regularExpression)
         s = s.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
         s = s.replacingOccurrences(of: #"(?<=[.!?])\s+(?=[A-Z0-9`“"'(])"#, with: "\u{1}", options: .regularExpression)
         let sentences = s.components(separatedBy: CharacterSet(charactersIn: "\u{1}\n")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -440,7 +453,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt
+        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now
         return p
     }
 }
@@ -461,7 +474,12 @@ public enum CodexTranscript {
             if type == "event_msg", let kind = payload["type"] as? String {
                 if kind == "task_started" { d.turnOpen = true; d.interrupted = false } else if kind == "task_complete" { d.turnOpen = false } else if kind == "turn_aborted" { d.turnOpen = false; d.interrupted = true }
             }
-            if type == "response_item", let kind = payload["type"] as? String, kind.hasSuffix("_call") { d.didWork = true }
+            if type == "response_item", let kind = payload["type"] as? String, kind.hasSuffix("_call") {
+                d.didWork = true
+                // Arguments come as a JSON string; a patch comes as plain text.
+                let args = (payload["arguments"] as? String).flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
+                if let step = Activity.step(tool: payload["name"] as? String ?? "", input: args) { d.step = step }
+            }
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }
@@ -474,7 +492,8 @@ public enum CodexTranscript {
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text } } else { d.lastAssistantText = text }
+            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
+            else { d.lastAssistantText = text; d.narration = text }
             if role == "assistant" { d.interrupted = false }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
@@ -490,5 +509,43 @@ public enum CodexTranscript {
             return t == "input_text" || t == "output_text" ? b["text"] as? String : nil
         }.joined(separator: " ")
         return TranscriptParser.text(from: raw)
+    }
+}
+
+/// What an agent is doing right now, in a few words: the tool call it is on.
+public enum Activity {
+    /// Nil for calls that say nothing about the work (to-do lists, tool lookups, questions the card shows anyway).
+    public static func step(tool: String, input: [String: Any]) -> String? {
+        let file = { (k: String) in (input[k] as? String).map { ($0 as NSString).lastPathComponent } ?? "a file" }
+        let quoted = { (k: String) in "“\(Recap.clip(input[k] as? String ?? "", 40))”" }
+        switch tool {
+        case "Bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+            let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+            return c.isEmpty ? (input["description"] as? String).map { Recap.clip($0, 60) } : "Running `\(Recap.clip(c, 60))`"
+        case "Read", "view_image": return "Reading \(file(input["file_path"] != nil ? "file_path" : "path"))"
+        case "Edit", "MultiEdit": return "Editing \(file("file_path"))"
+        case "Write": return "Writing \(file("file_path"))"
+        case "NotebookEdit": return "Editing \(file("notebook_path"))"
+        case "apply_patch": return "Changing files"
+        case "Grep": return "Searching for \(quoted("pattern"))"
+        case "Glob": return "Looking for \(quoted("pattern"))"
+        case "WebSearch", "web_search": return "Searching the web for \(quoted("query"))"
+        case "WebFetch": return "Reading \((input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page")"
+        case "Task", "Agent": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
+        case "Skill": return (input["skill"] as? String).map { "Using \($0)" }
+        case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode", "": return nil
+        default:
+            if tool.hasPrefix("mcp__") { return "Using " + (tool.split(separator: "_").last.map(String.init) ?? tool).replacingOccurrences(of: "-", with: " ") }
+            return "Using \(tool)"
+        }
+    }
+
+    /// Codex wraps commands as ["bash", "-lc", "…"]; the last part is what you would read.
+    static func command(_ input: [String: Any]) -> String {
+        if let c = input["command"] as? String { return c }
+        if let parts = input["command"] as? [String] {
+            return parts.count >= 3 && ["bash", "zsh", "sh"].contains((parts[0] as NSString).lastPathComponent) ? parts.last! : parts.joined(separator: " ")
+        }
+        return input["cmd"] as? String ?? ""
     }
 }

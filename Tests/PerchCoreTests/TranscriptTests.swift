@@ -107,6 +107,54 @@ import Foundation
         p.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
         #expect(p.settled(since: since).needsAttention)
     }
+    @Test func aNumberInASentenceIsNotAList() {
+        #expect(Recap.outcome("My recommendation is to start with item 1. It's cheap and quick.") == "My recommendation is to start with item 1. It's cheap and quick.")
+        #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing Cut the video")
+    }
+    @Test func whileWorkingTheCardSaysWhatItIsDoing() {
+        let working = [
+            #"{"type":"assistant","timestamp":"2026-10-07T08:00:00.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"I pushed main to the remote."}]}}"#,
+            #"{"type":"user","sessionId":"s1","cwd":"/Users/a/site","timestamp":"2026-10-07T09:00:00.000Z","message":{"content":"fix the scan and add tests for it"}}"#,
+            #"{"type":"assistant","timestamp":"2026-10-07T09:01:00.000Z","message":{"stop_reason":"tool_use","content":[{"type":"text","text":"Now checking the scanner tests."},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"swift test --filter Scan\nmore","timeout":600000}}]}}"#,
+        ]
+        let d = TranscriptParser.digest(lines: working)
+        #expect(d.step == "Running `swift test --filter Scan`")
+        let p = Recap.project(digest: d, git: nil, now: Date(), quietFor: 5)!
+        #expect(p.status.kind == "running")
+        #expect(p.context == "Now checking the scanner tests.")
+        #expect(p.now == "Running `swift test --filter Scan`")
+        // once it is done, the outcome is back and there is no Now
+        let done = TranscriptParser.digest(lines: working + [#"{"type":"user","timestamp":"2026-10-07T09:02:00.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}"#,
+            #"{"type":"assistant","timestamp":"2026-10-07T09:03:00.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"The scan now finds every session."}]}}"#])
+        let q = Recap.project(digest: done, git: nil, now: Date(), quietFor: 5)!
+        #expect(q.context == "The scan now finds every session."); #expect(q.now == nil)
+    }
+    @Test func aNewPromptStartsTheActivityOver() {
+        let d = TranscriptParser.digest(lines: [
+            #"{"type":"assistant","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/x/app.js"}}]}}"#,
+            #"{"type":"user","timestamp":"2026-10-07T09:00:00.000Z","message":{"content":"now the list please"}}"#,
+        ])
+        #expect(d.step == nil); #expect(d.narration == nil)
+        let p = Recap.project(digest: { var x = d; x.cwd = "/Users/a/site"; return x }(), git: nil, now: Date(), quietFor: 5)!
+        #expect(p.context == "You asked: “now the list please”")
+    }
+    @Test func stepsReadAsWhatItIsDoing() {
+        #expect(Activity.step(tool: "Edit", input: ["file_path": "/a/b/app.js"]) == "Editing app.js")
+        #expect(Activity.step(tool: "Read", input: ["file_path": "/a/README.md"]) == "Reading README.md")
+        #expect(Activity.step(tool: "Grep", input: ["pattern": "isFresh"]) == "Searching for “isFresh”")
+        #expect(Activity.step(tool: "WebFetch", input: ["url": "https://raycast.com/x"]) == "Reading raycast.com")
+        #expect(Activity.step(tool: "exec_command", input: ["command": ["bash", "-lc", "npm test"]]) == "Running `npm test`")
+        #expect(Activity.step(tool: "mcp__linear__save_issue", input: [:]) == "Using issue")
+        #expect(Activity.step(tool: "TodoWrite", input: [:]) == nil)
+    }
+    @Test func codexStepsAndNarration() {
+        let d = CodexTranscript.digest(lines: [
+            #"{"timestamp":"2026-10-07T09:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"rewrite the install guide"}]}}"#,
+            #"{"timestamp":"2026-10-07T09:00:05Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Reading the current guide first."}]}}"#,
+            #"{"timestamp":"2026-10-07T09:00:06Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":[\"bash\",\"-lc\",\"cat docs/install.md\"]}"}}"#,
+        ])
+        #expect(d.step == "Running `cat docs/install.md`"); #expect(d.narration == "Reading the current guide first.")
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")

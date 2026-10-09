@@ -21,6 +21,8 @@ struct UISnapshot: Encodable {
         let status: Status
         let steps: [Step]
         let ask: UIAsk?
+        /// While it works: the step it is on.
+        let now: String?
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -77,7 +79,8 @@ struct UISnapshot: Encodable {
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
                       ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
-                                                 answerable: $0.answerable) })
+                                                 answerable: $0.answerable) },
+                      now: p.now)
         }
     }
 }

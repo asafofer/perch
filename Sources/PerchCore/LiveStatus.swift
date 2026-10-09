@@ -217,6 +217,7 @@ extension Project {
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
         p.focusedAt = focusedAt
+        p.now = live.kind == .working ? now : nil
         return p
     }
 }
