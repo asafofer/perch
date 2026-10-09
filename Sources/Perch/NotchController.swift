@@ -519,7 +519,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
-        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch phase: \(old) -> \(new)") }
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
+            NSLog("Perch phase: \(old) -> \(new)")
+            if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in NSLog("Perch key window: \(self?.panel.isKeyWindow ?? false), front app: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "-")") }
+        }
         switch new {
         case .idle:
             hoverLatched = true; snoozeMenuOpen = false; replyOpen = false
@@ -845,6 +849,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             guard let self, self.machine.phase != .idle else { return e }
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
             if self.machine.phase == .onboarding {
                 switch e.keyCode {
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
