@@ -19,6 +19,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var keyMonitor: Any?
     private var mouseMonitors: [Any] = []
     private var ready = false
+    /// What you typed in the list to narrow it. Cleared when the card closes.
+    private var listQuery = ""
     /// The app icons this page has. Nil until sent, and again after the page reloads.
     private var iconKeys: Set<String>?
     private var iconsCheckedAt = Date.distantPast
@@ -501,7 +503,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
-        guard let data = try? JSONEncoder().encode(snap), let json = String(data: data, encoding: .utf8) else { return }
+        var sent = snap
+        if machine.phase == .switcher, !listQuery.isEmpty { sent.query = listQuery; sent.shown = ListFilter.shown(projects, listQuery) }
+        guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
 
@@ -526,7 +530,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         switch new {
         case .idle:
-            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false
+            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
@@ -891,6 +895,20 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let k = keys[e.keyCode] ?? (ch.count == 1 && "123456789".contains(ch) ? ch : nil)
                 if let k { self.web.evaluateJavaScript("window.perch && window.perch.askKey('\(k)')", completionHandler: nil); self.restartTimer(); return nil }
             }
+            if self.machine.phase == .switcher {
+                // Typing narrows the list. Backspace edits, Esc clears what you typed before it closes anything.
+                if e.keyCode == 51 { if !self.listQuery.isEmpty { self.listQuery.removeLast(); self.filterChanged() }; return nil }
+                if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
+                if e.keyCode == 125 || e.keyCode == 126 { self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
+                let typed = e.characters ?? ""
+                if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1, !(typed == "," && self.listQuery.isEmpty),
+                   typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
+                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.filterChanged() }
+                    return nil
+                }
+                // Nothing left to open or look at when nothing matches.
+                if [36, 76, 48, 124].contains(e.keyCode), ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
+            }
             if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
             case (36, _), (76, _): self.send(.confirm)
@@ -911,6 +929,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if self.machine.phase == .open { self.restartTimer(); self.push() }
             return nil
         }
+    }
+    /// The first row that matches is the one Return opens.
+    private func filterChanged() {
+        if let first = ListFilter.shown(projects, listQuery).first { machine.send(.projectsChanged(count: projects.count, selected: first)) }
+        push()
+    }
+    /// Up and down move through the rows that match, wrapping around.
+    private func stepList(_ d: Int) {
+        let shown = ListFilter.shown(projects, listQuery)
+        guard !shown.isEmpty else { return }
+        let next = shown.firstIndex(of: machine.selected).map { shown[($0 + d + shown.count) % shown.count] } ?? shown[0]
+        machine.send(.projectsChanged(count: projects.count, selected: next))
+        push()
     }
     private func stopKeys() { if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil } }
 

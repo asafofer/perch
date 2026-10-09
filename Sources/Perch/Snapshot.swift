@@ -61,6 +61,9 @@ struct UISnapshot: Encodable {
     let scanning: Bool
     /// Perch can type a reply for you (Accessibility). Without it, Reply copies and opens the session.
     let canSend: Bool
+    /// What you typed in the list, and the rows that match it (all of them when nil).
+    var query = ""
+    var shown: [Int]?
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
         self.onboarding = onboarding; self.settings = settings

@@ -71,10 +71,10 @@
       '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
-    '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
+    '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
-      header('<div class="text-sm font-medium leading-4">Jump back in</div>') +
+      header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv s-l max-h-[184px] overflow-y-auto px-1.5 pb-1" style="--i:1"></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('Tab') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
@@ -246,8 +246,16 @@
   }
   sl.addEventListener('scroll', edges, { passive: true });
   function list(s) {
-    var empty = !s.projects.length;
+    var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
+    /* what you typed replaces the title, with a caret; the right side counts what is left */
+    q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
+    q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
+    if (!empty && !rows.length) {
+      listSig = ''; marquee(null);
+      sl.innerHTML = '<div class="px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match</div>';
+      edges(); return;
+    }
     if (empty) {
       listSig = ''; marquee(null);
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
@@ -257,7 +265,8 @@
       edges(); return;
     }
     /* rows are drawn again only when they change, so a row that is reading itself out is not cut short */
-    var html = s.projects.map(function (p, k) {
+    var html = rows.map(function (k) {
+      var p = s.projects[k];
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         App(p.app) +
         '<span class="mq min-w-0 flex-1 truncate"><span class="mq-in"><span class="font-medium">' + esc(p.name) + '</span>' + (p.topic ? '<span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span>' : '') + '</span></span>' +
@@ -864,9 +873,13 @@
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
     var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
-    var autoTimer;
+    var autoTimer, devQuery = '';
+    function devShown() {
+      var words = devQuery.toLowerCase().split(/\s+/).filter(Boolean);
+      return P.map(function (p, k) { return k; }).filter(function (k) { var hay = (P[k].name + ' ' + P[k].topic).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    }
     window.perchDev = {
-      show: function (ph, setup, quiet) { clearTimeout(autoTimer); if (base.once) base.once = false; else base.canSend = true; snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      show: function (ph, setup, quiet) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else base.canSend = true; snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
@@ -910,7 +923,17 @@
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
-      step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }
+      step: function (d) {
+        var shown = devShown(), at = shown.indexOf(base.selected);
+        if (!shown.length) return;
+        base.selected = at < 0 ? shown[0] : shown[(at + d + shown.length) % shown.length];
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: devQuery ? shown : null, timerToken: Math.random() }));
+      },
+      /* the same narrowing as ListFilter in Swift: every word must appear in the name or the title */
+      type: function (t) {
+        devQuery = t; var shown = devShown(); if (shown.length) base.selected = shown[0];
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: devQuery ? shown : null, timerToken: Math.random() }));
+      }
     };
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
@@ -924,11 +947,13 @@
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
+      if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
+      else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 

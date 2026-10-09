@@ -101,3 +101,15 @@ public struct FakeSessionProvider: SessionProviding {
         return list
     }
 }
+
+/// Typing in the list narrows it: every word you type must appear in the project's name or title, in any case or accent.
+public enum ListFilter {
+    public static func matches(_ p: Project, _ query: String) -> Bool {
+        let hay = (p.name + " " + p.topic).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return query.split(whereSeparator: \.isWhitespace).allSatisfy { hay.contains(String($0).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)) }
+    }
+    /// The rows that stay, by their place in the full list. All of them when nothing is typed.
+    public static func shown(_ list: [Project], _ query: String) -> [Int] {
+        list.indices.filter { query.trimmingCharacters(in: .whitespaces).isEmpty || matches(list[$0], query) }
+    }
+}

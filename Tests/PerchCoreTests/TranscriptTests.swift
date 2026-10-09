@@ -155,6 +155,14 @@ import Foundation
         ])
         #expect(d.step == "Running `cat docs/install.md`"); #expect(d.narration == "Reading the current guide first.")
     }
+    @Test func typingNarrowsTheList() {
+        let list = FakeSessionProvider().parkedProjects()
+        #expect(ListFilter.shown(list, "") == [0, 1, 2, 3])
+        #expect(ListFilter.shown(list, "web") == [1])
+        #expect(ListFilter.shown(list, "INSTALL gui") == [2])
+        #expect(ListFilter.shown(list, "fin sept") == [3])
+        #expect(ListFilter.shown(list, "nothing like this").isEmpty)
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")

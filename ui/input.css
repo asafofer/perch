@@ -125,4 +125,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @property --mql { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .mq-on { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 .mq-on .mq-in { display: inline-block; }
+/* the caret after what you typed in the list */
+.s-caret { display: inline-block; width: 1.5px; height: 15px; margin-left: 1px; vertical-align: -2px; background: currentColor; border-radius: 1px; animation: caret 1.1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
