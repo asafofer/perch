@@ -232,7 +232,9 @@
     }
     /* idle: nothing there until something needs you, then it pops out beside the notch with an orange dot */
     var needN = st === 'idle' ? s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; }).length : 0, news = needN > 0;
-    var dotEl = cr.querySelector('.dot'); if (news) dotEl.textContent = needN > 9 ? '9+' : String(needN);
+    /* what needs you, in words, on a black pill beside the character: never a bare number on its corner */
+    var dotEl = cr.querySelector('.dot');
+    if (news) { var one = s.projects.filter(function (x) { return x.attention && x.id !== s.activeId; })[0]; dotEl.textContent = needN > 1 ? needN + ' need you' : phrase(one, true).t; }
     if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
     cr.style.opacity = (st === 'idle' && !news && !hello) ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
