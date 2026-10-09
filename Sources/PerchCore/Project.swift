@@ -36,6 +36,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public let desktopSessionId: String?
     /// When the agent last said something. What "while you were away" is measured against.
     public var lastActive: Date?
+    /// What the agent is asking right now, when its hooks said so. The card can answer it.
+    public var ask: Ask?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,

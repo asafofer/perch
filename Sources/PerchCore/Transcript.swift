@@ -410,7 +410,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive
+        p.lastActive = lastActive; p.ask = ask
         return p
     }
 }

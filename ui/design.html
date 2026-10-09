@@ -76,47 +76,54 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 <script>
 (function () {
   var d = window.perchDev; if (!d) return;
-  function reply(typed) { return function () { d.project(3); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
+    ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', options: ['Vendor first', 'Amount first', 'Both, vendor wins'], answerable: true } };
   var GROUPS = [
     ['Coming back', [
-      ['Needs you', 'Codex is waiting on you. Orange glow.', function () { d.project(0); d.show('open'); }],
-      ['Replied', 'Finished while you were away. Green glow, and when.', function () { d.project(1); d.show('open'); }],
-      ['Replied, already seen', 'You saw it finish before. No green, just its age. Perch would not pop up for this on its own.', function () { d.variant(1, { fresh: false, line: 'Last active 20h ago' }); }],
-      ['Waiting for your OK', 'A tool call with no result for a while: usually a permission prompt.', function () { d.variant(2, { status: { kind: 'attention', text: 'Claude is waiting for your OK', app: 'claude' }, attention: true, line: 'Waiting on you for 25m' }); }],
-      ['Asked a question', 'Shows Reply and the question under Next.', function () { d.project(3); d.show('open'); }],
-      ['Working now', 'The agent is mid-run. Spinner on its icon, and in Other projects.', function () { d.project(2); d.show('open'); }]
+      ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
+      ['Asked you something', 'One question with a few choices: press 1, 2 or 3.', function () { d.variant(3, CLAUDE_ASKS); }],
+      ['Has a plan', 'A plan is for reading, so Pick up opens it.', function () { d.variant(3, { status: { kind: 'attention', text: 'Claude has a plan for you', app: 'claude' }, attention: true, line: 'Waiting on you for 6m', ask: { kind: 'plan', title: 'Claude has a plan for you', subject: 'Move the invoice matcher to a background job and add a review screen', options: [], answerable: false } }); }],
+      ['Codex needs your OK', 'Codex approves in its own app: Pick up goes there.', function () { d.variant(2, { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'Codex wants to run a command', subject: 'rm -rf build && swift build -c release', options: [], answerable: false } }); }],
+      ['Finished', 'Finished while you were away: what it did, and what is next.', function () { d.project(1); d.show('open'); }],
+      ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: 'Last active 48m ago' }); }],
+      ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
+      ['Working', 'Codex is mid-run.', function () { d.project(2); d.show('open'); }]
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. The field replaces the buttons.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
       ['Reply: no Accessibility', 'Perch cannot type for you, so Send becomes Copy and open.', function () { d.noAccess(); reply(true)(); }],
-      ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(0); d.show('open'); setTimeout(function () { document.querySelector('.x-esc').click(); }, 700); }],
-      ['Other projects', 'Press Tab. Shows which sessions are working. Tab goes back.', function () { d.show('switcher'); }],
-      ['Asked for, still looking', 'The shortcut right after launch, before the first scan. Turns into the card when it can.', function () { d.empty(true); }],
-      ['Asked for, nothing there', 'No sessions in the last two weeks. Says so instead of doing nothing.', function () { d.empty(false); }]
+      ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
+      ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { document.querySelector('[data-act=snooze]').click(); }, 700); }],
+      ['All sessions', 'Press Tab. What needs you first, each with its status in words.', function () { d.show('switcher'); }],
+      ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
+      ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
+    ]],
+    ['While you work', [
+      ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
+      ['Something needs you', 'The character pops out, eyes wide, with a count.', function () { d.show('idle'); }],
+      ['A session finished', 'One you are not in: a happy peek, then gone.', function () { d.finish(); }],
+      ['All clear', 'The last thing waiting on you was answered.', function () { d.clear(); }]
     ]],
     ['External display', [
       ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', 'off', true); }],
-      ['Hover the tab', 'Move the cursor onto the tab: it leans toward you.', function () { setDisplay(0); d.show('idle', 'off', true); }],
       ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
     ]],
     ['Settings', [
-      ['Settings', 'The gear on the card, or the comma key. Everything lives in the notch.', function () { d.project(0); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
-      ['Summaries off', 'Shows the Set up button.', function () { d.settings({ summaries: 'off' }); }],
-      ['Change character', 'From Settings: only the character, Done goes back to Settings. Arrow keys work here too.', function () { d.onboarding(0, true, null, true); }],
-      ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false, summaries: 'off' }); }]
-    ]],
-    ['Resting', [
-      ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
-      ['Something needs you', 'The character pops out with an orange dot.', function () { d.show('idle'); }]
+      ['Settings', 'The gear on the card, or the comma key.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
+      ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off', summaries: 'off' }); }],
+      ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(0, true, null, true); }],
+      ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
-      ['1. Make it yours', 'Shape and colour. Left and right change the shape, up and down the colour.', function () { d.onboarding(0); }],
-      ['2. Accessibility: waiting', 'Open System Settings. Detects the grant live.', function () { d.onboarding(1, false); }],
-      ['2. Accessibility: allowed', 'The row ticks and Next appears.', function () { d.onboarding(1, true); }],
-      ['3. Choose your apps', 'Switch Claude Code and Codex on or off. Scans so macOS asks about folders now.', function () { d.onboarding(2, true); }],
-      ['4. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(3, true, 'off'); }],
-      ['5. All set', 'The three ways to reach Perch.', function () { d.onboarding(4, true, 'ready'); }]
+      ['1. Make it yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(0); }],
+      ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(1, false); }],
+      ['3. Choose your apps', 'Claude and Codex, on or off.', function () { d.onboarding(2, true); }],
+      ['4. Live status', 'The hook, with consent.', function () { d.onboarding(3, true); }],
+      ['4. Live status: on', 'Ticked.', function () { d.onboarding(3, true, null, false, 'on'); }],
+      ['5. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(4, true, 'off'); }],
+      ['6. All set', 'The three ways to reach Perch.', function () { d.onboarding(5, true, 'ready'); }]
     ]]
   ];
   var now = document.getElementById('now'), btns = [], lastRun = null;
@@ -140,7 +147,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs you';
+  btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
 })();
 </script>

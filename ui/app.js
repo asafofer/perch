@@ -25,39 +25,47 @@
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + label + (extra || '') + '</button>';
   }
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + t + '</kbd>'; }
-  function Dot(c) { return '<i class="block size-1.5 rounded-full" style="background:' + c + '"></i>'; }
   var icons = {};
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
+    /* stand-ins for the design page; the app always has the real icons */
     var g = {
-      xcode: ['#1C7CF4', '<path d="M7 17l6.2-6.2" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="11" y="5.2" width="7.4" height="4" rx="1" transform="rotate(45 14.7 7.2)" fill="#fff"/>'],
       claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
-      numbers: ['#2FB457', '<g fill="#fff"><rect x="6" y="12" width="3" height="6" rx=".8"/><rect x="10.5" y="8" width="3" height="10" rx=".8"/><rect x="15" y="5" width="3" height="13" rx=".8"/></g>']
+      codex: ['#F4F4F5', '<path d="M8 9.2l3 2.8-3 2.8M12.6 15h3.6" stroke="#18181B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
   }
-  /* the agent's real app icon, with a small state dot on its corner */
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
-  function StatusIcon(st) {
-    var color = COLORS[st.kind] || COLORS.idle;
-    if (!icons[st.app]) return Dot(color);
-    if (st.kind === 'running') return '<img class="size-3.5 flex-none rounded-[4px]" src="' + icons[st.app] + '" alt="">';
-    return '<span class="relative flex size-3.5 flex-none"><img class="size-3.5 rounded-[4px]" src="' + icons[st.app] + '" alt=""><i class="absolute -bottom-[2px] -right-[2px] block size-1.5 rounded-full ring-[1.5px] ring-black" style="background:' + color + '"></i></span>';
+  /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
+  function phrase(p, short) {
+    var a = p.ask, k = p.status.kind;
+    if (a) return { t: { permission: 'Needs your OK', question: 'Asked you something', plan: 'Has a plan for you' }[a.kind] || 'Needs you', c: COLORS.attention };
+    if (k === 'attention') return { t: /error/.test(p.status.text) ? 'Stopped on an error' : (short ? 'Needs you' : (p.line || 'Needs you')), c: COLORS.attention };
+    if (k === 'running') return { t: 'Working', c: COLORS.running, spin: true };
+    if (k === 'done' && p.fresh !== false) return { t: short ? 'Finished' : (p.line || 'Finished'), c: COLORS.done };
+    return { t: short || !p.line ? p.away + ' ago' : p.line, c: '' };
   }
+  function Phrase(ph) { return (ph.spin ? Spinner('size-3') : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
+  var ENTER = svg('enter', 'size-2');
+  /* a footer action: `act` is what it does, `key` its shortcut */
+  function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i></div>' +
+    '<div class="cr" data-m="sleep"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i>' +
-    '<div class="pane p-open">' + '<span class="o-away rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-xs tabular-nums text-muted-foreground" style="--i:0"></span><span class="o-st rv absolute right-[58px] top-[7px] z-10 flex h-[18px] items-center gap-1" style="--i:0"></span>' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
-      '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13.5px] font-semibold leading-[18px] tracking-[-0.02em]" style="--i:1"></p>' +
-      '<p dir="auto" class="o-c rv mt-1 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-3" style="--i:2"></p>' +
-      '<p class="rv mt-3 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
-      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + '<button class="x-list inline-flex h-6 cursor-pointer items-center gap-1.5 whitespace-nowrap pl-1.5 text-xs text-muted-foreground/60 transition-colors outline-none hover:text-foreground focus-visible:text-foreground">Other projects<span class="text-[10.5px] text-muted-foreground/40">Tab</span></button>' + '<span class="flex-1"></span>' + Button('ghost', 'Reply', Kbd('R'), 'x-rep hidden') + Button('ghost', 'Not now', Kbd('N'), 'x-esc') + Button('default', 'Pick up', Kbd(svg('enter', 'size-2'), 1), 'x-go pr-0.5') + '</div>' +
+      /* the project is the heading; its status, in words, sits on the same line */
+      '<div class="rv mt-1.5 flex h-[18px] items-center gap-2 px-4" style="--i:1"><span class="o-app flex flex-none"></span><span dir="auto" class="o-name min-w-0 flex-1 truncate text-[13.5px] font-semibold tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
+      '<p dir="auto" class="o-h rv mt-1.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
+      '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
+      '<div class="o-ask rv px-4" style="--i:3"></div>' +
+      '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="font-medium text-foreground/70">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground"></span></p>' +
+      '<div class="rv mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-1">' + '<button class="x-list inline-flex h-6 cursor-pointer items-center gap-1.5 whitespace-nowrap pl-1.5 text-xs text-muted-foreground/60 transition-colors outline-none hover:text-foreground focus-visible:text-foreground">All sessions<span class="text-[10.5px] text-muted-foreground/40">Tab</span></button>' + '<span class="flex-1"></span><span class="o-acts flex items-center gap-1"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
@@ -78,10 +86,6 @@
     '<div class="inner pt-8 pb-3.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-3.5"><div class="set"></div></div></div>' +
-    '<div class="pane p-restore"><div class="inner pt-8">' +
-      header('<div class="r-n text-sm font-medium leading-4"></div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Picking up where you left off</div>') +
-      '<div class="rv px-4 pb-4 pt-0.5 r-l" style="--i:1"></div>' +
-    '</div></div>' +
     '</div></div>';
 
   /* Inline markdown for summaries: **bold**, *italic*, `code`, [links](url) as plain text. Escaped first, so nothing can inject markup. */
@@ -96,7 +100,16 @@
   function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function q(c) { return scene.querySelector(c); }
   var n = q('.n'), cr = q('.cr');
-  q('.x-go').onclick = function () { post({ type: 'confirm' }); };
+  /* the card's actions are drawn per state (Pick up, Allow, an option...); one listener handles them all */
+  q('.p-open').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var a = b.dataset.act;
+    if (a === 'go') post({ type: 'confirm' });
+    else if (a === 'reply') replyMenu(true);
+    else if (a === 'snooze') snoozeMenu(true);
+    else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
+    else if (a === 'opt') post({ type: 'answer', choice: b.dataset.v });
+  });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
   var fMain = q('.f-main'), fSnz = q('.f-snz');
   function snoozeMenu(open, quiet) {
@@ -104,17 +117,15 @@
     if (!quiet) post({ type: 'snoozeMenu', open: open });
   }
   /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
-  var fRep = q('.f-rep'), rIn = q('.r-in'), bRep = q('.x-rep');
+  var fRep = q('.f-rep'), rIn = q('.r-in');
   function replyMenu(open, quiet) {
     fMain.style.display = open ? 'none' : ''; fRep.style.display = open ? 'flex' : 'none';
     if (open) setTimeout(function () { rIn.focus(); }, 30); else { rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
   function sendReply() { var t = rIn.value.trim(); if (!t) return; replyMenu(false, true); post({ type: 'reply', text: t }); }
-  bRep.onclick = function () { replyMenu(true); };
   q('.x-send').onclick = sendReply;
   rIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendReply(); } else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); } e.stopPropagation(); });
-  q('.x-esc').onclick = function () { snoozeMenu(true); };
   [['.x-s1', '30m'], ['.x-s2', '2h'], ['.x-s3', 'tomorrow']].forEach(function (b) { q(b[0]).onclick = function () { snoozeMenu(false, true); post({ type: 'snooze', when: b[1] }); }; });
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
@@ -150,16 +161,31 @@
   var snap = null;
 
   function fill(p) {
-    /* what happened, measured against your break ("Finished 12m after you left"); older snapshots only have the age */
-    var aw = q('.o-away'); aw.textContent = p.status.kind === 'running' ? '' : p.away.replace(/^(\d+h) \d+m$/, '$1') + ' ago'; aw.title = p.line || 'While you were away';
-    q('.o-h').innerHTML = md(p.headline);
-    q('.o-c').innerHTML = md(p.context);
+    var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
+    q('.o-app').innerHTML = App(p.app, 'size-3.5');
+    q('.o-name').textContent = p.name;
+    var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
+    if (a) {
+      /* what the agent is asking, and the means to answer it right here */
+      h.textContent = a.kind === 'question' ? a.subject : a.title;
+      c.textContent = a.kind === 'plan' ? a.subject : '';
+      box.innerHTML = a.kind === 'permission' && a.subject
+        ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
+        : (a.kind === 'question' && a.options.length ? '<div class="mt-2.5 flex flex-wrap gap-1.5">' + a.options.map(function (o, i) {
+            return '<button data-act="opt" data-v="' + esc(o) + '" class="inline-flex h-7 max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white/[0.07] pl-1.5 pr-2.5 text-[13px] transition-colors hover:bg-white/[0.13]">' + Kbd(String(i + 1)) + '<span class="truncate">' + esc(o) + '</span></button>';
+          }).join('') + '</div>' : '');
+    } else {
+      h.innerHTML = md(p.headline); c.innerHTML = md(p.context); box.innerHTML = '';
+    }
+    c.style.display = c.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
-    var nx = /^\W*(next:\s*)?(commit|push|merge|rebase|stage)\b(?! notification)|\b(pull request|uncommitted|git (add|commit|push|merge|rebase))\b|\bopen (a|the) pr\b/i.test(p.next || '') ? '' : (p.next || '');
+    var nx = a || /^\W*(next:\s*)?(commit|push|merge|rebase|stage)\b(?! notification)|\b(pull request|uncommitted|git (add|commit|push|merge|rebase))\b|\bopen (a|the) pr\b/i.test(p.next || '') ? '' : (p.next || '');
     nx = nx.replace(/^\s*next\s*[:,-]\s*/i, '');   /* the row is already labelled Next (old cache, model output) */
     q('.o-x').innerHTML = md(nx);
-    q('.o-x').parentNode.style.display = nx ? '' : 'none';
-    var so = q('.o-st'); so.innerHTML = StatusIcon(p.status) + (p.status.kind === 'running' ? Spinner('size-3') : ''); so.title = p.status.text; so.setAttribute('aria-label', p.status.text);
+    q('.o-nx').style.display = nx ? '' : 'none';
+    q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', 'Pick up', ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
+      : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go')
+      : Act('ghost', 'Reply', 'R', 'reply') + Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go');
   }
   function list(s) {
     var empty = !s.projects.length;
@@ -175,16 +201,9 @@
       return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors ' + (k === s.selected ? 'bg-accent' : '') + '" data-i="' + k + '">' +
         App(p.app) +
         '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + esc(p.name) + '</span><span dir="auto" class="ml-2 text-muted-foreground">' + esc(p.topic) + '</span></span>' +
-        (p.attention ? Dot(COLORS.attention) : '') +
-        (p.status.kind === 'running' ? '<span class="flex items-center gap-1.5 text-xs" style="color:' + COLORS.running + '">' + Spinner('size-3') + 'Working</span>' : '<span class="text-xs tabular-nums text-muted-foreground">' + esc(p.away) + ' ago</span>') + '</div>';
+        '<span class="flex flex-none items-center gap-1.5 text-xs tabular-nums">' + Phrase(phrase(p, true)) + '</span></div>';
     }).join('');
     scene.querySelectorAll('.row').forEach(function (r) { r.onclick = function () { post({ type: 'choose', index: +r.dataset.i }); }; });
-  }
-  function rest(p) {
-    q('.r-n').textContent = p.name;
-    q('.r-l').innerHTML = '<div class="rest-i flex flex-col gap-0.5">' + p.steps.map(function (x, k) {
-      return '<div class="flex h-7 items-center gap-2 text-sm" style="--k:' + k + '"><span class="text-muted-foreground">' + svg(x.icon, 'size-3.5') + '</span><span class="flex-1 truncate">' + esc(x.text) + '</span><span class="ck text-emerald-400">' + svg('check', 'size-3') + '</span></div>';
-    }).join('') + '</div>';
   }
   /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
@@ -217,22 +236,25 @@
     if (news && cr.dataset.news !== '1') { var ci = cr.querySelector('.cr-in'); ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive'); }
     cr.style.opacity = (st === 'idle' && !news && !hello) ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
-    if (!celebrating) cr.dataset.m = st === 'idle' ? ((news || hello) ? 'awake' : 'sleep') : (st === 'restore' ? 'happy' : 'awake');
+    /* its face says how things are: wide-eyed when something needs you, happy when something finished */
+    var cp = st === 'open' ? s.projects[s.selected] : null;
+    if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+      : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
   }
   function apply(s) {
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb', settings: 'set' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
-    bRep.style.display = (st === 'open' && p) ? 'inline-flex' : 'none';
     if (p) rIn.placeholder = 'Reply to ' + (p.app === 'codex' || p.status.app === 'codex' || /codex/i.test(p.status.text) ? 'Codex' : 'Claude') + '\u2026';
     applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else setSig = '';
     if (st === 'setup') setup(s.setup);
-    if (p) { fill(p); if (st === 'restore') rest(p); }
+    if (p) fill(p);
+    moments(s, st);
     if (st === 'switch') list(s);
     /* Without Accessibility Perch cannot type for you: Reply copies the answer and opens the session. */
     var canSend = s.canSend !== false;
@@ -268,13 +290,13 @@
   }
   new MutationObserver(function () {
     var m = cr.dataset.m;
-    if (m === 'awake' && wasMood !== 'awake') { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
+    if ((m === 'awake' || m === 'alert') && wasMood !== m && wasMood !== 'peek') { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
   var trackTimer = null;
   function cursor(x, y) {
-    if (cr.dataset.m !== 'awake') return;
+    if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
@@ -290,7 +312,7 @@
   if (!NATIVE) scene.addEventListener('mouseleave', function () { window.perch.hot(false); });
   /* blinks at irregular intervals, sometimes twice */
   function blink() {
-    if (cr.dataset.m === 'awake') {
+    if (cr.dataset.m === 'awake' || cr.dataset.m === 'alert') {
       cr.classList.add('blink');
       setTimeout(function () { cr.classList.remove('blink'); if (Math.random() < 0.25) setTimeout(function () { cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110); }, 140); }, 110);
     }
@@ -318,13 +340,13 @@
     scene.querySelectorAll('.cr:not(.cr-mini) .f path').forEach(function (p) { p.setAttribute('d', sh[2]); });
     scene.querySelectorAll('.cr:not(.cr-mini)').forEach(function (e) { e.style.setProperty('--et', sh[3]); e.style.setProperty('--el', sh[4] || '30%'); e.style.setProperty('--er', sh[5] || '56%'); });
     document.documentElement.style.setProperty('--cr', c.color);
-    if (n && !(onbStep === 4 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
+    if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
   }
   function crHtml(cls, size, sh, mood) {
     return '<div class="cr ' + cls + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
-  /* ---- onboarding: five short steps inside the notch ---- */
+  /* ---- onboarding: six short steps inside the notch ---- */
 
   /* ---- moments: the party at the end of onboarding, and the first hello beside the notch ---- */
   var celebrating = false, hello = false, helloNext = false, curH = 232, idleXf = '', idleD = 18, lastSt = 'idle';
@@ -354,6 +376,35 @@
     var wrap = document.createElement('div'); wrap.className = 'cf-wrap'; wrap.style.top = Math.round(curH / 2 - 3) + 'px'; wrap.innerHTML = html; host.appendChild(wrap);
     setTimeout(function () { wrap.remove(); }, 1700);
   }
+  /* A short moment beside the notch: the character pops out with a face (and maybe a word), then tucks back in. */
+  function pop(mood, ms, text, tries) {
+    if (hello || celebrating || lastSt !== 'idle') {
+      /* a word is news; it waits for the moment in progress (or the closing card) instead of being lost */
+      if (text && (tries || 0) < 6) setTimeout(function () { pop(mood, ms, text, (tries || 0) + 1); }, 600);
+      return;
+    }
+    hello = true;
+    var ci = cr.querySelector('.cr-in'), say = cr.querySelector('.say');
+    say.textContent = text || ''; cr.dataset.say = text ? '1' : '';
+    cr.style.transform = idleXf; cr.style.opacity = 1; cr.dataset.m = 'awake';
+    ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
+    setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = mood; }, 420);
+    setTimeout(function () { cr.dataset.say = ''; cr.style.transform = idleXf + ' translateX(' + (idleD + 4) + 'px) scale(.55)'; cr.style.opacity = 0; }, ms);
+    setTimeout(function () { hello = false; if (snap) layout(lastSt, snap); }, ms + 600);
+  }
+  /* While you are at the Mac, rare and small: a session you are not in finished, or the last thing waiting on you was answered. */
+  var known = null;
+  function moments(s, st) {
+    if (st !== 'idle') return;
+    var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && p.id !== s.activeId; }).map(function (p) { return p.id; });
+    var need = s.projects.filter(function (p) { return p.attention && p.id !== s.activeId; }).length;
+    if (known && !need) {
+      var landed = done.some(function (id) { return known.done.indexOf(id) < 0; });
+      if (landed) setTimeout(function () { pop('happy', 1900); }, 250);
+      else if (known.need > 0) setTimeout(function () { pop('happy', 1500, 'All clear'); }, 250);
+    }
+    known = { done: done, need: need };
+  }
   /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
   function sayHello() {
     hello = true;
@@ -381,7 +432,10 @@
   function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-emerald-400/15 text-emerald-400">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-center gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
-  function onbDo(a) { if (a === 'finish') helloNext = true; if (a === 'settings') post({ type: 'openSettings' }); else post({ type: 'onb', action: a }); }
+  function onbDo(a) {
+    if (a === 'finish') helloNext = true;
+    if (a === 'settings') post({ type: 'openSettings' }); else if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
+  }
   function pickCharacter(c) {
     var shapeChanged = c.shape !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
     post({ type: 'character', shape: c.shape, color: c.color });
@@ -392,7 +446,7 @@
       setTimeout(commit, 120); setTimeout(function () { f.classList.remove('swap'); }, 560);
     } else commit();
     charNow = { shape: c.shape, color: c.color };
-    document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbStep === 4 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
+    document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
     if (box) {
       box.querySelectorAll('.o-shape').forEach(function (b) {
         var on = b.dataset.k === c.shape;
@@ -450,6 +504,12 @@
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 3) {
+      var live = o.live === 'on';
+      h = otitle(o, 'Know the moment they need you', 'Claude Code and Codex tell Perch when they finish or need your OK, and you can answer from the notch.') +
+        oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
+        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each app. You can remove it in Settings.') + '</p>') +
+        ofoot(5, true, live ? '' : Button('ghost', 'Skip', '', 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
+    } else if (st === 4) {
       var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
       var off = o.summaries === 'off';
       h = otitle(o, 'Better summaries', 'Written on your Mac. Nothing leaves it.') +
@@ -473,7 +533,7 @@
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
+    var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
@@ -511,8 +571,10 @@
     var sum = { ready: 'On your Mac', off: 'Apple Intelligence is off', downloading: 'Downloading the model\u2026', unsupported: 'Not supported on this Mac' }[o.summaries] || '';
     var rows = [
       srow('<span class="flex-none">' + crHtml('cr-mini', 20, sh) + '</span>' + slabel('Character', '<span class="text-muted-foreground">' + sh[1] + ', ' + colorName + '</span>'), Button('ghost', 'Change', '', 's-change')),
-      srow(slabel('Claude Code'), swHtml(o.sources[0].enabled, 'claude', 'Include Claude Code')),
-      srow(slabel('Codex'), swHtml(o.sources[1].enabled, 'codex', 'Include Codex')),
+      srow(slabel('Apps'), '<span class="flex gap-1">' + o.sources.map(function (x) {
+        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? 'bg-white/[0.12] text-foreground' : 'text-muted-foreground opacity-60 hover:opacity-100') + '">' + App(x.id, 'size-4') + (x.id === 'codex' ? 'Codex' : 'Claude') + '</button>';
+      }).join('') + '</span>'),
+      srow(slabel('Live status', o.live === 'on' ? 'on' : 'off'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
       srow(slabel('Summaries', sum), o.summaries === 'off' ? Button('ghost', 'Set up', '', 's-sum') : ''),
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : 'needs access'), o.accessibility ? '' : Button('ghost', 'Allow', '', 's-ax')),
@@ -523,8 +585,10 @@
       '<div class="mt-2 flex h-9 items-center gap-1 px-2.5">' + Button('ghost', 'Replay onboarding', '', 's-replay') + Button('ghost', 'Quit Perch', '', 's-quit') + '<span class="flex-1"></span>' + Button('default', 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
-      if (b.dataset.k === 'login') post({ type: 'setting', key: 'login', value: on }); else post({ type: 'source', id: b.dataset.k, enabled: on });
+      if (b.dataset.k === 'login') post({ type: 'setting', key: 'login', value: on });
+      else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
+    box.querySelectorAll('.s-app').forEach(function (b) { b.onclick = function () { post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); }; });
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 0, only: true }); });
@@ -539,8 +603,8 @@
     var sig = JSON.stringify([o, charNow]); if (sig === setSig) return; setSig = sig; settingsRender(o);
   }
 
-  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && bRep.style.display === 'none') return; replyMenu(o); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'restore', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
+  window.perch = { _icons: function (o) { icons = o; }, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -552,7 +616,8 @@
   function dev(m) {
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose') s.phase = 'idle';
+    if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
+    if (m.type === 'hooks') { if (s.settings) s.settings.live = m.on ? 'on' : 'off'; if (s.onboarding) s.onboarding.live = m.on ? 'on' : 'off'; }
     if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
     if (m.type === 'onb' && s.onboarding) {
       var o = s.onboarding;
@@ -563,7 +628,7 @@
       if (o.step === 2 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { s.phase = 'settings'; s.settings = s.settings || { sources: [], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', enabled: true }, { id: 'codex', enabled: true }]; }
+    if (m.type === 'settings') { s.phase = 'settings'; s.settings = s.settings || { sources: [], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, null, m.only); return; }
@@ -576,15 +641,16 @@
   }
   if (!NATIVE) {
     var P = [
-      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '2h 14m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'You swapped the sheet for a popover because it clipped on small windows.', next: 'Add the tooltip to the Accessibility row', topic: 'Permissions screen', app: 'xcode', attention: true, fresh: true, line: 'Waiting on you for 2h 14m', status: { kind: 'attention', text: 'Codex needs you', app: 'codex' }, steps: [{ icon: 'win', text: 'Put 3 windows back' }, { icon: 'file', text: 'Opened PermissionsView.swift' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'website', name: 'Website', branch: 'feature/hero', away: '20h', at: 'Yesterday 5:05 PM', headline: 'You were tightening the hero spacing.', context: 'You dropped the full-bleed video because it slowed the page down.', next: 'Check the hero at phone width', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Build passing' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'term', text: 'Started the dev server on :3000' }, { icon: 'term', text: 'Resumed your Claude Code session' }] },
-      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 PM', headline: 'You were rewriting the install guide.', context: 'You are moving the setup steps above the troubleshooting section.', next: '', topic: 'Install guide', app: 'claude', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' }, steps: [{ icon: 'win', text: 'Opened the Claude app' }, { icon: 'term', text: 'Went back to your session' }] },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'You are matching by vendor and amount, not by date.', next: 'Answer: \u201cMatch by vendor first, or by amount?\u201d', topic: 'September invoices', app: 'numbers', attention: false, fresh: false, line: 'Last active 3d ago', status: { kind: 'idle', text: 'No agents running' }, steps: [{ icon: 'win', text: 'Put 2 windows back' }, { icon: 'file', text: 'Opened Invoices, September' }, { icon: 'file', text: 'Scrolled to row 41' }] }
+      { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '4m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'Swapped the sheet for a popover because it clipped on small windows.', next: '', topic: 'Permissions screen', app: 'claude', attention: true, fresh: true, line: 'Waiting on you for 4m', status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } },
+      { id: 'website', name: 'Website', branch: 'feature/hero', away: '48m', at: '10:44 AM', headline: 'You were tightening the hero spacing.', context: 'The hero now fits at phone width. The full-bleed video is gone because it slowed the page.', next: 'Check the hero on a real phone', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Claude finished', app: 'claude' } },
+      { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 AM', headline: 'You were rewriting the install guide.', context: 'Moved the setup steps above troubleshooting and cut the duplicate FAQ.', next: '', topic: 'Install guide', app: 'codex', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Codex is working', app: 'codex' } },
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices', app: 'claude', attention: false, fresh: false, line: 'Last active 3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
     ];
     var hash = (location.hash || '#open').slice(1);
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
+    function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
     var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer;
@@ -597,17 +663,24 @@
       settings: function (o) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', enabled: true }, { id: 'codex', enabled: true }], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
       },
-      onboarding: function (step, accessibility, summaries, only) {
+      onboarding: function (step, accessibility, summaries, only, live) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 5, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only } }));
+          onboarding: { step: step, total: 6, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       noAccess: function () { base.canSend = false; base.once = true; },
+      /* a session you are not in finishes while you work: the character pops out, happy, and tucks back in */
+      finish: function () { var q2 = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, status: x.id === 'docs' ? { kind: 'running', text: 'Codex is working', app: 'codex' } : x.status, fresh: false }); }); apply(Object.assign({}, base, { character: charNow, projects: q2, phase: 'idle', timerToken: Math.random() }));
+        setTimeout(function () { q2 = q2.map(function (x) { return x.id === 'docs' ? Object.assign({}, x, { status: { kind: 'done', text: 'Codex finished', app: 'codex' }, fresh: true }) : x; }); apply(Object.assign({}, base, { character: charNow, projects: q2, phase: 'idle', timerToken: Math.random() })); }, 900); },
+      /* the last thing waiting on you was answered */
+      clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
+        setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
+      say: function (t) { window.perch.say(t); },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       step: function (d) { base.selected = (base.selected + d + P.length) % P.length; apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); }

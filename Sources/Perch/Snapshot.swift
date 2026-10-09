@@ -6,6 +6,8 @@ struct UISnapshot: Encodable {
     struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat }
     struct Status: Encodable { let kind: String; let text: String; let app: String }
     struct Step: Encodable { let icon: String; let text: String }
+    /// What the agent is asking, for the card to answer: permission, question or plan.
+    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let options: [String]; let answerable: Bool }
     struct UIProject: Encodable {
         let id, name: String
         let branch: String?
@@ -17,6 +19,7 @@ struct UISnapshot: Encodable {
         let line: String
         let status: Status
         let steps: [Step]
+        let ask: UIAsk?
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -30,9 +33,12 @@ struct UISnapshot: Encodable {
         let sources: [Source]
         /// Only the character step, opened from Settings or the menu: no step count, and Done instead of Next.
         let only: Bool
+        /// Perch's hook is in every enabled app: "on" or "off".
+        let live: String
     }
 
-    struct Settings: Encodable { let sources: [Source]; let summaries: String; let accessibility: Bool; let idleMinutes: Int; let login: Bool }
+    /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
+    struct Settings: Encodable { let sources: [Source]; let summaries: String; let accessibility: Bool; let idleMinutes: Int; let login: Bool; let live: String }
 
     let phase: String
     let settings: Settings?
@@ -67,7 +73,8 @@ struct UISnapshot: Encodable {
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
                       status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
-                      steps: p.steps.map { Step(icon: $0.icon, text: $0.text) })
+                      steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
+                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject, options: $0.options, answerable: $0.answerable) })
         }
     }
 }

@@ -58,6 +58,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var scannedOnce = false
     /// You asked for the card before the first scan finished: the list shows "Looking" and turns into the card when it can.
     private var openWhenScanned = false
+    /// What the hooks said about each session, by session id. It beats the transcript's guess.
+    private let hookServer = HookServer()
+    private var live: [String: LiveStatus] = [:]
+    /// The scan as it came, before live status, model words and ordering.
+    private var base: [Project] = []
 
     init(provider: SessionProviding) {
         self.provider = provider
@@ -87,6 +92,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSLog("Perch: ui/index.html is missing from the app bundle")
         }
         installMouseMonitors()
+        hookServer.onEvent = { [weak self] e in self?.hookEvent(e) }
+        hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
+        hookServer.start()
         startRefreshing()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { guard let self, self.machine.phase == .idle else { return }; self.place(on: ScreenChooser.current()); self.push() }
@@ -190,7 +198,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 switch self.machine.phase {
                 case .idle: self.install(list)
                 case .open, .switcher: self.installLive(list)
-                case .onboarding, .settings: self.projects = list; self.machine.send(.projectsChanged(count: list.count, selected: 0)); self.push()
+                case .onboarding, .settings: self.base = list; self.projects = self.decorate(list); self.machine.send(.projectsChanged(count: self.projects.count, selected: 0)); self.push()
                 default: self.pendingProjects = list
                 }
                 if self.openWhenScanned {
@@ -291,23 +299,81 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func installLive(_ list: [Project]) {
-        guard list != projects else { return }
+        base = list
+        // While you look at the card or the list, rows keep their places; new ones join at the end.
+        let place = Dictionary(projects.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let next = decorate(list).enumerated().sorted { (place[$0.element.id] ?? 1000 + $0.offset) < (place[$1.element.id] ?? 1000 + $1.offset) }.map(\.element)
+        guard next != projects else { return }
         let keep = projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
-        projects = list
-        machine.send(.projectsChanged(count: list.count, selected: list.firstIndex { $0.id == keep } ?? 0))
-        applyCachedRecaps()
+        projects = next
+        machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? 0))
         noteSeen()
         enrich()
         push()
     }
 
     private func install(_ list: [Project]) {
-        projects = list
-        machine.projectCount = list.count
+        base = list
+        projects = decorate(list)
+        machine.projectCount = projects.count
         noteSeen()
-        applyCachedRecaps()
         enrich()
         push()
+    }
+
+    /// Live hook status over the transcript's guess, then cached model words, then what needs you first.
+    private func decorate(_ list: [Project]) -> [Project] {
+        let withLive = list.map { p -> Project in
+            guard let l = live[p.sessionId ?? p.id], l.at >= (p.lastActive ?? .distantPast).addingTimeInterval(-30) else { return p }
+            return p.applying(l)
+        }
+        return urgent(recapped(withLive))
+    }
+
+    /// Asking you first, then what finished since you looked, then what is working, then the rest; newest first in each.
+    private func urgent(_ list: [Project]) -> [Project] {
+        func rank(_ p: Project) -> Int {
+            switch p.status.kind { case "attention": 0; case "running": 2; default: isNews(p) ? 1 : 3 }
+        }
+        return list.enumerated().sorted { a, b in
+            let ra = rank(a.element), rb = rank(b.element)
+            if ra != rb { return ra < rb }
+            return (a.element.lastActive ?? .distantPast, -a.offset) > (b.element.lastActive ?? .distantPast, -b.offset)
+        }.map(\.element)
+    }
+
+    /// The hooks changed something: redraw from the same scan.
+    private func redecorate() {
+        if machine.phase == .open || machine.phase == .switcher { installLive(base) }
+        else { projects = decorate(base); machine.send(.projectsChanged(count: projects.count, selected: 0)); push() }
+    }
+
+    // MARK: hooks
+    private func hookEvent(_ e: HookEvent) {
+        let before = live[e.sessionId]
+        let now = LiveStatus.apply(e, to: before)
+        // Requests this event settled (answered in the app, or the turn moved on) let their hooks go.
+        for a in before?.asks ?? [] where !now.asks.contains(where: { $0.id == a.id }) { hookServer.release(a.id) }
+        live[e.sessionId] = now
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hook: \(e.agent) \(e.sessionId.prefix(8)) \(e.kind)") }
+        if !base.contains(where: { ($0.sessionId ?? $0.id) == e.sessionId }) { refreshProjects() }
+        redecorate()
+    }
+
+    private func askWentAway(_ id: String) {
+        for (sid, var l) in live where l.asks.contains(where: { $0.id == id }) { l.settle(id, at: Date()); live[sid] = l }
+        redecorate()
+    }
+
+    /// Allow, deny, or one of a question's options, for the request on the card. The card closes; the agent goes on.
+    private func answer(_ choice: String) {
+        guard projects.indices.contains(machine.selected), let ask = projects[machine.selected].ask, ask.answerable else { return }
+        let p = projects[machine.selected]
+        hookServer.answer(ask.id, with: ask.reply(choice))
+        if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
+        markSeen(p)
+        send(.dismiss)
+        redecorate()
     }
 
     private func startRefreshing() {
@@ -336,12 +402,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var enriching = false
 
     /// Cached model-written recaps apply instantly.
-    private func applyCachedRecaps() {
-        guard let real = provider as? RealSessionProvider else { return }
-        for i in projects.indices {
-            if let input = real.inputs[projects[i].id], let key = RecapCache.key(for: input.digest), let r = RecapCache.shared.get(key) {
-                projects[i] = RecapMerge.apply(r, to: projects[i], grounding: input.digest)
-            }
+    private func applyCachedRecaps() { projects = recapped(projects) }
+    private func recapped(_ list: [Project]) -> [Project] {
+        guard let real = provider as? RealSessionProvider else { return list }
+        return list.map { p in
+            guard let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), let r = RecapCache.shared.get(key) else { return p }
+            return RecapMerge.apply(r, to: p, grounding: input.digest)
         }
     }
 
@@ -489,6 +555,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
         switch type {
         case "confirm": send(.confirm)
+        case "answer": if let c = body["choice"] as? String { answer(c) }
+        case "hooks":
+            let on = body["on"] as? Bool ?? true
+            for agent in ["claude", "codex"] where Prefs.enabledSources.contains(agent) || !on {
+                do { if on { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } }
+                catch { NSLog("Perch: hooks for \(agent): \(error.localizedDescription)") }
+            }
+            push()
         case "dismiss": send(.dismiss)
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
@@ -580,8 +654,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        pickUp(machine.selected) { landing in
-            guard trusted else { return }
+        let app = projects[machine.selected].app == "codex" ? "Codex" : "Claude"
+        pickUp(machine.selected) { [weak self] landing in
+            guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
             switch landing {
             case .app(let app, exact: true):
@@ -589,7 +664,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 target = app; let wait = frontBefore == app ? 1.6 : 0.9
                 settle = { try? await Task.sleep(for: .seconds(wait)); return true }
             default:
-                NSLog("Perch: reply left on the clipboard (no exact session to type into)"); return
+                NSLog("Perch: reply left on the clipboard (no exact session to type into)"); self?.say("Reply copied"); return
             }
             Task {
                 for _ in 0..<50 {
@@ -597,7 +672,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     try? await Task.sleep(for: .milliseconds(100))
                 }
                 guard await settle(), NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target else {
-                    NSLog("Perch: reply left on the clipboard (\(target) did not come forward)"); return
+                    NSLog("Perch: reply left on the clipboard (\(target) did not come forward)"); self?.say("Paste in \(app)"); return
                 }
                 let src = CGEventSource(stateID: .combinedSessionState)
                 for down in [true, false] {
@@ -615,6 +690,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    /// A word beside the notch once the card has closed, when something did not go as you would expect.
+    private func say(_ text: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            let arg = (try? String(data: JSONEncoder().encode(text), encoding: .utf8)) ?? "\"\""
+            self?.web.evaluateJavaScript("window.perch && window.perch.say(\(arg ?? "\"\""))", completionHandler: nil)
+        }
+    }
+
     // MARK: settings
     var onIdleMinutesChanged: ((Int) -> Void)?
 
@@ -625,7 +708,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
         }
         return UISnapshot.Settings(sources: sources, summaries: AppleRecapEngine.setupState, accessibility: AXIsProcessTrusted(),
-                                   idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled)
+                                   idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState)
+    }
+
+    /// "on" when every enabled app has Perch's hook installed.
+    private var liveState: String {
+        let on = Prefs.enabledSources.filter { ["claude", "codex"].contains($0) }
+        return !on.isEmpty && on.allSatisfy(HookInstaller.isInstalled) ? "on" : "off"
     }
 
     private func setLaunchAtLogin(_ on: Bool) {
@@ -636,7 +725,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: onboarding
     var onAccessibilityGranted: (() -> Void)?
     private var onbStep = 0
-    private let onbTotal = 5
+    private let onbTotal = 6
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu bar), not the whole setup.
@@ -659,7 +748,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let sources = [("claude", "Claude Code"), ("codex", "Codex")].map { id, name in
             UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
         }
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources, only: onbOnly)
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources, only: onbOnly, live: liveState)
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
@@ -704,7 +793,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let self, self.machine.phase == .onboarding || self.machine.phase == .settings else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
-                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())"
+                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
                 if key != last { last = key; self.push() }
             }
         }
@@ -751,6 +840,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (_, ","): if list { self.send(.openSettings) } else { return e }
             case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
+            case (_, "a"), (_, "d"), (_, "1"), (_, "2"), (_, "3"), (_, "4"):
+                // Answering what the agent asked: A allows, D denies, a digit picks a question's option.
+                guard self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
+                      let ask = self.projects[self.machine.selected].ask, ask.answerable else { return e }
+                if let n = Int(ch) { guard ask.options.indices.contains(n - 1) else { return e }; self.answer(ask.options[n - 1]); return nil }
+                guard ask.kind == .permission else { return e }
+                self.answer(ch == "a" ? "allow" : "deny"); return nil
             default: return e
             }
             if self.machine.phase == .open { self.restartTimer(); self.push() }

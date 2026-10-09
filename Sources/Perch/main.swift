@@ -108,8 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         image.isTemplate = true
         item.button?.image = image
         let menu = NSMenu()
-        menu.addItem(withTitle: "Welcome back now", action: #selector(showWelcome), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Parked projects", action: #selector(showSwitcher), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Where was I", action: #selector(showWelcome), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "All sessions", action: #selector(showSwitcher), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Customize your character…", action: #selector(customize), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Choose apps…", action: #selector(chooseApps), keyEquivalent: "").target = self
