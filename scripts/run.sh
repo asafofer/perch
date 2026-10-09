@@ -23,6 +23,8 @@ else
 fi
 if [ "${1:-}" = "--package-only" ]; then exit 0; fi
 pkill -x Perch 2>/dev/null || true
+# Wait for the old copy to quit: opening while it is still going hands the launch to the dying process.
+for _ in $(seq 50); do pgrep -x Perch >/dev/null || break; sleep 0.1; done
 case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
   --show) open -n "$APP" --args --show ;;
