@@ -163,6 +163,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func snapshot(to path: String) {
         let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
         let screen = info.frame.size, panel = NotchGeometry.panelSize, wall = snapshotWallpaper
+        web.evaluateJavaScript("window.perch && window.perch.still && window.perch.still()", completionHandler: nil)
         web.takeSnapshot(with: cfg) { image, _ in
             guard let image else { return }
             let size = image.size
@@ -347,7 +348,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Asking you first, then what finished since you looked, then what is working, then the rest; newest first in each.
     private func urgent(_ list: [Project]) -> [Project] {
         func rank(_ p: Project) -> Int {
-            switch p.status.kind { case "attention": 0; case "running": 2; default: isNews(p) ? 1 : 3 }
+            switch p.status.kind { case "attention": 0; case "running": 2; case "done": isNews(p) ? 1 : 3; default: 3 }
         }
         return list.enumerated().sorted { a, b in
             let ra = rank(a.element), rb = rank(b.element)
@@ -922,7 +923,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// A click anywhere outside the card closes it. Not during onboarding: you click into System Settings in the middle of it.
     private func clickedElsewhere() {
-        guard machine.phase != .idle, machine.phase != .onboarding else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
     }

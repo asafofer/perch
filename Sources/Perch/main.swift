@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.snapshot(to: dir + "/idle.png") }
             if let w = args.firstIndex(of: "--wallpaper"), args.indices.contains(w + 1) { c.snapshotWallpaper = NSImage(contentsOfFile: args[w + 1]) }
+            c.holdOpen = true   // a click elsewhere while it runs must not close the card mid-capture
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { c.comeBack() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { c.snapshot(to: dir + "/ask.png") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) { c.send(.next) }
