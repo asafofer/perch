@@ -226,8 +226,8 @@ import Foundation
         #expect(line("running", 10, true, left) == "Working now")
         // Before you left, or no break to measure against: plain age, and "Finished" only while it is news.
         #expect(line("done", 7200, true, left) == "Finished 2h ago")
-        #expect(line("done", 7200, false, left) == "Last active 2h ago")
-        #expect(line("done", 64_800, false, nil) == "Last active 18h ago")
+        #expect(line("done", 7200, false, left) == "2h ago")
+        #expect(line("done", 64_800, false, nil) == "18h ago")
         #expect(line("attention", 600, false, nil) == "Waiting on you for 10m")
     }
     // MARK: the card says what the agent did, not what you typed

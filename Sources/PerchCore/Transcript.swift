@@ -329,7 +329,8 @@ public enum WhileAway {
     /// `kind` is the card status ("attention", "done", "running", "idle"). `fresh`: you have not seen this since it changed.
     public static func line(kind: String, lastActive: Date?, now: Date, awaySince: Date?, fresh: Bool) -> String {
         guard let t = lastActive else { return "" }
-        let ago = RelativeTime.away(from: t, to: now), recent = now.timeIntervalSince(t) < 90
+        // One unit ("4h", not "4h 41m"): the line shares the top row with the project's name.
+        let ago = String(RelativeTime.away(from: t, to: now).split(separator: " ")[0]), recent = now.timeIntervalSince(t) < 90
         if kind == "running" { return "Working now" }
         if let left = awaySince, t > left {
             let after = t.timeIntervalSince(left) < 90 ? "just after you left" : "\(RelativeTime.away(from: left, to: t)) after you left"
@@ -341,7 +342,7 @@ public enum WhileAway {
         }
         if kind == "attention" { return "Waiting on you for \(ago)" }
         if kind == "done" && fresh { return recent ? "Finished just now" : "Finished \(ago) ago" }
-        return recent ? "Active just now" : "Last active \(ago) ago"
+        return recent ? "Just now" : "\(ago) ago"
     }
 }
 

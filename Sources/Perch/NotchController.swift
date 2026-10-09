@@ -136,15 +136,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         refreshProjects()   // the card shows what we have now and updates itself a moment later
     }
 
-    /// The most recent session of whichever app is in front: Claude or Codex.
+    /// The session you are in: in the Claude app, the one it last had in front; in Codex, its most recent thread.
     private func activeProjectIndex() -> Int? {
         guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
-        return projects.firstIndex { p in
-            switch bid {
-            case Restorer.claudeApp: return p.app == "claude" && p.desktopSessionId != nil
-            case Restorer.codexApp: return p.app == "codex"
-            default: return false
-            }
+        switch bid {
+        case Restorer.claudeApp:
+            let front = DesktopSessions.shared.index().values.compactMap { e in e.focusedAt.map { (e.id, $0) } }.max { $0.1 < $1.1 }?.0
+            return front.flatMap { id in projects.firstIndex { $0.desktopSessionId == id } }
+        case Restorer.codexApp: return projects.firstIndex { $0.app == "codex" }
+        default: return nil
         }
     }
     /// Command+Option tapped: open the list, or close whatever is showing.
@@ -262,6 +262,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: what you have seen
     private func isFresh(_ p: Project) -> Bool {
         guard let t = p.lastActive, t > newsSince else { return false }
+        // Already in front of you in the Claude app since it changed: you have seen it there.
+        if let f = p.focusedAt, f.addingTimeInterval(10) >= t { return false }
         return t.timeIntervalSince1970 > (seen[p.id] ?? 0) + 0.5
     }
     /// Since your last break, or the last day: anything older is history, seen or not.
