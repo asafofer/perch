@@ -704,7 +704,7 @@
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + sm[1] + '</p>') +
         ofoot(5, true, off ? Button('ghost', 'Skip', Kbd('S'), 'o-skip') : '', off ? 'Open Settings' : 'Next', off ? 'settings' : 'next');
     } else {
-      h = otitle(o, 'You\u2019re all set', 'Here is how to reach Perch.') +
+      h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
     }
