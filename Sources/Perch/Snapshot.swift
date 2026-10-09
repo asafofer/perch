@@ -25,6 +25,8 @@ struct UISnapshot: Encodable {
         let now: String?
         /// A terminal session: the icon of the terminal it runs in ("ghostty", "terminal").
         let via: String?
+        /// The list's section: "Needs you", "Today" or "Earlier".
+        let section: String
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -80,6 +82,7 @@ struct UISnapshot: Encodable {
         autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken
         self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? NotchGeometry.idleSize(for: screen).height)
+        let now = Date()
         self.projects = projects.map { p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
@@ -89,7 +92,8 @@ struct UISnapshot: Encodable {
                       ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable) },
-                      now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil)
+                      now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil,
+                      section: ListFilter.section(p, now: now).rawValue)
         }
     }
 }

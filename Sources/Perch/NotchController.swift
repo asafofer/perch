@@ -181,7 +181,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Command+Option tapped: open the list, or close whatever is showing.
     func chordTap() { if machine.phase == .idle { toggleSwitcher() } else { send(.dismiss) } }
-    func toggleSwitcher() { openedByHover = false; proactiveOpen = false; prepareToShow(); send(.openSwitcher); refreshProjects() }
+    func toggleSwitcher() {
+        let fromIdle = machine.phase == .idle
+        openedByHover = false; proactiveOpen = false; prepareToShow()
+        // Opened by itself, the list starts on its top row: what needs you, or what you touched last.
+        if fromIdle, let top = ListFilter.ordered(projects, "", now: Date()).first { machine.send(.projectsChanged(count: projects.count, selected: top)) }
+        send(.openSwitcher); refreshProjects()
+    }
     func confirm() { send(.confirm) }
 
     /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
@@ -539,7 +545,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
-        if machine.phase == .switcher, !listQuery.isEmpty { sent.query = listQuery; sent.shown = ListFilter.shown(projects, listQuery) }
+        // The list draws its rows in this order, by section; with something typed, only the ones that match.
+        if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -1060,12 +1067,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The first row that matches is the one Return opens.
     private func filterChanged() {
-        if let first = ListFilter.shown(projects, listQuery).first { machine.send(.projectsChanged(count: projects.count, selected: first)) }
+        if let first = ListFilter.ordered(projects, listQuery, now: Date()).first { machine.send(.projectsChanged(count: projects.count, selected: first)) }
         push()
     }
     /// Up and down move through the rows that match, wrapping around.
     private func stepList(_ d: Int) {
-        let shown = ListFilter.shown(projects, listQuery)
+        let shown = ListFilter.ordered(projects, listQuery, now: Date())
         guard !shown.isEmpty else { return }
         let next = shown.firstIndex(of: machine.selected).map { shown[($0 + d + shown.count) % shown.count] } ?? shown[0]
         machine.send(.projectsChanged(count: projects.count, selected: next))

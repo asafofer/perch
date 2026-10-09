@@ -116,4 +116,22 @@ public enum ListFilter {
     public static func shown(_ list: [Project], _ query: String) -> [Int] {
         list.indices.filter { query.trimmingCharacters(in: .whitespaces).isEmpty || matches(list[$0], query) }
     }
+
+    /// The list's sections: what needs you, then what you touched today, then the rest.
+    public enum Section: String { case needsYou = "Needs you", today = "Today", earlier = "Earlier" }
+    public static func section(_ p: Project, now: Date, calendar: Calendar = .current) -> Section {
+        if p.needsAttention { return .needsYou }
+        guard let at = p.lastActive else { return .earlier }
+        return calendar.isDate(at, inSameDayAs: now) ? .today : .earlier
+    }
+    /// The rows that stay, in the order the list draws them: by section, newest first in each. Up and Down follow it.
+    public static func ordered(_ list: [Project], _ query: String, now: Date, calendar: Calendar = .current) -> [Int] {
+        let rank: (Int) -> Int = { [.needsYou: 0, .today: 1, .earlier: 2][section(list[$0], now: now, calendar: calendar)] ?? 2 }
+        return shown(list, query).sorted { a, b in
+            let ra = rank(a), rb = rank(b)
+            if ra != rb { return ra < rb }
+            let ta = list[a].lastActive ?? .distantPast, tb = list[b].lastActive ?? .distantPast
+            return ta != tb ? ta > tb : a < b
+        }
+    }
 }

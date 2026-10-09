@@ -92,7 +92,7 @@
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
-      '<div class="rv relative" style="--i:1"><div class="s-l max-h-[184px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
+      '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -316,7 +316,7 @@
       : a ? Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Act('ghost', 'Not now', 'N', 'snooze') + Act('default', 'Pick up', ENTER, 'go');
   }
-  /* Five rows show at a time; the rest scroll, with a soft edge where there is more. */
+  /* About five rows show at a time, with their section headers; the rest scroll, with a soft edge where there is more. */
   var sl = q('.s-l'), listSig = '', lastSel = -1;
   function edges() {
     var up = sl.scrollTop > 1, down = sl.scrollTop + sl.clientHeight < sl.scrollHeight - 1;
@@ -371,14 +371,18 @@
           : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Claude Code and Codex sessions from the last two weeks show up here.</span>') + '</div>';
       edges(); return;
     }
-    /* rows are drawn again only when they change, so a row that is reading itself out is not cut short */
+    /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
+       in order, by section (what needs you, today, earlier), and a small header starts each. A row leads with the
+       session's title; its project follows in grey. */
+    var sec = '';
     var html = rows.map(function (k) {
-      var p = s.projects[k];
-      return '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
+      var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
+      if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
+      return head + '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
-        /* name and title each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span class="mq nm min-w-0 flex-[0_1_auto] truncate font-medium"><span class="mq-in">' + esc(p.name) + '</span></span>' +
-        (p.topic ? '<span dir="auto" class="mq tp min-w-0 flex-[1_1_0%] truncate text-left text-muted-foreground"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '') + '</span>' +
+        /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
+        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span dir="auto" class="mq nm min-w-0 flex-[0_1_auto] truncate font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
+        (second ? '<span dir="auto" class="mq tp min-w-0 flex-[1_1_0%] truncate text-left text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>' +
         '<span class="st flex flex-none items-center gap-2 text-xs tabular-nums"></span></div>';
     }).join('');
     if (html !== listSig) {
@@ -406,6 +410,8 @@
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
   }
+  /* the design page's sample data has no section from Swift: worked out the same way */
+  function sectionOf(p) { return p.section || (p.attention ? 'Needs you' : /^\d+[mh]/.test(p.away || '') ? 'Today' : 'Earlier'); }
   /* a row's status in words when it is news or needs you, and how long ago at the right edge. Working has no age: it sits at the edge itself. */
   function rowStatus(p) {
     var ph = phrase(p, true), word = ph.c ? '<span class="flex items-center gap-1.5">' + Phrase(ph) + '</span>' : '';
@@ -648,8 +654,8 @@
     var canSend = s.canSend !== false || !!(p && p.via);
     q('.x-send-l').textContent = canSend ? 'Send' : 'Copy and open';
     q('.x-send').title = canSend ? '' : 'Perch needs Accessibility to type for you. Your reply is copied, ready to paste.';
-    /* green only while a finished session is news; one you have already seen glows in the character's colour */
-    var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'] };
+    /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
+    var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
     var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
@@ -1263,10 +1269,13 @@
     var autoTimer, devQuery = '';
     function devShown() {
       var words = devQuery.toLowerCase().split(/\s+/).filter(Boolean);
-      return P.map(function (p, k) { return k; }).filter(function (k) { var hay = (P[k].name + ' ' + P[k].topic).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+      var mins = function (p) { var m = /^(\d+)([mhd])/.exec(p.away || ''); return m ? +m[1] * { m: 1, h: 60, d: 1440 }[m[2]] : 1e9; };
+      var rank = function (p) { return { 'Needs you': 0, Today: 1 }[sectionOf(p)] === undefined ? 2 : { 'Needs you': 0, Today: 1 }[sectionOf(p)]; };
+      return P.map(function (p, k) { return k; }).filter(function (k) { var hay = (P[k].name + ' ' + P[k].topic).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); })
+        .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     window.perchDev = {
-      show: function (ph, setup, quiet) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else base.canSend = true; snoozeMenu(false, true); replyMenu(false, true); var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', timerToken: Math.random() }); apply(s); },
+      show: function (ph, setup, quiet) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else base.canSend = true; snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', setup: setup || 'off', shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
@@ -1321,12 +1330,12 @@
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
         base.selected = at < 0 ? shown[0] : shown[(at + d + shown.length) % shown.length];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: devQuery ? shown : null, timerToken: Math.random() }));
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
       },
       /* the same narrowing as ListFilter in Swift: every word must appear in the name or the title */
       type: function (t) {
         devQuery = t; var shown = devShown(); if (shown.length) base.selected = shown[0];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: devQuery ? shown : null, timerToken: Math.random() }));
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
       }
     };
     document.addEventListener('keydown', function (e) {

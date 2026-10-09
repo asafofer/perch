@@ -164,6 +164,19 @@ import Foundation
         #expect(ListFilter.shown(list, "fin sept") == [3])
         #expect(ListFilter.shown(list, "nothing like this").isEmpty)
     }
+    @Test func theListGoesBySectionThenNewest() {
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let now = ISO8601DateFormatter().date(from: "2026-10-09T15:00:00Z")!
+        func p(_ id: String, _ ago: TimeInterval, needs: Bool = false) -> Project {
+            var x = Project(id: id, name: id, branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: "claude",
+                            agents: [AgentStatus(kind: needs ? .needsYou : .idle, text: "", app: "claude")], steps: [])
+            x.lastActive = now.addingTimeInterval(-ago); return x
+        }
+        // yesterday, an hour ago, asking since this morning, a minute ago
+        let list = [p("old", 20 * 3600), p("hour", 3600), p("asks", 6 * 3600, needs: true), p("now", 60)]
+        #expect(ListFilter.ordered(list, "", now: now, calendar: cal) == [2, 3, 1, 0])
+        #expect(list.map { ListFilter.section($0, now: now, calendar: cal) } == [.earlier, .today, .needsYou, .today])
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")
