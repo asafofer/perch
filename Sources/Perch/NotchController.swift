@@ -852,6 +852,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 try? await Task.sleep(for: .milliseconds(250))
                 for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
                 NSLog("Perch: sent reply into \(target)")
+                // You stay where you were: the session only had to come forward to take the words, so once they are sent,
+                // the app you were in comes back.
+                if let back = frontBefore, back != target, let prev = NSRunningApplication.runningApplications(withBundleIdentifier: back).first {
+                    try? await Task.sleep(for: .milliseconds(350))
+                    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target { prev.activate() }
+                }
                 try? await Task.sleep(for: .milliseconds(600))
                 if let saved, pb.changeCount == ours { Clipboard.restore(saved) }
             }
