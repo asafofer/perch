@@ -228,3 +228,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes flyring { 0% { opacity: .9; transform: scale(.1); } 100% { opacity: 0; transform: scale(1.4); } }
 .gulp { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }
+/* the big preview while you choose: click it and it is tickled (app.js tickle) */
+.cr-pv { cursor: pointer; pointer-events: auto; }
+.cr-in.giggle { animation: giggle .95s cubic-bezier(.3,.7,.4,1); transform-origin: 50% 100%; }
+@keyframes giggle {
+  0%,100% { rotate: 0deg; translate: 0 0; scale: 1 1; }
+  9% { rotate: -8deg; scale: 1.07 .93; } 18% { rotate: 7deg; translate: 0 -1px; } 27% { rotate: -7deg; scale: 1.06 .94; } 36% { rotate: 6deg; translate: 0 -1px; }
+  45% { rotate: -5deg; scale: 1.05 .95; } 54% { rotate: 4deg; } 66% { rotate: -2deg; translate: 0 -4px; scale: .96 1.06; } 82% { rotate: 1deg; translate: 0 0; scale: 1.04 .96; } }
+.cr.tickled .ck { display: block; opacity: .9; top: calc(var(--et) + 17%); }
+@media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }

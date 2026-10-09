@@ -27,6 +27,8 @@
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + (extra ? '<span class="inline-flex items-baseline gap-1">' + label + extra + '</span>' : label) + '</button>';
   }
   /* an icon key gets an invisible character, so it has a text baseline like a letter key */
+  /* two keys that go together (the arrows): each in its own box, a little apart */
+  function Keys(a, b) { return '<span class="inline-flex items-baseline gap-[3px]">' + Kbd(a) + Kbd(b) + '</span>'; }
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[22px]' : 'min-w-4') + ' items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
@@ -95,7 +97,7 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
     '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -728,8 +730,8 @@
     /* [id, name, path, eye top, left eye, right eye, eye width, line details, filled details]. Details show from 22px up. */
     ['ears', 'Ears', 'M2 19V13.5A10 9.5 0 0 1 4.7 6.9L4.2 3.6Q4 2 5.5 2.6L9.3 4.4Q12 3.6 14.7 4.4L18.5 2.6Q20 2 19.8 3.6L19.3 6.9A10 9.5 0 0 1 22 13.5v5.5a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', '46%', '', '', '',
       'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
-    /* a ghost: a dome over a hem of three even lobes, edge to edge */
-    ['dome', 'Ghost', 'M2 20.6V12a10 10 0 0 1 20 0v8.6Q18.67 24.6 15.33 20.8Q12 24.6 8.67 20.8Q5.33 24.6 2 20.6z', '42%'],
+    /* an octopus, after the emoji: a tall round head with a waist, and six tentacles splaying out under it, their tips curling */
+    ['octo', 'Octopus', 'M12 1.4C16.3 1.4 18.9 4.5 18.9 8.3C18.9 11.1 17.6 12.7 16.5 13.7C18 14.6 20.3 14.9 21.8 14.2C22.8 13.7 23.8 14.6 23.2 15.6C22.6 16.6 21 16.9 19.6 16.8C18.9 16.8 18.4 17 18.2 17.4C18.4 18.6 19.7 19.6 20.6 20.4C21.4 21.1 20.9 22.2 19.9 21.9C18.3 21.4 16.8 20.2 15.9 19.1C15.8 20.3 16.1 21.6 16 22.3C15.9 23.1 14.8 23.3 14.3 22.6C13.6 21.6 13.1 19.9 12 19.2C10.9 19.9 10.4 21.6 9.7 22.6C9.2 23.3 8.1 23.1 8 22.3C7.9 21.6 8.2 20.3 8.1 19.1C7.2 20.2 5.7 21.4 4.1 21.9C3.1 22.2 2.6 21.1 3.4 20.4C4.3 19.6 5.6 18.6 5.8 17.4C5.6 17 5.1 16.8 4.4 16.8C3 16.9 1.4 16.6 0.8 15.6C0.2 14.6 1.2 13.7 2.2 14.2C3.7 14.9 6 14.6 7.5 13.7C6.4 12.7 5.1 11.1 5.1 8.3C5.1 4.5 7.7 1.4 12 1.4Z', '30%', '32%', '54%', '13%'],
     /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
     ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
       'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
@@ -740,10 +742,10 @@
   ];
   var PALETTE = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3']];
   var charNow = { shape: 'ears', color: '#F5B83D' };
-  function shapeOf(k) { if (k === 'arch') k = 'bun'; /* Arch became Bun */ for (var i = 0; i < SHAPES.length; i++) if (SHAPES[i][0] === k) return SHAPES[i]; return SHAPES[0]; }
+  function shapeOf(k) { if (k === 'arch') k = 'bun'; /* Arch became Bun */ if (k === 'dome') k = 'octo'; /* the Ghost became the Octopus */ for (var i = 0; i < SHAPES.length; i++) if (SHAPES[i][0] === k) return SHAPES[i]; return SHAPES[0]; }
   function applyCharacter(c) {
     if (!c) return;
-    charNow = { shape: c.shape, color: c.color };
+    charNow = { shape: shapeOf(c.shape)[0], color: c.color };   /* an old name (Ghost, Arch) counts as the shape that replaced it */
     var sh = shapeOf(c.shape);
     scene.querySelectorAll('.cr:not(.cr-mini) .f path:not(.pl):not(.fd)').forEach(function (p) { p.setAttribute('d', sh[2]); });
     scene.querySelectorAll('.cr:not(.cr-mini) .f path.fd').forEach(function (p) { p.setAttribute('d', sh[8] || ''); });
@@ -891,7 +893,7 @@
     if (a === 'settings') post({ type: 'openSettings' }); else if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
   }
   function pickCharacter(c) {
-    var shapeChanged = c.shape !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
+    var shapeChanged = shapeOf(c.shape)[0] !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
     post({ type: 'character', shape: c.shape, color: c.color });
     var commit = function () { applyCharacter(charNow); };
     if (shapeChanged && pv) {
@@ -899,7 +901,7 @@
       var f = pv.querySelector('.f'); f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
       setTimeout(commit, 120); setTimeout(function () { f.classList.remove('swap'); }, 560);
     } else commit();
-    charNow = { shape: c.shape, color: c.color };
+    charNow = { shape: shapeOf(c.shape)[0], color: c.color };   /* an old name (Ghost, Arch) counts as the shape that replaced it */
     document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
     if (box) {
       box.querySelectorAll('.o-shape').forEach(function (b) {
@@ -934,6 +936,14 @@
       setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
     } else play(pick, 950);
   }
+  /* clicked while you choose it: tickled. Its eyes squeeze shut, its cheeks flush, and it squirms and giggles */
+  function tickle(pv) {
+    var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1300; clearTimeout(pv._tk);
+    pv.dataset.m = 'happy'; pv.classList.add('tickled');
+    ci.classList.remove('giggle'); void ci.offsetWidth; ci.classList.add('giggle');
+    pv._tk = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1000);
+  }
+  scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
   (function previewLife() {
     var pv = q('.cr-pv');
     if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now()) && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && Math.random() < 0.4) trick(pv);
@@ -965,7 +975,7 @@
       h = (o.only ? otitle(o, 'Make it yours', 'Pick a shape and a colour for your character.') : otitle(o, 'Make me yours', 'Pick a shape and a colour for me.')) +
         oi(3, '<div class="mt-3 flex items-center gap-4 px-4"><div class="relative grid size-[76px] flex-none place-items-center overflow-hidden rounded-2xl pv-tile"><i class="pv-bloom absolute inset-0"></i><span class="relative">' + crHtml('cr-pv', 52, shapeOf(charNow.shape)) + '</span></div><div class="flex min-w-0 flex-col gap-3"><div class="flex gap-1.5">' + shapes + '</div><div class="flex flex-wrap gap-2.5">' + colors + '</div></div></div>') +
         ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
-          '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Kbd('\u2190\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Colour</span></span>');
+          '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2190', '\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Colour</span></span>');
     } else if (st === 2) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
@@ -1137,7 +1147,7 @@
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Kbd('\u2191\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
+      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
     paintFocus();
