@@ -668,7 +668,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             replyOpen = body["open"] as? Bool ?? false
             if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer() }
             push()
-        case "reply": if let t = body["text"] as? String { reply(t) }
+        case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "snoozeMenu":
             snoozeMenuOpen = body["open"] as? Bool ?? false
             if snoozeMenuOpen { timer?.cancel() } else { restartTimer() }
@@ -762,7 +762,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Answers Claude or Codex without typing in its window: the exact session opens and the reply is pasted and sent.
     /// It is typed only when Perch knows the focused input belongs to that session; otherwise, and without Accessibility,
     /// the reply stays on the clipboard for you to paste. When it was typed, your clipboard is put back.
-    private func reply(_ text: String) {
+    /// `closeAfter`: when the card closes after a terminal reply, so the send animation lands first (the page says).
+    private func reply(_ text: String, closeAfter: Double = 0.78) {
         guard projects.indices.contains(machine.selected) else { return }
         // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
@@ -784,7 +785,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                         guard let self else { return }
                         guard done else { self.pasteReply(text); return }
                         // The words are already in the terminal; the card closes once they have flown into the notch.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, 0.78 - Date().timeIntervalSince(sentAt))) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, closeAfter - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
                             let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push()
                         }

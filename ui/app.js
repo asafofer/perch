@@ -164,13 +164,15 @@
     var t = rIn.value.trim(); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
-    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t }); return; }
+    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t, close: sendClose() }); return; }
     replyMenu(false, true); post({ type: 'reply', text: t });
   }
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only the words are moving; then they
      go into the notch in one of these ways. The character watches and hops when they land; the glow turns green. The card
      closes after (Swift waits about 0.8 s). The design page plays each; the one chosen stays. */
   var sendStyle = 'lift';
+  /* when the card closes after sending, in seconds: a beat after the words land */
+  function sendClose() { return window.__closeAfter ? window.__closeAfter / 1000 : { lift: .78, plane: .9, gulp: .62, check: .8, stream: .74 }[sendStyle] || .78; }
   function sendFly(text) {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
     var pane = q('.p-open'), pr = pane.getBoundingClientRect(), fr = rIn.getBoundingClientRect();
@@ -187,7 +189,7 @@
     setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, land);
     n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
     /* once the card has closed, put it back as it was for next time */
-    setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); made.forEach(function (el) { el.remove(); }); replyMenu(false, true); }, (window.__closeAfter || 760) + 390);
+    setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); made.forEach(function (el) { el.remove(); }); replyMenu(false, true); }, sendClose() * 1000 + 390);
     return true;
   }
   /* a bubble of your words, where the field was */
@@ -1291,7 +1293,7 @@
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, window.__closeAfter || 760); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */
