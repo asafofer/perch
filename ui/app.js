@@ -938,10 +938,12 @@
   }
   /* clicked while you choose it: tickled. Its eyes squeeze shut, its cheeks flush, and it squirms and giggles */
   function tickle(pv) {
-    var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1300; clearTimeout(pv._tk);
+    var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1900; clearTimeout(pv._tk); clearTimeout(pv._tk2);
     pv.dataset.m = 'happy'; pv.classList.add('tickled');
     ci.classList.remove('giggle'); void ci.offsetWidth; ci.classList.add('giggle');
-    pv._tk = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1000);
+    /* the eyes open again as the wobble settles; the classes go once everything has come to rest */
+    pv._tk = setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1050);
+    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); }, 1500);
   }
   scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
   (function previewLife() {

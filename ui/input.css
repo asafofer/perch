@@ -230,10 +230,21 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }
 /* the big preview while you choose: click it and it is tickled (app.js tickle) */
 .cr-pv { cursor: pointer; pointer-events: auto; }
-.cr-in.giggle { animation: giggle .95s cubic-bezier(.3,.7,.4,1); transform-origin: 50% 100%; }
+.cr-in.giggle { animation: giggle 1.35s both; transform-origin: 50% 100%; }
+/* a wobble that dies away: each sway eased, a little hop in the middle, and a soft exhale to finish */
 @keyframes giggle {
-  0%,100% { rotate: 0deg; translate: 0 0; scale: 1 1; }
-  9% { rotate: -8deg; scale: 1.07 .93; } 18% { rotate: 7deg; translate: 0 -1px; } 27% { rotate: -7deg; scale: 1.06 .94; } 36% { rotate: 6deg; translate: 0 -1px; }
-  45% { rotate: -5deg; scale: 1.05 .95; } 54% { rotate: 4deg; } 66% { rotate: -2deg; translate: 0 -4px; scale: .96 1.06; } 82% { rotate: 1deg; translate: 0 0; scale: 1.04 .96; } }
-.cr.tickled .ck { display: block; opacity: .9; top: calc(var(--et) + 17%); }
-@media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
+  0% { rotate: 0deg; translate: 0 0; scale: 1 1; animation-timing-function: cubic-bezier(.4,0,.6,1); }
+  8% { rotate: -9deg; scale: 1.06 .95; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  17% { rotate: 8deg; translate: 0 -1px; scale: 1.02 .99; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  26% { rotate: -7deg; translate: 0 0; scale: 1.05 .96; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  35% { rotate: 6deg; translate: 0 -2px; scale: 1 1; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  44% { rotate: -4.5deg; translate: 0 -3px; scale: .98 1.03; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  54% { rotate: 3.2deg; translate: 0 -1px; scale: 1.01 .99; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  64% { rotate: -2deg; translate: 0 0; scale: 1.03 .97; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  74% { rotate: 1.1deg; scale: 1.015 .985; animation-timing-function: cubic-bezier(.45,0,.55,1); }
+  85% { rotate: -.4deg; scale: 1.005 .995; animation-timing-function: cubic-bezier(.3,0,.3,1); }
+  100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
+/* the blush comes up and fades, never pops */
+.cr.tickled .ck { display: block; top: calc(var(--et) + 17%); animation: blush 1.45s ease-out both; }
+@keyframes blush { 0% { opacity: 0; } 14% { opacity: .9; } 65% { opacity: .85; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cr-in.giggle, .cr.tickled .ck { animation: none; } }
