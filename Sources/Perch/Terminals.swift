@@ -40,8 +40,7 @@ enum Terminals {
             end tell
             """)
         case cmux:
-            Cmux.run(["new-workspace", "--cwd", cwd, "--command", command, "--focus", "true"])
-            Cmux.activate()
+            Cmux.open(command, in: cwd)
         default:
             run("tell application \"Terminal\"\nactivate\ndo script \(appleQuote(typed))\nend tell")
         }
@@ -277,33 +276,60 @@ enum Herdr {
     }
 }
 
-/// cmux, a terminal app with workspaces and split surfaces, driven by its own command line tool.
+/// cmux, a terminal app with workspaces and split surfaces. Its command line tool only answers processes inside cmux
+/// (its default socket mode), so Perch drives it through AppleScript, where each terminal's id is the CMUX_SURFACE_ID its
+/// processes carry and each workspace's id their CMUX_WORKSPACE_ID.
 enum Cmux {
     static var app: NSRunningApplication? {
         ["com.cmuxterm.app", "com.cmuxterm.app.nightly"].lazy.compactMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }.first
     }
     static func activate() { app?.activate() }
-    /// The CLI inside the running app (or the installed one).
-    static var bin: String? {
-        let url = app?.bundleURL ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.cmuxterm.app")
-        return url.map { $0.appendingPathComponent("Contents/Resources/bin/cmux").path }
-    }
-    @discardableResult
-    static func run(_ args: [String]) -> String? { bin.flatMap { Terminals.tool($0, args) } }
+    private static var name: String { app?.bundleIdentifier == "com.cmuxterm.app.nightly" ? "cmux NIGHTLY" : "cmux" }
 
     /// Shows that surface in its workspace and brings cmux forward. False when cmux is not running or the surface is gone.
     static func focus(workspace: String, surface: String) -> Bool {
         guard app != nil else { return false }
-        _ = run(["select-workspace", "--workspace", workspace])
-        guard run(["focus-panel", "--panel", surface, "--workspace", workspace]) != nil else { return false }
-        activate()
-        return true
+        return Terminals.run("""
+            tell application "\(name)"
+              set hits to (every terminal whose id is \(Terminals.appleQuote(surface)))
+              if (count of hits) is 0 then return "no"
+              focus item 1 of hits
+              activate
+              return "ok"
+            end tell
+            """) == "ok"
     }
 
-    /// Types a line into that surface and presses Return.
+    /// Types a line into that surface and presses Return. The text goes in as a paste, so Return is its own key.
     static func type(_ line: String, workspace: String, surface: String) -> Bool {
-        guard app != nil, run(["send", "--workspace", workspace, "--surface", surface, line]) != nil else { return false }
-        return run(["send-key", "--workspace", workspace, "--surface", surface, "enter"]) != nil
+        guard app != nil else { return false }
+        return Terminals.run("""
+            tell application "\(name)"
+              set hits to (every terminal whose id is \(Terminals.appleQuote(surface)))
+              if (count of hits) is 0 then return "no"
+              input text \(Terminals.appleQuote(line)) to item 1 of hits
+              delay 0.1
+              perform action "text:\\\\r" on item 1 of hits
+              return "ok"
+            end tell
+            """) == "ok"
+    }
+
+    /// A new workspace that runs `command` in `cwd`, in front.
+    static func open(_ command: String, in cwd: String) {
+        guard app != nil || NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.cmuxterm.app") != nil else { return }
+        Terminals.run("""
+            tell application "\(app == nil ? "cmux" : name)"
+              activate
+              set t to new tab
+              select tab t
+              delay 0.8
+              set term to focused terminal of t
+              input text \(Terminals.appleQuote("cd \(Terminals.shellQuote(cwd)) && \(command)")) to term
+              delay 0.1
+              perform action "text:\\\\r" on term
+            end tell
+            """)
     }
 
     /// The surface cmux keeps for a session when its own hooks are on, even after it hibernated the agent
