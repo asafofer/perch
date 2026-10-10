@@ -302,7 +302,7 @@
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" title="' + esc(note) + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
@@ -609,7 +609,9 @@
     var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
-        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '"><span class="act-bl">' + esc(b[1]) + '</span><kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd></button>';
+        /* a choice leads with its number, as on the card; an action ends with its keys */
+        var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
+        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(p.name) + '</span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
@@ -761,7 +763,21 @@
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
   var trackTimer = null;
+  /* A card opened by hovering gets no pointer moves from WebKit until it is clicked: the pointer was already over it.
+     Swift sends where the pointer is anyway (cursor, below). While no real moves arrive, what is under it is marked .hv,
+     which every hover style also answers to, and mouseenter and mouseleave play as a real pointer would make them. */
+  var hvEls = [], realMoveAt = 0;
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  function hoverAt(x, y) {
+    var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
+    for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
+    hvEls.forEach(function (c) { if (chain.indexOf(c) < 0) { c.classList.remove('hv'); c.dispatchEvent(new MouseEvent('mouseleave')); } });
+    chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
+    hvEls = chain;
+    if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+  }
   function cursor(x, y) {
+    if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);

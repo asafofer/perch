@@ -1183,15 +1183,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return machine.phase == .open && projects.indices.contains(machine.selected) && projects[machine.selected].ask?.answerable == true
     }
 
-    /// The page only sees the pointer move while the panel has the keyboard, so a card hovered open would not light
-    /// up what is under it until clicked. Hand it the moves.
-    private func hoverIntoPage() {
-        guard !panel.isKeyWindow, let e = NSEvent.mouseEvent(with: .mouseMoved, location: panel.convertPoint(fromScreen: NSEvent.mouseLocation),
-                                                            modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                            windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0) else { return }
-        web.mouseMoved(with: e)
-    }
-
     // MARK: mouse. Hover pauses the timer; the panel only catches clicks over the visible card.
     private var cursorTimer: Timer?
     private var lastCursor = CGPoint(x: -1, y: -1)
@@ -1210,7 +1201,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
                 let p = NSEvent.mouseLocation
-                if self.machine.phase != .idle, self.ready, p != self.lastCursor {
+                // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
+                if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
                     self.lastCursor = p
                     let f = self.panel.frame
                     self.web.evaluateJavaScript("window.perch && window.perch.cursor(\(p.x - f.minX), \(f.maxY - p.y))", completionHandler: nil)
@@ -1267,14 +1259,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
             let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
-            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; hoverIntoPage(); return }
+            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; return }
             hoverIdle(); return
         }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
         if inside, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
-        if inside { hoverIntoPage() }
         if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }

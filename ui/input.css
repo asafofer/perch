@@ -171,7 +171,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-bar { position: absolute; top: 3px; bottom: 7px; right: 0; width: 10px; opacity: 0; transition: opacity .35s; cursor: default; }
 .s-bar.on { opacity: 1; transition-duration: .12s; }
 .s-bar > i { position: absolute; top: 0; right: 2px; width: 3px; border-radius: 3px; background: rgba(255,255,255,.26); transition: width .15s, background-color .15s; }
-.s-bar:hover > i, .s-bar.drag > i { width: 5px; background: rgba(255,255,255,.42); }
+.s-bar:hover > i, .s-bar.hv > i, .s-bar.drag > i { width: 5px; background: rgba(255,255,255,.42); }
 /* the live activity (app.js activity): the notch grows to the sides with the session and what happened, and down by a row of buttons */
 .n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings] {
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .5s .04s cubic-bezier(.3,1.35,.45,1), border-radius .4s, --gcol .7s; }
@@ -193,13 +193,13 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-btns { left: 12px; right: 12px; bottom: 11px; height: 24px; display: flex; align-items: center; gap: 4px; transform: translateY(-6px); }
 .act-gap { flex: 1; }
 .act-x { width: 24px; height: 24px; flex: none; border-radius: 7px; display: grid; place-items: center; color: #a1a1aa; cursor: pointer; transition: background-color .15s, color .15s; }
-.act-x:hover { background: rgba(255,255,255,.1); color: #fafafa; }
+.act-x:hover, .act-x.hv { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
-.act-b:hover { background: rgba(255,255,255,.1); color: #fafafa; }
+.act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
-.act-b.go:hover { background: #e4e4e7; }
-.act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: space-between; }
+.act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
+.act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }
 .act-mod { flex: none; padding: 0 4px 0 2px; font: 500 10.5px/1 Inter, sans-serif; color: #71717a; letter-spacing: .02em; }
 .act-bl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .act-b kbd { flex: none; height: 18px; padding: 0 4px; border-radius: 5px; display: inline-flex; align-items: center; font: 500 10.5px/1 Inter, sans-serif; letter-spacing: .02em;

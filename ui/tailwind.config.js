@@ -13,4 +13,6 @@ module.exports = {
     fontSize: { xs: ['11px', '14px'], sm: ['12px', '16px'] },
     borderRadius: { sm: '4px', md: '6px', lg: '8px' },
   } },
+  /* .hv: where the pointer is when WebKit is not telling the page (app.js hoverAt) */
+  plugins: [function ({ addVariant }) { addVariant('hover', ['&:hover', '&.hv']); }],
 };
