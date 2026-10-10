@@ -58,7 +58,9 @@
     var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[p.via] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[p.via] || 'a terminal') + '">' + term +
-      '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, 'size-full') + '</span></span>';
+      /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
+         the ring sits on the icon's own edge instead of leaving a dark band between them */
+      '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, icons[p.app] ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
   }
   /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
   function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : agentShort(p && (p.app || (p.status && p.status.app)))); }
@@ -70,7 +72,7 @@
   function phrase(p, short) {
     var a = p.ask, k = p.status.kind;
     if (a) return { t: { permission: 'Needs your OK', question: 'Asked you something', plan: 'Has a plan for you' }[a.kind] || 'Needs you', c: COLORS.attention };
-    if (k === 'attention') return { t: /error/.test(p.status.text) ? 'Stopped on an error' : (short ? 'Needs you' : (p.line || 'Needs you')), c: COLORS.attention };
+    if (k === 'attention') return { t: /error/.test(p.status.text) ? (short ? 'Hit an error' : 'Stopped on an error') : (short ? 'Needs you' : (p.line || 'Needs you')), c: COLORS.attention };
     if (k === 'running') return { t: 'Working', c: COLORS.running, spin: true };
     if (k === 'done' && p.fresh !== false) return { t: short ? 'Finished' : (p.line || 'Finished'), c: COLORS.done };
     return { t: short || !p.line ? p.away + ' ago' : p.line, c: '' };
@@ -768,7 +770,8 @@
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
     var wing = (w - idleW) / 2, side = act.mode === 'wings' ? Math.round(wing / 2 - 7.5) : 13;
-    actEl.style.setProperty('--as', side + 'px'); actEl.style.setProperty('--ah', idleH + 'px'); actEl.style.setProperty('--aw', Math.max(0, wing - 13 - 10) + 'px');
+    /* each side's words (with the icon or mark, 22px) end 8px short of the camera, never under it */
+    actEl.style.setProperty('--as', side + 'px'); actEl.style.setProperty('--ah', idleH + 'px'); actEl.style.setProperty('--aw', Math.max(0, wing - 13 - 8 - 22) + 'px');
   }
   function setAct(mode, p, quiet) {
     var kind = p ? actKind(p) : '', next = p ? mode : '';

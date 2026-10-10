@@ -192,7 +192,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-l { left: var(--as); top: 0; height: var(--ah); display: flex; align-items: center; gap: 7px; max-width: calc(var(--aw) + 22px); }
 .act-r { right: var(--as); top: 0; height: var(--ah); display: flex; align-items: center; gap: 6px; max-width: calc(var(--aw) + 22px); }
 .act-n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.act-s { font-size: 12px; color: #E9A877; white-space: nowrap; }
+.act-s { font-size: 12px; color: #E9A877; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .act-s.ok { color: #8CCFA4; }
 .act-body { left: 13px; right: 13px; top: calc(var(--ah) + 1px); height: 22px; display: flex; align-items: center; transform: translateY(-4px); }
 .act-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e4e4e7; }
