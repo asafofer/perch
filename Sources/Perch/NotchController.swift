@@ -1089,7 +1089,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
                 if e.keyCode == 125 || e.keyCode == 126 { self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
                 let typed = e.characters ?? ""
-                if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1, !(typed == "," && self.listQuery.isEmpty),
+                if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1,
                    typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
                     if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.filterChanged() }
                     return nil
@@ -1105,7 +1105,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (123, _): if self.machine.phase == .open { self.send(.openSwitcher) } else { return e }   // back to the list, as Right came from it
             case (125, _): self.send(.next)
             case (126, _): self.send(.previous)
-            case (_, "s"), (_, ","): if list { self.send(.openSettings) } else { return e }   // S on the card; Command+comma anywhere (in the list, letters filter)
+            case (_, ","): if list, e.modifierFlags.contains(.command) { self.send(.openSettings) } else { return e }   // Command+comma, on the card and in the list (where letters filter)
             case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             case (_, "a"), (_, "d"):
