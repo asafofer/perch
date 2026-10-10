@@ -30,7 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
-            for agent in ["claude", "codex"] {
+            for agent in HookInstaller.agents {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }
             }
@@ -45,7 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
-                let opens = p.terminal ? "\(p.via ?? Terminals.preferred): \(p.app == "codex" ? "codex resume" : "claude --resume") \(p.sessionId ?? "?")"
+                let opens = p.terminal ? "\(p.via ?? Terminals.preferred): \(Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")

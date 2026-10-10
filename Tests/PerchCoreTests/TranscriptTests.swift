@@ -162,7 +162,7 @@ import Foundation
     }
     @Test func typingNarrowsTheList() {
         let list = FakeSessionProvider().parkedProjects()
-        #expect(ListFilter.shown(list, "") == [0, 1, 2, 3])
+        #expect(ListFilter.shown(list, "") == [0, 1, 2, 3, 4, 5])
         #expect(ListFilter.shown(list, "web") == [1])
         #expect(ListFilter.shown(list, "INSTALL gui") == [2])
         #expect(ListFilter.shown(list, "fin sept") == [3])

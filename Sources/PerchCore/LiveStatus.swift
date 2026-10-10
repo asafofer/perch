@@ -16,7 +16,7 @@ public struct HookEvent: Equatable, Sendable {
         /// You stopped it.
         case interrupted
     }
-    public let agent: String        // "claude" or "codex"
+    public let agent: String        // an Agent id: "claude", "codex", "opencode", "pi"
     public let sessionId: String
     public let kind: Kind
     public let at: Date
@@ -73,7 +73,7 @@ public struct Ask: Equatable, Sendable {
     public init(id: String, agent: String, tool: String, input: [String: Any]) {
         self.id = id; self.agent = agent; self.tool = tool
         inputJSON = (try? JSONSerialization.data(withJSONObject: input)) ?? Data("{}".utf8)
-        let who = agent == "codex" ? "Codex" : "Claude"
+        let who = Agent.of(agent).short
         switch tool {
         case "AskUserQuestion":
             let qs = (input["questions"] as? [[String: Any]] ?? []).map { q -> Question in
@@ -85,7 +85,7 @@ public struct Ask: Equatable, Sendable {
             kind = .question; title = "\(who) asked you something"; subject = Recap.clip(qs.first?.text ?? "A question for you", 140)
             questions = qs
             // Up to nine choices fit the number keys; a question with none can only be answered in the app.
-            answerable = agent == "claude" && !qs.isEmpty && qs.allSatisfy { (1...9).contains($0.options.count) }
+            answerable = Agent.of(agent).answersFromNotch && !qs.isEmpty && qs.allSatisfy { (1...9).contains($0.options.count) }
         case "ExitPlanMode":
             kind = .plan; title = "\(who) has a plan for you"
             subject = Ask.firstLine(input["plan"] as? String) ?? "Read it before it starts"
@@ -94,7 +94,7 @@ public struct Ask: Equatable, Sendable {
             kind = .permission; questions = []
             let (verb, what) = Ask.describe(tool: tool, input: input)
             title = "\(who) wants to \(verb)"; subject = what
-            answerable = agent == "claude"
+            answerable = Agent.of(agent).answersFromNotch
         }
     }
 
@@ -107,7 +107,8 @@ public struct Ask: Equatable, Sendable {
 
     /// A verb for the title and the thing it acts on, in plain words.
     static func describe(tool: String, input: [String: Any]) -> (String, String) {
-        let file = { (k: String) in ((input[k] as? String).map { ($0 as NSString).lastPathComponent }) ?? "a file" }
+        let path = ["file_path", "filePath", "path", "notebook_path"].lazy.compactMap { input[$0] as? String }.first
+        let file = { (_: String) in path.map { ($0 as NSString).lastPathComponent } ?? "a file" }
         func command() -> String {
             if let c = input["command"] as? String { return c }
             if let parts = input["command"] as? [String] {
@@ -117,17 +118,19 @@ public struct Ask: Equatable, Sendable {
             return input["cmd"] as? String ?? ""
         }
         switch tool {
-        case "Bash", "shell", "exec_command", "local_shell", "container.exec":
+        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec":
             let c = command().split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return ("run a command", Recap.clip(c.isEmpty ? (input["description"] as? String ?? "a command") : c, 140))
-        case "Edit", "MultiEdit": return ("edit \(file("file_path"))", input["file_path"] as? String ?? "")
-        case "Write": return ("write \(file("file_path"))", input["file_path"] as? String ?? "")
-        case "NotebookEdit": return ("edit \(file("notebook_path"))", input["notebook_path"] as? String ?? "")
-        case "apply_patch": return ("change files", Recap.clip(input["description"] as? String ?? "", 140))
-        case "WebFetch":
+        case "Edit", "MultiEdit", "edit", "multiedit": return ("edit \(file(""))", path ?? "")
+        case "Write", "write": return ("write \(file(""))", path ?? "")
+        case "NotebookEdit": return ("edit \(file(""))", path ?? "")
+        case "apply_patch", "patch": return ("change files", Recap.clip(input["description"] as? String ?? "", 140))
+        case "read": return ("read \(file(""))", path ?? "")
+        case "external_directory": return ("work outside the project", path ?? "")
+        case "WebFetch", "webfetch":
             let host = (input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page"
             return ("open \(host)", input["url"] as? String ?? "")
-        case "WebSearch": return ("search the web", "“\(Recap.clip(input["query"] as? String ?? "", 100))”")
+        case "WebSearch", "websearch": return ("search the web", "“\(Recap.clip(input["query"] as? String ?? "", 100))”")
         default:
             if tool.hasPrefix("mcp__") {
                 let parts = tool.split(separator: "_", omittingEmptySubsequences: true)
@@ -209,11 +212,11 @@ extension LiveStatus {
 extension Project {
     /// The same project with what its hooks said in place of what the transcript suggested.
     public func applying(_ live: LiveStatus) -> Project {
-        let who = app == "codex" ? "Codex" : "Claude"
+        let who = Agent.of(app).short
         let status: AgentStatus
         var next = self.next, context = self.context
         switch live.kind {
-        case .working: status = AgentStatus(kind: .running, text: "\(app == "codex" ? "Codex" : "Claude Code") is working", app: app); next = ""
+        case .working: status = AgentStatus(kind: .running, text: "\(Agent.of(app).name) is working", app: app); next = ""
         case .asking:
             let a = live.asks.last
             status = AgentStatus(kind: .needsYou, text: a?.title ?? "\(who) needs you", app: app); next = ""
@@ -227,7 +230,7 @@ extension Project {
                         topic: topic, app: app, agents: [status], steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
-        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.stoppedAt = stoppedAt
+        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.host = host; p.stoppedAt = stoppedAt
         p.now = live.kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p

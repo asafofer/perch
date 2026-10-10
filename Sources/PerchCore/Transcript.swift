@@ -186,7 +186,7 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: String = "Claude Code", app: String = "claude", quietFor: TimeInterval? = nil) -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
         let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
@@ -195,16 +195,16 @@ public enum Recap {
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
         let settled = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
-        let agents = [AgentStatus(kind: status.kind, text: status.text, app: app)]
+        let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
         let working = status.kind == .running
         let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? settled
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
-                       topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: app, agents: agents,
+                       topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,
                        steps: desktopSessionId != nil
-                           ? [RestoreStep(icon: "win", text: "Opened the \(app == "codex" ? "Codex" : "Claude") app"), RestoreStep(icon: "term", text: "Went back to your session")]
-                           : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
+                           ? [RestoreStep(icon: "win", text: "Opened the \(agent.short) app"), RestoreStep(icon: "term", text: "Went back to your session")]
+                           : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent.name) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil
@@ -266,8 +266,8 @@ public enum Recap {
     public static let runningWindow: TimeInterval = 150
 
     /// `quietFor` is how long ago the session file last changed; nil when unknown.
-    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent: String = "Claude Code", quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
-        let short = agent == "Codex" ? "Codex" : "Claude", quiet = quietFor ?? .infinity
+    static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent a: Agent = .claude, quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
+        let short = a.short, agent = a.name, quiet = quietFor ?? .infinity
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.
@@ -389,7 +389,7 @@ extension Project {
         let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
                         topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.said = said; p.stoppedAt = stoppedAt
+        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.host = host; p.said = said; p.stoppedAt = stoppedAt
         return p
     }
 }
@@ -468,7 +468,7 @@ extension Project {
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via; p.said = said
+        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via; p.host = host; p.said = said
         p.stoppedAt = stoppedAt
         return p
     }
@@ -533,28 +533,32 @@ public enum CodexTranscript {
 /// What an agent is doing right now, in a few words: the tool call it is on.
 public enum Activity {
     /// Nil for calls that say nothing about the work (to-do lists, tool lookups, questions the card shows anyway).
+    /// OpenCode and pi name their tools in lowercase ("bash", "read") and their files `filePath` or `path`.
     public static func step(tool: String, input: [String: Any]) -> String? {
-        let file = { (k: String) in (input[k] as? String).map { ($0 as NSString).lastPathComponent } ?? "a file" }
+        let path = ["file_path", "filePath", "path", "notebook_path"].lazy.compactMap { input[$0] as? String }.first
+        let file = { (_: String) in path.map { ($0 as NSString).lastPathComponent } ?? "a file" }
         let quoted = { (k: String) in "“\(Recap.clip(input[k] as? String ?? "", 40))”" }
         switch tool {
-        case "Bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
             // Claude Code describes each command in words ("Run the test suite"); that reads better than the command.
             // It is written as an order ("Check the tests"); the Now row says what is happening ("Checking the tests").
             if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(ongoing(about), 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
-        case "Read", "view_image": return "Reading \(file(input["file_path"] != nil ? "file_path" : "path"))"
-        case "Edit", "MultiEdit": return "Editing \(file("file_path"))"
-        case "Write": return "Writing \(file("file_path"))"
-        case "NotebookEdit": return "Editing \(file("notebook_path"))"
-        case "apply_patch": return "Changing files"
-        case "Grep": return "Searching for \(quoted("pattern"))"
-        case "Glob": return "Looking for \(quoted("pattern"))"
-        case "WebSearch", "web_search": return "Searching the web for \(quoted("query"))"
-        case "WebFetch": return "Reading \((input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page")"
-        case "Task", "Agent": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
-        case "Skill": return (input["skill"] as? String).map { "Using \($0)" }
-        case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode", "": return nil
+        case "Read", "read", "view_image": return "Reading \(file(""))"
+        case "Edit", "MultiEdit", "edit", "multiedit": return "Editing \(file(""))"
+        case "Write", "write": return "Writing \(file(""))"
+        case "NotebookEdit": return "Editing \(file(""))"
+        case "apply_patch", "patch": return "Changing files"
+        case "Grep", "grep": return "Searching for \(quoted("pattern"))"
+        case "Glob", "glob", "find": return "Looking for \(quoted("pattern"))"
+        case "ls", "list": return path.map { "Looking in \(($0 as NSString).lastPathComponent)" } ?? "Looking around"
+        case "WebSearch", "web_search", "websearch": return "Searching the web for \(quoted("query"))"
+        case "WebFetch", "webfetch": return "Reading \((input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page")"
+        case "Task", "Agent", "task": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
+        case "Skill", "skill": return ((input["skill"] ?? input["name"]) as? String).map { "Using \($0)" }
+        case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode",
+             "todowrite", "todoread", "question", "": return nil
         default:
             if tool.hasPrefix("mcp__") { return "Using " + (tool.split(separator: "_").last.map(String.init) ?? tool).replacingOccurrences(of: "-", with: " ") }
             return "Using \(tool)"

@@ -198,7 +198,7 @@ public final class SessionScanner: @unchecked Sendable {
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
             digest.branch = cg.branch
-            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: "Codex", app: "codex", quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: .codex, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 p.terminal = head.entrypoint == "cli"   // the Codex CLI in a terminal, not the Codex app
                 out.append((p, digest, git, last))
             }

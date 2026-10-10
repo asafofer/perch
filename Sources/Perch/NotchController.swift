@@ -503,7 +503,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // Only sessions that have settled: a working session changes every few seconds, and each change would cost a model run.
         let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
             guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
-            return (p.id, input.digest, input.git, p.name, key, p.app == "codex" ? "Codex" : "Claude")
+            return (p.id, input.digest, input.git, p.name, key, Agent.of(p.app).short)
         }
         guard !todo.isEmpty else { return }
         enriching = true
@@ -673,7 +673,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "details": if let i = body["index"] as? Int { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
-            for agent in ["claude", "codex"] where Prefs.enabledSources.contains(agent) || !on {
+            for agent in HookInstaller.agents where (Prefs.enabledSources.contains(agent) && (["claude", "codex"].contains(agent) || AgentPresence.installed(.of(agent)))) || !on {
                 do { if on { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } }
                 catch { NSLog("Perch: hooks for \(agent): \(error.localizedDescription)") }
             }
@@ -794,7 +794,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 var done = false
                 if let hit = hits.first { done = Terminals.type(line, into: hit) }
                 else {
-                    Terminals.open("\(agent == "codex" ? "codex resume" : "claude --resume") \(id) \(Terminals.shellQuote(line))", in: cwd, app: preferred)
+                    Terminals.open("\(Agent.of(agent).resume(id)) \(Terminals.shellQuote(line))", in: cwd, app: preferred)
                     done = true
                 }
                 DispatchQueue.main.async {
@@ -900,7 +900,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let app = projects[i].app == "codex" ? "Codex" : "Claude"
+        let app = Agent.of(projects[i].app).short
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -959,20 +959,24 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: settings
     var onIdleMinutesChanged: ((Int) -> Void)?
 
-    private func settingsState() -> UISnapshot.Settings {
+    /// The agents Settings and onboarding offer: Claude and Codex always, the others once they are on this Mac.
+    private func sourcesState() -> [UISnapshot.Source] {
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
         let on = Prefs.enabledSources
-        let sources = [("claude", "Claude Code"), ("codex", "Codex")].map { id, name in
-            UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
+        return Agent.all.filter { ["claude", "codex"].contains($0.id) || (counts[$0.id]?.count ?? 0) > 0 || AgentPresence.installed($0) }.map { a in
+            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: counts[a.id]?.names ?? [], enabled: on.contains(a.id))
         }
-        return UISnapshot.Settings(sources: sources, summaries: AppleRecapEngine.setupState, accessibility: AXIsProcessTrusted(),
+    }
+
+    private func settingsState() -> UISnapshot.Settings {
+        return UISnapshot.Settings(sources: sourcesState(), summaries: AppleRecapEngine.setupState, accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    back: machine.settingsFrom != nil)
     }
 
-    /// "on" when every enabled app has Perch's hook installed.
+    /// "on" when every enabled agent on this Mac has Perch's hook installed.
     private var liveState: String {
-        let on = Prefs.enabledSources.filter { ["claude", "codex"].contains($0) }
+        let on = Prefs.enabledSources.filter { id in HookInstaller.agents.contains(id) && (["claude", "codex"].contains(id) || AgentPresence.installed(.of(id))) }
         return !on.isEmpty && on.allSatisfy(HookInstaller.isInstalled) ? "on" : "off"
     }
 
@@ -1007,12 +1011,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
-        let counts = (provider as? RealSessionProvider)?.counts ?? [:]
-        let on = Prefs.enabledSources
-        let sources = [("claude", "Claude Code"), ("codex", "Codex")].map { id, name in
-            UISnapshot.Source(id: id, name: name, count: counts[id]?.count ?? 0, names: counts[id]?.names ?? [], enabled: on.contains(id))
-        }
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sources, only: onbOnly, live: liveState)
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sourcesState(), only: onbOnly, live: liveState)
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.

@@ -1,4 +1,5 @@
 import AppKit
+import PerchCore
 
 /// The real icons of the apps the UI talks about, read from this Mac and handed to the web view as data URLs.
 enum AppIcons {
@@ -6,6 +7,8 @@ enum AppIcons {
     private static let apps: [String: (bundle: String, fallback: String)] = [
         "claude": ("com.anthropic.claudefordesktop", "/Applications/Claude.app"),
         "codex": ("com.openai.codex", "/Applications/Codex.app"),
+        // The OpenCode desktop app, when it is installed. pi has no app: the page draws its own mark.
+        "opencode": ("ai.opencode.desktop", "/Applications/OpenCode.app"),
         "xcode": ("com.apple.dt.Xcode", "/Applications/Xcode.app"),
         "numbers": ("com.apple.iWork.Numbers", "/Applications/Numbers.app"),
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
@@ -37,5 +40,19 @@ enum AppIcons {
         NSGraphicsContext.restoreGraphicsState()
         guard let png = rep.representation(using: .png, properties: [:]) else { return nil }
         return "data:image/png;base64," + png.base64EncodedString()
+    }
+}
+
+/// Whether an agent is on this Mac: its app, its command, or the folder it keeps sessions in.
+enum AgentPresence {
+    static func installed(_ a: Agent) -> Bool {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path, fm = FileManager.default
+        let folders: [String: [String]] = [
+            "claude": [home + "/.claude"], "codex": [home + "/.codex"],
+            "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"],
+        ]
+        if (folders[a.id] ?? []).contains(where: fm.fileExists(atPath:)) { return true }
+        if AppIcons.url(a.id) != nil { return true }
+        return ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.bun/bin/"].contains { fm.isExecutableFile(atPath: $0 + a.id) }
     }
 }

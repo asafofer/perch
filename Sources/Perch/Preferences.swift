@@ -1,4 +1,5 @@
 import Foundation
+import PerchCore
 
 /// What Perch remembers between launches.
 enum Prefs {
@@ -11,10 +12,16 @@ enum Prefs {
     }
     static var shape: String { get { d.string(forKey: "character.shape") ?? "ears" } set { d.set(newValue, forKey: "character.shape") } }
     static var color: String { get { d.string(forKey: "character.color") ?? "#F5B83D" } set { d.set(newValue, forKey: "character.color") } }
-    /// Which agents Perch reads. Both by default.
+    /// Which agents Perch reads: all of them, except the ones you switched off. Kept as the ones switched off, so an agent
+    /// Perch learns later starts on. (Before, the ones switched on were kept, when there were only Claude and Codex.)
     static var enabledSources: Set<String> {
-        get { Set((d.array(forKey: "sources.enabled") as? [String]) ?? ["claude", "codex"]) }
-        set { d.set(Array(newValue), forKey: "sources.enabled") }
+        get {
+            let all = Set(Agent.all.map(\.id))
+            if let off = d.array(forKey: "sources.disabled") as? [String] { return all.subtracting(off) }
+            if let on = d.array(forKey: "sources.enabled") as? [String] { return all.subtracting(Set(["claude", "codex"]).subtracting(on)) }
+            return all
+        }
+        set { d.set(Array(Set(Agent.all.map(\.id)).subtracting(newValue)), forKey: "sources.disabled") }
     }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }

@@ -52,7 +52,7 @@ final class HookServer: @unchecked Sendable {
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         guard let (path, body) = Self.readRequest(c) else { close(c); return }
         let parts = path.split(separator: "/").map(String.init)
-        guard parts.count == 2, ["claude", "codex"].contains(parts[0]) else { Self.respond(c, Data()); return }
+        guard parts.count == 2, Agent.all.contains(where: { $0.id == parts[0] }) else { Self.respond(c, Data()); return }
         let id = UUID().uuidString
         guard var event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
         // Only the Claude app runs this hook alongside its own prompt. Anywhere else (a terminal, `claude -p`) the
@@ -158,6 +158,8 @@ enum HookInstaller {
         Hook(event: "Interrupt", matcher: nil, async: false, timeout: 3),
     ]
 
+    /// The agents Perch can install a hook for.
+    static let agents = ["claude", "codex"]
     static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : claudeSettings }
     static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : claudeHooks }
 

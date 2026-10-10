@@ -4,7 +4,7 @@ public struct AgentStatus: Equatable, Sendable {
     public enum Kind: Sendable { case done, needsYou, idle, running }
     public let kind: Kind
     public let text: String
-    /// Which app's icon represents this agent: "claude", "codex".
+    /// Which agent's icon represents it: an Agent id ("claude", "codex", "opencode", "pi").
     public let app: String
     public init(kind: Kind, text: String, app: String = "claude") { self.kind = kind; self.text = text; self.app = app }
 }
@@ -44,8 +44,10 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var now: String?
     /// Started in a terminal (Claude Code or Codex on the command line), not in an app. Pick up goes back to its tab.
     public var terminal = false
-    /// The terminal app it runs in, or would open in (a bundle id).
+    /// The terminal app it runs in, or would open in (a bundle id). In herdr, the terminal that shows herdr.
     public var via: String?
+    /// The multiplexer it runs in, when that is not the terminal itself: "herdr".
+    public var host: String?
     /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
     public var said: String?
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
@@ -104,7 +106,21 @@ public struct FakeSessionProvider: SessionProviding {
                     next: "", topic: "September invoices", app: "claude",
                     agents: [AgentStatus(kind: .idle, text: "Claude finished")], steps: []),
         ]
-        for (i, ago) in [(1, 2880.0), (2, 60), (3, 3 * 86_400)] { list[i].lastActive = now.addingTimeInterval(-ago) }
+        // The other agents: OpenCode at work in Ghostty, and pi finished in a herdr pane shown in Ghostty.
+        var tui = Project(id: "tui", name: "tui-kit", branch: "main", away: "2m", at: "12:03 PM",
+                          headline: "Keyboard focus for the table.",
+                          context: "Moving focus with the arrow keys, then making Tab leave the table.",
+                          next: "", topic: "Keyboard focus for the table component", app: "opencode",
+                          agents: [AgentStatus(kind: .running, text: "OpenCode is working", app: "opencode")], steps: [])
+        tui.terminal = true; tui.via = "com.mitchellh.ghostty"; tui.now = "Running `bun test`"
+        var scraper = Project(id: "scraper", name: "price-scraper", branch: "main", away: "12m", at: "11:52 AM",
+                              headline: "You were retrying failed pages.",
+                              context: "Failed pages now retry three times with backoff, and the run log lists the ones that never loaded.",
+                              next: "Run it against the full catalogue", topic: "Retry failed pages with backoff", app: "pi",
+                              agents: [AgentStatus(kind: .done, text: "pi finished", app: "pi")], steps: [])
+        scraper.terminal = true; scraper.via = "com.mitchellh.ghostty"; scraper.host = "herdr"
+        list += [tui, scraper]
+        for (i, ago) in [(1, 2880.0), (2, 60), (3, 3 * 86_400), (4, 120), (5, 720)] { list[i].lastActive = now.addingTimeInterval(-ago) }
         list[2].now = "Editing install.md"
         return list
     }

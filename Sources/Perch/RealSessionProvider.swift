@@ -70,7 +70,7 @@ enum Restorer {
                 if let hit = hits.first, let app = Terminals.focus(hit) {
                     landing = .app(app, exact: hits.count == 1)   // two sessions in one folder: the tab may be the other one
                 } else {
-                    Terminals.open(agent == "codex" ? "codex resume \(id)" : "claude --resume \(id)", in: cwd, app: preferred)
+                    Terminals.open(Agent.of(agent).resume(id), in: cwd, app: preferred)
                     landing = .newTerminal(preferred, cwd: cwd, agent: agent)
                 }
                 DispatchQueue.main.async { MainActor.assumeIsolated { done(landing) } }
