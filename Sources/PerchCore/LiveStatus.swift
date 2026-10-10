@@ -86,6 +86,11 @@ public struct Ask: Equatable, Sendable {
             questions = qs
             // Up to nine choices fit the number keys; a question with none can only be answered in the app.
             answerable = Agent.of(agent).answersFromNotch && !qs.isEmpty && qs.allSatisfy { (1...9).contains($0.options.count) }
+        case "pi_prompt":
+            // One of pi's extensions asks in the terminal: the card shows it, and you answer it there.
+            kind = .question; title = "\(who) asked you something"
+            subject = Recap.clip((input["question"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "A question in the terminal", 140)
+            questions = []; answerable = false
         case "ExitPlanMode":
             kind = .plan; title = "\(who) has a plan for you"
             subject = Ask.firstLine(input["plan"] as? String) ?? "Read it before it starts"

@@ -1,7 +1,8 @@
 import Foundation
 import PerchCore
 
-/// Listens on a Unix socket for what Claude Code and Codex hooks post (see HookInstaller), one small HTTP request each.
+/// Listens on a Unix socket for what Claude Code and Codex hooks, and Perch's OpenCode plugin and pi extension, post
+/// (see HookInstaller), one small HTTP request each.
 /// Status events are answered at once. A request Perch can answer from the notch is held open until you choose,
 /// it is settled elsewhere, or the hook goes away; whichever happens first.
 final class HookServer: @unchecked Sendable {
@@ -55,9 +56,11 @@ final class HookServer: @unchecked Sendable {
         guard parts.count == 2, Agent.all.contains(where: { $0.id == parts[0] }) else { Self.respond(c, Data()); return }
         let id = UUID().uuidString
         guard var event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
-        // Only the Claude app runs this hook alongside its own prompt. Anywhere else (a terminal, `claude -p`) the
-        // prompt waits for the hook, so holding it would freeze the session: those are answered at once, with no decision.
-        if case .asks(let ask) = event.kind, ask.answerable, DesktopSessions.shared.index()[event.sessionId] != nil {
+        // Only the Claude app runs this hook alongside its own prompt, and Perch's OpenCode plugin asks without blocking
+        // OpenCode's. Anywhere else (a terminal, `claude -p`) the prompt waits for the hook, so holding it would freeze the
+        // session: those are answered at once, with no decision.
+        let alongside = event.agent == "opencode" || DesktopSessions.shared.index()[event.sessionId] != nil
+        if case .asks(let ask) = event.kind, ask.answerable, alongside {
             // Hold the hook open. If it goes away first (the app answered, the session ended), say so.
             let watch = DispatchSource.makeReadSource(fileDescriptor: c, queue: queue)
             watch.setEventHandler { [weak self] in
@@ -117,7 +120,8 @@ final class HookServer: @unchecked Sendable {
     }
 }
 
-/// Installs the hook script and the config entries that run it. Perch only touches entries it wrote itself.
+/// Installs the hook script and the config entries that run it, or for OpenCode and pi, Perch's own plugin file.
+/// Perch only touches entries and files it wrote itself.
 enum HookInstaller {
     /// PERCH_HOME points the installer at a stand-in home folder, so it can be tried without touching real config.
     static let home = ProcessInfo.processInfo.environment["PERCH_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser
@@ -159,17 +163,34 @@ enum HookInstaller {
     ]
 
     /// The agents Perch can install a hook for.
-    static let agents = ["claude", "codex"]
+    static let agents = ["claude", "codex", "opencode", "pi"]
     static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : claudeSettings }
+    /// OpenCode and pi load every plugin in a folder: Perch adds its own file there and removes only that file.
+    static let pluginFiles: [String: URL] = [
+        "opencode": home.appendingPathComponent(".config/opencode/plugins/perch.js"),
+        "pi": home.appendingPathComponent(".pi/agent/extensions/perch.ts"),
+    ]
+    /// The first line of each plugin file, which says it is Perch's.
+    static let pluginMark = "// Perch: "
     static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : claudeHooks }
 
     static func isInstalled(_ agent: String) -> Bool {
+        if let f = pluginFiles[agent] { return (try? String(contentsOf: f, encoding: .utf8))?.hasPrefix(pluginMark) == true }
         guard FileManager.default.isExecutableFile(atPath: script.path),
               let root = read(file(agent)), let hooks = root["hooks"] as? [String: Any] else { return false }
         return Self.hooks(agent).allSatisfy { h in (hooks[h.event] as? [[String: Any]] ?? []).contains(where: isOurs) }
     }
 
     static func install(_ agent: String) throws {
+        if let f = pluginFiles[agent], let body = PerchPlugins.body[agent] {
+            // Someone else's file by that name is left alone.
+            if FileManager.default.fileExists(atPath: f.path), !isInstalled(agent) {
+                throw NSError(domain: "Perch", code: 2, userInfo: [NSLocalizedDescriptionKey: "\(f.path) is not Perch's"])
+            }
+            try FileManager.default.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try body.write(to: f, atomically: true, encoding: .utf8)
+            return
+        }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try scriptBody.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
@@ -186,6 +207,10 @@ enum HookInstaller {
     }
 
     static func uninstall(_ agent: String) throws {
+        if let f = pluginFiles[agent] {
+            if isInstalled(agent) { try FileManager.default.removeItem(at: f) }
+            return
+        }
         try edit(agent) { hooks in
             for (event, value) in hooks {
                 guard let groups = value as? [[String: Any]] else { continue }

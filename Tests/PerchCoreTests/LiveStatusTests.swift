@@ -113,3 +113,21 @@ import Foundation
         #expect(q.stoppedAt == nil); #expect(LiveStatus(kind: .working, at: again.lastTimestamp!).holds(for: q))
     }
 }
+
+@Suite struct OtherAgentsLiveTests {
+    @Test func openCodeAsksArePermissionsAndQuestionsPerchCanAnswer() {
+        let body = Data(#"{"session_id":"ses_1","tool_name":"bash","tool_input":{"command":"rm -rf dist && bun run build"}}"#.utf8)
+        guard case .asks(let a)? = HookEvent.parse(agent: "opencode", event: "PermissionRequest", body: body, requestId: "r")?.kind else { Issue.record("no ask"); return }
+        #expect(a.title == "OpenCode wants to run a command"); #expect(a.subject == "rm -rf dist && bun run build"); #expect(a.answerable)
+        let q = Data(#"{"session_id":"ses_1","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Tab leaves the table?","header":"Tab","options":[{"label":"Yes"},{"label":"No"}]}]}}"#.utf8)
+        guard case .asks(let b)? = HookEvent.parse(agent: "opencode", event: "PermissionRequest", body: q, requestId: "r2")?.kind else { Issue.record("no question"); return }
+        #expect(b.kind == .question); #expect(b.answerable); #expect(b.questions.first?.options == ["Yes", "No"])
+    }
+
+    @Test func aPiPromptIsShownAndAnsweredInTheTerminal() {
+        let body = Data(#"{"session_id":"019f","tool_name":"pi_prompt","tool_input":{"question":"Overwrite failed.txt?","kind":"confirm"}}"#.utf8)
+        guard case .asks(let a)? = HookEvent.parse(agent: "pi", event: "PermissionRequest", body: body, requestId: "r")?.kind else { Issue.record("no ask"); return }
+        #expect(a.kind == .question); #expect(a.title == "pi asked you something"); #expect(a.subject == "Overwrite failed.txt?"); #expect(!a.answerable)
+        #expect(HookEvent.parse(agent: "pi", event: "Stop", body: Data(#"{"session_id":"019f","last_assistant_message":"Done."}"#.utf8), requestId: "x")?.kind == .finished(message: "Done."))
+    }
+}
