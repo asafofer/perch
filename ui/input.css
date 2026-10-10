@@ -105,14 +105,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* the coat: light, a rounded form and a rim of light; from 30 px up also a fuzzy edge, faint grain and a ground shadow */
 .cr .f g.coat { filter: url(#coat-sm); }
 @container (min-width: 30px) { .cr .f g.coat { filter: url(#coat); } }
-.cr .f.swap { animation: swap .56s cubic-bezier(.3,1.4,.5,1); }
 /* the party at the end of onboarding */
 .cr-in.party { animation: party 1.8s cubic-bezier(.3,1.2,.5,1) both; }
 @keyframes party { 0% { transform: scale(.4); opacity: 0; } 10% { transform: scale(1.1,.86); opacity: 1; } 24% { transform: translateY(-26px) scale(.92,1.12); } 38% { transform: translateY(0) scale(1.14,.84); } 52% { transform: translateY(-18px) scale(.95,1.08) rotate(-4deg); } 66% { transform: translateY(0) scale(1.1,.88) rotate(2deg); } 82% { transform: translateY(-8px) scale(.98,1.04); } 100% { transform: none; } }
 .cf-wrap { position: absolute; left: 50%; pointer-events: none; z-index: 12; }
 .cf { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 1.5px; opacity: 0; animation: cf 1.5s cubic-bezier(.2,.8,.3,1) var(--d, 0s) both; }
 @keyframes cf { 0% { transform: translate(0,0) rotate(0) scale(.4); opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), calc(var(--y) + 46px)) rotate(var(--r)) scale(1); opacity: 0; } }
-@keyframes swap { 0% { transform: scale(1); } 24% { transform: scale(.76,.9) rotate(-6deg); } 62% { transform: scale(1.13,.94) rotate(3deg); } 100% { transform: scale(1); } }
 .pv-tile { background: color-mix(in srgb, var(--cr) 9%, #0b0b0c); }
 .pv-bloom { background: radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--cr) 34%, transparent), transparent 68%); }
 .onb.go .o-i { animation: onbin .42s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i, 0) * .05s); }
@@ -147,6 +145,13 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr.blink .ey { transform: scaleY(.1); }
 .cr .f { transition: translate .4s cubic-bezier(.3,1.35,.5,1); }
 .cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
+/* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
+   look itself is not transitioned; their faces still are */
+.cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
+  border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
+.cr-pv .f, .cr-hi .f { transition: none; }
+/* a new shape: the eyes and cheeks take their places at once, with the body (app.js reshape) */
+.cr.reshape .ey, .cr.reshape .ck { transition: none; }
 /* something needs you: eyes open wide */
 .cr[data-m=alert] .ey { width: calc(var(--ew, 14%) + 2%); height: 30%; top: calc(var(--et) - 3%); }
 /* a word beside the character, black like the notch it hangs from */
@@ -247,7 +252,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .gulp { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }
 /* the big preview while you choose: click it and it is tickled (app.js tickle) */
-.cr-pv { cursor: pointer; pointer-events: auto; }
+.cr-pv { cursor: pointer; pointer-events: auto; transform-origin: 50% 100%; }
 .cr-in.giggle { animation: giggle 1.35s both; transform-origin: 50% 100%; }
 /* a wobble that dies away: each sway eased, a little hop in the middle, and a soft exhale to finish */
 @keyframes giggle {
