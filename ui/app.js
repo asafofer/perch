@@ -340,6 +340,24 @@
     else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
   }
 
+  /* The card's edge springs to a new height (input.css, .n), but the words inside reflow at once, so what sits below
+     them would jump. Each block glides from where it was on the same spring instead; on another session's card the new
+     words also settle in. */
+  var cardId = null;
+  function settleCard(change, fresh) {
+    var els = [].slice.call(q('.p-open').querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
+    var said = els.map(function (el) { return el.textContent; });
+    change();
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    els.forEach(function (el, i) {
+      if (!el.offsetParent) return;
+      var dy = was[i] == null ? 0 : was[i] - el.getBoundingClientRect().top;
+      if (Math.abs(dy) > .5) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 600, delay: 50, easing: 'cubic-bezier(.3,1.5,.45,1)', fill: 'backwards' });
+      /* only words that changed settle in; the buttons and the corner icons stay put */
+      if (fresh && !el.querySelector('.f-main') && el.textContent !== said[i]) el.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 280, delay: i * 30, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    });
+  }
+
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     q('.o-app').innerHTML = AppOf(p, 'size-[34px]');
@@ -720,7 +738,8 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; setAppAt = 0; }
     if (st === 'setup') setup(s.setup);
-    if (p) fill(p);
+    if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
+    cardId = st === 'open' && p ? p.id : null;
     moments(s, st);
     activity(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
@@ -1326,7 +1345,7 @@
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (m.type === 'flip') { s.selected = (s.selected + 1) % s.projects.length; s.timerToken++; apply(s); return; }
+    if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
     if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
     /* without Accessibility the card stays, waiting for it; the words stay in the field */
@@ -1478,6 +1497,7 @@
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
+      else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
       else if ((e.metaKey && e.key === ',') || (ph === 'open' && (e.key === 's' || e.key === 'S'))) { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
