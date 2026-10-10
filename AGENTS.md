@@ -59,7 +59,7 @@ swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
 ```
 
-Useful flags: `--show`, `--simulate`, `--setup`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
+Useful flags: `--show`, `--record <dir>` (frames for the README GIF; `./scripts/record.sh` makes it), `--simulate`, `--setup`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
 
 ## Design rules (the owner is firm about these)
 
