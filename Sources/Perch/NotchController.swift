@@ -286,7 +286,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func startWatching() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let paths = [".claude/projects", ".codex/sessions"].map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
+        let paths = [".claude/projects", ".codex/sessions", ".local/share/opencode", ".pi/agent/sessions"].map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
         let callback: FSEventStreamCallback = { _, info, _, _, _, _ in

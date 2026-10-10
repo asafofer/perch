@@ -1,11 +1,11 @@
 import AppKit
 import PerchCore
 
-/// Reads the recent sessions of the Claude app and Codex and turns each into a card. One row per session.
+/// Reads the recent sessions of Claude Code, Codex, OpenCode and pi and turns each into a card. One row per session.
 final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     /// The list shows five rows at a time and scrolls for the rest.
     var maxProjects = 15
-    /// Whether an agent ("claude", "codex") is switched on in Perch's settings.
+    /// Whether an agent (an Agent id) is switched on in Perch's settings.
     var isEnabled: (String) -> Bool = { Prefs.enabledSources.contains($0) }
     struct Count { let count: Int; let names: [String] }
     private var _counts: [String: Count] = [:]
@@ -18,7 +18,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     private let scanner = SessionScanner()
 
     func parkedProjects() -> [Project] {
-        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects)
+        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
         for item in all {

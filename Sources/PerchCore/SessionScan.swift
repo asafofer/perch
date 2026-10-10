@@ -84,10 +84,10 @@ public final class SessionScanner: @unchecked Sendable {
         return d
     }
 
-    private func cachedHead(_ url: URL) -> SessionDigest? {
+    private func cachedHead(_ url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         lock.lock(); let hit = headCache[url.path]; lock.unlock()
         if let hit { return hit }
-        guard let d = Self.head(of: url), d.sessionId != nil else { return nil }
+        guard let d = Self.head(of: url, parse: parse), d.sessionId != nil else { return nil }
         lock.lock(); headCache[url.path] = d; lock.unlock()
         return d
     }
@@ -206,6 +206,74 @@ public final class SessionScanner: @unchecked Sendable {
         return out
     }
 
+    // MARK: OpenCode (~/.local/share/opencode/opencode.db)
+    /// Every session OpenCode lists (its subagents' and archived ones left out), terminal and desktop app alike.
+    public func opencode(limit: Int, now: Date = Date()) -> [Found] {
+        guard let store = OpenCodeStore(url: home.appendingPathComponent(".local/share/opencode/opencode.db")) else { return [] }
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        var out: [Found] = []
+        for s in store.sessions(after: cutoff, limit: limit * 3) {
+            guard out.count < limit else { break }
+            guard usable(s.directory) else { continue }
+            // Read again only when the session changed.
+            let key = "opencode:" + s.id
+            lock.lock(); let hit = digestCache[key]; lock.unlock()
+            var digest: SessionDigest
+            if let hit, hit.mtime == s.updated { digest = hit.digest }
+            else { digest = OpenCodeTranscript.digest(store.messages(session: s.id)); lock.lock(); digestCache[key] = (s.updated, digest); lock.unlock() }
+            guard digest.lastTimestamp != nil, !Recap.isTrivial(digest) else { continue }
+            digest.sessionId = s.id; digest.cwd = s.directory
+            if !OpenCodeTranscript.isPlaceholder(s.title) { digest.title = s.title }
+            let cg = cachedGit(s.directory, withBranch: true)
+            digest.branch = cg.branch
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .opencode, quietFor: now.timeIntervalSince(s.updated)), let last = digest.lastTimestamp {
+                p.terminal = true
+                out.append((p, digest, cg.info, last))
+            }
+        }
+        return out
+    }
+
+    // MARK: pi (~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl)
+    public func pi(limit: Int, now: Date = Date()) -> [Found] {
+        let fm = FileManager.default
+        let root = home.appendingPathComponent(".pi/agent/sessions")
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        var candidates: [(url: URL, mtime: Date)] = []
+        for dir in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
+            for f in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [] where f.pathExtension == "jsonl" {
+                if let m = Self.mtime(f), m > cutoff { candidates.append((f, m)) }
+            }
+        }
+        candidates.sort { $0.mtime > $1.mtime }
+        var out: [Found] = []
+        for item in candidates {
+            guard out.count < limit else { break }
+            guard let head = cachedHead(item.url, parse: PiTranscript.digest), let cwd = head.cwd, usable(cwd),
+                  var digest = cachedDigest(item.url, mtime: item.mtime, parse: PiTranscript.digest) else { continue }
+            digest.cwd = cwd; digest.sessionId = head.sessionId
+            guard digest.lastTimestamp != nil, !Recap.isTrivial(digest) else { continue }
+            // Unnamed, it goes by your first prompt, as pi's own list does.
+            if digest.title == nil { digest.title = cachedFirstPrompt(item.url) }
+            let cg = cachedGit(cwd, withBranch: true)
+            digest.branch = cg.branch
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+                p.terminal = true
+                out.append((p, digest, cg.info, last))
+            }
+        }
+        return out
+    }
+
+    private var firstPrompts: [String: String] = [:]
+    private func cachedFirstPrompt(_ url: URL) -> String? {
+        lock.lock(); let hit = firstPrompts[url.path]; lock.unlock()
+        if let hit { return hit }
+        guard let t = PiTranscript.firstPrompt(in: url) else { return nil }
+        lock.lock(); firstPrompts[url.path] = t; lock.unlock()
+        return t
+    }
+
     /// The names Codex shows for its threads, newest last in the file.
     private func codexThreadNames(_ url: URL) -> [String: String] {
         guard let m = Self.mtime(url) else { return [:] }
@@ -223,14 +291,14 @@ public final class SessionScanner: @unchecked Sendable {
         return names
     }
 
-    /// The first line of a Codex file holds the folder and id, far from the tail we read for messages.
-    static func head(of url: URL) -> SessionDigest? {
+    /// The first line of a Codex or pi file holds the folder and id, far from the tail we read for messages.
+    static func head(of url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         // Cut at the newline before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
         guard let data = try? handle.read(upToCount: 1_000_000), let end = data.firstIndex(of: 0x0A),
               let first = String(data: data[data.startIndex..<end], encoding: .utf8) else { return nil }
-        return CodexTranscript.digest(lines: [first])
+        return parse([first])
     }
 
     /// Only the tail of the file: sessions can be tens of megabytes and the recent part is what matters.
@@ -257,18 +325,20 @@ public final class SessionScanner: @unchecked Sendable {
         guard let text = String(data: data, encoding: .utf8) else { return nil }
         var d = parse(text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init))
         if d.title == nil, url.path.contains("/.claude/") { d.title = lastTitle(in: url) }
+        if d.title == nil, url.path.contains("/.pi/") { d.title = lastTitle(in: url, marker: #""type":"session_info""#, key: "name") }
         return d
     }
 
-    /// Session titles (custom-title records) are written occasionally, so they often sit outside the tail. Search the last 8 MB for the newest one.
-    static func lastTitle(in url: URL, window: Int = 8_000_000) -> String? {
-        guard let data = try? Data(contentsOf: url, options: .alwaysMapped), let marker = "\"type\":\"custom-title\"".data(using: .utf8) else { return nil }
+    /// Session titles (Claude's custom-title records, pi's session_info) are written occasionally, so they often sit
+    /// outside the tail. Search the last 8 MB for the newest one.
+    static func lastTitle(in url: URL, window: Int = 8_000_000, marker text: String = #""type":"custom-title""#, key: String = "customTitle") -> String? {
+        guard let data = try? Data(contentsOf: url, options: .alwaysMapped), let marker = text.data(using: .utf8) else { return nil }
         let lower = max(0, data.count - window)
         guard let hit = data.range(of: marker, options: .backwards, in: lower..<data.count) else { return nil }
         let start = (data[..<hit.lowerBound].lastIndex(of: 0x0A)).map { $0 + 1 } ?? 0
         let end = data[hit.upperBound...].firstIndex(of: 0x0A) ?? data.count
         guard let obj = (try? JSONSerialization.jsonObject(with: data[start..<end])) as? [String: Any] else { return nil }
-        return obj["customTitle"] as? String
+        return (obj[key] as? String).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     public static func branch(at cwd: String) -> String? {

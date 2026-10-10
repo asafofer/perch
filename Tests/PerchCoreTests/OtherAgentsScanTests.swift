@@ -1,0 +1,201 @@
+import Testing
+import Foundation
+import SQLite3
+@testable import PerchCore
+
+/// A home folder with an OpenCode database and pi session files in it, in the formats those agents write.
+private final class AgentHome {
+    let url: URL
+    let now = Date()
+    private var db: OpaquePointer?
+    init() {
+        url = FileManager.default.temporaryDirectory.appendingPathComponent("perch-agents-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    }
+    deinit { sqlite3_close(db); try? FileManager.default.removeItem(at: url) }
+
+    var scanner: SessionScanner {
+        let s = SessionScanner(home: url, desktop: DesktopSessions(root: url.appendingPathComponent("none")))
+        s.usable = { FileManager.default.fileExists(atPath: $0) }
+        s.lookUpGit = { _ in nil }; s.lookUpBranch = { _ in nil }
+        return s
+    }
+
+    @discardableResult func folder(_ path: String) -> String {
+        let u = url.appendingPathComponent(path)
+        try? FileManager.default.createDirectory(at: u, withIntermediateDirectories: true)
+        return u.path
+    }
+
+    // MARK: OpenCode
+    private func sql(_ s: String) {
+        if db == nil {
+            let dir = url.appendingPathComponent(".local/share/opencode")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            sqlite3_open(dir.appendingPathComponent("opencode.db").path, &db)
+            sql("""
+                CREATE TABLE session (id TEXT PRIMARY KEY, project_id TEXT, parent_id TEXT, slug TEXT, directory TEXT, title TEXT, version TEXT,
+                  time_created INTEGER, time_updated INTEGER, time_archived INTEGER);
+                CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT);
+                CREATE TABLE part (id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT);
+                """)
+        }
+        var err: UnsafeMutablePointer<CChar>?
+        sqlite3_exec(db, s, nil, nil, &err)
+        if let err { Issue.record(Comment(rawValue: String(cString: err))) }
+    }
+    private func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "''") + "'" }
+    private var n = 0
+
+    /// An OpenCode session: your prompt, then the agent's steps. `steps` are (assistant message JSON, its parts' JSON).
+    func opencode(_ id: String, cwd: String, title: String = "Retry failed pages", ago: TimeInterval = 60, parent: String? = nil,
+                  archived: Bool = false, prompt: String? = "make failed pages retry three times with backoff",
+                  steps: [(String, [String])] = OpenCodeSteps.finished) {
+        let t = Int64((now.timeIntervalSince1970 - ago) * 1000)
+        sql("INSERT INTO session VALUES (\(q(id)), 'p', \(parent.map(q) ?? "NULL"), 'slug', \(q(cwd)), \(q(title)), '1.18.35', \(t - 5000), \(t), \(archived ? String(t) : "NULL"));")
+        func message(_ data: String, _ parts: [String], at: Int64) {
+            n += 1; let mid = "msg_\(n)"
+            sql("INSERT INTO message VALUES (\(q(mid)), \(q(id)), \(at), \(at), \(q(data)));")
+            for (k, p) in parts.enumerated() { sql("INSERT INTO part VALUES (\(q("prt_\(n)_\(k)")), \(q(mid)), \(q(id)), \(at), \(at), \(q(p)));") }
+        }
+        guard let prompt else { return }
+        message(#"{"role":"user","time":{"created":\#(t - 4000)}}"#, [#"{"type":"text","text":"\#(prompt)"}"#], at: t - 4000)
+        for (k, s) in steps.enumerated() { message(s.0, s.1, at: t - 3000 + Int64(k)) }
+    }
+
+    // MARK: pi
+    /// A pi session file. `entries` follow the header line.
+    func pi(_ id: String, cwd: String, ago: TimeInterval = 60, entries: [String]) {
+        let dir = ".pi/agent/sessions/--" + cwd.dropFirst().replacingOccurrences(of: "/", with: "-") + "--"
+        let lines = [#"{"type":"session","version":3,"id":"\#(id)","timestamp":"\#(ts(-ago - 30))","cwd":"\#(cwd)"}"#] + entries
+        let u = url.appendingPathComponent(dir).appendingPathComponent("2026-10-10T15-21-08-429Z_\(id).jsonl")
+        try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? (lines.joined(separator: "\n") + "\n").data(using: .utf8)!.write(to: u)
+        try? FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-ago)], ofItemAtPath: u.path)
+    }
+    func ts(_ offset: TimeInterval) -> String {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: now.addingTimeInterval(offset))
+    }
+}
+
+enum OpenCodeSteps {
+    static let toolStep = (#"{"role":"assistant","time":{"created":1,"completed":2},"finish":"tool-calls"}"#,
+                           [#"{"type":"tool","tool":"bash","callID":"c1","state":{"status":"completed","input":{"command":"bun test"}}}"#])
+    static let finished = [toolStep,
+        (#"{"role":"assistant","time":{"created":3,"completed":4},"finish":"stop"}"#,
+         [#"{"type":"text","text":"Failed pages now retry three times with backoff, and the log lists the ones that never loaded."}"#])]
+    static let working = [toolStep,
+        (#"{"role":"assistant","time":{"created":3}}"#,
+         [#"{"type":"text","text":"Running the tests before I touch the scheduler."}"#,
+          #"{"type":"tool","tool":"bash","callID":"c2","state":{"status":"running","input":{"command":"bun test --watch=false"}}}"#])]
+    static let aborted = [toolStep,
+        (#"{"role":"assistant","time":{"created":3,"completed":4},"error":{"name":"MessageAbortedError","data":{"message":"Aborted"}}}"#, [String]())]
+    static let failed = [(#"{"role":"assistant","time":{"created":3,"completed":4},"error":{"name":"APIError","data":{"message":"Rate limit reached for this model"}}}"#, [String]())]
+    static let asking = [(#"{"role":"assistant","time":{"created":3}}"#,
+         [#"{"type":"tool","tool":"question","callID":"q1","state":{"status":"running","input":{"questions":[{"question":"Retry forever or give up after three?","header":"Retries","options":[{"label":"Three"},{"label":"Forever"}]}]}}}"#])]
+}
+
+@Suite struct OtherAgentsScanTests {
+    // MARK: OpenCode
+    @Test func openCodeSessionsAreListedByTitle() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode("ses_a", cwd: site, title: "Retry failed pages", ago: 60)
+        let found = h.scanner.opencode(limit: 15, now: h.now)
+        #expect(found.map(\.project.sessionId) == ["ses_a"])
+        let p = found.first?.project
+        #expect(p?.app == "opencode"); #expect(p?.terminal == true); #expect(p?.topic == "Retry failed pages")
+        #expect(p?.status.text == "OpenCode replied")
+        #expect(p?.context == "Failed pages now retry three times with backoff, and the log lists the ones that never loaded.")
+    }
+
+    @Test func openCodeSessionsThatAreNotYoursOrNotThereAreLeftOut() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode("ses_a", cwd: site, ago: 60)
+        h.opencode("ses_sub", cwd: site, ago: 30, parent: "ses_a")       // a subagent's
+        h.opencode("ses_old", cwd: site, ago: 20, archived: true)        // archived
+        h.opencode("ses_empty", cwd: site, ago: 10, prompt: nil)          // opened, never written in
+        h.opencode("ses_gone", cwd: h.url.path + "/code/deleted", ago: 5) // its folder is gone
+        h.opencode("ses_stale", cwd: site, ago: 20 * 86_400)             // older than two weeks
+        #expect(h.scanner.opencode(limit: 15, now: h.now).map(\.project.sessionId) == ["ses_a"])
+    }
+
+    @Test func aPlaceholderTitleGivesWayToYourPrompt() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode("ses_a", cwd: site, title: "New session - 2026-10-10T15:23:32.978Z")
+        #expect(h.scanner.opencode(limit: 15, now: h.now).first?.project.topic == "make failed pages retry three times with backoff")
+    }
+
+    @Test func openCodeStatusFollowsItsMessages() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode("work", cwd: site, ago: 2, steps: OpenCodeSteps.working)
+        h.opencode("stop", cwd: site, ago: 60, steps: OpenCodeSteps.aborted)
+        h.opencode("fail", cwd: site, ago: 120, steps: OpenCodeSteps.failed)
+        h.opencode("ask", cwd: site, ago: 180, steps: OpenCodeSteps.asking)
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.opencode(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["work"]?.status.kind == "running"); #expect(by["work"]?.now == "Running `bun test --watch=false`")
+        #expect(by["work"]?.context == "Running the tests before I touch the scheduler.")
+        #expect(by["stop"]?.status.text == "You stopped OpenCode"); #expect(by["stop"]?.stoppedAt != nil)
+        #expect(by["fail"]?.status.text == "OpenCode stopped on an error"); #expect(by["fail"]?.context == "Rate limit reached for this model")
+        #expect(by["ask"]?.status.text == "OpenCode asked you something")
+    }
+
+    @Test func noOpenCodeDatabaseMeansNoOpenCodeSessions() {
+        #expect(AgentHome().scanner.opencode(limit: 15).isEmpty)
+    }
+
+    // MARK: pi
+    static func user(_ t: String, _ at: String) -> String { #"{"type":"message","id":"u","parentId":null,"timestamp":"\#(at)","message":{"role":"user","content":[{"type":"text","text":"\#(t)"}],"timestamp":1}}"# }
+    static func assistant(_ blocks: String, stop: String, _ at: String, extra: String = "") -> String {
+        #"{"type":"message","id":"a","parentId":"u","timestamp":"\#(at)","message":{"role":"assistant","content":[\#(blocks)],"api":"x","provider":"x","model":"x","stopReason":"\#(stop)"\#(extra),"timestamp":1}}"#
+    }
+    static let toolCall = #"{"type":"toolCall","id":"c1","name":"bash","arguments":{"command":"npm test"}}"#
+    static let result = #"{"type":"message","id":"r","parentId":"a","timestamp":"2026-10-10T15:21:19Z","message":{"role":"toolResult","toolCallId":"c1","toolName":"bash","content":[{"type":"text","text":"ok"}],"isError":false,"timestamp":1}}"#
+    static func said(_ t: String) -> String { #"{"type":"text","text":"\#(t)"}"# }
+
+    @Test func piSessionsAreListedByNameOrFirstPrompt() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.pi("p1", cwd: site, ago: 60, entries: [
+            Self.user("make failed pages retry three times with backoff", h.ts(-90)),
+            Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-80)), Self.result,
+            Self.assistant(Self.said("Failed pages now retry three times, waiting 1, 4 and 16 seconds."), stop: "stop", h.ts(-70)),
+        ])
+        h.pi("p2", cwd: site, ago: 120, entries: [
+            Self.user("add a progress bar to the crawler output", h.ts(-150)),
+            Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-140)), Self.result,
+            Self.assistant(Self.said("The crawler shows a progress bar with pages done and pages left."), stop: "stop", h.ts(-130)),
+            #"{"type":"session_info","id":"i","parentId":"a","timestamp":"\#(h.ts(-125))","name":"Crawler progress bar"}"#,
+        ])
+        let found = h.scanner.pi(limit: 15, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["p1", "p2"])
+        #expect(found.map(\.topic) == ["make failed pages retry three times with backoff", "Crawler progress bar"])
+        #expect(found.first?.app == "pi"); #expect(found.first?.terminal == true)
+        #expect(found.first?.status.text == "pi replied")
+        #expect(found.first?.said == "Failed pages now retry three times, waiting 1, 4 and 16 seconds.")
+    }
+
+    @Test func piStatusFollowsTheLastStop() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.pi("work", cwd: site, ago: 2, entries: [Self.user("run the full crawl please, all pages", h.ts(-10)), Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-5))])
+        h.pi("stop", cwd: site, ago: 60, entries: [Self.user("run the full crawl please, all pages", h.ts(-90)), Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-80)), Self.result,
+                                                   Self.assistant("", stop: "aborted", h.ts(-70))])
+        h.pi("fail", cwd: site, ago: 120, entries: [Self.user("run the full crawl please, all pages", h.ts(-150)), Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-140)), Self.result,
+                                                    Self.assistant("", stop: "error", h.ts(-130), extra: #","errorMessage":"429 Too Many Requests""#)])
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.pi(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["work"]?.status.kind == "running"); #expect(by["work"]?.now == "Running `npm test`")
+        #expect(by["stop"]?.status.text == "You stopped pi")
+        #expect(by["fail"]?.status.text == "pi stopped on an error"); #expect(by["fail"]?.context == "429 Too Many Requests")
+    }
+
+    @Test func piSessionsThatAreNotWorthARowAreLeftOut() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        // small talk
+        h.pi("hi", cwd: site, ago: 30, entries: [Self.user("hi", h.ts(-40)), Self.assistant(Self.said("Hi! How can I help?"), stop: "stop", h.ts(-35))])
+        // a folder that is gone
+        h.pi("gone", cwd: h.url.path + "/code/deleted", ago: 20, entries: [Self.user("make failed pages retry three times", h.ts(-30)),
+                                                                           Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-25)), Self.result])
+        // opened and closed without a word
+        h.pi("empty", cwd: site, ago: 10, entries: [])
+        #expect(h.scanner.pi(limit: 15, now: h.now).isEmpty)
+    }
+}

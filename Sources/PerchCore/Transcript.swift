@@ -21,6 +21,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var interrupted = false
     /// When you stopped it, while `interrupted`.
     public var stoppedAt: Date?
+    /// The turn ended on an error (OpenCode, pi), and you have not written since: what went wrong.
+    public var failed: String?
     /// The last thing you asked that says something: "yes", "ok go ahead" and "push it" are skipped.
     public var lastAsk: String?
     /// The agent used a tool (edited, ran, searched) somewhere in the part of the session that was read.
@@ -193,7 +195,7 @@ public enum Recap {
         let name = titled ? title! : URL(fileURLWithPath: cwd).lastPathComponent
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
-        let settled = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        let settled = d.failed.map { clip($0, 150) } ?? outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
@@ -271,18 +273,19 @@ public enum Recap {
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.
-            if t.name == "AskUserQuestion" {
+            if ["AskUserQuestion", "question"].contains(t.name) {
                 return ((.needsYou, "\(short) asked you something"), t.question.map { "Answer: “\(clip($0, 100))”" } ?? "")
             }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
-            let expected: TimeInterval = t.name == "Bash" ? (t.timeout ?? 120) + 15 : (["Task", "Agent"].contains(t.name) ? 1800 : 30)
+            let expected: TimeInterval = ["Bash", "bash"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
             if quiet < expected { return working }
             if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
             return ((.idle, "\(agent) stopped mid-task"), "")
         }
         if d.turnOpen && quiet < runningWindow { return working }
         if d.interrupted { return ((.idle, "You stopped \(short)"), "") }
+        if d.failed != nil { return ((.needsYou, "\(short) stopped on an error"), "") }
         if d.lastRole == "user" { return ((.idle, "\(agent) stopped before replying"), "") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
             return ((.needsYou, "\(short) asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
