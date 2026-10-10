@@ -786,15 +786,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
         let p = projects[i]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
-            let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " ")
-            let preferred = Terminals.preferred, sentAt = Date()
+            let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
+            let sentAt = Date()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                let hits = LiveSessions.all().filter { $0.agent == agent && $0.cwd == cwd }
+                let live = LiveSessions.all()
+                let hit = live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }
                 var done = false
-                if let hit = hits.first { done = Terminals.type(line, into: hit) }
+                if let hit { done = Terminals.type(line, into: hit) }
                 else {
-                    Terminals.open("\(Agent.of(agent).resume(id)) \(Terminals.shellQuote(line))", in: cwd, app: preferred)
+                    // Not running: it opens again where it last ran, with your words as its first message.
+                    _ = Restorer.reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id, prompt: line))
                     done = true
                 }
                 DispatchQueue.main.async {

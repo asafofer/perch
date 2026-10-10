@@ -45,12 +45,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if args.contains("--dump") {
             for p in RealSessionProvider().parkedProjects() {
-                let opens = p.terminal ? "\(p.via ?? Terminals.preferred): \(Agent.of(p.app).resume(p.sessionId ?? "?"))"
+                let opens = p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }
-            for hit in LiveSessions.all() { print("live in a terminal: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(hit.app ?? "no app")") }
+            let (hits, viewers) = LiveSessions.scan()
+            for hit in hits {
+                let place: String
+                switch hit.place {
+                case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
+                case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
+                case .tab: place = "a tab"
+                }
+                print("running: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(place), in \(hit.app ?? "no app")")
+            }
+            for v in viewers { print("herdr client: session \(v.session) on \(v.tty) in \(v.app ?? "no app")") }
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }

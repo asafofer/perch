@@ -22,8 +22,12 @@ public struct Agent: Equatable, Sendable {
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }
 
-    /// `claude --resume <id>`, `pi --session <id>`.
-    public func resume(_ session: String) -> String { "\(resumeCommand) \(session)" }
+    /// `claude --resume <id>`, `pi --session <id>`. With `prompt`, your words go in as its first message.
+    public func resume(_ session: String, prompt: String? = nil) -> String {
+        guard let prompt else { return "\(resumeCommand) \(session)" }
+        let quoted = "'" + prompt.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        return id == "opencode" ? "\(resumeCommand) \(session) --prompt \(quoted)" : "\(resumeCommand) \(session) \(quoted)"
+    }
 
     /// Which agent a process is, from its executable path and argv[0]. pi runs under node or bun and names itself in argv[0].
     /// The native Claude installer runs ~/.local/share/claude/versions/<version>. Nil for anything else.

@@ -27,7 +27,7 @@ public struct Project: Identifiable, Equatable, Sendable {
     public let next: String
     public let topic: String         // short label for lists
     public let app: String           // which app icon the UI shows
-    public let agents: [AgentStatus]
+    public var agents: [AgentStatus]
     public let steps: [RestoreStep]
     /// Set for real sessions: what Pick up resumes. Nil for sample data, which does nothing.
     public let sessionId: String?
@@ -48,6 +48,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var via: String?
     /// The multiplexer it runs in, when that is not the terminal itself: "herdr".
     public var host: String?
+    /// The process running it in a terminal, when the last scan found one. Pick up goes to exactly that one.
+    public var pid: Int32?
     /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
     public var said: String?
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.

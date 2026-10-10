@@ -25,6 +25,12 @@ enum Prefs {
     }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
+    /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or
+    /// {"kind": "cmux"}. A session that stopped reopens there.
+    static var places: [String: [String: String]] {
+        get { d.dictionary(forKey: "places") as? [String: [String: String]] ?? [:] }
+        set { d.set(newValue, forKey: "places") }
+    }
     /// When you last saw each session's latest activity (session id to time). Perch speaks up only about what changed since.
     static var seen: [String: Double] { get { d.dictionary(forKey: "seen") as? [String: Double] ?? [:] } set { d.set(newValue, forKey: "seen") } }
     /// Set once the sessions that existed before Perch was installed have been marked as seen.
