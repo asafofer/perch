@@ -200,7 +200,7 @@
     '</div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
-    '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
     '</div></div>';
 
@@ -488,8 +488,7 @@
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
-    q('.o-x').innerHTML = md(nx);
-    if (now) q('.o-x').dataset.shine = q('.o-x').textContent; else delete q('.o-x').dataset.shine;   /* the light's copy of the words */
+    q('.o-x').innerHTML = md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : '');   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
@@ -744,18 +743,55 @@
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
     /* choices share one Command+Option, said once, so each keeps room for its words */
-    /* the session's title leads the top line; its project sits in grey beside the cross, as in the list */
-    var proj = p.topic && p.name !== p.topic ? '<span dir="auto" class="act-p">' + esc(p.name) + '</span>' : '<span class="act-gap"></span>';
-    var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : proj) +
+    /* The short project sits beside the camera; the session's longer title has the row below, before the buttons. No cross:
+       a finish folds away by itself, a request folds to wings, and Command+Option+. still puts it away. A chat with no
+       project is named by its title alone, on top. */
+    var split = p.topic && p.name !== p.topic;
+    var btns = (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
-    actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(p.topic || p.name) + '</span></span>' +
+    var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
       (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
+    /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
+    if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    actGlide();
+  }
+  /* A name that does not fit, beside the camera or on the row below, reads itself out as a list row does: after a moment it
+     glides to its end, rests, and comes back. Started again only when the words change, so a refresh does not restart it. */
+  var actGlides = [], actGlideFor = '';
+  function actGlide() {
+    var key = act.mode + '|' + actEl._h;
+    if (key === actGlideFor && actGlides.length) return;
+    actGlides.forEach(function (a) { a.cancel(); }); actGlides = []; actGlideFor = key;
+    if (act.mode !== 'full' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    var tries = 0;
+    setTimeout(function start() {
+      if (actGlideFor !== key) return;
+      /* measured once the notch has grown to its size: mid-grow, a name looks far longer than its box */
+      var grown = [].every.call(actEl.querySelectorAll('.act-n, .act-p'), function (b) { return b.clientWidth > 40; });
+      if (!grown && ++tries < 6) { setTimeout(start, 250); return; }
+      actEl.querySelectorAll('.act-n, .act-p').forEach(function (box) {
+        var inner = box.querySelector('.mq-in'), over = box.scrollWidth - box.clientWidth;
+        if (!inner || over < 4) return;
+        var rtl = getComputedStyle(box).direction === 'rtl'; over += 14;   /* clear of the fade at the far edge */
+        box.classList.add('mq-on'); if (rtl) box.classList.add('mq-rtl');
+        var lead = 500, go = over / 45 * 1000, rest = 1600, back = 600, wait = 1400, all = lead + go + rest + back + wait;
+        var at = function (ms) { return ms / all; }, x = function (v) { return { transform: 'translateX(' + (rtl ? -v : v) + 'px)' }; };
+        actGlides.push(inner.animate([
+          Object.assign(x(0), { offset: 0 }), Object.assign(x(0), { offset: at(lead), easing: 'cubic-bezier(.45,0,.55,1)' }), Object.assign(x(-over), { offset: at(lead + go) }),
+          Object.assign(x(-over), { offset: at(lead + go + rest), easing: 'cubic-bezier(.4,0,.2,1)' }), Object.assign(x(0), { offset: at(lead + go + rest + back) }), Object.assign(x(0), { offset: 1 })
+        ], { duration: all, iterations: Infinity }));
+        actGlides.push(box.animate([
+          { '--mql': '0px', offset: 0 }, { '--mql': '0px', offset: at(lead) }, { '--mql': '12px', offset: at(lead + Math.min(300, go)) },
+          { '--mql': '12px', offset: at(lead + go + rest) }, { '--mql': '0px', offset: at(lead + go + rest + back) }, { '--mql': '0px', offset: 1 }
+        ], { duration: all, iterations: Infinity }));
+      });
+    }, 900);   /* the notch grows for about this long */
   }
   /* the size follows what it says: both sides as wide as the wider one, so the camera stays in the middle */
   function actSize(idleW, idleH) {
@@ -792,6 +828,11 @@
     var arrived = known && need.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
+    /* you went to that session while it showed: it is the one you are in now, so it goes */
+    if (full && act.p.id === s.activeId) {
+      clearTimeout(actTimer); if (act.kind === 'done') post({ type: 'activitySeen', id: act.p.id });
+      setAct(need.length ? 'wings' : '', need[0], true); return;
+    }
     if ((arrived || landed) && !s.quiet) {
       setAct('full', arrived || landed, true); actLater(arrived ? 9000 : 6000);
     } else if (full && act.kind !== 'done' && !need.some(function (p) { return p.id === act.p.id; })) {
@@ -843,6 +884,7 @@
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
   function apply(s) {
+    q('.s-ver').textContent = s.version || '';   /* Settings says which build this is, small, beside its close */
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -1617,7 +1659,7 @@
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
-    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off' };
+    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off', version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer, devQuery = '';
     function devShown() {

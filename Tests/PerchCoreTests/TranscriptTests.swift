@@ -69,6 +69,13 @@ import Foundation
         #expect(meta(#""originator":"Codex Desktop","source":{"subagent":{"thread_spawn":{}}}"#).headless)
         #expect(meta(#""originator":"Codex Desktop","source":"vscode""#).sessionId == "t1")
     }
+    @Test func aWorktreeIsNamedByItsRepo() {
+        #expect(Recap.folderName("/Users/a/Documents/perch/.claude/worktrees/wizardly-williams-42a0c0") == "perch")
+        #expect(Recap.folderName("/Users/a/Documents/perch") == "perch")
+        var d = TranscriptParser.digest(lines: lines)
+        d.cwd = "/Users/a/Documents/perch/.claude/worktrees/wizardly-williams-42a0c0"
+        #expect(Recap.project(digest: d, git: nil, now: Date())!.name == "perch")
+    }
     @Test func sessionsWithoutAProjectAreNamedByTitle() {
         #expect(Recap.isFolderless("/Users/a/Library/Application Support/Claude/scratch-workspaces/x/y/scratch-2026-10-09-ab78ac"))
         #expect(Recap.isFolderless("/Users/a/Documents/Codex/2026-09-27/new-chat"))

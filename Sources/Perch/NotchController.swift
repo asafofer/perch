@@ -286,7 +286,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func startWatching() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let paths = [".claude/projects", ".codex/sessions", ".local/share/opencode", ".pi/agent/sessions"].map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
+        // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
+        // you are in (and so what the notch keeps quiet about).
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
+            .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
         let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
@@ -486,6 +489,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     // MARK: on-device recaps
     private var enriching = false
+    /// Recaps already asked for (by cache key), so one the model could not write is not asked for again and again.
+    private var recapTried = Set<String>()
 
     /// Cached model-written recaps apply instantly.
     private func applyCachedRecaps() { projects = recapped(projects) }
@@ -502,20 +507,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
         // Only sessions that have settled: a working session changes every few seconds, and each change would cost a model run.
         let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
-            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
+            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil, !recapTried.contains(key) else { return nil }
             return (p.id, input.digest, input.git, p.name, key, Agent.of(p.app).short)
         }
         guard !todo.isEmpty else { return }
         enriching = true
+        // A session can move on while the model writes (a model run takes seconds): a recap lands only on the state it was
+        // written for, never on a newer turn, and whatever settled in the meantime gets its own when this round ends.
+        let current = { (id: String) in real.inputs[id].flatMap { RecapCache.key(for: $0.digest) } }
         Task { [weak self] in
             for (id, digest, git, name, key, agent) in todo {
+                guard current(id) == key else { continue }
+                self?.recapTried.insert(key)
                 guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name, agent: agent) else { continue }
                 RecapCache.shared.set(key, r)
-                guard let self, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
+                guard let self, current(id) == key, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
                 self.projects[i] = RecapMerge.apply(r, to: self.projects[i], grounding: digest)
                 self.push()
             }
             self?.enriching = false
+            self?.enrich()
         }
     }
 
@@ -787,7 +798,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let p = projects[i]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
-            let sentAt = Date()
+            let sentAt = Date(), back = WhereYouWere.now()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
@@ -798,6 +809,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     // Not running: it opens again where it last ran, with your words as its first message.
                     _ = Restorer.reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id, prompt: line))
                     done = true
+                    // It carries on in its new tab; you go back to what you were doing.
+                    Thread.sleep(forTimeInterval: 1.5)
+                    DispatchQueue.main.async { back.restore() }
                 }
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
@@ -817,16 +831,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !AXIsProcessTrusted() { waitForAccess(text, for: p); return }
         // A session in the Claude app takes the words in the background: its window never comes forward.
         if p.app == "claude", let id = p.desktopSessionId {
-            let cli = p.sessionId, topic = p.topic
+            let cli = p.sessionId, topic = p.topic, back = WhereYouWere.now()
             markSeen(p)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
-                let sent = ClaudeComposer.send(text, to: id, titles: titles)
+                let r = ClaudeComposer.send(text, to: id, titles: titles)
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id) }
+                        if r.sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
                     }
                 }
             }
@@ -890,8 +904,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Reply by pasting: Pick up brings the session forward, then the words are pasted and sent. Needs Accessibility.
-    private func pasteReply(_ text: String, to pid: String? = nil) {
+    /// Then you are put back where you were: that app and window, and in Claude the session it showed (`claudeShown`).
+    /// `send` false: paste only, leaving it with your draft for you to send (a draft was in the field).
+    private func pasteReply(_ text: String, to pid: String? = nil, claudeShown: String? = nil, back: WhereYouWere? = nil, send: Bool = true) {
         guard let i = projectIndex(pid) else { return }
+        let back = back ?? WhereYouWere.now(), targetSession = projects[i].desktopSessionId
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
@@ -940,12 +957,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     e?.flags = .maskCommand
                     e?.post(tap: .cghidEventTap)
                 }
-                // You wrote it and pressed Send, so it is sent: Return after the paste.
+                // You wrote it and pressed Send, so it is sent: Return after the paste. Not when a draft was there: it would go too,
+                // so both stay in the field for you, where you are, and nothing is put back over them.
+                guard send else { NSLog("Perch: reply pasted beside a draft in \(target), not sent"); self?.say("Pasted after your draft"); return }
                 try? await Task.sleep(for: .milliseconds(250))
                 for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
                 NSLog("Perch: sent reply into \(target)")
                 try? await Task.sleep(for: .milliseconds(600))
                 if let saved, pb.changeCount == ours { Clipboard.restore(saved) }
+                // Back where you were: in Claude, the session it showed; then that app and window.
+                if let shown = claudeShown, shown != targetSession, let url = URL(string: "claude://code/continue?session=\(shown)") {
+                    NSWorkspace.shared.open(url); try? await Task.sleep(for: .milliseconds(500))
+                }
+                back.restore()
             }
         }
     }

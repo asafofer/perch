@@ -231,6 +231,11 @@ public enum Recap {
         return i == parts.count - 2 ? "" : parts.last ?? ""
     }
 
+    /// The project a folder belongs to, from its path alone.
+    public static func folderName(_ cwd: String) -> String {
+        projectName(cwd: cwd, repo: nil)
+    }
+
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
     public static func isFolderless(_ cwd: String) -> Bool {
         cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil

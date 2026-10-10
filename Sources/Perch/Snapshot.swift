@@ -80,6 +80,12 @@ struct UISnapshot: Encodable {
     var shown: [Int]?
     /// On a call, on camera or presenting: the notch keeps what arrives to small wings.
     var quiet = false
+    /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
+    var version: String? = {
+        let info = Bundle.main.infoDictionary ?? [:]
+        guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
+        return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
+    }()
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, setup: String = "ready", allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
         self.onboarding = onboarding; self.settings = settings

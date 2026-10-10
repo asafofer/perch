@@ -200,9 +200,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-btns { left: 12px; right: 12px; bottom: 11px; height: 24px; display: flex; align-items: center; gap: 4px; transform: translateY(-6px); }
 .act-gap { flex: 1; }
-.act-p { flex: 1; min-width: 0; padding: 0 8px 0 3px; font: 400 12px/24px Inter, sans-serif; color: hsl(var(--muted-foreground)); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.act-x { width: 24px; height: 24px; flex: none; border-radius: 7px; display: grid; place-items: center; color: #a1a1aa; cursor: pointer; transition: background-color .15s, color .15s; }
-.act-x:hover, .act-x.hv { background: rgba(255,255,255,.1); color: #fafafa; }
+.act-p { flex: 1; min-width: 0; padding: 0 8px 0 4px; font: 400 12.5px/24px Inter, sans-serif; color: hsl(var(--foreground) / .88); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
@@ -233,12 +231,15 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* the orb beside a working step (app.js orbFor) draws in the character's colour */
 .o-orb { color: var(--cr); }
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
-.shimmer::after { content: attr(data-shine); position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+/* the passing light: a white copy of the same words, the same markup (so a command in code lines up), seen through a moving band */
+.shimmer code, .shimmer strong { color: inherit; }
+.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%); mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
   -webkit-mask-size: 250% 100%; mask-size: 250% 100%; -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
   animation: shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite; }
+.shimmer > .shine code { background: transparent; }
 @keyframes shimmer { from { -webkit-mask-position: 113.4% 0; mask-position: 113.4% 0; } to { -webkit-mask-position: -53.3% 0; mask-position: -53.3% 0; } }
-@media (prefers-reduced-motion: reduce) { .shimmer::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .shimmer > .shine { display: none; } }
 /* the notch swallowing a reply (app.js sendFly) or the character running home (runHome): a ripple where it went in */
 .fly-ring { position: absolute; z-index: 19; width: 60px; height: 60px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(140,207,164,.9), 0 0 18px rgba(140,207,164,.5); opacity: 0; pointer-events: none;
   animation: flyring .55s cubic-bezier(.2,.8,.3,1) both; }
