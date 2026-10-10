@@ -40,6 +40,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
+    /// The card takes the keyboard when the pointer comes onto it, or when a hovered card gets something to answer:
+    /// once, never again while things stay that way. An app that takes the keyboard after that (Raycast, Spotlight)
+    /// keeps it, or Perch would snatch it back within a frame and close it.
+    private var pointerOnCard = false
+    private var tookKeysForAsk = false
     private var askedForAccessibility = false
     /// A reply typed before Perch had Accessibility, held until it is on (Allow and send).
     private var waitingReply: (id: String, text: String)?
@@ -526,7 +531,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
         sent.proactive = proactiveOpen
-        if machine.phase == .open, openedByHover, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
+        let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
+        if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
+        tookKeysForAsk = askTakesKeys
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
@@ -552,7 +559,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         switch new {
         case .idle:
-            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""
+            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
@@ -1175,8 +1182,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
     }
 
+    /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
+    /// click outside, so the card makes way rather than cover that app's window. Not during onboarding (you go to System
+    /// Settings in the middle of it), nor while a reply is typed or on its way.
+    private func lostKeys() {
+        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        send(.dismiss)
+    }
+
     private func installMouseMonitors() {
         startCursorPolling()
+        NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lostKeys() }
+        }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.clickedElsewhere() } }) { mouseMonitors.append(g) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
@@ -1219,7 +1237,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
-        if inside, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
+        if inside, !pointerOnCard, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
+        pointerOnCard = inside
         if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
