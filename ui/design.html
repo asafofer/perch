@@ -267,10 +267,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     if (!r.via) return b ? '<span class="relative flex flex-none">' + App(r.app) + b + '</span>' : App(r.app);
     return '<span class="relative flex flex-none">' + App(r.via) + '<span class="absolute size-[11px] -bottom-[3px] -right-[3px] flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(r.app, 'size-full') + '</span>' + b + '</span>';
   }
-  /* where the mark goes: 'end' a column at the far right, 'time' beside the time, 'icon' on the icon's corner */
+  /* where the mark goes: 'after' right after the time, 'end' a column at the far right, 'time' before the time, 'icon' on the icon's corner */
   function row(r, at) {
     var time = r.away ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + r.away + '</span>' : '';
-    var left = '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>' + (at === 'time' ? Mark(r) : '') + time + '</span>';
+    var left = '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>' + (at === 'time' ? Mark(r) : '') + time + (at === 'after' ? Mark(r) : '') + '</span>';
     var proj = '<span class="pcol truncate text-right text-xs text-muted-foreground">' + esc(r.p) + '</span>';
     var end = at === 'end' ? '<span class="mslot">' + Mark(r) + '</span>' : '';
     return '<div class="row flex h-9 items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + Icon(r, at === 'icon') + left + proj + end + '</div>';
@@ -286,7 +286,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('A. Mark at the far right', true, 'Status gets its own column at the edge, so one glance down the right side tells you what is working, done or waiting. The projects line up beside it; a row with no mark keeps the space so they stay aligned.', 'end') +
+      card('Session, time, mark, then the project', true, 'Your layout. The row reads left to right: what it is, how long ago, how it stands. The project sits apart on the right. A session that is working has no time, so its spinner follows the title.', 'after') +
+      card('A. Mark at the far right', false, 'Status gets its own column at the edge, so one glance down the right side tells you what is working, done or waiting. The projects line up beside it; a row with no mark keeps the space so they stay aligned.', 'end') +
       card('B. Mark beside the time', false, 'Status sits with the session it belongs to: the title, its mark, how long ago. The project has the right side to itself. The marks do not line up, so they are harder to scan.', 'time') +
       card('C. Mark on the icon', false, 'The quietest: a small badge on the app icon’s corner, the rest of the row is just words. Small, though, and next to a terminal session’s badge it gets busy.', 'icon');
   }
