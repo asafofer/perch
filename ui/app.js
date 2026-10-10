@@ -635,7 +635,9 @@
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
     /* choices share one Command+Option, said once, so each keeps room for its words */
-    var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : '<span class="act-gap"></span>') +
+    /* the session's title leads the top line; its project sits in grey beside the cross, as in the list */
+    var proj = p.topic && p.name !== p.topic ? '<span dir="auto" class="act-p">' + esc(p.name) + '</span>' : '<span class="act-gap"></span>';
+    var btns = '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>' + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : proj) +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
@@ -831,38 +833,25 @@
     }
   }
 
-  /* ---- into a session's card from the list (Right, or a click on its row) and back (Left): also a proposal, off in the
-     app until chosen. Going in, the row's title and icon rise into the card's heading while the list steps aside to the
-     left and the rest of the card comes in from the right. Coming back, the card steps aside to the right and the list
-     returns from the left. ---- */
-  var drillFx = false, drillT = 0;
+  /* ---- into a session's card from the list (Right, or a click on its row) and back (Left): the character leans in to
+     look at the card, and leans back to the list. The panes keep their own quiet fade. A proposal, off in the app until
+     chosen. ---- */
+  var drillFx = false;
   function drill(from, to, s) {
-    n.classList.remove('drill'); [].forEach.call(scene.querySelectorAll('.drill-in'), function (el) { el.classList.remove('drill-in'); });
-    if (!drillFx || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     var going = from === 'switch' && to === 'open', back = from === 'open' && to === 'switch';
-    if (!going && !back) return;
-    var out = q(going ? '.p-switch' : '.p-open'), into = q(going ? '.p-open' : '.p-switch'), dx = going ? 28 : -28;
-    var settle = 'cubic-bezier(.2,.9,.25,1.08)', glide = 'cubic-bezier(.45,0,.2,1.12)', leave = 'cubic-bezier(.5,0,.75,.4)';
-    /* the panes' own fades step aside (they wait a beat, which hid the move); this moves them instead */
-    n.classList.add('drill'); into.classList.add('drill-in'); clearTimeout(drillT);
-    drillT = setTimeout(function () { n.classList.remove('drill'); into.classList.remove('drill-in'); }, 1000);
-    /* the one you leave slides off the other way and fades, its rows still there while it goes */
-    out.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: leave });
-    out.querySelector('.inner').animate([{ transform: 'none' }, { transform: 'translateX(' + (-dx) + 'px)' }], { duration: 240, easing: leave });
-    [].slice.call(out.querySelectorAll('.rv')).forEach(function (el) { el.animate([{ opacity: 1, transform: 'none', filter: 'none' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 240 }); });
-    into.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 60, easing: 'ease-out', fill: 'backwards' });
-    var arrive = function (els, from0) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0, filter: 'blur(2px)' }, { transform: 'none', opacity: 1, filter: 'none' }], { duration: 520, delay: from0 + i * 50, easing: settle, fill: 'backwards' }); }); };
-    if (back) { arrive([].slice.call(into.querySelector('.inner').children), 110); return; }
-    /* going in: the row's title and icon travel up into the card's heading, and the rest of the card follows them in */
-    var row = q('.p-switch .row[data-i="' + s.selected + '"]'), nm = row && row.querySelector('.nm'), icon = row && row.firstElementChild;
-    var title = q('.o-name'), big = q('.o-app'), head = title.closest('.rv');
-    arrive([].slice.call(into.querySelector('.inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 150);
-    if (!nm || !icon) { arrive([head], 60); return; }
-    var a = nm.getBoundingClientRect(), b = title.getBoundingClientRect(), ai = icon.getBoundingClientRect(), bi = big.getBoundingClientRect();
-    title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 600, easing: glide });
-    big.style.transformOrigin = '0 0';
-    big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 600, easing: glide });
-    [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: 300, easing: settle, fill: 'backwards' }); });
+    if (!drillFx || celebrating || hello || (!going && !back)) return;
+    var ci = cr.querySelector('.cr-in'), up = 'cubic-bezier(.2,.8,.4,1)', down = 'cubic-bezier(.6,0,.8,.4)';
+    /* its eyes go first: to the card's title going in, to the row you came from going back */
+    var at = going ? q('.o-name') : q('.p-switch .row[data-i="' + s.selected + '"] .nm');
+    setTimeout(function () { if (at) lookAt(at, 40); }, 60);
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    ci.style.transformOrigin = '50% 100%';
+    if (going) ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(1px) scale(1.1,.88)', offset: .18, easing: up },
+      { transform: 'translate(1.5px,-3px) scale(.93,1.1) rotate(7deg)', offset: .48, easing: down },
+      { transform: 'translateX(.5px) scale(1.05,.95) rotate(-2deg)', offset: .74, easing: up }, { transform: 'none' }], { duration: 640 });
+    else ci.animate([{ transform: 'none', easing: up }, { transform: 'translate(-1px,-1px) scale(.95,1.06) rotate(-6deg)', offset: .36, easing: up },
+      { transform: 'scale(1.04,.97) rotate(1.5deg)', offset: .7, easing: up }, { transform: 'none' }], { duration: 520 });
+    setTimeout(function () { cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110); }, going ? 560 : 440);
   }
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
   var trackTimer = null;

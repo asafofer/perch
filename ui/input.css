@@ -32,8 +32,6 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
 .n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=setup] .p-setup .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .notouch { transition: none !important; }
-/* moving between the list and a card (app.js drill): the script runs the panes, so their own fades stand aside */
-.n.drill .pane, .pane.drill-in .rv { transition: none !important; }
 
 /* glow: light spilling up from the bottom edge, inside the card. Eased stops keep it from banding or going brown. */
 .glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .9s ease;
@@ -203,6 +201,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-btns { left: 12px; right: 12px; bottom: 11px; height: 24px; display: flex; align-items: center; gap: 4px; transform: translateY(-6px); }
 .act-gap { flex: 1; }
+.act-p { flex: 1; min-width: 0; padding: 0 8px 0 3px; font: 400 12px/24px Inter, sans-serif; color: hsl(var(--muted-foreground)); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-x { width: 24px; height: 24px; flex: none; border-radius: 7px; display: grid; place-items: center; color: #a1a1aa; cursor: pointer; transition: background-color .15s, color .15s; }
 .act-x:hover, .act-x.hv { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
