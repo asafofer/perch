@@ -1189,6 +1189,7 @@
     if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
   }
   function pickCharacter(c) {
+    if (shapeOf(c.shape)[0] === charNow.shape && c.color === charNow.color) return;   /* already this one */
     var shapeChanged = shapeOf(c.shape)[0] !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
     post({ type: 'character', shape: c.shape, color: c.color });
     var commit = function () { applyCharacter(charNow); };
@@ -1242,6 +1243,13 @@
     pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); }, 1500);
   }
   scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
+  /* A shape or a colour is picked on the press. A snapshot that draws the card again between press and release replaces
+     the swatch under the pointer, and the browser then sends no click at all. The click that follows is the same pick
+     again, which pickCharacter ignores. */
+  scene.addEventListener('pointerdown', function (e) {
+    var b = e.button === 0 && e.target.closest('.o-shape, .o-color'); if (!b) return;
+    pickCharacter(b.dataset.k ? { shape: b.dataset.k, color: charNow.color } : { shape: charNow.shape, color: b.dataset.c });
+  });
   (function previewLife() {
     var pv = q('.cr-pv');
     if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now()) && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && Math.random() < 0.4) trick(pv);
