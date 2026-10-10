@@ -131,3 +131,12 @@ import Foundation
         #expect(HookEvent.parse(agent: "pi", event: "Stop", body: Data(#"{"session_id":"019f","last_assistant_message":"Done."}"#.utf8), requestId: "x")?.kind == .finished(message: "Done."))
     }
 }
+
+@Suite struct HookPidTests {
+    @Test func aHookSaysWhichProcessSentIt() {
+        let body = Data(#"{"session_id":"019f","pid":4242}"#.utf8)
+        #expect(HookEvent.parse(agent: "pi", event: "UserPromptSubmit", body: body, requestId: "r")?.pid == 4242)
+        #expect(HookEvent.parse(agent: "claude", event: "Stop", body: Data(#"{"session_id":"s"}"#.utf8), requestId: "r", pid: 77)?.pid == 77)
+        #expect(HookEvent.parse(agent: "claude", event: "Stop", body: Data(#"{"session_id":"s"}"#.utf8), requestId: "r")?.pid == nil)
+    }
+}

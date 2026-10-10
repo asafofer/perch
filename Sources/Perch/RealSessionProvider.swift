@@ -50,7 +50,17 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             if case .herdr(let pane, let socket, _) = h.place { return herdr[socket]?[pane] }
             return nil
         }
-        let running = Running.match(live.map { Running.Process(agent: $0.agent, cwd: $0.cwd, argv: $0.argv, session: seen($0)?.session, started: $0.started) }, to: projects)
+        // What the hooks said: the session each agent process last spoke for. A hook script's parent may be a shell
+        // between it and the agent, so its pid is followed up to an agent process.
+        var spoke: [pid_t: (session: String, at: Date)] = [:]
+        let agentPids = Set(live.map(\.pid))
+        for (session, s) in SessionPids.all() {
+            var pid = s.pid
+            for _ in 0..<4 where !agentPids.contains(pid) { guard let up = LiveSessions.parent(of: pid), up > 1 else { break }; pid = up }
+            guard agentPids.contains(pid), (spoke[pid]?.at ?? .distantPast) < s.at else { continue }
+            spoke[pid] = (session, s.at)
+        }
+        let running = Running.match(live.map { Running.Process(agent: $0.agent, cwd: $0.cwd, argv: $0.argv, session: spoke[$0.pid]?.session ?? seen($0)?.session, started: $0.started) }, to: projects)
         var places = Prefs.places
         let before = places
         for i in projects.indices where projects[i].terminal {

@@ -51,11 +51,12 @@ final class HookServer: @unchecked Sendable {
         setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
         var tv = timeval(tv_sec: 2, tv_usec: 0)
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-        guard let (path, body) = Self.readRequest(c) else { close(c); return }
+        guard let (path, body, headers) = Self.readRequest(c) else { close(c); return }
         let parts = path.split(separator: "/").map(String.init)
         guard parts.count == 2, Agent.all.contains(where: { $0.id == parts[0] }) else { Self.respond(c, Data()); return }
         let id = UUID().uuidString
-        guard var event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id) else { Self.respond(c, Data()); return }
+        guard var event = HookEvent.parse(agent: parts[0], event: parts[1], body: body, requestId: id, pid: headers["x-perch-pid"].flatMap { Int32($0) }) else { Self.respond(c, Data()); return }
+        if let pid = event.pid { SessionPids.note(event.sessionId, pid: pid) }
         // Only the Claude app runs this hook alongside its own prompt, and Perch's OpenCode plugin asks without blocking
         // OpenCode's. Anywhere else (a terminal, `claude -p`) the prompt waits for the hook, so holding it would freeze the
         // session: those are answered at once, with no decision.
@@ -78,14 +79,18 @@ final class HookServer: @unchecked Sendable {
         } else {
             Self.respond(c, Data())
             // Answered already (with no decision): the card shows it, and Pick up takes you to where it is asked.
-            if case .asks(var ask) = event.kind, ask.answerable { ask.answerable = false; event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at) }
+            if case .asks(var ask) = event.kind, ask.answerable {
+                ask.answerable = false
+                let pid = event.pid
+                event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at); event.pid = pid
+            }
         }
         let sent = event
         DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.onEvent?(sent) } }
     }
 
-    /// Request line and body of a small HTTP POST. Nil when it is not one.
-    private static func readRequest(_ c: Int32) -> (String, Data)? {
+    /// Request path, body and headers (names in lowercase) of a small HTTP POST. Nil when it is not one.
+    private static func readRequest(_ c: Int32) -> (String, Data, [String: String])? {
         var data = Data(), buf = [UInt8](repeating: 0, count: 65_536)
         var headerEnd: Range<Data.Index>?, length = 0
         while true {
@@ -104,9 +109,15 @@ final class HookServer: @unchecked Sendable {
         }
         guard let r = headerEnd else { return nil }
         let head = String(decoding: data[..<r.lowerBound], as: UTF8.self)
-        let request = head.split(separator: "\r\n").first?.split(separator: " ") ?? []
+        let lines = head.split(separator: "\r\n")
+        let request = lines.first?.split(separator: " ") ?? []
         guard request.count >= 2 else { return nil }
-        return (String(request[1]), Data(data[r.upperBound...].prefix(length)))
+        var headers: [String: String] = [:]
+        for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            headers[line[..<colon].lowercased()] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        }
+        return (String(request[1]), Data(data[r.upperBound...].prefix(length)), headers)
     }
 
     /// With PERCH_TRACE set: what happens to each request Perch holds.
@@ -118,6 +129,19 @@ final class HookServer: @unchecked Sendable {
         out.withUnsafeBytes { p in var sent = 0; while sent < out.count { let n = send(c, p.baseAddress! + sent, out.count - sent, 0); if n <= 0 { break }; sent += n } }
         close(c)
     }
+}
+
+/// Which process last spoke for each session through a hook: its own (the plugins) or the hook's parent (the hook script).
+/// The scan follows it up to the agent process, which says exactly which running agent each session is.
+enum SessionPids {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var map: [String: (pid: Int32, at: Date)] = [:]
+    static func note(_ session: String, pid: Int32) {
+        lock.lock(); defer { lock.unlock() }
+        map[session] = (pid, Date())
+        if map.count > 200 { map = Dictionary(uniqueKeysWithValues: map.sorted { $0.value.at > $1.value.at }.prefix(120).map { ($0.key, $0.value) }) }
+    }
+    static func all() -> [String: (pid: Int32, at: Date)] { lock.lock(); defer { lock.unlock() }; return map }
 }
 
 /// Installs the hook script and the config entries that run it, or for OpenCode and pi, Perch's own plugin file.
@@ -140,7 +164,7 @@ enum HookInstaller {
     [ -S "$sock" ] || exit 0
     wait=5
     [ "$1" = claude ] && [ "$2" = PermissionRequest ] && wait=3600
-    out=$(/usr/bin/curl -s --max-time "$wait" --unix-socket "$sock" -H 'Expect:' -H 'Content-Type: application/json' --data-binary @- "http://perch/$1/$2" 2>/dev/null) || exit 0
+    out=$(/usr/bin/curl -s --max-time "$wait" --unix-socket "$sock" -H 'Expect:' -H 'Content-Type: application/json' -H "X-Perch-Pid: $PPID" --data-binary @- "http://perch/$1/$2" 2>/dev/null) || exit 0
     [ -n "$out" ] && printf '%s\\n' "$out"
     exit 0
 

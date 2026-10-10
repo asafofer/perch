@@ -20,12 +20,15 @@ public struct HookEvent: Equatable, Sendable {
     public let sessionId: String
     public let kind: Kind
     public let at: Date
+    /// The process that sent it, or the hook's parent: which running agent this session is.
+    public var pid: Int32?
     public init(agent: String, sessionId: String, kind: Kind, at: Date = Date()) {
         self.agent = agent; self.sessionId = sessionId; self.kind = kind; self.at = at
     }
 
     /// Reads a hook's JSON body. `event` is the hook event name from the URL. Nil for anything Perch does not use.
-    public static func parse(agent: String, event: String, body: Data, requestId: String, at: Date = Date()) -> HookEvent? {
+    /// `pid`: the sender's process, when the request says (Perch's hook script sends its parent's, the plugins their own).
+    public static func parse(agent: String, event: String, body: Data, requestId: String, at: Date = Date(), pid: Int32? = nil) -> HookEvent? {
         guard let o = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any],
               let session = o["session_id"] as? String, !session.isEmpty else { return nil }
         let kind: Kind
@@ -39,7 +42,9 @@ public struct HookEvent: Equatable, Sendable {
         case "Interrupt": kind = .interrupted
         default: return nil
         }
-        return HookEvent(agent: agent, sessionId: session, kind: kind, at: at)
+        var e = HookEvent(agent: agent, sessionId: session, kind: kind, at: at)
+        e.pid = pid ?? (o["pid"] as? Int).map(Int32.init)
+        return e
     }
 }
 

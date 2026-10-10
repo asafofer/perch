@@ -71,10 +71,11 @@ public enum Running {
         }
     }
 
-    /// Project index to process index. A process whose command names its session (`claude --resume <id>`,
-    /// `pi --session <id>`, `opencode -s <id>`, `codex resume <id>`), or that herdr names, is that session. Any other is the
-    /// newest session of its agent in its folder that no other process took and that was active after the process started
-    /// (a freshly started agent with nothing said yet is not the folder's last session).
+    /// Project index to process index. A process that names its session is that session: its command
+    /// (`claude --resume <id>`, `pi --session <id>`, `opencode -s <id>`, `codex resume <id>`), Perch's own hooks, or herdr.
+    /// Any other owns the sessions of its agent in its folder begun between its start and the next such process's start;
+    /// with several side by side each has the first it began, alone it has the one active last (after /clear or /new).
+    /// A freshly started agent with nothing said yet has none.
     public static func match(_ processes: [Process], to projects: [Project]) -> [Int: Int] {
         var out: [Int: Int] = [:], taken = Set<Int>()
         for (h, p) in processes.enumerated() {
@@ -83,11 +84,21 @@ public enum Running {
             }) else { continue }
             out[i] = h; taken.insert(h)
         }
-        for (h, p) in processes.enumerated() where !taken.contains(h) {
-            let since = p.started.map { $0.addingTimeInterval(-5) } ?? .distantPast
-            let same = projects.indices.filter { projects[$0].app == p.agent && projects[$0].cwd == p.cwd && out[$0] == nil && (projects[$0].lastActive ?? .distantPast) >= since }
-            guard let i = same.max(by: { (projects[$0].lastActive ?? .distantPast) < (projects[$1].lastActive ?? .distantPast) }) else { continue }
-            out[i] = h
+        let start = { (h: Int) in processes[h].started ?? .distantPast }
+        let active = { (i: Int) in projects[i].lastActive ?? .distantPast }
+        let rest = processes.indices.filter { !taken.contains($0) }.sorted { start($0) < start($1) }
+        for h in rest {
+            let p = processes[h], from = start(h)
+            let peers = rest.filter { processes[$0].agent == p.agent && processes[$0].cwd == p.cwd }
+            let until = peers.map(start).filter { $0 > from }.min() ?? .distantFuture
+            let same = projects.indices.filter { projects[$0].app == p.agent && projects[$0].cwd == p.cwd && out[$0] == nil && active($0) >= from.addingTimeInterval(-5) }
+            let begun = { (i: Int) in projects[i].startedAt ?? .distantPast }
+            let mine = same.filter { begun($0) >= from.addingTimeInterval(-2) && begun($0) < until.addingTimeInterval(-2) }
+            let pick: Int?
+            if mine.isEmpty { pick = same.filter { begun($0) < from }.max { active($0) < active($1) } }   // a session it continued
+            else if peers.count > 1 { pick = mine.min { begun($0) < begun($1) } }
+            else { pick = mine.max { active($0) < active($1) } }
+            if let i = pick { out[i] = h }
         }
         return out
     }

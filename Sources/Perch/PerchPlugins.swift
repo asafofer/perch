@@ -18,7 +18,7 @@ enum PerchPlugins {
     function post(event, body, signal) {
       if (!existsSync(sock)) return Promise.resolve("");
       return fetch("http://perch/opencode/" + event, {
-        method: "POST", unix: sock, signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        method: "POST", unix: sock, signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, pid: process.pid }),
       }).then((r) => r.text()).catch(() => "");
     }
 
@@ -120,7 +120,7 @@ enum PerchPlugins {
 
     function post(event: string, body: Record<string, unknown>) {
       if (!existsSync(sock)) return;
-      const data = JSON.stringify(body);
+      const data = JSON.stringify({ ...body, pid: process.pid });
       const req = request({ socketPath: sock, path: "/pi/" + event, method: "POST",
         headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) } });
       req.on("error", () => {});

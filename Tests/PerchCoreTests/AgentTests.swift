@@ -87,6 +87,20 @@ import Foundation
         #expect(Running.match([Running.Process(agent: "pi", cwd: "/a", argv: ["pi"])], to: list).isEmpty)
     }
 
+    @Test func agentsSideBySideEachKeepTheSessionTheyBegan() {
+        let t0 = Date().addingTimeInterval(-900)
+        func s(_ id: String, begun: TimeInterval, active: TimeInterval) -> Project {
+            var x = p(id, "pi", "/a", 0); x.startedAt = t0.addingTimeInterval(begun); x.lastActive = t0.addingTimeInterval(active); return x
+        }
+        // herdr's pi started first, cmux's 20 s later; a third pi began a session and has since quit.
+        let list = [s("herdr", begun: 3, active: 30), s("cmux", begun: 23, active: 40), s("quit", begun: 330, active: 360)]
+        let procs = [Running.Process(agent: "pi", cwd: "/a", argv: ["pi"], started: t0.addingTimeInterval(20)),
+                     Running.Process(agent: "pi", cwd: "/a", argv: ["pi"], started: t0)]
+        #expect(Running.match(procs, to: list) == [0: 1, 1: 0])
+        // Alone, it is the session it used last (after /new).
+        #expect(Running.match([Running.Process(agent: "pi", cwd: "/a", argv: ["pi"], started: t0)], to: list) == [2: 0])
+    }
+
     @Test func aFreshAgentIsNotTheFoldersOldSession() {
         let list = [p("old", "pi", "/a", 3600)]
         #expect(Running.match([Running.Process(agent: "pi", cwd: "/a", argv: ["pi"], started: Date().addingTimeInterval(-60))], to: list).isEmpty)

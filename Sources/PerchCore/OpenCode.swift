@@ -10,6 +10,7 @@ public final class OpenCodeStore {
         public let title: String
         /// The newest change to the session or any of its messages.
         public let updated: Date
+        public let created: Date
     }
     /// One message and its parts, oldest first: the JSON OpenCode stores, as dictionaries.
     public struct Message { public let data: [String: Any]; public let parts: [[String: Any]]; public let created: Date }
@@ -26,13 +27,14 @@ public final class OpenCodeStore {
     /// Sessions you started (not a subagent's), not archived, changed since `after`, newest first.
     public func sessions(after: Date, limit: Int) -> [Session] {
         let sql = """
-            SELECT s.id, s.directory, s.title, max(s.time_updated, coalesce((SELECT max(m.time_updated) FROM message m WHERE m.session_id = s.id), 0)) AS t
+            SELECT s.id, s.directory, s.title, max(s.time_updated, coalesce((SELECT max(m.time_updated) FROM message m WHERE m.session_id = s.id), 0)) AS t, s.time_created
             FROM session s WHERE s.parent_id IS NULL AND s.time_archived IS NULL AND s.time_updated > ?
             ORDER BY t DESC LIMIT ?
             """
         return rows(sql, bind: [.int(Int64(after.timeIntervalSince1970 * 1000)), .int(Int64(limit))]) { st in
             Session(id: Self.text(st, 0), directory: Self.text(st, 1), title: Self.text(st, 2),
-                    updated: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 3)) / 1000))
+                    updated: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 3)) / 1000),
+                    created: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 4)) / 1000))
         }
     }
 
