@@ -16,9 +16,18 @@ quote() { printf '%q' "$1"; }
 for tool in herdr pi opencode claude codex; do command -v "$tool" >/dev/null || { echo "$tool is not installed"; exit 1; }; done
 [ -d /Applications/cmux.app ] || { echo "cmux is not installed"; exit 1; }
 
-# A fresh herdr server for the demo.
+TABS="$HOME/.config/herdr/sessions/$NAME/cmux-workspaces"
+# Start over: the demo's cmux workspaces from last time, then its herdr server.
+if [ -f "$TABS" ] && pgrep -xq cmux; then
+  while read -r id; do
+    [ -n "$id" ] && osascript -e "tell application \"cmux\" to close tab (first tab of front window whose id is \"$id\")" >/dev/null 2>&1 || true
+  done < "$TABS"
+fi
 herdr session stop "$NAME" >/dev/null 2>&1 || true
-(cd /tmp && exec herdr --session "$NAME" server) </dev/null >/dev/null 2>&1 &
+# The server, and every pane, starts from your login environment: run from inside another app's terminal (an agent's,
+# an editor's), its variables would leak into the agents and change how they report themselves.
+(cd /tmp && exec env -i HOME="$HOME" USER="$USER" LOGNAME="${LOGNAME:-$USER}" SHELL="${SHELL:-/bin/zsh}" PATH="$PATH" \
+  LANG="${LANG:-en_US.UTF-8}" TERM=xterm-256color herdr --session "$NAME" server) </dev/null >/dev/null 2>&1 &
 disown
 for _ in $(seq 50); do herdr workspace list >/dev/null 2>&1 && break; sleep 0.2; done
 
@@ -42,7 +51,8 @@ herdr agent prompt demo-codex "Read Package.swift and tell me in one sentence wh
 # goes through AppleScript; text goes in as a paste, and Return is sent on its own.
 HERDR_CMD="herdr --session $NAME"
 PI_CMD="cd $(quote "$DIR") && pi $(quote "Read Package.swift and tell me in one sentence which Swift tools version it uses. Do not edit anything.")"
-osascript - "$HERDR_CMD" "$PI_CMD" <<'EOF'
+mkdir -p "$(dirname "$TABS")"
+osascript - "$HERDR_CMD" "$PI_CMD" > "$TABS" <<'EOF'
 on run argv
   tell application "cmux"
     activate
@@ -59,6 +69,7 @@ on run argv
     input text (item 1 of argv) to focused terminal of h
     delay 0.2
     perform action "text:\\r" on focused terminal of h
+    return (id of a) & linefeed & (id of h)
   end tell
 end run
 EOF

@@ -518,6 +518,8 @@ public enum CodexTranscript {
                 if let cwd = payload["cwd"] as? String { d.cwd = cwd }
                 let source = payload["source"]
                 if let s = source as? String { d.entrypoint = s }   // "cli" in a terminal, "vscode" in the app
+                // Since 0.16x the terminal app also says "vscode"; its originator still says where it runs.
+                if let o = payload["originator"] as? String, ["codex-tui", "codex_cli_rs"].contains(o) { d.entrypoint = "cli" }
                 if payload["originator"] as? String == "codex_exec" || source is [String: Any] || ["exec", "mcp"].contains(source as? String ?? "") { d.headless = true }
                 continue
             }

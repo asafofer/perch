@@ -104,9 +104,11 @@ private final class Home {
         let h = Home(), docs = h.folder("code/docs")
         h.codex("cli1", cwd: docs, source: #""cli""#, originator: "codex_cli_rs", ago: 60)
         h.codex("app1", cwd: docs, ago: 120)
+        // Codex 0.162's terminal app writes the app's source; its originator gives it away.
+        h.codex("tui1", cwd: docs, source: #""vscode""#, originator: "codex-tui", ago: 30)
         let found = h.scanner.codex(limit: 15, now: h.now).map(\.project)
-        #expect(found.map(\.sessionId) == ["cli1", "app1"])
-        #expect(found.map(\.terminal) == [true, false])
+        #expect(found.map(\.sessionId) == ["tui1", "cli1", "app1"])
+        #expect(found.map(\.terminal) == [true, true, false])
     }
 
     @Test func theLastMessageKeepsItsLineBreaks() {
