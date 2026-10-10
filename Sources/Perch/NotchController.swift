@@ -565,6 +565,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
+        sent.proactive = proactiveOpen
         if machine.phase == .open, openedByHover, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
@@ -665,6 +666,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
         switch type {
         case "confirm": send(.confirm)
+        case "flip": send(.next)
         case "answer":
             if let a = body["answers"] as? [String: String] { answer("", answers: a) }
             else if let c = body["choice"] as? String { answer(c) }
