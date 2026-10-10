@@ -51,6 +51,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozedUntil = Date.distantPast
     /// When you last saw each session's latest activity, by session id.
     private var seen = Prefs.seen
+    /// When Perch last switched Claude's window to a session behind your back to send a reply, by the app's session id.
+    private var shownQuietly: [String: Date] = [:]
     /// The project on the welcome card right now, and since when. A second on screen counts as seen.
     private var viewing: (id: String, since: Date)?
     /// Your last break: when you left and when you came back.
@@ -309,8 +311,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: what you have seen
     private func isFresh(_ p: Project) -> Bool {
         guard let t = p.lastActive, t > newsSince else { return false }
-        // Already in front of you in the Claude app since it changed: you have seen it there.
-        if let f = p.focusedAt, f.addingTimeInterval(10) >= t { return false }
+        // Already in front of you in the Claude app since it changed: you have seen it there. Not when Perch put it there
+        // itself to send a reply, with the window behind.
+        if let f = p.focusedAt, f.addingTimeInterval(10) >= t,
+           !(p.desktopSessionId.flatMap { shownQuietly[$0] }.map { abs(f.timeIntervalSince($0)) < 5 } ?? false) { return false }
         return t.timeIntervalSince1970 > (seen[p.id] ?? 0) + 0.5
     }
     /// Since your last break, or the last day: anything older is history, seen or not.
@@ -794,6 +798,23 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                             guard self.machine.phase == .open else { return }
                             let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push()
                         }
+                    }
+                }
+            }
+            return
+        }
+        // A session in the Claude app takes the words in the background: its window never comes forward.
+        if p.app == "claude", let id = p.desktopSessionId, AXIsProcessTrusted() {
+            let cli = p.sessionId, topic = p.topic
+            markSeen(p)
+            let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); push()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
+                let sent = ClaudeComposer.send(text, to: id, titles: titles)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text) }
                     }
                 }
             }

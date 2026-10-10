@@ -55,7 +55,7 @@ enum Landing {
 /// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex.
 @MainActor
 enum Restorer {
-    static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex"
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex"
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
