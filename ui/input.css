@@ -114,12 +114,21 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .pv-bloom { background: radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--cr) 34%, transparent), transparent 68%); }
 .onb.go .o-i { animation: onbin .42s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i, 0) * .05s); }
 @keyframes onbin { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
-.cr .ey { position: absolute; top: var(--et); width: var(--ew, 14%); height: 24%; border-radius: 50%; background: #2B1B0E; transition: all .22s; translate: var(--lx, 0px) var(--ly, 0px); }
+/* The eyes spring to where they look and into each face; a blink stays quick. A smile is the eye bitten from below
+   (--bite), so open eyes squint into it instead of swapping shape. */
+@property --bite { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+.cr .ey { position: absolute; top: var(--et); width: var(--ew, 14%); height: 24%; border-radius: 50%; background: #2B1B0E; translate: var(--lx, 0px) var(--ly, 0px);
+  -webkit-mask: radial-gradient(ellipse 100% 100% at 50% 115%, transparent var(--bite), #000 calc(var(--bite) + 1.5%));
+  mask: radial-gradient(ellipse 100% 100% at 50% 115%, transparent var(--bite), #000 calc(var(--bite) + 1.5%));
+  transition: translate .34s cubic-bezier(.3,1.45,.5,1), width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
+    border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
 .cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
 /* Bun's cheeks: flat blush under the eyes */
-.cr .ck { display: none; position: absolute; top: 72%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: .75; }
+.cr .ck { position: absolute; top: 72%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: 0; scale: .4; transition: opacity .3s, scale .45s cubic-bezier(.3,1.5,.5,1), top .3s; }
 .cr .ck.l { left: 18%; } .cr .ck.r { left: 68%; }
-.cr[data-shape=bun] .ck { display: block; }
+.cr[data-shape=bun] .ck { opacity: .75; scale: 1; }
+/* happy: a blush comes up under the eyes */
+.cr[data-m=happy] .ck { opacity: .7; scale: 1; top: calc(var(--et) + 19%); }
 /* each shape's details, flat: lines a shade darker than its colour (pleats, whiskers), filled marks (inner ears),
    the onigiri's nori, the robot's antenna in its own colour */
 .cr .f path.pl { fill: none; stroke: #2B1B0E; stroke-opacity: .22; stroke-width: 1.1; stroke-linecap: round; }
@@ -134,9 +143,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
 .cr[data-m=sleep] .ey { height: max(1.2px, 5%); border-radius: 3px; top: calc(var(--et) + 13%); }
-.cr[data-m=awake] .ey { transition: all .12s; }
 .cr.blink .ey { transform: scaleY(.1); }
-.cr[data-m=awake] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); transition: translate .15s; }
+.cr .f { transition: translate .4s cubic-bezier(.3,1.35,.5,1); }
+.cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
 /* something needs you: eyes open wide */
 .cr[data-m=alert] .ey { width: calc(var(--ew, 14%) + 2%); height: 30%; top: calc(var(--et) - 3%); }
 /* a word beside the character, black like the notch it hangs from */
@@ -144,7 +153,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   color: rgba(255,255,255,.86); font: 500 11px/18px Inter, sans-serif; letter-spacing: -.005em; opacity: 0; transition: opacity .25s; pointer-events: none; }
 .cr .say:empty { display: none; }
 .cr[data-say="1"] .say { opacity: 1; transition-delay: .35s; }
-.cr[data-m=happy] .ey { width: calc(var(--ew, 14%) + 3%); height: 15%; border-radius: 100% 100% 0 0; background: none; border-top: max(1.2px, 6cqw) solid #2B1B0E; top: calc(var(--et) + 5%); transform: translateX(-8%); }
+.cr[data-m=happy] .ey { width: calc(var(--ew, 14%) + 3%); height: 26%; top: calc(var(--et) + 1%); --bite: 78%; }
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.045); } }
 @keyframes hop { 0%,100% { translate: 0 0; } 40% { translate: 0 -5px; } 70% { translate: 0 1px; } }
 @keyframes bl { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }

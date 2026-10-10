@@ -793,6 +793,12 @@
     var m = cr.dataset.m;
     /* it hops when it wakes up, not every time its face changes */
     if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek')) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
+    /* turning happy, it gives a little bounce as the smile comes up */
+    if (m === 'happy' && wasMood !== 'happy' && !celebrating && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      var up = 'cubic-bezier(.2,.8,.4,1)'; inner.style.transformOrigin = '50% 100%';
+      inner.animate([{ transform: 'none', easing: up }, { transform: 'scale(1.1,.9)', offset: .22, easing: up }, { transform: 'translateY(-2.5px) scale(.95,1.07)', offset: .5, easing: 'cubic-bezier(.6,0,.8,.4)' },
+        { transform: 'scale(1.04,.97)', offset: .76, easing: up }, { transform: 'none' }], { duration: 560 });
+    }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
   /* ---- the character watches you move between sessions (a proposal: off in the app until it is chosen; the design
@@ -820,7 +826,8 @@
     var mood = cr.dataset.m, startle = mood === 'alert' && fxMood !== 'alert'; fxMood = mood;
     if (startle && !held && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       var ci = cr.querySelector('.cr-in'), up = 'cubic-bezier(.2,.8,.4,1)'; ci.style.transformOrigin = '50% 100%';
-      ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(-3px) scale(.9,1.14)', offset: .3, easing: up }, { transform: 'scale(1.1,.9)', offset: .62, easing: up }, { transform: 'none' }], { duration: 480 });
+      ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(-4px) scale(.88,1.16)', offset: .24, easing: 'cubic-bezier(.6,0,.8,.4)' },
+        { transform: 'scale(1.09,.92)', offset: .52, easing: up }, { transform: 'translateY(-1px) scale(.98,1.02)', offset: .76, easing: up }, { transform: 'none' }], { duration: 540 });
     }
   }
 
@@ -831,25 +838,29 @@
   var drillFx = false;
   function drill(from, to, s) {
     if (!drillFx || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    var spring = 'cubic-bezier(.3,1.15,.5,1)', ease = 'cubic-bezier(.2,.9,.3,1)';
-    var aside = function (el, dx) { if (el) el.animate([{ transform: 'none' }, { transform: 'translateX(' + dx + 'px)' }], { duration: 220, easing: ease }); };
-    var arrive = function (els, dx) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, delay: 70 + i * 40, easing: ease, fill: 'backwards' }); }); };
+    var spring = 'cubic-bezier(.3,1.25,.5,1)', ease = 'cubic-bezier(.2,.9,.3,1)';
+    /* the panes trade places at once (their own fade waits a beat, which would hide the move) */
+    var swap = function (out, into) { out.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: ease }); into.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: ease }); };
+    var aside = function (el, dx) { if (el) el.animate([{ transform: 'none' }, { transform: 'translateX(' + dx + 'px)' }], { duration: 200, easing: 'cubic-bezier(.4,0,.8,.6)' }); };
+    var arrive = function (els, dx) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0, filter: 'blur(2px)' }, { transform: 'none', opacity: 1, filter: 'none' }], { duration: 460, delay: 40 + i * 45, easing: spring, fill: 'backwards' }); }); };
     if (from === 'switch' && to === 'open') {
       var row = q('.p-switch .row[data-i="' + s.selected + '"]'), nm = row && row.querySelector('.nm'), icon = row && row.firstElementChild;
       var head = q('.o-name').closest('.rv'), title = q('.o-name'), big = q('.o-app');
-      aside(q('.p-switch .inner'), -16);
-      arrive([].slice.call(q('.p-open .inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 16);
-      if (!nm || !icon) { arrive([head], 16); return; }
+      swap(q('.p-switch'), q('.p-open'));
+      aside(q('.p-switch .inner'), -24);
+      arrive([].slice.call(q('.p-open .inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 24);
+      if (!nm || !icon) { arrive([head], 24); return; }
       var a = nm.getBoundingClientRect(), b = title.getBoundingClientRect(), ai = icon.getBoundingClientRect(), bi = big.getBoundingClientRect();
       /* the heading is there at once, so the title is seen to move, not to appear */
-      head.animate([{ opacity: 1, filter: 'none', transform: 'none' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 480 });
-      title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 480, easing: spring });
+      head.animate([{ opacity: 1, filter: 'none', transform: 'none' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 560 });
+      title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 560, easing: spring });
       big.style.transformOrigin = '0 0';
-      big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 480, easing: spring });
-      [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: 180, easing: ease, fill: 'backwards' }); });
+      big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 560, easing: spring });
+      [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: 200, easing: ease, fill: 'backwards' }); });
     } else if (from === 'open' && to === 'switch') {
-      aside(q('.p-open .inner'), 16);
-      arrive([].slice.call(q('.p-switch .inner').children), -16);
+      swap(q('.p-open'), q('.p-switch'));
+      aside(q('.p-open .inner'), 24);
+      arrive([].slice.call(q('.p-switch .inner').children), -24);
     }
   }
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
@@ -1004,8 +1015,7 @@
     if (st !== 'idle') return;
     var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && p.id !== s.activeId; }).map(function (p) { return p.id; });
     var need = s.projects.filter(function (p) { return p.attention && p.id !== s.activeId; }).length;
-    /* a finish is said by the live activity; the last thing waiting on you being answered gets a word from the character */
-    if (known && !need && known.need > 0) setTimeout(function () { pop('happy', 1500, 'All clear'); }, 450);
+    /* a finish, or the last thing waiting on you being answered, is the live activity's to say; the character stays in */
     known = { done: done, need: need };
   }
   /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
