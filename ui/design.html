@@ -54,6 +54,28 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
 .cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
+/* proposals drawn side by side: the list as the app draws it, one idea per card */
+.props{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@media (min-width:860px){.props{grid-template-columns:1fr 1fr}}
+.prop{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.prop h3{margin:0;font:600 14px/18px Inter,sans-serif;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.prop p{margin:0;font-size:12.5px;line-height:18px;color:var(--pg-muted)}
+.prop .pick-me{font:500 11px/16px Inter,sans-serif;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#8CCFA4 18%,transparent);color:#4E9A6B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .prop .pick-me{color:#8CCFA4}}
+:root[data-theme="dark"] .prop .pick-me{color:#8CCFA4}
+.pstage{border-radius:10px;background:#16201e url(wallpapers/blue-distortion-1.webp) center 30%/cover;padding:0 10px 14px;display:flex;justify-content:center;overflow:hidden}
+.plist{width:400px;max-width:100%;background:#000;border-radius:0 0 20px 20px;padding:0 8px 8px;color:#fafafa}
+.plist .ph{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:14px;font-weight:500}
+.plist .ph span{font-size:12px;font-weight:400;color:hsl(var(--muted-foreground))}
+.plist .row{cursor:default}
+.plist .r2{height:44px}
+.plist .pj-q{font-size:12px;color:hsl(var(--muted-foreground) / .7)}
+.plist .pj-r{flex:0 1 auto;max-width:42%;text-align:right;color:hsl(var(--muted-foreground))}
+/* a ring round the app icon: arc while working, orange needs you, green finished */
+.icring{position:relative;display:flex;flex:none;padding:3px;margin:-3px}
+.icring::before{content:"";position:absolute;inset:0;border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--rc)}
+.icring.spin::before{border-radius:50%;box-shadow:none;border:1.5px solid transparent;border-top-color:var(--rc);border-right-color:var(--rc);animation:spin 1.1s linear infinite}
+@media (prefers-reduced-motion:reduce){.icring.spin::before{animation:none}}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -73,6 +95,18 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     <h2>Scenarios</h2>
     <p class="note" style="margin-bottom:10px">Each one is the live card in that state.</p>
     <div class="groups" id="groups"></div>
+  </section>
+
+  <section>
+    <h2>Proposal: where the project goes</h2>
+    <p class="note" style="margin-bottom:10px">The same five sessions in each, with today's status words, so only the project moves.</p>
+    <div class="props" id="propProject"></div>
+  </section>
+
+  <section>
+    <h2>Proposal: working, finished, needs you</h2>
+    <p class="note" style="margin-bottom:10px">The same sessions, the project placed as in the recommended option above. The Needs you section header stays in every one.</p>
+    <div class="props" id="propStatus"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -196,5 +230,77 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   showTab(saved < boxes.length ? saved : 0);
   btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
+})();
+</script>
+<script>
+/* Proposals for the list: the rows drawn as app.js draws them (same classes), one idea per card. */
+(function () {
+  var C = { attention: '#E9A877', done: '#8CCFA4', running: '#8DC8E8' };
+  var ROWS = [
+    { sec: 'Needs you', t: 'Prototype a background reply to Claude', p: 'perch', app: 'claude', st: 'ask', away: '2m' },
+    { sec: 'Today', t: 'Simulation lighting realism', p: 'room-planner-prototype', app: 'claude', st: 'run' },
+    { sec: 'Today', t: 'Thinking animations library', p: 'perch', app: 'claude', st: 'done', away: '45m' },
+    { sec: 'Today', t: 'PDF gap analysis app initialization', p: 'spec-gap-finder', app: 'claude', st: 'idle', away: '3h', sel: true },
+    { sec: 'Today', t: 'README project summary', p: 'perch', app: 'claude', via: 'terminal', st: 'idle', away: '14h' }
+  ];
+  var icons = {};
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function App(k, c) {
+    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
+    var g = { claude: '#D97757', codex: '#F4F4F5', terminal: '#27272A' }[k] || '#52525B';
+    return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g + '"/></svg>';
+  }
+  function Icon(r) {
+    if (!r.via) return App(r.app);
+    return '<span class="relative flex flex-none">' + App(r.via) + '<span class="absolute size-[11px] -bottom-[3px] -right-[3px] flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(r.app, 'size-full') + '</span></span>';
+  }
+  function Spin() { return '<svg class="animate-spin flex-none size-3" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
+  function Time(r, col) { return '<span class="min-w-[22px] text-right' + (col ? '' : ' text-muted-foreground') + '"' + (col ? ' style="color:' + col + '"' : '') + '>' + r.away + '</span>'; }
+  /* how status shows, on the right of the row (and, for ring, round the icon) */
+  var STATUS = {
+    words: function (r) {
+      if (r.st === 'run') return '<span class="flex items-center gap-1.5">' + Spin() + '<span style="color:' + C.running + '">Working</span></span>';
+      var w = r.st === 'ask' ? ['Needs your OK', C.attention] : r.st === 'done' ? ['Finished', C.done] : null;
+      return (w ? '<span style="color:' + w[1] + '">' + w[0] + '</span>' : '') + Time(r);
+    },
+    time: function (r) { return r.st === 'run' ? '<span class="flex min-w-[22px] justify-end">' + Spin() + '</span>' : Time(r, r.st === 'ask' ? C.attention : r.st === 'done' ? C.done : ''); },
+    ring: function (r) { return r.st === 'run' ? '' : Time(r); }
+  };
+  function ringed(r, html) {
+    var c = r.st === 'run' ? C.running : r.st === 'ask' ? C.attention : r.st === 'done' ? C.done : '';
+    return c ? '<span class="icring' + (r.st === 'run' ? ' spin' : '') + '" style="--rc:' + c + '">' + html + '</span>' : html;
+  }
+  /* where the project goes */
+  function row(r, place, status) {
+    var icon = status === 'ring' ? ringed(r, Icon(r)) : Icon(r), right = '<span class="flex flex-none items-center gap-2 text-xs tabular-nums">' + STATUS[status](r) + '</span>';
+    var title = '<span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>', mid;
+    if (place === 'inline') mid = '<span class="flex min-w-0 flex-1 items-baseline gap-2">' + title.replace('min-w-0 truncate', 'min-w-0 flex-[0_1_auto] truncate') + '<span class="min-w-0 flex-[1_1_0%] truncate text-muted-foreground">' + esc(r.p) + '</span></span>';
+    else if (place === 'quiet') mid = '<span class="flex min-w-0 flex-1 items-baseline gap-2">' + title.replace('min-w-0 truncate', 'min-w-0 flex-[0_1_auto] truncate') + '<span class="pj-q min-w-0 flex-[1_1_0%] truncate">' + esc(r.p) + '</span></span>';
+    else if (place === 'right') mid = '<span class="flex min-w-0 flex-1">' + title + '</span><span class="pj-r truncate text-xs">' + esc(r.p) + '</span>';
+    else mid = '<span class="flex min-w-0 flex-1 flex-col"><span class="truncate font-medium leading-[18px]">' + esc(r.t) + '</span><span class="truncate text-xs leading-4 text-muted-foreground">' + esc(r.p) + '</span></span>';
+    return '<div class="row flex ' + (place === 'under' ? 'r2' : 'h-9') + ' items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + icon + mid + right + '</div>';
+  }
+  function List(place, status) {
+    var sec = '', rows = ROWS.slice(0, place === 'under' ? 4 : 5);
+    return '<div class="pstage"><div class="plist perch"><div class="ph">Jump back in<span>Type to filter</span></div>' + rows.map(function (r) {
+      var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, place, status);
+    }).join('') + '</div></div>';
+  }
+  function card(title, pick, text, place, status) {
+    return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(place, status) + '</div>';
+  }
+  function draw() {
+    document.getElementById('propProject').innerHTML =
+      card('A. After the title (today)', false, 'Reads as one phrase. Title and project are the same size and weight apart from colour, so a long title and its project run together.', 'inline', 'words') +
+      card('B. After the title, quieter', true, 'Same place, one step down: a smaller size and a softer grey. The title stands out on its own and the project reads as a note on it. Nothing moves, nothing new to learn.', 'quiet', 'words') +
+      card('C. On the right', false, 'Projects line up in a column you can scan. But the right side fills up (project, status, time), long titles are cut shorter, and three columns of grey compete.', 'right', 'words') +
+      card('D. Under the title', false, 'Easiest to read, and the title gets the whole width. Rows grow from 36 to 44 pt, so four fit where five did.', 'under', 'words');
+    document.getElementById('propStatus').innerHTML =
+      card('1. Words (today)', false, 'Needs your OK, Working, Finished, in their colours. Clear, but the words take room from the title and repeat what the section header says.', 'quiet', 'words') +
+      card('2. The time carries it', true, 'No words. The time turns orange when it needs you, green when it finished and you have not seen it, and a small spinner takes its place while it works. Seen and idle stay grey. The colours are the card’s, so they already mean something.', 'quiet', 'time') +
+      card('3. A ring on the icon', false, 'The app icon wears it: a turning arc while working, orange when it needs you, green when finished. The right side keeps only the time. Busier near the icon, and it crowds a terminal’s badge.', 'quiet', 'ring');
+  }
+  draw();
+  fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
 })();
 </script>
