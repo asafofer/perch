@@ -36,6 +36,12 @@ P1=$(herdr workspace create --cwd "$DIR" --label "Perch demo" --no-focus | pick 
 P2=$(herdr pane split "$P1" --direction right --cwd "$DIR" --no-focus | pick "['result']['pane']['pane_id']")
 P3=$(herdr pane split "$P1" --direction down --cwd "$DIR" --no-focus | pick "['result']['pane']['pane_id']")
 P4=$(herdr pane split "$P2" --direction down --cwd "$DIR" --no-focus | pick "['result']['pane']['pane_id']")
+# herdr brings back the last run's layout when its server starts: only the new workspace stays.
+W=${P1%%:*}
+for w in $(herdr workspace list | python3 -c "import json,sys; print(' '.join(x['workspace_id'] for x in json.load(sys.stdin)['result']['workspaces']))"); do
+  [ "$w" != "$W" ] && herdr workspace close "$w" >/dev/null 2>&1 || true
+done
+herdr workspace focus "$W" >/dev/null 2>&1 || true
 echo "Starting the agents in herdr..."
 herdr agent start demo-pi --kind pi --pane "$P1" >/dev/null || true
 herdr agent start demo-opencode --kind opencode --pane "$P2" >/dev/null || true
