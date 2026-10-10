@@ -1422,7 +1422,9 @@
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
-      srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
+      /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
+      srow(slabel('Away from your Mac for'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>') +
+        '<p class="mx-2 -mt-1 truncate px-2 pb-0.5 text-xs text-muted-foreground">Then Perch shows where you left off when you come back.</p>',
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ].join('');
