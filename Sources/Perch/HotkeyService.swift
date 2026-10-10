@@ -37,6 +37,9 @@ final class HotkeyService {
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
                               MemoryLayout<EventHotKeyID>.size, nil, &hk)
             let me = Unmanaged<HotkeyService>.fromOpaque(userData!).takeUnretainedValue()
+            // A shortcut's key never reaches the tap monitor (the hotkey takes it), so Command+Option+Y must not also
+            // count as tapping Command+Option.
+            MainActor.assumeIsolated { me.chordDirty = true }
             DispatchQueue.main.async { me.handlers[hk.id]?() }
             return noErr
         }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), nil)
