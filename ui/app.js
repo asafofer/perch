@@ -30,7 +30,7 @@
   /* two keys that go together (the arrows): each in its own box, a little apart */
   function Keys(a, b) { return '<span class="inline-flex items-baseline gap-[3px]">' + Kbd(a) + Kbd(b) + '</span>'; }
   /* Return (the only key drawn as an icon) is a little wider with its arrow at the right, like the key itself */
-  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
+  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[k] + '" alt="">';
@@ -404,10 +404,10 @@
   /* The card's edge springs to a new height (input.css, .n), but the words inside reflow at once, so what sits below
      them would jump. Each block glides from where it was on the same spring instead; on another session's card the new
      words also settle in. */
-  var cardId = null;
+  var cardId = null, iconKey = '';
   function settleCard(change, fresh) {
     var els = [].slice.call(q('.p-open').querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
-    var said = els.map(function (el) { return el.textContent; });
+    var said = els.map(function (el) { return el.textContent; }), icon = q('.o-app'), iconWas = iconKey;
     change();
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     els.forEach(function (el, i) {
@@ -415,13 +415,17 @@
       var dy = was[i] == null ? 0 : was[i] - el.getBoundingClientRect().top;
       if (Math.abs(dy) > .5) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 600, delay: 50, easing: 'cubic-bezier(.3,1.5,.45,1)', fill: 'backwards' });
       /* only words that changed settle in; the buttons and the corner icons stay put */
-      if (fresh && !el.querySelector('.f-main') && el.textContent !== said[i]) el.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 280, delay: i * 30, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      /* the app icon stays as it is when the next session is in the same app: only the words beside it settle in */
+      var tgt = el.contains(icon) && iconKey === iconWas ? icon.nextElementSibling : el;
+      if (fresh && !el.querySelector('.f-main') && el.textContent !== said[i]) tgt.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 280, delay: i * 30, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
     });
   }
 
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
-    q('.o-app').innerHTML = AppOf(p, 'size-[34px]');
+    /* drawn again only when it changes: a new image blinks while it decodes */
+    var ik = p.app + '|' + (p.via || '') + '|' + !!icons[p.via || p.app];
+    if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
     var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
