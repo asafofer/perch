@@ -192,12 +192,6 @@
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
-    '<div class="pane p-setup">' + '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8">' +
-      header('<div class="text-sm font-medium leading-4">Better summaries</div><div class="mt-0.5 text-xs leading-4 text-muted-foreground">Written on your Mac. Nothing leaves it.</div>') +
-      '<div class="rv flex flex-col gap-0.5 px-4 pb-1 pt-0.5 su-rows" style="--i:1"></div>' +
-      '<div class="rv flex h-9 items-center gap-1 px-2.5" style="--i:2"><span class="su-note min-w-0 flex-1 pl-1.5 text-xs text-muted-foreground"></span><span class="su-btns flex items-center gap-1"></span></div>' +
-    '</div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -353,30 +347,6 @@
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
-  /* ---- guided setup for on-device summaries ---- */
-  function stepIcon(state) {
-    if (state === 'done') return Ring('done');
-    if (state === 'busy') return '<span class="grid size-4 flex-none place-items-center text-muted-foreground">' + svg('load', 'size-3.5 animate-spin') + '</span>';
-    return '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>';
-  }
-  function setup(state) {
-    var one = state === 'off' ? 'todo' : (state === 'unsupported' ? 'todo' : 'done');
-    var two = state === 'ready' ? 'done' : (state === 'downloading' ? 'busy' : 'todo');
-    var dim = function (st) { return st === 'todo' ? 'text-muted-foreground' : ''; };
-    q('.su-rows').innerHTML =
-      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(one === 'todo' && state === 'unsupported' ? 'todo' : (one === 'todo' ? 'x' : 'done')) + '">' + stepIcon(one) + '<span class="flex-1">Turn on Apple Intelligence</span></div>' +
-      '<div class="flex h-7 items-center gap-2 text-sm ' + dim(two) + '">' + stepIcon(two) + '<span class="flex-1">' + (two === 'busy' ? 'Downloading the model\u2026' : 'Let it download the model') + '</span></div>';
-    var note = { off: 'Takes a few minutes the first time.', downloading: 'A few GB. Keep working, this finishes on its own.', ready: 'All set. Summaries now run on your Mac.', unsupported: "This Mac can't run it, so Perch keeps plain summaries." }[state];
-    q('.su-note').textContent = note;
-    var b = q('.su-btns');
-    if (state === 'off') b.innerHTML = Button('ghost', 'Skip', '', 'x-skip') + Button('default', 'Open Settings', '', 'x-open');
-    else if (state === 'ready') b.innerHTML = '';
-    else if (state === 'downloading') b.innerHTML = Button('ghost', 'Close', '', 'x-skip') + Button('default', 'See progress', '', 'x-open');
-    else b.innerHTML = Button('ghost', 'OK', '', 'x-skip');
-    var sk = b.querySelector('.x-skip'); if (sk) sk.onclick = function () { post({ type: 'dismiss' }); };
-    var op = b.querySelector('.x-open'); if (op) op.onclick = function () { post({ type: 'openSettings' }); };
-  }
-
   var last = { phase: null, token: null };
   var snap = null;
 
@@ -888,14 +858,13 @@
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
     applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
-    if (st === 'setup') setup(s.setup);
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
     if (st !== 'open') orbFor('');
@@ -1212,7 +1181,7 @@
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
-    if (a === 'settings') post({ type: 'openSettings' }); else if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
+    if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
   }
   function pickCharacter(c) {
     var shapeChanged = shapeOf(c.shape)[0] !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
@@ -1322,13 +1291,6 @@
         oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.') + '</p>') +
         ofoot(5, true, live ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
-    } else if (st === 5) {
-      var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
-      var off = o.summaries === 'off';
-      h = otitle(o, 'Better summaries', 'Written on your Mac. Nothing leaves it.') +
-        oi(3, '<div class="mt-3 px-4">' + orow(o.summaries === 'downloading' ? '<span class="grid size-4 flex-none place-items-center">' + Spinner('size-3.5') + '</span>' : tick(o.summaries === 'ready'), sm[0], '') + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + sm[1] + '</p>') +
-        ofoot(5, true, off ? Button('ghost', 'Skip', Kbd('S'), 'o-skip') : '', off ? 'Open Settings' : 'Next', off ? 'settings' : 'next');
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -1399,12 +1361,12 @@
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.only, o.accessibility, o.summaries, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
+    var sig = [o.step, o.only, o.accessibility, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
     if (sig === onbSig) return;
     /* the introduction uses none of this data: a scan finishing must not cut it short */
     if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
     /* only a switch changed: slide it in place */
-    var same = function (s) { return s.split('|').slice(0, 6).join('|'); };
+    var same = function (s) { return s.split('|').slice(0, 5).join('|'); };
     if (onbSig && o.step === onbStep && same(sig) === same(onbSig) && onbLast && onbLast.sources.map(function (x) { return x.id + x.count; }).join() === o.sources.map(function (x) { return x.id + x.count; }).join()) {
       onbSig = sig; onbLast = o;
       q('.onb').querySelectorAll('.o-sw').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.id) setSw(b, x.enabled); }); });
@@ -1451,13 +1413,11 @@
     var seg = [10, 20, 60].map(function (m) {
       return '<button class="s-idle h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o.idleMinutes === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-m="' + m + '">' + (m === 60 ? '1 hour' : m + ' min') + '</button>';
     }).join('');
-    var sum = { ready: 'On your Mac', off: 'Apple Intelligence is off', downloading: 'Downloading the model\u2026', unsupported: 'Not supported on this Mac' }[o.summaries] || '';
     var rows = [
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
-      srow(slabel('Summaries', sum), o.summaries === 'off' ? Button('ghost', 'Set up', '', 's-sum') : ''),
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ].join('');
@@ -1480,7 +1440,6 @@
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-sum', function () { post({ type: 'openSettings' }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
@@ -1563,7 +1522,7 @@
     if (!o) return;
     var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.summaries, o.accessibility, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    var shape = JSON.stringify([o.accessibility, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
@@ -1580,7 +1539,7 @@
   }
 
   window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -1593,7 +1552,7 @@
   function dev(m) {
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'openSettings') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
@@ -1617,10 +1576,10 @@
       if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, null, m.only); return; }
+    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(); return; }
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
@@ -1659,7 +1618,7 @@
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
-    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, setup: 'off', version: '0.1.0 (198)' };
+    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer, devQuery = '';
     function devShown() {
@@ -1670,7 +1629,7 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     window.perchDev = {
-      show: function (ph, setup, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, setup: setup || 'off', shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
@@ -1678,16 +1637,16 @@
       settings: function (o) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
       },
-      onboarding: function (step, accessibility, summaries, only, live, all) {
+      onboarding: function (step, accessibility, only, live, all) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 7, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
+          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
       },
-      variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
+      variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
@@ -1697,7 +1656,7 @@
         fxMood = ''; window.perchDev.show('switcher');
         var me = ++fxPlay, go = function (i, f) { setTimeout(function () { if (me === fxPlay) f(); }, 900 + i * 850); };
         if (play === 'list') [1, 1, 1, -1, -1, -1].forEach(function (d, i) { go(i, function () { if (lastSt === 'switch') window.perchDev.step(d); }); });
-        if (play === 'details') { go(0, function () { window.perchDev.step(1); }); go(1, function () { window.perchDev.show('open', null, false, true); }); go(3, function () { window.perchDev.show('switcher'); }); go(4, function () { window.perchDev.step(1); }); go(5, function () { window.perchDev.show('open', null, false, true); }); }
+        if (play === 'details') { go(0, function () { window.perchDev.step(1); }); go(1, function () { window.perchDev.show('open', false, true); }); go(3, function () { window.perchDev.show('switcher'); }); go(4, function () { window.perchDev.step(1); }); go(5, function () { window.perchDev.show('open', false, true); }); }
       },
       noAccess: function (waiting) { base.canSend = false; base.allowing = !!waiting; base.once = true; },
       /* a session you are not in finishes while you work: the character pops out, happy, and tucks back in */
@@ -1764,7 +1723,7 @@
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
-      else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', null, false, true); }
+      else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', false, true); }
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if ((e.metaKey && e.key === ',') || (ph === 'open' && (e.key === 's' || e.key === 'S'))) { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }

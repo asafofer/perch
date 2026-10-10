@@ -199,12 +199,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     func confirm() { send(.confirm) }
 
-    /// Guided setup for on-device summaries. Watches the system live and finishes by itself.
-    func showSetup() {
-        guard machine.phase == .idle, AppleRecapEngine.setupState != "ready" else { return }
-        snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false; place(on: ScreenChooser.current()); send(.openSetup)
-    }
-
     /// The desktop behind snapshots: a wallpaper (Raycast's, for the README) seen from the top of the screen.
     var snapshotWallpaper: NSImage?
 
@@ -246,7 +240,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The card opens on the display the cursor is on, the same one whose notch or tab you hovered.
     private func prepareToShow() {
         guard machine.phase == .idle else { return }
-        applyCachedRecaps()
         place(on: ScreenChooser.current())
     }
 
@@ -386,7 +379,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         projects = next
         machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? 0))
         noteSeen()
-        enrich()
         push()
     }
 
@@ -395,18 +387,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         projects = decorate(list)
         machine.projectCount = projects.count
         noteSeen()
-        enrich()
         push()
     }
 
-    /// Live hook status over the transcript's guess, then cached model words, then what needs you first.
+    /// Live hook status over the transcript's guess, then what needs you first.
     private func decorate(_ list: [Project]) -> [Project] {
         let withLive = list.map { p -> Project in
             guard let l = live[p.sessionId ?? p.id], l.holds(for: p) else { return p }
             return p.applying(l)
         }
         let since = newsSince
-        return urgent(recapped(withLive.map { $0.settled(since: since) }))
+        return urgent(withLive.map { $0.settled(since: since) })
     }
 
     /// Asking you first, then what finished since you looked, then what is working, then the rest; newest first in each.
@@ -487,48 +478,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    // MARK: on-device recaps
-    private var enriching = false
-    /// Recaps already asked for (by cache key), so one the model could not write is not asked for again and again.
-    private var recapTried = Set<String>()
-
-    /// Cached model-written recaps apply instantly.
-    private func applyCachedRecaps() { projects = recapped(projects) }
-    private func recapped(_ list: [Project]) -> [Project] {
-        guard let real = provider as? RealSessionProvider else { return list }
-        return list.map { p in
-            guard let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), let r = RecapCache.shared.get(key) else { return p }
-            return RecapMerge.apply(r, to: p, grounding: input.digest)
-        }
-    }
-
-    /// Writes missing recaps with the on-device model, one at a time, and updates the card as each lands.
-    func enrich() {
-        guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
-        // Only sessions that have settled: a working session changes every few seconds, and each change would cost a model run.
-        let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
-            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil, !recapTried.contains(key) else { return nil }
-            return (p.id, input.digest, input.git, p.name, key, Agent.of(p.app).short)
-        }
-        guard !todo.isEmpty else { return }
-        enriching = true
-        // A session can move on while the model writes (a model run takes seconds): a recap lands only on the state it was
-        // written for, never on a newer turn, and whatever settled in the meantime gets its own when this round ends.
-        let current = { (id: String) in real.inputs[id].flatMap { RecapCache.key(for: $0.digest) } }
-        Task { [weak self] in
-            for (id, digest, git, name, key, agent) in todo {
-                guard current(id) == key else { continue }
-                self?.recapTried.insert(key)
-                guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name, agent: agent) else { continue }
-                RecapCache.shared.set(key, r)
-                guard let self, current(id) == key, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
-                self.projects[i] = RecapMerge.apply(r, to: self.projects[i], grounding: digest)
-                self.push()
-            }
-            self?.enriching = false
-            self?.enrich()
-        }
-    }
 
     private func place(on s: NSScreen) {
         screen = s; info = s.screenInfo
@@ -566,7 +515,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let away = awaySinceForCard, now = Date()
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), setup: AppleRecapEngine.setupState, allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
                           activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
@@ -627,9 +576,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case .settings:
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
             watchOnboarding()
-        case .setup:
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
-            watchSetup()
         case .restoring:
             timer?.cancel()
             timer = Task { [weak self] in
@@ -639,25 +585,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-
-    /// While the setup card is open, re-check the system every second and close the card once everything is ready.
-    private func watchSetup() {
-        timer?.cancel()
-        timer = Task { [weak self] in
-            var last = ""
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard let self, self.machine.phase == .setup else { return }
-                let now = AppleRecapEngine.setupState
-                if now != last { last = now; self.push() }
-                if now == "ready" {
-                    try? await Task.sleep(for: .seconds(2.2))
-                    if self.machine.phase == .setup { self.send(.dismiss) }
-                    self.enrich(); return
-                }
-            }
-        }
-    }
 
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
@@ -737,7 +664,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "character":
             if let shape = body["shape"] as? String { Prefs.shape = shape }
             if let color = body["color"] as? String { Prefs.color = color }
-        case "openSettings": NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")!)
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
@@ -995,7 +921,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func settingsState() -> UISnapshot.Settings {
-        return UISnapshot.Settings(sources: sourcesState(), summaries: AppleRecapEngine.setupState, accessibility: AXIsProcessTrusted(),
+        return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    back: machine.settingsFrom != nil)
     }
@@ -1018,8 +944,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The page drew your character for the menu bar.
     var onMenuIcon: ((NSImage) -> Void)?
     private var onbStep = 0
-    /// Hello, then six setup steps: look, Accessibility, apps, live status, summaries, all set.
-    private let onbTotal = 7
+    /// Hello, then five setup steps: look, Accessibility, apps, live status, all set.
+    private let onbTotal = 6
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu bar), not the whole setup.
@@ -1037,7 +963,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), summaries: AppleRecapEngine.setupState, scanning: refreshing, sources: sourcesState(), only: onbOnly, live: liveState)
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: refreshing, sources: sourcesState(), only: onbOnly, live: liveState)
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
@@ -1089,7 +1015,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let self, self.machine.phase == .onboarding || self.machine.phase == .settings else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
-                let key = "\(trusted)|\(AppleRecapEngine.setupState)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
+                let key = "\(trusted)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
                 if key != last { last = key; self.push() }
             }
         }

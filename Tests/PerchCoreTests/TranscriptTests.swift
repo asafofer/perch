@@ -213,24 +213,9 @@ import Foundation
         let p = Recap.project(digest: d, git: GitInfo(uncommitted: 0), now: Date())!
         #expect(p.next == "")
     }
-    @Test func keepsRecentMessagesForModels() {
+    @Test func keepsRecentMessages() {
         let d = TranscriptParser.digest(lines: lines)
         #expect(d.recent.map(\.role) == ["user", "assistant"])
-    }
-    @Test func promptIncludesGitFactsAndConversation() {
-        let d = TranscriptParser.digest(lines: lines)
-        let p = RecapPrompt.build(digest: d, git: GitInfo(uncommitted: 2, lastCommit: "Fix sign"), projectName: "site")
-        #expect(p.contains("2 uncommitted files")); #expect(p.contains("Fix sign")); #expect(p.contains("User: make the sign centred"))
-    }
-    @Test func parsesJsonInsideCodeFences() {
-        let raw = "Here you go:\n```json\n{\"headline\":\"You were fixing the sign.\",\"context\":\"Centred it.\",\"next\":\"Add a table.\"}\n```"
-        #expect(RecapPrompt.parse(raw)?.next == "Add a table.")
-    }
-    @Test func rejectsReplyWithoutJson() { #expect(RecapPrompt.parse("Sorry, I cannot do that.") == nil) }
-    @Test func recapTextReplacesWordsButKeepsFacts() {
-        let d = TranscriptParser.digest(lines: lines)
-        let p = Recap.project(digest: d, git: nil, now: Date())!.withRecap(RecapText(headline: "H.", context: "C", next: "N"))
-        #expect(p.headline == "H."); #expect(p.next == "N"); #expect(p.sessionId == "s1"); #expect(p.branch == "main")
     }
     @Test func statedNextStepBeatsGit() {
         var d = TranscriptParser.digest(lines: lines); d.lastAssistantText = "Done with the table. Next: wire the logo upload to the ledger."

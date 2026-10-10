@@ -66,7 +66,7 @@ git clone https://github.com/asafofer/perch.git && cd perch
 ./scripts/install.sh         # builds a release, installs it to /Applications and opens it
 ```
 
-On first launch, a short setup walks you through your character, Accessibility, which apps to read, live status and on-device summaries. You can run it again from Settings.
+On first launch, a short setup walks you through your character, Accessibility, which apps to read and live status. You can run it again from Settings.
 
 ## Shortcuts
 
@@ -88,7 +88,7 @@ While the notch shows something that finished or asks for you, its buttons answe
 
 ## Privacy and permissions
 
-Perch reads the session files your agents already keep on your Mac and sends nothing anywhere. Summaries are written on device by Apple Intelligence; without it, Perch uses plain recaps from the transcript.
+Perch reads the session files your agents already keep on your Mac and sends nothing anywhere. The card's words are your agents' own: the session's title, what the agent said it did, and a next step only when the agent stated one.
 
 **Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
 
@@ -97,7 +97,6 @@ Perch reads the session files your agents already keep on your Mac and sends not
 | Accessibility | <kbd>⌘</kbd> <kbd>⌥</kbd>, and typing a reply into the Claude or Codex app | Replies are copied for you to paste |
 | Automation | Switching to the exact terminal tab or cmux split and typing a reply into it | The terminal comes forward and you find the tab |
 | Files | Reading project folders (macOS asks once per folder) | That project is skipped |
-| Apple Intelligence | On-device summaries | Plain recaps from the transcript |
 
 ## How it works
 
@@ -128,7 +127,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | Path | Contents |
 |---|---|
 | `Sources/PerchCore` | State machine, geometry, session scanning, transcript parsing, live status. Pure and tested. |
-| `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket, on-device summaries. |
+| `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket. |
 | `ui/` | The interface: plain JavaScript and Tailwind, Inter bundled. |
 | `scripts/` | Run, package, install, signing certificate, app icon and the README GIF. |
 
@@ -157,7 +156,6 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-- Claude-quality summaries when the `claude` CLI is signed in
 - More sources: Cursor, tmux
 - Notarized releases with automatic updates
 - An optional sound and haptics

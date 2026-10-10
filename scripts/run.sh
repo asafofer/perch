@@ -33,7 +33,6 @@ case "${1:-}" in
   --demo) open -n "$APP" --args --demo ;;
   --show) open -n "$APP" --args --show ;;
   --simulate) open -n "$APP" --args --simulate ;;
-  --setup) open -n "$APP" --args --setup ;;
   --onboarding) open -n "$APP" --args --onboarding ;;
   --hello) open -n "$APP" --args --hello ;;
   --activity) open -n "$APP" --args --activity ;;

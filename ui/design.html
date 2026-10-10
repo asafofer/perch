@@ -114,15 +114,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }]
     ]],
     ['More agents', [
-      ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', null, false, true); }],
+      ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
       ['OpenCode needs your OK', 'OpenCode asks before running a command. Allow with A or Deny with D from the notch, or answer in OpenCode: whichever comes first.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode wants to run a command', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'OpenCode wants to run a command', subject: 'rm -rf dist && bun run build', options: [], answerable: true } }); }],
       ['OpenCode asked you something', 'Its question tool, answered with a number.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode asked you something', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'OpenCode asked you something', subject: 'Should Tab leave the table or move to the next cell?', answerable: true, questions: [Q('Should Tab leave the table or move to the next cell?', 'Tab key', [['Leave the table (Recommended)', 'Like a native grid: arrows move, Tab leaves'], ['Next cell', 'Like a spreadsheet']])] } }); }],
-      ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', null, false, true); }],
+      ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', false, true); }],
       ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
       ['Settings: four agents', 'Apps shows the agents Perch reads as their icons, with a chevron for the menu.', function () { d.settings({ sources: FOUR }); }],
       ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
-      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(3, true, null, false, null, true); }]
+      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(3, true, false, null, true); }]
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
@@ -130,8 +130,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
       ['Reply: no Accessibility', 'Perch cannot type for you yet, so Send reads Allow and send. Return or a click asks for Accessibility, as Settings does, and keeps your words.', function () { d.noAccess(); reply(true)(); }],
       ['Reply: waiting for access', 'System Settings is open on Accessibility. Your words stay in the field and go out the moment Perch is on. Esc goes back to the card and drops the wait. If it never comes on, they are copied and the session opens, as before.', function () { d.noAccess(true); reply(true)(); }],
-      ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', 'off', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
-      ['Sessions', 'A card you open yourself says that Up and Down flip to the next session\u2019s card, where the welcome card offers Not now (N snoozes either way). Hidden when there is only one session.', function () { d.project(1); d.show('open', null, false, true); }],
+      ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
+      ['Sessions', 'A card you open yourself says that Up and Down flip to the next session\u2019s card, where the welcome card offers Not now (N snoozes either way). Hidden when there is only one session.', function () { d.project(1); d.show('open', false, true); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.snoozeMenu(true); }, 700); }],
       ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
       ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
@@ -144,7 +144,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
-      ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
+      ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', true); }],
       ['Finished elsewhere', 'A session you are not in finishes. The notch grows: its project beside the camera, Finished with a check on the right, and below the session\u2019s title with Pick up or Reply, each on a Command+Option key. No cross: it folds away by itself, or Command+Option+. puts it away. Gone after six seconds; resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
       ['Wants to run a command', 'The command, with Allow and Deny. After nine seconds it folds to wings, the app and a mark, that stay until you answer.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
       ['Asked you something', 'A question with up to three choices puts them on the row: Command+Option+1, 2, 3.', function () { d.arrive(3, CLAUDE_ASKS); }],
@@ -153,13 +153,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['All clear', 'The last thing waiting on you was answered: the wings fold away. The character stays in.', function () { d.clear(); }]
     ]],
     ['External display', [
-      ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', 'off', true); }],
+      ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', true); }],
       ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
     ]],
     ['Settings', [
       ['Settings', 'The gear on the card, or S.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
-      ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off', summaries: 'off' }); }],
-      ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, null, true); }],
+      ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off' }); }],
+      ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, true); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
@@ -168,9 +168,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
       ['3. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(3, true); }],
       ['4. Live status', 'The hook, with consent.', function () { d.onboarding(4, true); }],
-      ['4. Live status: on', 'Ticked.', function () { d.onboarding(4, true, null, false, 'on'); }],
-      ['5. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(5, true, 'off'); }],
-      ['6. All set', 'The three ways to reach Perch.', function () { d.onboarding(6, true, 'ready'); }]
+      ['4. Live status: on', 'Ticked.', function () { d.onboarding(4, true, false, 'on'); }],
+      ['5. All set', 'The three ways to reach Perch.', function () { d.onboarding(5, true); }]
     ]]
   ];
   var now = document.getElementById('now'), btns = [], lastRun = null;
@@ -222,7 +221,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
   function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
-  [[600, function () { d.project(0); d.show('open', null, false, true); }],
+  [[600, function () { d.project(0); d.show('open', false, true); }],
    [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],
    [8800, function () { key('ArrowLeft'); }], [10000, function () { key('ArrowDown'); }], [10800, function () { key('ArrowDown'); }], [11600, function () { key('ArrowUp'); }],
    [12800, function () { key('Escape'); }],

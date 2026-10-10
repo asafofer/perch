@@ -39,7 +39,7 @@ public struct SessionDigest: Equatable, Sendable {
     public var startedAt: Date?
     /// The project a git worktree belongs to ("perch" for perch/.claude/worktrees/<name>), when the folder is one.
     public var repoName: String?
-    /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
+    /// The last dozen real messages, oldest first, each clipped. Enough to tell small talk from work (`Recap.isTrivial`).
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
     public init() {}
@@ -436,65 +436,6 @@ public enum RelativeTime {
         f.dateFormat = "MMM d"; return f.string(from: date)
     }
 }
-
-/// Words a model writes for the card. Only the three fields the UI shows.
-public struct RecapText: Equatable, Codable, Sendable {
-    public var headline: String
-    public var context: String
-    public var next: String
-    public init(headline: String, context: String, next: String) { self.headline = headline; self.context = context; self.next = next }
-}
-
-public enum RecapPrompt {
-    public static let instructions = """
-    You write the welcome-back card for a developer returning to a coding session. \
-    Use ONLY facts stated in the conversation or the git facts below. Never invent topics, files, bugs or tasks.
-    - headline: what they were doing at the END of the conversation, about the latest messages and not older topics. \
-    Second person, past tense, starting with "You were", never the word "now". Max 60 characters, ends with a period.
-    - context: the outcome. What the assistant did, found or changed in its LAST message, in plain past-tense words. \
-    Not what the user asked. Max 110 characters.
-    - next: the single most useful next step for the developer, as a short imperative. Base it on the LATEST messages. \
-    Never something the assistant already did or said it is doing, never committing, pushing or merging, \
-    and never a suggestion the user rejected. Max 60 characters.
-    No markdown, no emoji, no quotation marks around the fields.
-    """
-
-    public static func build(digest d: SessionDigest, git: GitInfo?, projectName: String, agent: String = "Claude") -> String {
-        var out = "Project: \(projectName)\n"
-        if let t = d.title, !t.isEmpty { out += "Session title: \(t)\n" }
-        if let g = git {
-            out += "Git: \(g.uncommitted) uncommitted file\(g.uncommitted == 1 ? "" : "s")"
-            if let c = g.lastCommit, !c.isEmpty { out += "; last commit: \(Recap.clip(c, 80))" }
-            out += "\n"
-        }
-        let line: (SessionDigest.Line, Int) -> String = { ($0.role == "user" ? "User: " : "\(agent): ") + Recap.clip($0.text, $1) }
-        let recent = Array(d.recent.suffix(8))
-        let latest = recent.suffix(3), earlier = recent.dropLast(latest.count)
-        if !earlier.isEmpty { out += "Earlier, background only (may be finished):\n" + earlier.map { line($0, 140) }.joined(separator: "\n") + "\n" }
-        out += "Latest messages, oldest first (the card is about THESE):\n" + latest.map { line($0, 320) }.joined(separator: "\n")
-        return out
-    }
-
-    /// Pulls the JSON object out of a model reply, tolerating code fences and chatter around it.
-    public static func parse(_ raw: String) -> RecapText? {
-        guard let a = raw.firstIndex(of: "{"), let b = raw.lastIndex(of: "}"), a < b,
-              let data = String(raw[a...b]).data(using: .utf8),
-              var t = try? JSONDecoder().decode(RecapText.self, from: data) else { return nil }
-        t.headline = Recap.clip(t.headline, 70); t.context = Recap.clip(t.context, 120); t.next = Recap.clip(t.next, 70)
-        return t.headline.isEmpty || t.next.isEmpty ? nil : t
-    }
-}
-
-extension Project {
-    /// The same project with model-written words in place of the plain recap.
-    public func withRecap(_ r: RecapText) -> Project {
-        var p = self
-        p.headline = r.headline; p.next = r.next
-        if !r.context.isEmpty { p.context = r.context }
-        return p
-    }
-}
-
 
 /// Reads Codex session files (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl).
 /// The working folder and id sit in the first line (session_meta); messages are response_item records.

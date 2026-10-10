@@ -28,9 +28,9 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
-.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=setup] .p-setup, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
+.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
-.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=setup] .p-setup .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
+.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .notouch { transition: none !important; }
 
 /* glow: light spilling up from the bottom edge, inside the card. Eased stops keep it from banding or going brown. */

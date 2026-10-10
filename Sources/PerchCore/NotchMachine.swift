@@ -1,13 +1,12 @@
 import Foundation
 
-public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, setup, onboarding, settings }
+public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, onboarding, settings }
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
     case choose(Int)
     /// From the list: that session's card, without opening it.
     case show(Int)
-    case openSetup
     case openOnboarding
     case openSettings
     case back
@@ -41,8 +40,6 @@ public struct NotchMachine: Equatable, Sendable {
         case (.switcher, .show(let i)):
             guard (0..<projectCount).contains(i) else { return }
             selected = i; phase = .open
-        case (.idle, .openSetup):
-            phase = .setup
         case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):
             settingsFrom = phase == .idle ? nil : phase
             phase = .settings
@@ -50,7 +47,7 @@ public struct NotchMachine: Equatable, Sendable {
             if let from = settingsFrom { phase = from } else { close() }
         case (.settings, .dismiss):
             close()
-        case (.setup, .dismiss), (.onboarding, .dismiss):
+        case (.onboarding, .dismiss):
             close()
         case (.idle, .openOnboarding), (.settings, .openOnboarding):
             phase = .onboarding

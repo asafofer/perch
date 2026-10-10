@@ -11,24 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
-        if args.contains("--ai-check") {
-            if let why = AppleRecapEngine.unavailableReason { print("On-device model unavailable: \(why)"); exit(1) }
-            let real = RealSessionProvider()
-            let projects = real.parkedProjects()
-            Task {
-                for p in projects {
-                    guard let input = real.inputs[p.id] else { continue }
-                    let t0 = Date()
-                    let r = await AppleRecapEngine.recap(digest: input.digest, git: input.git, name: p.name)
-                    let merged = r.map { RecapMerge.apply($0, to: p, grounding: input.digest) }
-                    print("== \(p.name)  (\(String(format: "%.1f", Date().timeIntervalSince(t0)))s)")
-                    print("  plain : \(p.headline) | \(p.context) | \(p.next)")
-                    print("  model : \(merged.map { "\($0.headline) | \($0.context) | \($0.next)" } ?? "failed")")
-                }
-                exit(0)
-            }
-            return
-        }
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
             for agent in HookInstaller.agents {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
@@ -114,8 +96,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.3) { c.send(.openSwitcher) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { c.snapshot(to: dir + "/list.png") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.4) { c.send(.dismiss) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10.8) { c.showSetup() }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 12.4) { c.snapshot(to: dir + "/setup.png") }
             // The live activity: a session you are not in finishes while you work.
             DispatchQueue.main.asyncAfter(deadline: .now() + 12.8) { c.send(.dismiss) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 13.6) { c.playActivityDemo() }
@@ -127,7 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             c.holdOpen = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { c.comeBack() }
         }
-        if args.contains("--setup") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { c.showSetup() } }
         // Replays the onboarding from the hello, without forgetting your settings.
         // The hello beside the notch after setup, and its run home behind it.
         if args.contains("--hello") { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.sayHello() } }
@@ -163,11 +142,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Customize your character…", action: #selector(customize), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Choose apps…", action: #selector(chooseApps), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Set up Perch…", action: #selector(showOnboarding), keyEquivalent: "").target = self
-        let ai = AppleRecapEngine.unavailableReason == nil
-            ? NSMenuItem(title: "Summaries: on-device", action: nil, keyEquivalent: "")
-            : NSMenuItem(title: "Set up better summaries…", action: #selector(showSetup), keyEquivalent: "")
-        ai.target = self; ai.isEnabled = AppleRecapEngine.unavailableReason != nil
-        menu.addItem(ai)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Perch", action: #selector(quit), keyEquivalent: "q").target = self
         item.menu = menu
@@ -178,7 +152,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func customize() { controller?.startOnboarding(step: 1, characterOnly: true) }
     @objc private func chooseApps() { controller?.startOnboarding(step: 3) }
     @objc private func showOnboarding() { controller?.startOnboarding() }
-    @objc private func showSetup() { controller?.showSetup() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }
 }

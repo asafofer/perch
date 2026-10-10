@@ -105,22 +105,6 @@ import Testing
     }
 }
 
-@Suite struct NotchMachineSetupTests {
-    @Test func setupOpensFromIdleEvenWithNoProjects() {
-        var m = NotchMachine(projectCount: 0); m.send(.openSetup)
-        #expect(m.phase == .setup)
-    }
-    @Test func setupClosesOnDismissAndIgnoresTimeout() {
-        var m = NotchMachine(projectCount: 1); m.send(.openSetup); m.send(.timeout)
-        #expect(m.phase == .setup)
-        m.send(.dismiss); #expect(m.phase == .idle)
-    }
-    @Test func setupDoesNotInterruptAnOpenCard() {
-        var m = NotchMachine(projectCount: 1); m.send(.comeBack); m.send(.openSetup)
-        #expect(m.phase == .open)
-    }
-}
-
 @Suite struct NotchMachineBackTests {
     @Test func backFromListReturnsToTheCardOfTheHighlightedProject() {
         var m = NotchMachine(projectCount: 3); m.send(.comeBack); m.send(.openSwitcher); m.send(.next); m.send(.back)
