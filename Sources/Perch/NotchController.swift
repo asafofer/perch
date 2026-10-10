@@ -565,6 +565,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
+        if machine.phase == .open, openedByHover, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
@@ -603,7 +604,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // longer become key, and the panel never leaves the screen, so step out and back in.
             if panel.isKeyWindow { panel.orderOut(nil); panel.orderFrontRegardless() }
         case .open:
-            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if !openedByHover && !proactiveOpen { panel.makeKey() }
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; if cardTakesKeys { panel.makeKey() }
             restartTimer()
         case .switcher:
             timer?.cancel()
@@ -1172,6 +1173,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func stopKeys() { if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil } }
 
+    /// Only a card you asked for takes the keyboard. Hover and Perch speaking up never do: you may be typing elsewhere,
+    /// and Return would pick up a session. A click on the card gives it the keyboard. One exception: a card you hovered
+    /// open on something to answer. Its number keys, A, D and Esc must reach Perch, not the agent's own prompt in the
+    /// app behind, where Esc dismisses the question.
+    private var cardTakesKeys: Bool {
+        guard !proactiveOpen else { return false }
+        guard openedByHover else { return true }
+        return machine.phase == .open && projects.indices.contains(machine.selected) && projects[machine.selected].ask?.answerable == true
+    }
+
+    /// The page only sees the pointer move while the panel has the keyboard, so a card hovered open would not light
+    /// up what is under it until clicked. Hand it the moves.
+    private func hoverIntoPage() {
+        guard !panel.isKeyWindow, let e = NSEvent.mouseEvent(with: .mouseMoved, location: panel.convertPoint(fromScreen: NSEvent.mouseLocation),
+                                                            modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                            windowNumber: panel.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0) else { return }
+        web.mouseMoved(with: e)
+    }
+
     // MARK: mouse. Hover pauses the timer; the panel only catches clicks over the visible card.
     private var cursorTimer: Timer?
     private var lastCursor = CGPoint(x: -1, y: -1)
@@ -1247,15 +1267,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
             let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
-            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; return }
+            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; hoverIntoPage(); return }
             hoverIdle(); return
         }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
-        // Only a card you asked for takes the keyboard. Hover and Perch speaking up never do: you may be typing elsewhere,
-        // and Return would pick up a session. A click on the card gives it the keyboard.
-        if inside, panel.allowsKey, !panel.isKeyWindow, !proactiveOpen, !openedByHover { panel.makeKey() }
+        if inside, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
+        if inside { hoverIntoPage() }
         if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
