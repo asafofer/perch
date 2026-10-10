@@ -67,6 +67,16 @@
     if (k === 'done' && p.fresh !== false) return { t: short ? 'Finished' : (p.line || 'Finished'), c: COLORS.done };
     return { t: short || !p.line ? p.away + ' ago' : p.line, c: '' };
   }
+  /* The status marks, shared by the list, the notch while you work and the checklists: a ring drawn like the spinner, in
+     the card's colours, with a faint still glow, and what it is inside: a check when it finished (or a step is done),
+     ? for a question, the prompt for a command waiting for your OK, a list for a plan, ! for anything else waiting. */
+  var RING = { done: '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>', question: '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>',
+    permission: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>', plan: '<path d="M8.5 9.5h7M8.5 12h7M8.5 14.5h4.5"/>', need: '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>' };
+  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '99) drop-shadow(0 0 4px ' + c + '66)'; }
+  function Ring(k, label) {
+    var c = k === 'done' ? COLORS.done : COLORS.attention;
+    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
+  }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3') : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
@@ -335,7 +345,7 @@
   /* ---- render ---- */
   /* ---- guided setup for on-device summaries ---- */
   function stepIcon(state) {
-    if (state === 'done') return '<span class="grid size-4 flex-none place-items-center rounded-full bg-[#8CCFA4]/15 text-[#8CCFA4]">' + svg('check', 'size-2.5') + '</span>';
+    if (state === 'done') return Ring('done');
     if (state === 'busy') return '<span class="grid size-4 flex-none place-items-center text-muted-foreground">' + svg('load', 'size-3.5 animate-spin') + '</span>';
     return '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>';
   }
@@ -595,20 +605,15 @@
   /* the design page's sample data has no section from Swift: worked out the same way */
   function sectionOf(p) { return p.section || (p.attention ? 'Needs you' : /^\d+[mh]/.test(p.away || '') ? 'Today' : 'Earlier'); }
   /* a row's status in words when it is news or needs you, and how long ago at the right edge. Working has no age: it sits at the edge itself. */
-  /* A row's status is a mark, a ring drawn like the spinner, in the card's colours, with a faint still glow: the spinner
-     while it works, a check when it finished and you have not seen it, ? when it asked you something, the prompt when a
-     command waits for your OK, a list for a plan, ! for anything else waiting on you. Seen and idle sessions get none. */
-  var RING = { done: '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>', question: '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>',
-    permission: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>', plan: '<path d="M8.5 9.5h7M8.5 12h7M8.5 14.5h4.5"/>', need: '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>' };
-  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '99) drop-shadow(0 0 4px ' + c + '66)'; }
+  /* A row's status: the spinner while it works, else a ring (Ring) when it finished and you have not seen it or when
+     it waits on you. Seen and idle sessions get none. */
   function rowMark(p) {
     var k = p.status.kind, a = p.ask;
     /* the glow rides on the spinner itself, on its own layer, so it turns as one piece instead of being redrawn (and wobbling) every frame */
     if (k === 'running' && !a) return Spinner('size-3.5', glow(COLORS.running));
     var g = a ? (RING[a.kind] ? a.kind : 'need') : k === 'attention' ? 'need' : k === 'done' && p.fresh !== false ? 'done' : '';
     if (!g) return '';
-    var c = g === 'done' ? COLORS.done : COLORS.attention;
-    return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" aria-label="' + esc(phrase(p, true).t) + '"><circle cx="12" cy="12" r="9.5"/>' + RING[g] + '</svg>';
+    return Ring(g, phrase(p, true).t);
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;
@@ -696,11 +701,7 @@
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false;
   var CMDOPT = '\u2318\u2325';
   var MARK = {
-    done: '<span class="act-m ok">' + svg('check', 'size-2.5') + '</span>',
-    ask: '<span class="act-m">?</span>',
-    run: '<span class="act-m"><svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg></span>',
-    plan: '<span class="act-m">' + svg('list', 'size-2.5') + '</span>',
-    need: '<span class="act-m">!</span>'
+    done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
   function actKind(p) {
     if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
@@ -1153,7 +1154,7 @@
     return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
   }
-  function tick(done) { return done ? '<span class="grid size-4 flex-none place-items-center rounded-full bg-[#8CCFA4]/15 text-[#8CCFA4]">' + svg('check', 'size-2.5') + '</span>' : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
+  function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
