@@ -220,6 +220,12 @@ enum Herdr {
         return ([hint].compactMap { $0 } + ["/opt/homebrew/bin/herdr", "/usr/local/bin/herdr", home + "/.local/bin/herdr", home + "/.cargo/bin/herdr"])
             .first { FileManager.default.isExecutableFile(atPath: $0) } ?? "/opt/homebrew/bin/herdr"
     }
+    /// Runs a command on that server. Some print JSON and some print nothing, so success is the exit status.
+    @discardableResult
+    private static func act(_ args: [String], socket: String, bin hint: String?) -> Bool {
+        Terminals.tool(bin(hint), args, env: ["HERDR_SOCKET_PATH": socket]) != nil
+    }
+    /// Runs a command that answers in JSON, and reads the answer.
     private static func cli(_ args: [String], socket: String, bin hint: String?) -> [String: Any]? {
         guard let out = Terminals.tool(bin(hint), args, env: ["HERDR_SOCKET_PATH": socket]) else { return nil }
         return (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any]
@@ -228,18 +234,18 @@ enum Herdr {
     /// Shows the pane in every client attached to that server.
     @discardableResult
     static func focus(pane: String, socket: String, bin: String?) -> Bool {
-        if cli(["agent", "focus", pane], socket: socket, bin: bin) != nil { return true }
+        if act(["agent", "focus", pane], socket: socket, bin: bin) { return true }
         // Not an agent herdr recognises: show its tab.
         guard let r = cli(["pane", "get", pane], socket: socket, bin: bin)?["result"] as? [String: Any],
               let tab = (r["pane"] as? [String: Any])?["tab_id"] as? String else { return false }
-        return cli(["tab", "focus", tab], socket: socket, bin: bin) != nil
+        return act(["tab", "focus", tab], socket: socket, bin: bin)
     }
 
     /// Types a line into the pane and presses Return: as a prompt to the agent there, else as raw text.
     static func type(_ line: String, pane: String, socket: String, bin: String?) -> Bool {
-        if cli(["agent", "prompt", pane, line], socket: socket, bin: bin) != nil { return true }
-        guard cli(["pane", "send-text", pane, line], socket: socket, bin: bin) != nil else { return false }
-        return cli(["pane", "send-keys", pane, "enter"], socket: socket, bin: bin) != nil
+        if act(["agent", "prompt", pane, line], socket: socket, bin: bin) { return true }
+        guard act(["pane", "send-text", pane, line], socket: socket, bin: bin) else { return false }
+        return act(["pane", "send-keys", pane, "enter"], socket: socket, bin: bin)
     }
 
     /// The command that attaches to a server in a terminal.
@@ -250,7 +256,7 @@ enum Herdr {
 
     /// Whether a server answers on that socket.
     static func running(socket: String, bin: String?) -> Bool {
-        FileManager.default.fileExists(atPath: socket) && cli(["workspace", "list"], socket: socket, bin: bin) != nil
+        FileManager.default.fileExists(atPath: socket) && act(["workspace", "list"], socket: socket, bin: bin)
     }
 
     /// A new tab in that workspace (or a new workspace if it is gone) that runs `command` in `cwd`, focused.
@@ -259,7 +265,7 @@ enum Herdr {
         var made = workspace.flatMap { cli(["tab", "create", "--workspace", $0, "--cwd", cwd, "--focus"], socket: socket, bin: bin) }
         if made == nil { made = cli(["workspace", "create", "--cwd", cwd, "--focus"], socket: socket, bin: bin) }
         guard let r = made?["result"] as? [String: Any], let pane = (r["root_pane"] as? [String: Any])?["pane_id"] as? String else { return false }
-        return cli(["pane", "run", pane, command], socket: socket, bin: bin) != nil
+        return act(["pane", "run", pane, command], socket: socket, bin: bin)
     }
 
     /// Each agent herdr sees on that server, by pane: its state ("idle", "working", "blocked", "done", "unknown") and,
