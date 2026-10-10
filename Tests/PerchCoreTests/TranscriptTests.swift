@@ -116,7 +116,7 @@ import Foundation
     }
     @Test func aNumberInASentenceIsNotAList() {
         #expect(Recap.outcome("My recommendation is to start with item 1. It's cheap and quick.") == "My recommendation is to start with item 1. It's cheap and quick.")
-        #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing Cut the video")
+        #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing. Cut the video.")
     }
     @Test func whileWorkingTheCardSaysWhatItIsDoing() {
         let working = [
@@ -300,6 +300,7 @@ import Foundation
     @Test func contextIsTheAgentsOutcome() {
         var d = TranscriptParser.digest(lines: lines)
         d.lastAssistantText = "Done. Settings now fits the panel: the title moved into the top strip. Want me to rebuild?"
+        d.lastAssistantFull = d.lastAssistantText
         let p = Recap.project(digest: d, git: nil, now: Date())!
         #expect(p.context == "Settings now fits the panel: the title moved into the top strip.")
     }

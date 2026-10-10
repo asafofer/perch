@@ -42,7 +42,81 @@ public struct SessionDigest: Equatable, Sendable {
     /// The last dozen real messages, oldest first, each clipped. Enough to tell small talk from work (`Recap.isTrivial`).
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
+    /// What the agent did since your last prompt, from its tool calls.
+    public var work = Work()
     public init() {}
+}
+
+/// What the agent did in one turn, from its tool calls: the facts a card can stand on when its reply says nothing.
+public struct Work: Equatable, Sendable {
+    /// Each commit's message, its first line ("" when it could not be read), oldest first.
+    public var commits: [String] = []
+    /// Files it changed, by name, in the order it first touched them.
+    public var edited: [String] = []
+    /// Files it read, by name.
+    public var read: [String] = []
+    /// The last command it ran that changes something, in words: "Ran the test suite". Looking around (ls, git log) is not counted.
+    public var ran: String?
+    public init() {}
+
+    /// It committed, changed files or ran something, rather than only reading and answering.
+    public var changedSomething: Bool { !commits.isEmpty || !edited.isEmpty || ran != nil }
+
+    mutating func note(tool: String, input: [String: Any]) {
+        let path = ["file_path", "filePath", "path", "notebook_path"].lazy.compactMap { input[$0] as? String }.first
+        let name = path.map { ($0 as NSString).lastPathComponent }
+        let add = { (f: String, list: inout [String]) in if !f.isEmpty, !list.contains(f) { list.append(f) } }
+        switch tool {
+        case "Edit", "MultiEdit", "edit", "multiedit", "Write", "write", "NotebookEdit":
+            if let name { add(name, &edited) }
+        case "apply_patch", "patch":
+            // Codex's patch names its files in its own lines: "*** Update File: path".
+            let patch = (input["input"] as? String) ?? (input["patch"] as? String) ?? Activity.command(input)
+            for f in Self.patched(patch) { add(f, &edited) }
+        case "Read", "read":
+            if let name { add(name, &read) }
+        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+            let c = Activity.command(input)
+            if let m = Self.commitMessage(c) { commits.append(m); return }
+            guard !Self.onlyLooks(c) else { return }
+            if let about = input["description"] as? String, !about.isEmpty { ran = Activity.past(about) }
+            else if let first = c.split(whereSeparator: \.isNewline).first, !first.isEmpty { ran = "Ran `\(Recap.clip(String(first), 48))`" }
+        default: break
+        }
+    }
+
+    /// The message of a `git commit` in a shell command: from a heredoc, or -m "…" / -am '…'. Nil when it is not a commit.
+    static func commitMessage(_ c: String) -> String? {
+        guard c.range(of: #"\bgit\b[^;&|\n]*\bcommit\b"#, options: .regularExpression) != nil else { return nil }
+        if let r = c.range(of: #"<<-?\s*['"]?\w+['"]?[^\n]*\n"#, options: .regularExpression),
+           let first = c[r.upperBound...].split(separator: "\n").map({ $0.trimmingCharacters(in: .whitespaces) }).first(where: { !$0.isEmpty }) {
+            return first
+        }
+        for pattern in [#"(?:-[a-zA-Z]*m|--message=?)\s*"([^"]*)""#, #"(?:-[a-zA-Z]*m|--message=?)\s*'([^']*)'"#] {
+            if let re = try? NSRegularExpression(pattern: pattern), let m = re.firstMatch(in: c, range: NSRange(c.startIndex..., in: c)),
+               let r = Range(m.range(at: 1), in: c) {
+                return c[r].split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+            }
+        }
+        return ""
+    }
+
+    /// Commands that only look: listing, reading, searching, git's own reports.
+    static func onlyLooks(_ c: String) -> Bool {
+        let words = c.trimmingCharacters(in: .whitespaces).split(separator: " ").map(String.init)
+        guard let first = words.first.map({ ($0 as NSString).lastPathComponent }) else { return true }
+        if ["ls", "cat", "head", "tail", "rg", "grep", "find", "pwd", "echo", "wc", "nl", "which", "file", "stat", "tree", "du", "less", "open"].contains(first) { return true }
+        if first == "sed" { return !words.contains { $0.hasPrefix("-i") } }
+        if first == "git", let sub = words.dropFirst().first(where: { !$0.hasPrefix("-") }) { return ["status", "log", "diff", "show", "branch", "remote", "rev-parse", "ls-files", "blame"].contains(sub) }
+        return false
+    }
+
+    static func patched(_ patch: String) -> [String] {
+        patch.split(separator: "\n").compactMap { line -> String? in
+            guard let r = line.range(of: #"^\*\*\* (Update|Add|Delete) File: "#, options: .regularExpression) else { return nil }
+            return (String(line[r.upperBound...]).trimmingCharacters(in: .whitespaces) as NSString).lastPathComponent
+        }
+    }
 }
 
 public struct PendingTool: Equatable, Sendable {
@@ -89,6 +163,7 @@ public enum TranscriptParser {
                 for b in blocks where b["type"] as? String == "tool_use" {
                     open.append((b["id"] as? String ?? "", PendingTool(block: b))); d.didWork = true
                     if let step = Activity.step(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:]) { d.step = step }
+                    d.work.note(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:])
                 }
             } else if isInterrupt(message?["content"]) {
                 d.turnOpen = false; d.interrupted = true; open = []
@@ -101,7 +176,7 @@ public enum TranscriptParser {
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
+            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
             d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
@@ -199,7 +274,10 @@ public enum Recap {
         let name = titled ? title! : projectName(cwd: cwd, repo: d.repoName)
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
-        let settled = d.failed.map { clip($0, 150) } ?? outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        // With no sentence worth showing: what it did if it changed something, the answer as written if it only answered.
+        let reply = outcome(d.lastAssistantFull ?? d.lastAssistantText)
+        let fallback = d.work.changedSomething ? did(d.work) ?? answer(d.lastAssistantText) : answer(d.lastAssistantText) ?? did(d.work)
+        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
@@ -241,26 +319,91 @@ public enum Recap {
         cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
-    /// The agent's outcome in a sentence or two: the first statement in its last message that says something.
-    /// Markdown structure, filler ("Done.", "Sure!"), questions and list lead-ins ("Here is what changed:") are skipped.
+    /// The agent's outcome in a sentence or two, picked from its last message as written. A Summary, TL;DR or Result section
+    /// is read first. Code, tables, headings, filler ("Done.", "Sure!"), questions and openers that only announce ("Let me
+    /// look…", "Here's what I found:") are skipped; a lead-in that says something ("The hero now fits at phone width:") ends
+    /// with a full stop instead. A second sentence joins only from the same paragraph or list, so bullets never run together.
     public static func outcome(_ text: String?) -> String? {
         guard var s = text, !s.isEmpty else { return nil }
-        // Headings and list markers start a new piece, so "## Summary - Fixed it" does not read as one sentence.
-        // A number only starts a list item at the start of a line: "start with item 1. It's cheap" is a sentence.
-        s = s.replacingOccurrences(of: #"(^|\s)(#{1,6}|[-*•>])\s+|(^|\n)[ \t]*\d+\.\s+"#, with: "\u{1}", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"```[\s\S]*?(```|$)"#, with: "\n\n", options: .regularExpression)   // code, closed or not
         s = s.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "__", with: "")
-        s = s.replacingOccurrences(of: #"(?<=[.!?])\s+(?=[A-Z0-9`“"'(])"#, with: "\u{1}", options: .regularExpression)
-        let sentences = s.components(separatedBy: CharacterSet(charactersIn: "\u{1}\n")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        let filler = ["sure", "okay", "ok", "got it", "great", "perfect", "alright", "all right", "done", "all done", "fixed", "nice", "good news"]
-        func says(_ t: String, words min: Int = 4) -> Bool {
-            let lower = t.lowercased(), words = t.split(separator: " ").count
-            if words < min || t.hasSuffix("?") || t.hasSuffix(":") { return false }
-            return !filler.contains { lower.hasPrefix($0 + ".") || lower.hasPrefix($0 + "!") || lower.hasPrefix($0 + ",") || lower == $0 }
+        if !s.contains("\n") {
+            // Squeezed onto one line (a hook's message, the narration): headings and list markers still start a new piece.
+            s = s.replacingOccurrences(of: #"(?<=\S)\s+(?=#{1,6}\s|[-*•]\s)"#, with: "\n", options: .regularExpression)
         }
-        guard let i = sentences.firstIndex(where: { says($0) }) else { return nil }
-        var out = sentences[i]
-        if i + 1 < sentences.count, says(sentences[i + 1], words: 3), out.count + sentences[i + 1].count < 140 { out += " " + sentences[i + 1] }
-        return clip(out, 150)
+        // Paragraphs and lists, each tagged with whether it sits under a summary heading.
+        var blocks: [(list: Bool, summary: Bool, parts: [String])] = [], section = false
+        var cur: (list: Bool, parts: [String])?
+        func close() { if let c = cur, !c.parts.isEmpty { blocks.append((c.list, section, c.parts)) }; cur = nil }
+        let summaryHead = #"^(summary|tl;?dr|result|results|outcome|what changed|what i changed|in short|bottom line|conclusion)\s*(:|$)"#
+        for raw in s.components(separatedBy: "\n") {
+            var line = raw.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("|") { close(); continue }   // a blank line ends a paragraph; tables are skipped
+            if let h = line.range(of: #"^#{1,6}\s*"#, options: .regularExpression) {
+                close(); section = line[h.upperBound...].range(of: summaryHead, options: [.regularExpression, .caseInsensitive]) != nil; continue
+            }
+            if let r = line.range(of: summaryHead, options: [.regularExpression, .caseInsensitive]) {
+                // "Summary:" on its own heads what follows; "TL;DR: the cache…" carries it on the same line.
+                close(); section = true
+                line = String(line[r.upperBound...]).trimmingCharacters(in: .whitespaces)
+                if line.isEmpty { continue }
+                line = line.prefix(1).uppercased() + line.dropFirst()
+            }
+            let item = line.range(of: #"^([-*•>]|\d+[.)])\s+"#, options: .regularExpression)
+            if let item { line.removeSubrange(item) }
+            if cur?.list != (item != nil) { close(); cur = (item != nil, []) }
+            if item != nil || cur!.parts.isEmpty { cur!.parts.append(line) } else { cur!.parts[cur!.parts.count - 1] += " " + line }
+        }
+        close()
+        func sentences(_ t: String) -> [String] {
+            t.replacingOccurrences(of: #"(?<=[.!?])\s+(?=[A-Z0-9`“"'(])"#, with: "\u{1}", options: .regularExpression)
+                .components(separatedBy: "\u{1}").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        }
+        func says(_ t: String, words min: Int = 4) -> Bool {
+            t.split(separator: " ").count >= min && !t.hasSuffix("?") && !t.hasSuffix(":") && !isFiller(t) && !announces(t)
+        }
+        func ended(_ t: String) -> String { t.last.map { ".!?…".contains($0) } == true ? t : t + "." }
+        for block in blocks.filter(\.summary) + blocks.filter({ !$0.summary }) {
+            let ss = block.list ? block.parts.flatMap(sentences) : sentences(block.parts.joined(separator: " "))
+            for (i, t) in ss.enumerated() {
+                var first: String
+                if says(t) { first = t }
+                else if t.hasSuffix(":"), t.split(separator: " ").count >= 5, !announces(t) { first = String(t.dropLast()) }
+                else { continue }
+                first = ended(first)
+                if i + 1 < ss.count, !t.hasSuffix(":"), says(ss[i + 1], words: 3), first.count + ss[i + 1].count < 140 { first += " " + ended(ss[i + 1]) }
+                return clip(first, 150)
+            }
+        }
+        return nil
+    }
+
+    static let filler = ["sure", "okay", "ok", "got it", "great", "perfect", "alright", "all right", "done", "all done", "fixed", "nice", "good news"]
+    static func isFiller(_ t: String) -> Bool {
+        let lower = t.lowercased()
+        return filler.contains { lower.hasPrefix($0 + ".") || lower.hasPrefix($0 + "!") || lower.hasPrefix($0 + ",") || lower == $0 }
+    }
+    /// Openers that only announce what comes next: "Let me check…", "I'll walk you through…", "Here's what I found:".
+    static func announces(_ t: String) -> Bool {
+        let lower = t.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+        return ["let me ", "let's ", "i'll ", "i will ", "i'm going to ", "i am going to ", "here's ", "here is ", "here are ", "first,"].contains { lower.hasPrefix($0) }
+    }
+
+    /// A reply too short to be an outcome, as written, when it answers: "macOS 26.", "Notch.". Filler and questions are not answers.
+    static func answer(_ text: String?) -> String? {
+        guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty, !t.contains("```"),
+              !t.hasSuffix("?"), !isFiller(t), !announces(t), t.contains(where: \.isLetter) || t.contains(where: \.isNumber) else { return nil }
+        return clip(t, 150)
+    }
+
+    /// What the agent did in its last turn, most telling first: a commit, the files it changed, what it ran, what it read.
+    static func did(_ w: Work) -> String? {
+        let files = { (f: [String]) in f.count == 1 ? f[0] : f.count == 2 ? "\(f[0]) and \(f[1])" : "\(f.count) files" }
+        if let m = w.commits.last { return m.isEmpty ? "Made a commit" : "Committed: \(clip(m, 100))" }
+        if !w.edited.isEmpty { return "Edited " + files(w.edited) }
+        if let r = w.ran { return r }
+        if !w.read.isEmpty { return "Read " + files(w.read) }
+        return nil
     }
 
     /// A session with nothing in it worth going back to: a hello and a one-line answer.
@@ -456,8 +599,10 @@ public enum CodexTranscript {
             if type == "response_item", let kind = payload["type"] as? String, kind.hasSuffix("_call") {
                 d.didWork = true
                 // Arguments come as a JSON string; a patch comes as plain text.
-                let args = (payload["arguments"] as? String).flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
+                var args = (payload["arguments"] as? String).flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] } ?? [:]
+                if let patch = payload["input"] as? String, args.isEmpty { args = ["input": patch] }
                 if let step = Activity.step(tool: payload["name"] as? String ?? "", input: args) { d.step = step }
+                d.work.note(tool: payload["name"] as? String ?? "", input: args)
             }
             if type == "session_meta" {
                 if let id = payload["id"] as? String { d.sessionId = id }
@@ -474,7 +619,7 @@ public enum CodexTranscript {
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
+            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
             if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
@@ -535,7 +680,6 @@ public enum Activity {
         guard let first = s.split(separator: " ", maxSplits: 1).first.map(String.init), first.count > 1,
               first.first?.isUppercase == true, first.allSatisfy({ $0.isLetter && $0.isASCII }) else { return s }
         let w = first.lowercased()
-        let tools: Set = ["git", "swift", "python", "node", "docker", "xcode", "github", "cargo", "yarn", "pnpm", "brew", "curl", "sqlite", "npm", "gh"]
         guard !w.hasSuffix("ing"), !tools.contains(w) else { return s }
         let irregular = ["be": "being", "see": "seeing", "lie": "lying", "die": "dying", "tie": "tying", "quit": "quitting"]
         let doubles: Set = ["commit", "submit", "admit", "omit", "permit", "refer", "prefer", "begin", "forget", "control", "upset", "regret", "rerun", "unzip", "unwrap"]
@@ -550,6 +694,43 @@ public enum Activity {
         else if w.hasSuffix("e"), !w.hasSuffix("ee"), !w.hasSuffix("ye"), !w.hasSuffix("oe") { g = String(w.dropLast()) + "ing" }
         else { g = w + "ing" }
         return g.prefix(1).uppercased() + g.dropFirst() + s.dropFirst(first.count)
+    }
+
+    /// "Run the test suite" becomes "Ran the test suite": a command's description as something done. "Rebuild and relaunch"
+    /// becomes "Rebuilt and relaunched". One that starts with a tool's name ("npm test", "Git status") becomes "Ran npm test".
+    public static func past(_ s: String) -> String {
+        let words = s.split(separator: " ").map(String.init)
+        guard let first = words.first, first.count > 1, first.first?.isUppercase == true, first.allSatisfy({ $0.isLetter && $0.isASCII }),
+              !tools.contains(first.lowercased()), !first.lowercased().hasSuffix("ing"), !first.lowercased().hasSuffix("ed") else {
+            let lower = words.first.map { tools.contains($0.lowercased()) ? $0.lowercased() : $0 } ?? ""
+            return "Ran " + ([lower] + words.dropFirst()).joined(separator: " ")
+        }
+        var out = words
+        out[0] = pastOf(first.lowercased()).prefix(1).uppercased() + pastOf(first.lowercased()).dropFirst()
+        // "Build and run tests": the verb after "and" is done too.
+        if out.count > 2, out[1] == "and", out[2].allSatisfy({ $0.isLetter && $0.isLowercase }) { out[2] = pastOf(out[2]) }
+        return out.joined(separator: " ")
+    }
+
+    static let tools: Set = ["git", "swift", "python", "node", "docker", "xcode", "github", "cargo", "yarn", "pnpm", "brew", "curl", "sqlite", "npm", "gh", "npx", "bun"]
+
+    static func pastOf(_ w: String) -> String {
+        let irregular = ["run": "ran", "rerun": "reran", "build": "built", "rebuild": "rebuilt", "make": "made", "write": "wrote", "rewrite": "rewrote",
+                         "read": "read", "find": "found", "get": "got", "set": "set", "reset": "reset", "put": "put", "take": "took", "see": "saw",
+                         "go": "went", "give": "gave", "keep": "kept", "send": "sent", "do": "did", "redo": "redid", "undo": "undid", "split": "split",
+                         "cut": "cut", "let": "let", "quit": "quit", "begin": "began", "spin": "spun", "bring": "brought", "tell": "told", "say": "said",
+                         "leave": "left", "hold": "held", "lead": "led", "bind": "bound", "rewind": "rewound", "catch": "caught", "shut": "shut", "hit": "hit"]
+        if let i = irregular[w] { return i }
+        let doubles: Set = ["commit", "submit", "admit", "omit", "permit", "refer", "prefer", "control", "upset", "regret", "unzip", "unwrap", "format", "program"]
+        let vowels = Set("aeiou"), c = Array(w)
+        guard c.count > 1 else { return w + "ed" }
+        let groups = zip(c, [" "] + c.dropLast()).filter { vowels.contains($0.0) && !vowels.contains($0.1) }.count
+        let cvc = c.count >= 3 && groups == 1 && !vowels.contains(c[c.count - 1]) && !"wxy".contains(c[c.count - 1])
+            && vowels.contains(c[c.count - 2]) && !vowels.contains(c[c.count - 3])
+        if doubles.contains(w) || cvc { return w + String(c[c.count - 1]) + "ed" }
+        if w.hasSuffix("e") { return w + "d" }
+        if w.hasSuffix("y"), !vowels.contains(c[c.count - 2]) { return String(w.dropLast()) + "ied" }
+        return w + "ed"
     }
 
     /// Codex wraps commands as ["bash", "-lc", "…"]; the last part is what you would read.
