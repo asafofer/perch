@@ -130,16 +130,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
       ['Into the details and back', 'Right opens the card of the row you are on: the character leans in toward the card, eyes on its title, then blinks. Left goes back and it leans back, eyes on the row you came from. The card and list themselves move as they always have. Plays it twice; then try Right and Left.', function () { d.fx('details'); }]
     ]],
-    ['Proposal: while you work', [
-      ['Finished, project on top', 'The short project beside the camera, the session\u2019s longer title on the row below, and no cross: it folds away by itself, and Command+Option+. still puts it away.', function () { d.actLayout('top'); d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
-      ['A command, project on top', 'The same for a request: project on top, the command, then the title beside Allow and Deny.', function () { d.actLayout('top'); d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
-      ['Finished, keeping the cross', 'Project on top and the title below, with the cross kept at the left.', function () { d.actLayout('topx'); d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
-      ['As built', 'Today: the title beside the camera, the project in grey by the cross.', function () { d.actLayout(''); d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }]
-    ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
-      ['Finished elsewhere', 'A session you are not in finishes. The notch grows: the session on the left, Finished with a check on the right, and Pick up or Reply below, each on a Command+Option key. Gone after six seconds; resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
+      ['Finished elsewhere', 'A session you are not in finishes. The notch grows: its project beside the camera, Finished with a check on the right, and below the session\u2019s title with Pick up or Reply, each on a Command+Option key. No cross: it folds away by itself, or Command+Option+. puts it away. Gone after six seconds; resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
       ['Wants to run a command', 'The command, with Allow and Deny. After nine seconds it folds to wings, the app and a mark, that stay until you answer.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
       ['Asked you something', 'A question with up to three choices puts them on the row: Command+Option+1, 2, 3.', function () { d.arrive(3, CLAUDE_ASKS); }],
       ['Asks in a terminal', 'A terminal session answers in its own tab, so the row offers Pick up, which goes there.', function () { d.arrive(7, { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, attention: true, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run test -- --runInBand', options: [], answerable: false } }); }],
@@ -178,7 +172,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.actLayout(''); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

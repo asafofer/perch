@@ -697,7 +697,6 @@
      question). A finish folds away after a few seconds; a request folds to small wings, the app and a mark, that stay
      until you answer. Resting the pointer on it holds it open. During a call or a presentation it skips straight to the
      wings. When you come back from a break, the welcome card says all this instead. */
-  var actLayout = '';
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false;
   var CMDOPT = '\u2318\u2325';
   var MARK = {
@@ -734,20 +733,18 @@
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
     /* choices share one Command+Option, said once, so each keeps room for its words */
-    /* the session's title leads the top line; its project sits in grey beside the cross, as in the list.
-       Design page proposal (actLayout 'top', 'topx'): the short project beside the camera, the longer title below; 'top' drops the cross. */
-    var topProj = actLayout && p.topic && p.name !== p.topic;
-    var proj = topProj ? '<span dir="auto" class="act-p act-tt">' + esc(p.topic) + '</span>'
-      : p.topic && p.name !== p.topic ? '<span dir="auto" class="act-p">' + esc(p.name) + '</span>' : '<span class="act-gap"></span>';
-    var cross = actLayout === 'top' ? '' : '<button class="act-x" data-a="gone" title="Dismiss (' + CMDOPT + '.)">' + svg('x', 'size-3') + '</button>';
-    var btns = cross + (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : proj) +
+    /* The short project sits beside the camera; the session's longer title has the row below, before the buttons. No cross:
+       a finish folds away by itself, a request folds to wings, and Command+Option+. still puts it away. A chat with no
+       project is named by its title alone, on top. */
+    var split = p.topic && p.name !== p.topic;
+    var btns = (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p">' + esc(p.topic) + '</span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
-    actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(topProj ? p.name : p.topic || p.name) + '</span></span>' +
+    actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n">' + esc(split ? p.name : p.topic || p.name) + '</span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
       (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
   }
@@ -1604,8 +1601,6 @@
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
          scenario stops it (fxStop). */
       fxStop: function () { fxPlay++; },
-      /* the while-you-work proposal: '' as built, 'top' project on top and no cross, 'topx' project on top with the cross */
-      actLayout: function (v) { actLayout = v || ''; },
       fx: function (play) {
         fxMood = ''; window.perchDev.show('switcher');
         var me = ++fxPlay, go = function (i, f) { setTimeout(function () { if (me === fxPlay) f(); }, 900 + i * 850); };
