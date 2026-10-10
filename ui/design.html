@@ -99,6 +99,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       Q('What should the floor do?', 'Floor', [['Subtle reflection (Recommended)', 'A satin floor that reflects the shelter faintly'], ['Matte with shadow', 'A plain matte floor with a soft contact shadow'], ['Measured grid', 'A matte floor with a fine metric grid']]),
       Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
     ] } };
+  var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
   var GROUPS = [
     ['Coming back', [
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
@@ -119,7 +120,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', null, false, true); }],
       ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
-      ['Settings: four agents', 'The Apps row with an agent of each kind.', function () { d.settings({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }, { id: 'opencode', name: 'OpenCode', enabled: true }, { id: 'pi', name: 'pi', enabled: false }] }); }],
+      ['Settings: four agents', 'Apps shows the agents Perch reads as their icons, with a chevron for the menu.', function () { d.settings({ sources: FOUR }); }],
+      ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(3, true, null, false, null, true); }]
     ]],
     ['Acting on it', [

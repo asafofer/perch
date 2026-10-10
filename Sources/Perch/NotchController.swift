@@ -1091,10 +1091,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 return nil
             }
             if self.machine.phase == .settings {
-                // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done.
+                // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done (or closes the
+                // Apps menu first; the page decides and says "back").
                 let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]
                 if let k = keys[e.keyCode] { self.web.evaluateJavaScript("window.perch && window.perch.setKey('\(k)')", completionHandler: nil); return nil }
-                if e.keyCode == 53 { self.send(.back); return nil }   // back to the card or list it came from, or closed
+                if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.setKey('esc')", completionHandler: nil); return nil }
                 return e
             }
             if self.replyOpen {

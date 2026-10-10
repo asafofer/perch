@@ -849,7 +849,7 @@
     if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
     applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
-    if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; setAppAt = 0; }
+    if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     if (st === 'setup') setup(s.setup);
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -1394,12 +1394,6 @@
   function setSw(b, on) {
     b.setAttribute('aria-checked', String(on));   /* .sw in input.css draws it from this */
   }
-  var APP_ON = 'bg-white/[0.12] text-foreground', APP_OFF = 'text-muted-foreground opacity-60 hover:opacity-100';
-  function setApp(b, on) {
-    b.setAttribute('aria-checked', String(on));
-    (on ? APP_OFF : APP_ON).split(' ').forEach(function (c) { b.classList.remove(c); });
-    (on ? APP_ON : APP_OFF).split(' ').forEach(function (c) { b.classList.add(c); });
-  }
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
@@ -1415,9 +1409,7 @@
     var sum = { ready: 'On your Mac', off: 'Apple Intelligence is off', downloading: 'Downloading the model\u2026', unsupported: 'Not supported on this Mac' }[o.summaries] || '';
     var rows = [
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
-      srow(slabel('Apps'), '<span class="flex gap-1">' + o.sources.map(function (x) {
-        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? APP_ON : APP_OFF) + '">' + App(x.id, 'size-4') + agentShort(x.id) + '</button>';
-      }).join('') + '</span>'),
+      srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
       srow(slabel('Summaries', sum), o.summaries === 'off' ? Button('ghost', 'Set up', '', 's-sum') : ''),
@@ -1437,7 +1429,7 @@
       if (b.dataset.k === 'login') post({ type: 'setting', key: 'login', value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    box.querySelectorAll('.s-app').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setApp(b, on); post({ type: 'source', id: b.dataset.k, enabled: on }); }; });
+    bindApps(box);
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
@@ -1449,35 +1441,76 @@
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
     on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
   }
-  /* the highlighted row, moved with the arrow keys or the pointer; on Apps, which app */
-  var setFocus = 0, setAppAt = 0;
+  /* Apps: the icons of the agents Perch reads and a chevron; it opens a menu with a check for each */
+  var appsOpen = false;
+  function appsHtml(o) {
+    var on = o.sources.filter(function (x) { return x.enabled; });
+    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return App(x.id, 'size-4'); }).join('') + '</span>'
+      : '<span class="text-xs text-muted-foreground">None</span>';
+    var items = o.sources.map(function (x, i) {
+      return '<button role="menuitemcheckbox" aria-checked="' + x.enabled + '" data-k="' + x.id + '" data-i="' + i + '" class="s-app flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.enabled ? 'text-foreground' : 'text-muted-foreground') + '">' +
+        '<span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="flex-1 truncate">' + x.name + '</span>' +
+        (x.count ? '<span class="text-xs text-muted-foreground">' + x.count + '</span>' : '') +
+        '<span class="flex size-3.5 flex-none items-center">' + (x.enabled ? svg('check', 'size-3.5') : '') + '</span></button>';
+    }).join('');
+    return '<span class="s-apps"><button aria-haspopup="menu" aria-expanded="' + appsOpen + '" aria-label="Apps Perch reads" class="s-apptrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (appsOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
+      '<span role="menu" class="s-appmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[196px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (appsOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+  }
+  function bindApps(box) {
+    var trig = box.querySelector('.s-apptrig');
+    if (trig) trig.onclick = function (e) { e.stopPropagation(); appsMenu(!appsOpen); };
+    box.querySelectorAll('.s-app').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
+      b.onmouseenter = function () { appsAt = +b.dataset.i; paintFocus(); };
+    });
+  }
+  /* opens or closes the menu in place; a click anywhere else on the card closes it */
+  function appsMenu(open) {
+    appsOpen = open; if (open) appsAt = 0;
+    var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
+    if (!m) return;
+    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
+    paintFocus();
+  }
+  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); });
+  /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
+  var setFocus = 0, appsAt = 0;
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus); });
-    var apps = rows[setFocus] ? rows[setFocus].querySelectorAll('.s-app') : [];
-    box.querySelectorAll('.s-app').forEach(function (b) { b.classList.remove('ring-1', 'ring-white/40'); });
-    if (apps.length) { setAppAt = Math.min(setAppAt, apps.length - 1); apps[setAppAt].classList.add('ring-1', 'ring-white/40'); }
+    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen); });
+    var items = box.querySelectorAll('.s-app');
+    appsAt = Math.max(0, Math.min(appsAt, items.length - 1));
+    items.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', appsOpen && i === appsAt); });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
     var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
+    /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
+    if (appsOpen) {
+      var items = box.querySelectorAll('.s-app');
+      if (k === 'down' || k === 'up') { appsAt = (appsAt + (k === 'down' ? 1 : -1) + items.length) % items.length; paintFocus(); }
+      else if (k === 'enter' && items[appsAt]) items[appsAt].click();
+      else if (k === 'esc' || k === 'left') appsMenu(false);
+      return;
+    }
+    if (k === 'esc') { post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
-    var seg = row.querySelectorAll('.s-idle'), apps = row.querySelectorAll('.s-app');
+    var seg = row.querySelectorAll('.s-idle'), apps = row.querySelector('.s-apptrig');
+    if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
       /* on a row that has no sideways choice, Left goes back to where Settings came from */
-      if (!apps.length && !(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
-      if (apps.length) { setAppAt = (setAppAt + d + apps.length) % apps.length; paintFocus(); }
-      else if (seg.length && setLast) {
+      if (!(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
+      if (seg.length && setLast) {
         var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast.idleMinutes));
         post({ type: 'setting', key: 'idleMinutes', value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
       }
       return;
     }
-    /* Return or Space: flip the switch, pick the app, or press the row's button */
-    if (apps.length) { apps[setAppAt].click(); return; }
+    /* Return or Space: flip the switch, step the segment, or press the row's button */
     if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }); post({ type: 'setting', key: 'idleMinutes', value: v[(v.indexOf(setLast.idleMinutes) + 1) % v.length] }); return; }
     var c = row.querySelector('.s-sw, button'); if (c) c.click();
   }
@@ -1489,7 +1522,7 @@
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
-      box.querySelectorAll('.s-app').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.k) setApp(b, x.enabled); }); });
+      var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
       box.querySelectorAll('.s-idle').forEach(function (b) {
         var on = +b.dataset.m === o.idleMinutes;
@@ -1679,7 +1712,7 @@
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
-      if (e.key === 'Escape' && ph === 'settings') { q('.s-done').click(); return; }
+      if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
