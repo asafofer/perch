@@ -343,7 +343,7 @@
   /* The card's edge springs to a new height (input.css, .n), but the words inside reflow at once, so what sits below
      them would jump. Each block glides from where it was on the same spring instead; on another session's card the new
      words also settle in. */
-  var cardId = null, cardSel = 0;
+  var cardId = null;
   function settleCard(change, fresh) {
     var els = [].slice.call(q('.p-open').querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
     var said = els.map(function (el) { return el.textContent; });
@@ -447,6 +447,8 @@
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
+    var reading = switchFx === 'watch' && typed !== fxTyped && !!typed; fxTyped = typed;
+    if (reading) { var caret = q('.s-h .s-caret'); if (caret) setTimeout(function () { lookAt(caret, 0); }, 0); }
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
@@ -498,7 +500,8 @@
     }
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
-    if (lastSel >= 0 && s.selected !== lastSel) { var dir = s.selected > lastSel ? 1 : -1, row = sel; setTimeout(function () { switched(dir, s.projects[s.selected], row); }, 0); }   /* after layout sets its face */
+    /* after layout has set its face */
+    if (sel && s.selected !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[s.selected], row); }, 0); }
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
   }
   /* the design page's sample data has no section from Swift: worked out the same way */
@@ -574,7 +577,7 @@
     cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
-    var cp = st === 'open' ? s.projects[s.selected] : null;
+    var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
@@ -741,8 +744,8 @@
     if (st === 'setup') setup(s.setup);
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
-    if (flipped) setTimeout(function () { switched(s.selected >= cardSel ? 1 : -1, p); }, 0);   /* after layout sets its mood */
-    cardId = st === 'open' && p ? p.id : null; cardSel = s.selected;
+    if (flipped) setTimeout(function () { switched(p); }, 0);   /* after layout sets its face */
+    cardId = st === 'open' && p ? p.id : null;
     moments(s, st);
     activity(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
@@ -763,8 +766,10 @@
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
     n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
+    var was = lastSt;
     lastSt = st;
     layout(st, s);
+    if (was !== st) drill(was, st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
     else { if (last.running) bar(false); last.running = false; }
     last.phase = s.phase; last.token = s.timerToken;
@@ -790,42 +795,61 @@
     if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek')) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
-  /* ---- moving between sessions: the character takes part. A proposal: off in the app until one is chosen; the design
-     page plays each (perchDev.fx).
-       hop    a small hop with each move, eyes toward where you went; it lands in the new session's mood.
-       fetch  it pops up into the notch as the old session leaves and drops back in with the new one.
-       watch  its eyes follow the row you are on and it blinks with each step; a row that needs you startles it, one
-              that finished pleases it.
-     A held arrow only moves its eyes; one move at a time is the most it acts out. ---- */
-  var switchFx = '', fxAt = 0;
-  function switched(dir, p, row) {
-    if (!switchFx || celebrating || hello) return;
-    var ci = cr.querySelector('.cr-in'), now = Date.now(), held = now - fxAt < 380; fxAt = now;
-    tracking = true; clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1400);
-    if (row) {
-      var r = row.getBoundingClientRect(), c = cr.getBoundingClientRect(), dx = r.left + 80 - (c.left + c.width / 2), dy = r.top + r.height / 2 - (c.top + c.height / 2), d = Math.max(1, Math.hypot(dx, dy));
-      look(dx / d * 2.6, dy / d * 2.2);
-    } else look(.8, dir > 0 ? 2 : -2);
-    if (held || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    var mood = !p ? '' : p.ask || p.status.kind === 'attention' ? 'alert' : p.status.kind === 'done' && p.fresh !== false ? 'happy' : '';
-    /* script animations, so a class left from an earlier one (running home, perching) cannot cover them */
-    ci.style.transformOrigin = '50% 100%';
-    /* each stretch eases on its own: out of a crouch, up slowing, down speeding, a settle */
-    var up = 'cubic-bezier(.2,.8,.4,1)', down = 'cubic-bezier(.6,0,.8,.4)';
-    if (switchFx === 'hop') ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(1px) scale(1.14,.86)', offset: .16, easing: up },
-      { transform: 'translateY(-9px) scale(.9,1.12)', offset: .46, easing: down }, { transform: 'translateY(1px) scale(1.12,.88)', offset: .74, easing: up },
-      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .88, easing: up }, { transform: 'none' }], { duration: 520 });
-    else if (switchFx === 'fetch') ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(2px) scale(1.16,.82)', offset: .18, easing: down },
-      { transform: 'translateY(-28px) scale(.86,1.16)', opacity: 1, offset: .4 }, { transform: 'translateY(-28px)', opacity: 0, offset: .46, easing: down },
-      { transform: 'translateY(-10px) scale(.9,1.12)', opacity: 1, offset: .62, easing: down }, { transform: 'translateY(1px) scale(1.14,.84)', offset: .8, easing: up },
-      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .9, easing: up }, { transform: 'none' }], { duration: 760 });
-    else if (switchFx === 'watch') {
-      cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110);
-      if (row && mood) {
-        var was = cr.dataset.m; cr.dataset.m = mood;
-        ci.animate([{ transform: 'none', easing: up }, { transform: 'scale(1.18,.8)', offset: .3, easing: up }, { transform: 'scale(.9,1.12)', offset: .55, easing: up }, { transform: 'scale(1.04,.97)', offset: .78, easing: up }, { transform: 'none' }], { duration: 600 });
-        setTimeout(function () { if (cr.dataset.m === mood && lastSt === 'switch') cr.dataset.m = was; }, 900);
-      }
+  /* ---- the character watches you move between sessions (a proposal: off in the app until it is chosen; the design
+     page turns it on with perchDev.fx). In the list its eyes go to the row you are on, and when you stop there it blinks.
+     Its face is that session's: wide-eyed if it needs you, with a start as you arrive, a happy squint if it finished.
+     Typing a filter, it reads along; flipping cards, its eyes go to the new title. A held arrow only moves its eyes. ---- */
+  var switchFx = '', fxAt = 0, fxBlink = 0, fxMood = '', fxTyped = '';
+  /* Measured in the card, from where the character sits in its corner (layout), so it aims right even while the card
+     and the character are still moving into place. */
+  function lookAt(el, along) {
+    var pane = el.closest('.pane'); if (!pane || !snap) return;
+    var scr = snap.screen, idleH = !scr.hasNotch ? Math.min(scr.notchH || 24, 28) : scr.notchH;
+    var r = el.getBoundingClientRect(), pr = pane.getBoundingClientRect(), dx = r.left - pr.left + Math.min(along, r.width / 2) - 26,
+        dy = r.top - pr.top + r.height / 2 - idleH / 2, d = Math.max(1, Math.hypot(dx, dy));
+    tracking = true; clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
+    look(dx / d * 2.6, dy / d * 2.2);
+  }
+  function switched(p, row) {
+    if (switchFx !== 'watch' || celebrating || hello) return;
+    var now = Date.now(), held = now - fxAt < 380; fxAt = now;
+    var at = row ? row.querySelector('.nm') || row : q('.o-name');
+    if (at) lookAt(at, 40);
+    clearTimeout(fxBlink); fxBlink = setTimeout(function () { cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110); }, 260);
+    /* layout has already given it the session's face; arriving at one that needs you startles it */
+    var mood = cr.dataset.m, startle = mood === 'alert' && fxMood !== 'alert'; fxMood = mood;
+    if (startle && !held && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+      var ci = cr.querySelector('.cr-in'), up = 'cubic-bezier(.2,.8,.4,1)'; ci.style.transformOrigin = '50% 100%';
+      ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(-3px) scale(.9,1.14)', offset: .3, easing: up }, { transform: 'scale(1.1,.9)', offset: .62, easing: up }, { transform: 'none' }], { duration: 480 });
+    }
+  }
+
+  /* ---- into a session's card from the list (Right, or a click on its row) and back (Left): also a proposal, off in the
+     app until chosen. Going in, the row's title and icon rise into the card's heading while the list steps aside to the
+     left and the rest of the card comes in from the right. Coming back, the card steps aside to the right and the list
+     returns from the left. ---- */
+  var drillFx = false;
+  function drill(from, to, s) {
+    if (!drillFx || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    var spring = 'cubic-bezier(.3,1.15,.5,1)', ease = 'cubic-bezier(.2,.9,.3,1)';
+    var aside = function (el, dx) { if (el) el.animate([{ transform: 'none' }, { transform: 'translateX(' + dx + 'px)' }], { duration: 220, easing: ease }); };
+    var arrive = function (els, dx) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, delay: 70 + i * 40, easing: ease, fill: 'backwards' }); }); };
+    if (from === 'switch' && to === 'open') {
+      var row = q('.p-switch .row[data-i="' + s.selected + '"]'), nm = row && row.querySelector('.nm'), icon = row && row.firstElementChild;
+      var head = q('.o-name').closest('.rv'), title = q('.o-name'), big = q('.o-app');
+      aside(q('.p-switch .inner'), -16);
+      arrive([].slice.call(q('.p-open .inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 16);
+      if (!nm || !icon) { arrive([head], 16); return; }
+      var a = nm.getBoundingClientRect(), b = title.getBoundingClientRect(), ai = icon.getBoundingClientRect(), bi = big.getBoundingClientRect();
+      /* the heading is there at once, so the title is seen to move, not to appear */
+      head.animate([{ opacity: 1, filter: 'none', transform: 'none' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 480 });
+      title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 480, easing: spring });
+      big.style.transformOrigin = '0 0';
+      big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 480, easing: spring });
+      [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, delay: 180, easing: ease, fill: 'backwards' }); });
+    } else if (from === 'open' && to === 'switch') {
+      aside(q('.p-open .inner'), 16);
+      arrive([].slice.call(q('.p-switch .inner').children), -16);
     }
   }
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
@@ -1475,10 +1499,12 @@
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
-      fx: function (kind) {
-        switchFx = kind; if (!kind) return;
+      fx: function (on, play) {
+        switchFx = on ? 'watch' : ''; drillFx = !!on; fxMood = ''; if (!on) return;
         window.perchDev.show('switcher');
-        [1, 1, 1, -1, -1, -1].forEach(function (d, i) { setTimeout(function () { if (switchFx === kind && lastSt === 'switch') window.perchDev.step(d); }, 900 + i * 850); });
+        var go = function (i, f) { setTimeout(function () { if (switchFx) f(); }, 900 + i * 850); };
+        if (play === 'list') [1, 1, 1, -1, -1, -1].forEach(function (d, i) { go(i, function () { if (lastSt === 'switch') window.perchDev.step(d); }); });
+        if (play === 'details') { go(0, function () { window.perchDev.step(1); }); go(1, function () { window.perchDev.show('open', null, false, true); }); go(3, function () { window.perchDev.show('switcher'); }); go(4, function () { window.perchDev.step(1); }); go(5, function () { window.perchDev.show('open', null, false, true); }); }
       },
       noAccess: function (waiting) { base.canSend = false; base.allowing = !!waiting; base.once = true; },
       /* a session you are not in finishes while you work: the character pops out, happy, and tucks back in */
@@ -1545,6 +1571,8 @@
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
+      else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', null, false, true); }
+      else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if ((e.metaKey && e.key === ',') || (ph === 'open' && (e.key === 's' || e.key === 'S'))) { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
