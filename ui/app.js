@@ -29,7 +29,8 @@
   /* an icon key gets an invisible character, so it has a text baseline like a letter key */
   /* two keys that go together (the arrows): each in its own box, a little apart */
   function Keys(a, b) { return '<span class="inline-flex items-baseline gap-[3px]">' + Kbd(a) + Kbd(b) + '</span>'; }
-  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[22px]' : 'min-w-4') + ' items-center justify-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
+  /* Return (the only key drawn as an icon) is a little wider with its arrow at the right, like the key itself */
+  function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground' : 'bg-muted text-muted-foreground') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[k] + '" alt="">';
