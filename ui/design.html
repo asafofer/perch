@@ -237,6 +237,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var BLUE = '#8DC8E8', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var OPTS = [
     ['hop', 'Hopping dots', true, 'Three dots taking turns to jump, stretching up and squashing as they land. Playful, and still just three dots.'],
+    ['torb', 'Thinking Orbs', false, 'The orb from thinkingorbs.com (MIT, plain JS, about 4 KB), in your colour at 18 pt. It changes with what the step is: searching, reasoning, working, compacting, retrying. Watch it go through them.'],
     ['me', 'Your character, bouncing', false, 'A tiny copy of your character bouncing on the spot. The most playful; it does repeat the character already in the corner of the card.'],
     ['goo', 'Two drops', false, 'Two drops circling each other, meeting in the middle and pulling apart like something soft.'],
     ['orbit', 'Three in orbit', false, 'Three points circling on a tilted ring, bigger as they come round the front. Calm and continuous.'],
@@ -262,6 +263,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   document.querySelectorAll('#propNow .an').forEach(function (el) {
     var k = el.dataset.an;
     if (k === 'hop') { el.innerHTML = '<span class="an-hop"><i></i><i></i><i></i></span>'; }
+    if (k === 'torb') { el.style.width = el.style.height = '18px'; el.style.margin = '-1px'; el.innerHTML = '<svg width="18" height="18"></svg>'; }
     if (k === 'me') {
       /* the character the page is showing: its shape and its eyes, from the one beside the notch */
       var src = document.querySelector('#scene > .cr'), path = src.querySelector('.f path').getAttribute('d'), cs = src.getAttribute('style') || '';
@@ -289,4 +291,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function loop(t) { draws.forEach(function (d) { d(t); }); if (!reduce) requestAnimationFrame(loop); }
   requestAnimationFrame(loop);
 })();
+</script>
+<script type="module">
+/* Thinking Orbs (thinkingorbs.com, MIT), its plain JS build, for the proposal above. The step and the orb's state change together. */
+import { mountOrb } from 'https://cdn.jsdelivr.net/npm/@yogesharc/thinking-orbs@0.1.1/dist/orb-core.js';
+var STEPS = [['searching', 'Searching the code for the rate limit config'], ['reasoning', 'Thinking about how the bucket refills'], ['working', 'Running the rate limiter tests'], ['compacting', 'Compacting the conversation'], ['retrying', 'Retrying after an API error']];
+document.querySelectorAll('.an[data-an="torb"]').forEach(function (el) {
+  var svg = el.querySelector('svg'), words = el.parentElement.querySelector('.shimmer'), orb = null, i = 0;
+  function go() {
+    if (orb) orb.destroy();
+    svg.innerHTML = '';
+    orb = mountOrb(svg, { state: STEPS[i][0], size: 18, label: STEPS[i][1] });
+    words.textContent = STEPS[i][1]; words.dataset.shine = STEPS[i][1];
+    i = (i + 1) % STEPS.length;
+  }
+  go(); setInterval(go, 3600);
+});
 </script>
