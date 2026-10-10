@@ -702,7 +702,8 @@
   }
   function renderAct() {
     actEl.dataset.mode = act.mode;
-    if (!act.mode) return;   /* what was there stays while it fades */
+    /* what was there stays while it fades; shown again, its names are measured again */
+    if (!act.mode) { actGlideFor = ''; return; }
     var p = act.p, k = act.kind, a = p.ask, body = '';
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
     else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
@@ -738,13 +739,17 @@
     var key = act.mode + '|' + actEl._h;
     if (key === actGlideFor && actGlides.length) return;
     actGlides.forEach(function (a) { a.cancel(); }); actGlides = []; actGlideFor = key;
+    actEl.querySelectorAll('.mq-on').forEach(function (b) { b.classList.remove('mq-on', 'mq-rtl'); });
     if (act.mode !== 'full' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    var tries = 0;
+    var tries = 0, was = '';
     setTimeout(function start() {
       if (actGlideFor !== key) return;
-      /* measured once the notch has grown to its size: mid-grow, a name looks far longer than its box */
-      var grown = [].every.call(actEl.querySelectorAll('.act-n, .act-p'), function (b) { return b.clientWidth > 40; });
-      if (!grown && ++tries < 6) { setTimeout(start, 250); return; }
+      /* measured once the notch has stopped growing: mid-grow a box is a sliver, and a glide sized to it runs the
+         whole name out of sight. Two readings in a row that agree mean it has settled. */
+      var boxes = actEl.querySelectorAll('.act-n, .act-p'), now = [].map.call(boxes, function (b) { return b.clientWidth; }).join();
+      var settled = now === was && [].every.call(boxes, function (b) { return b.clientWidth > 40; });
+      was = now;
+      if (!settled) { if (++tries < 12) setTimeout(start, 200); return; }
       actEl.querySelectorAll('.act-n, .act-p').forEach(function (box) {
         var inner = box.querySelector('.mq-in'), over = box.scrollWidth - box.clientWidth;
         if (!inner || over < 4) return;
