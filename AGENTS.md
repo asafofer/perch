@@ -65,6 +65,7 @@ cd ui && npm install && cd ..       # once
 swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
 ./scripts/make-icon.sh              # Resources/AppIcon.icns and docs/assets/icon.png from docs/assets/icon.svg (WebKit draws the coat)
+./scripts/agents-demo.sh [folder]   # herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux
 ```
 
 Useful flags: `--show`, `--simulate`, `--setup`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
@@ -95,6 +96,9 @@ Useful flags: `--show`, `--simulate`, `--setup`, `--onboarding` (replays it from
 - The settings and onboarding cards must stay at or under about 300 pt tall (the panel is 320). Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
 - Hooks only change behaviour once installed (Settings, Live status). Codex skips a new hook until you trust it once. Never write to `~/.claude/settings.json` or `~/.codex/hooks.json` except through `HookInstaller`, which only touches its own entries; for OpenCode and pi it writes and removes only its own file (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`, first line `// Perch:`). Try the installer with `PERCH_HOME=<folder> .build/debug/Perch --install-hooks`, and a plugin against a stand-in socket before it reaches real config.
 - cmux's command line tool only answers processes inside cmux (its default socket mode), so Perch drives cmux through AppleScript: a terminal's `id` is the `CMUX_SURFACE_ID` its processes carry. `input text` pastes (bracketed), so Return is sent separately with `perform action "text:\\r"`.
+- Codex 0.162's terminal app writes `source: "vscode"` like the Codex app; `originator: "codex-tui"` is what says terminal.
+- An agent or multiplexer started from inside another app's terminal (this one, an editor's) inherits that app's variables: Claude Code started that way records itself as the Claude app (`entrypoint: claude-desktop`) and drops out of the terminal list. `agents-demo.sh` starts herdr with `env -i` for this reason.
+- herdr's `pane run`, `send-text` and `send-keys` print nothing when they work: judge herdr actions by exit status (`Herdr.act`). A herdr server brings its last layout back when it starts.
 - macOS hides the environment of system binaries (`/bin/sleep`) from `KERN_PROCARGS2`; agents are not system binaries. node renames itself (pi's argv[0] is `pi`) and leaves empty strings where its arguments were.
 - Seeing the real panel: computer-use screenshots hide it. Use `screencapture -x -R 496,0,520,340 out.png` with keys sent by `osascript`, in the same command (a card that Perch opened by itself closes after 9 s).
 
