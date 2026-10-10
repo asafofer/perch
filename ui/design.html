@@ -54,6 +54,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
 .cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
+/* proposals drawn side by side: a piece of the card as the app draws it, one idea per tile */
+.props{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@media (min-width:860px){.props{grid-template-columns:1fr 1fr}}
+.prop{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.prop h3{margin:0;font:600 14px/18px Inter,sans-serif;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.prop p{margin:0;font-size:12.5px;line-height:18px;color:var(--pg-muted)}
+.prop .pick-me{font:500 11px/16px Inter,sans-serif;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#8CCFA4 18%,transparent);color:#4E9A6B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .prop .pick-me{color:#8CCFA4}}
+:root[data-theme="dark"] .prop .pick-me{color:#8CCFA4}
+.pstage{border-radius:10px;background:#16201e url(wallpapers/blue-distortion-1.webp) center 30%/cover;padding:0 10px 14px;display:flex;justify-content:center;overflow:hidden}
+.pcard{width:400px;max-width:100%;background:#000;border-radius:0 0 20px 20px;padding:12px 0 14px;color:#fafafa}
+/* the thing to the left of the step: a 16 pt box, the step's words beside it */
+.nowrow{display:flex;align-items:center;gap:8px;padding:0 16px;margin-top:10px;font-size:13px;line-height:18px}
+.nowrow .an{width:16px;height:16px;flex:none;display:grid;place-items:center;color:#8DC8E8}
+.nowrow .an canvas{width:16px;height:16px}
+.an-star{font:500 14px/1 -apple-system,system-ui,sans-serif}
+.an-braille{font:500 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -73,6 +90,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     <h2>Scenarios</h2>
     <p class="note" style="margin-bottom:10px">Each one is the live card in that state.</p>
     <div class="groups" id="groups"></div>
+  </section>
+
+  <section>
+    <h2>Proposal: something alive beside the step</h2>
+    <p class="note" style="margin-bottom:10px">While a session works, the card's last line says what it is doing, in grey with a passing light. Each option puts a small animation to its left, in the working colour. They stop when the step is done, and stand still with reduced motion.</p>
+    <div class="props" id="propNow"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -196,5 +219,56 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   showTab(saved < boxes.length ? saved : 0);
   btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
+})();
+</script>
+<script>
+/* Proposal: an animation beside the working step. Drawn with the card's own classes (.shimmer, the type sizes). */
+(function () {
+  var BLUE = '#8DC8E8', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var OPTS = [
+    ['star', 'Claude’s star', true, 'The star Claude Code itself turns while it thinks, its glyph stepping from a dot to a full asterisk and back. Anyone who uses Claude Code knows what it means.'],
+    ['orb', 'A dotted orb', false, 'A tiny globe of dots turning on its axis, the nearer dots brighter. After the thinking orbs; reads as busy without being loud.'],
+    ['orbit', 'Three in orbit', false, 'Three points circling on a tilted ring, bigger as they come round the front. Calm and continuous.'],
+    ['braille', 'A terminal spinner', false, 'The braille spinner terminals use: dots chasing round a cell. Fits a tool for people who live in terminals.'],
+    ['none', 'Today: nothing', false, 'Only the passing light on the words.']
+  ];
+  function card(o) {
+    return '<div class="prop"><h3>' + o[1] + (o[2] ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + o[3] + '</p>' +
+      '<div class="pstage"><div class="pcard perch">' +
+        '<div style="display:flex;align-items:center;gap:11px;padding:0 16px"><svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#D97757"/><g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g></svg>' +
+        '<div style="min-width:0;flex:1"><div style="display:flex;align-items:baseline;gap:8px"><span class="truncate text-sm font-semibold" style="flex:1;letter-spacing:-.02em">Rate limiter for the public API</span><span class="text-xs" style="color:' + BLUE + '">Working</span></div>' +
+        '<p class="truncate text-[13px] leading-[18px] text-muted-foreground" style="margin:0">api-server</p></div></div>' +
+        '<p class="text-[13px] leading-[18px]" style="margin:10px 16px 0">Adding a token bucket per API key, with the limits read from config.</p>' +
+        '<div class="nowrow">' + (o[0] === 'none' ? '' : '<span class="an" data-an="' + o[0] + '"></span>') + '<span class="shimmer min-w-0 flex-1 truncate" data-shine="Running the rate limiter tests">Running the rate limiter tests</span></div>' +
+      '</div></div></div>';
+  }
+  document.getElementById('propNow').innerHTML = OPTS.map(card).join('');
+
+  /* Claude Code's star: · ✢ ✳ ✶ ✻ ✽, out and back */
+  var STAR = ['·', '✢', '✳', '✶', '✻', '✽'], STARS = STAR.concat(STAR.slice(1, -1).reverse());
+  var BRAILLE = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  function canvas(el) { var c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = c.height = 16 * d; el.appendChild(c); var g = c.getContext('2d'); g.scale(d, d); return g; }
+  /* points on a sphere, spread evenly */
+  var SPH = []; for (var i = 0, n = 42; i < n; i++) { var y = 1 - (i + .5) / n * 2, r = Math.sqrt(1 - y * y), th = i * 2.39996; SPH.push([Math.cos(th) * r, y, Math.sin(th) * r]); }
+  var draws = [];
+  document.querySelectorAll('#propNow .an').forEach(function (el) {
+    var k = el.dataset.an;
+    if (k === 'star') { el.className += ' an-star'; draws.push(function (t) { el.textContent = STARS[Math.floor(t / 130) % STARS.length]; }); }
+    if (k === 'braille') { el.className += ' an-braille'; draws.push(function (t) { el.textContent = BRAILLE[Math.floor(t / 80) % BRAILLE.length]; }); }
+    if (k === 'orb') { var g = canvas(el); draws.push(function (t) {
+      g.clearRect(0, 0, 16, 16); var a = t / 1400, ca = Math.cos(a), sa = Math.sin(a), tilt = .45, ct = Math.cos(tilt), st = Math.sin(tilt);
+      SPH.map(function (p) { var x = p[0] * ca + p[2] * sa, z = -p[0] * sa + p[2] * ca, y = p[1] * ct - z * st; z = p[1] * st + z * ct; return [x, y, z]; })
+        .sort(function (u, v) { return u[2] - v[2]; })
+        .forEach(function (p) { var f = (p[2] + 1) / 2; g.globalAlpha = .18 + .82 * f; g.fillStyle = BLUE; g.beginPath(); g.arc(8 + p[0] * 6.4, 8 + p[1] * 6.4, .45 + .55 * f, 0, Math.PI * 2); g.fill(); });
+    }); }
+    if (k === 'orbit') { var h = canvas(el); draws.push(function (t) {
+      h.clearRect(0, 0, 16, 16); var a = t / 700;
+      [0, 1, 2].map(function (j) { var b = a + j * 2.0944, z = Math.sin(b); return [Math.cos(b) * 6, z * 2.4 - Math.cos(b) * 1.2, z]; })
+        .sort(function (u, v) { return u[2] - v[2]; })
+        .forEach(function (p) { var f = (p[2] + 1) / 2; h.globalAlpha = .35 + .65 * f; h.fillStyle = BLUE; h.beginPath(); h.arc(8 + p[0], 8 + p[1], 1 + 1 * f, 0, Math.PI * 2); h.fill(); });
+    }); }
+  });
+  function loop(t) { draws.forEach(function (d) { d(t); }); if (!reduce) requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
 })();
 </script>
