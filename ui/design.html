@@ -122,6 +122,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
+    ['Proposal: moving between sessions', [
+      ['Hop', 'With each move, in the list or flipping cards with Up and Down, the character hops, eyes toward where you went, and lands in the new session\u2019s mood: wide-eyed if it needs you, a happy squint if it finished. Plays six moves in the list, ending on one that needs you; then try Up, Down and Right yourself.', function () { d.fx('hop'); }],
+      ['Fetch', 'As you move, it pops up into the notch as if to get the next one, and drops back in with it, landing with a squash. The most playful. Plays six moves in the list, ending on one that needs you.', function () { d.fx('fetch'); }],
+      ['Watch', 'The quietest: its eyes follow the row you are on and it blinks with each step. Landing on one that needs you startles it; on one that finished, it smiles. Plays six moves in the list, ending on one that needs you.', function () { d.fx('watch'); }]
+    ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', 'off', true); }],
@@ -164,7 +169,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fx(''); fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

@@ -343,7 +343,7 @@
   /* The card's edge springs to a new height (input.css, .n), but the words inside reflow at once, so what sits below
      them would jump. Each block glides from where it was on the same spring instead; on another session's card the new
      words also settle in. */
-  var cardId = null;
+  var cardId = null, cardSel = 0;
   function settleCard(change, fresh) {
     var els = [].slice.call(q('.p-open').querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
     var said = els.map(function (el) { return el.textContent; });
@@ -498,6 +498,7 @@
     }
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
+    if (lastSel >= 0 && s.selected !== lastSel) { var dir = s.selected > lastSel ? 1 : -1, row = sel; setTimeout(function () { switched(dir, s.projects[s.selected], row); }, 0); }   /* after layout sets its face */
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
   }
   /* the design page's sample data has no section from Swift: worked out the same way */
@@ -738,8 +739,10 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; setAppAt = 0; }
     if (st === 'setup') setup(s.setup);
+    var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
-    cardId = st === 'open' && p ? p.id : null;
+    if (flipped) setTimeout(function () { switched(s.selected >= cardSel ? 1 : -1, p); }, 0);   /* after layout sets its mood */
+    cardId = st === 'open' && p ? p.id : null; cardSel = s.selected;
     moments(s, st);
     activity(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
@@ -787,6 +790,38 @@
     if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek')) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
+  /* ---- moving between sessions: the character takes part. A proposal: off in the app until one is chosen; the design
+     page plays each (perchDev.fx).
+       hop    a small hop with each move, eyes toward where you went; it lands in the new session's mood.
+       fetch  it pops up into the notch as the old session leaves and drops back in with the new one.
+       watch  its eyes follow the row you are on and it blinks with each step; a row that needs you startles it, one
+              that finished pleases it.
+     A held arrow only moves its eyes; one move at a time is the most it acts out. ---- */
+  var switchFx = '', fxAt = 0;
+  function switched(dir, p, row) {
+    if (!switchFx || celebrating || hello) return;
+    var ci = cr.querySelector('.cr-in'), now = Date.now(), held = now - fxAt < 380; fxAt = now;
+    tracking = true; clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1400);
+    if (row) {
+      var r = row.getBoundingClientRect(), c = cr.getBoundingClientRect(), dx = r.left + 80 - (c.left + c.width / 2), dy = r.top + r.height / 2 - (c.top + c.height / 2), d = Math.max(1, Math.hypot(dx, dy));
+      look(dx / d * 2.6, dy / d * 2.2);
+    } else look(.8, dir > 0 ? 2 : -2);
+    if (held || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    var mood = !p ? '' : p.ask || p.status.kind === 'attention' ? 'alert' : p.status.kind === 'done' && p.fresh !== false ? 'happy' : '';
+    if (switchFx === 'hop') { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); }
+    else if (switchFx === 'fetch') ci.animate([{ transform: 'none' }, { transform: 'translateY(2px) scale(1.16,.82)', offset: .18 },
+      { transform: 'translateY(-28px) scale(.86,1.16)', opacity: 1, offset: .4 }, { transform: 'translateY(-28px)', opacity: 0, offset: .46 },
+      { transform: 'translateY(-10px) scale(.9,1.12)', opacity: 1, offset: .62 }, { transform: 'translateY(1px) scale(1.14,.84)', offset: .8 },
+      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .9 }, { transform: 'none' }], { duration: 760, easing: 'cubic-bezier(.3,.8,.4,1)' });
+    else if (switchFx === 'watch') {
+      cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110);
+      if (row && mood) {
+        var was = cr.dataset.m; cr.dataset.m = mood;
+        ci.classList.remove('squish'); void ci.offsetWidth; ci.classList.add('squish');
+        setTimeout(function () { if (cr.dataset.m === mood && lastSt === 'switch') cr.dataset.m = was; }, 900);
+      }
+    }
+  }
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
   var trackTimer = null;
   /* A card opened by hovering gets no pointer moves from WebKit until it is clicked: the pointer was already over it.
@@ -1433,6 +1468,12 @@
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
+      /* the switching proposals: pick a style and watch it move through the list a few times */
+      fx: function (kind) {
+        switchFx = kind; if (!kind) return;
+        window.perchDev.show('switcher');
+        [1, 1, 1, -1, -1, -1].forEach(function (d, i) { setTimeout(function () { if (switchFx === kind && lastSt === 'switch') window.perchDev.step(d); }, 900 + i * 850); });
+      },
       noAccess: function (waiting) { base.canSend = false; base.allowing = !!waiting; base.once = true; },
       /* a session you are not in finishes while you work: the character pops out, happy, and tucks back in */
       finish: function () { var q2 = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, status: x.id === 'docs' ? { kind: 'running', text: 'Codex is working', app: 'codex' } : x.status, fresh: false }); }); apply(Object.assign({}, base, { character: charNow, projects: q2, phase: 'idle', timerToken: Math.random() }));
