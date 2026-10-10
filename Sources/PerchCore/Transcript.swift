@@ -190,7 +190,7 @@ public enum Recap {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
         let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
-        let name = titled ? title! : URL(fileURLWithPath: cwd).lastPathComponent
+        let name = titled ? title! : folderName(cwd)
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
         let settled = outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
@@ -211,6 +211,13 @@ public enum Recap {
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         return p
+    }
+
+    /// The project a folder belongs to: its own name, or for a worktree the Claude app made inside a repo
+    /// (<repo>/.claude/worktrees/<name>, a task started in its own worktree) the repo's.
+    public static func folderName(_ cwd: String) -> String {
+        if let r = cwd.range(of: "/.claude/worktrees/") { return (String(cwd[..<r.lowerBound]) as NSString).lastPathComponent }
+        return (cwd as NSString).lastPathComponent
     }
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.

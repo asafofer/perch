@@ -486,6 +486,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     // MARK: on-device recaps
     private var enriching = false
+    /// Recaps already asked for (by cache key), so one the model could not write is not asked for again and again.
+    private var recapTried = Set<String>()
 
     /// Cached model-written recaps apply instantly.
     private func applyCachedRecaps() { projects = recapped(projects) }
@@ -502,20 +504,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard !enriching, let real = provider as? RealSessionProvider, AppleRecapEngine.unavailableReason == nil else { return }
         // Only sessions that have settled: a working session changes every few seconds, and each change would cost a model run.
         let todo = projects.compactMap { p -> (String, SessionDigest, GitInfo?, String, String, String)? in
-            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil else { return nil }
+            guard p.status.kind != "running", let input = real.inputs[p.id], let key = RecapCache.key(for: input.digest), RecapCache.shared.get(key) == nil, !recapTried.contains(key) else { return nil }
             return (p.id, input.digest, input.git, p.name, key, p.app == "codex" ? "Codex" : "Claude")
         }
         guard !todo.isEmpty else { return }
         enriching = true
+        // A session can move on while the model writes (a model run takes seconds): a recap lands only on the state it was
+        // written for, never on a newer turn, and whatever settled in the meantime gets its own when this round ends.
+        let current = { (id: String) in real.inputs[id].flatMap { RecapCache.key(for: $0.digest) } }
         Task { [weak self] in
             for (id, digest, git, name, key, agent) in todo {
+                guard current(id) == key else { continue }
+                self?.recapTried.insert(key)
                 guard let r = await AppleRecapEngine.recap(digest: digest, git: git, name: name, agent: agent) else { continue }
                 RecapCache.shared.set(key, r)
-                guard let self, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
+                guard let self, current(id) == key, let i = self.projects.firstIndex(where: { $0.id == id }) else { continue }
                 self.projects[i] = RecapMerge.apply(r, to: self.projects[i], grounding: digest)
                 self.push()
             }
             self?.enriching = false
+            self?.enrich()
         }
     }
 
