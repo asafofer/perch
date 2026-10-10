@@ -32,28 +32,36 @@
   /* Return (the only key drawn as an icon) is a little wider with its arrow at the right, like the key itself */
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
+  /* each agent's name, and the short one sentences and buttons use */
+  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'] };
+  function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
+  function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   function App(k, c) {
     if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[k] + '" alt="">';
-    /* stand-ins for the design page; the app always has the real icons */
+    /* stand-ins for the design page; the app has the real icons. pi has no app, and OpenCode's app is optional: both draw
+       their own published marks (pi.dev's logo, opencode.ai's), not ours. */
     var g = {
       claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
-      codex: ['#F4F4F5', '<path d="M8 9.2l3 2.8-3 2.8M12.6 15h3.6" stroke="#18181B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>']
+      codex: ['#F4F4F5', '<path d="M8 9.2l3 2.8-3 2.8M12.6 15h3.6" stroke="#18181B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
+      opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
+      pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
   }
-  /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex) as a
-     small badge on its corner. A session in the Claude or Codex app keeps that app's icon. */
+  /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
+     OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
+     the terminal is the one showing herdr. */
   var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed' };
   function AppOf(p, c) {
     if (!p.via) return App(p.app, c);
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
     var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[p.via] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="' + (p.app === 'codex' ? 'Codex' : 'Claude Code') + ' in ' + esc(TERMS[p.via] || 'a terminal') + '">' + term +
+    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[p.via] || 'a terminal') + '">' + term +
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, 'size-full') + '</span></span>';
   }
   /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
-  function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : p && (p.app === 'codex' || (p.status && p.status.app === 'codex')) ? 'Codex' : 'Claude'); }
+  function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : agentShort(p && (p.app || (p.status && p.status.app)))); }
   /* The arc turns inside its own drawing, around its own centre (12, 12). Turning the whole icon with CSS made it wobble
      wherever it sat on a fraction of a pixel (beside a project name of any width): it circled a centre a little off its own. */
   var STILL = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -555,7 +563,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Claude Code and Codex sessions from the last two weeks show up here.</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -838,7 +846,7 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', setup: 'setup', onboarding: 'onb', settings: 'set' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
-    if (p) rIn.placeholder = 'Reply to ' + (p.app === 'codex' || p.status.app === 'codex' || /codex/i.test(p.status.text) ? 'Codex' : 'Claude') + '\u2026';
+    if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
     applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; setAppAt = 0; }
@@ -1233,7 +1241,7 @@
       /* Hello: the character lands on the notch, wakes up and says who it is, then shows what it does with two sessions */
       h = oi(0, '<div class="flex items-start gap-3 px-4 pt-0.5"><div class="hi-cr relative grid size-[60px] flex-none place-items-center">' + crHtml('cr-hi', 52, shapeOf(charNow.shape), 'sleep') + '</div>' +
             '<div class="min-w-0 flex-1 pt-1"><p class="hi-say inline-block rounded-2xl rounded-bl-md bg-white/[0.09] px-3 py-1.5 text-[15px] font-semibold leading-5 tracking-[-0.02em]"><span class="hi-t"></span><span class="hi-ghost invisible">Hi, I\u2019m Perch.</span></p>' +
-            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch. While you\u2019re away I keep an eye on Claude Code and Codex, and when you\u2019re back I\u2019ll tell you where you left off.</p></div></div>') +
+            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch. While you\u2019re away I keep an eye on your coding agents, and when you\u2019re back I\u2019ll tell you where you left off.</p></div></div>') +
         oi(1, '<div class="hi-demo mt-3 flex flex-col gap-1 px-2.5">' + introRow(0, 'claude', 'Website', 'Hero spacing') + introRow(1, 'codex', 'Docs', 'Install guide') + '</div>') +
         ofoot(2, false, '', 'Nice to meet you', 'next');
     } else if (st === 1) {
@@ -1259,14 +1267,15 @@
         return '<div class="flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3"><span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block text-[13px] font-medium leading-4">' + x.name + '</span><span class="block truncate text-xs leading-4 text-muted-foreground">' + sub + '</span></span>' + (o.scanning ? Spinner('size-3.5') : '') + sw + '</div>';
       }).join('');
       h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-1.5 px-4">' + rows + '</div>') +
+        /* more than two agents sit two to a row, so the card keeps its height */
+        oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 4) {
       var live = o.live === 'on';
-      h = otitle(o, 'Know the moment they need you', 'Claude Code and Codex tell Perch when they finish or need your OK, and you can answer from the notch.') +
+      h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each app. You can remove it in Settings.') + '</p>') +
+        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.') + '</p>') +
         ofoot(5, true, live ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
     } else if (st === 5) {
       var sm = { ready: ['Apple Intelligence is on', 'All set. Summaries run on your Mac.'], off: ['Turn on Apple Intelligence', 'Takes a few minutes the first time.'], downloading: ['Downloading the model\u2026', 'A few GB. Keep working, this finishes on its own.'], unsupported: ["This Mac can't run it", 'Summaries stay plain, which still works.'] }[o.summaries] || ['', ''];
@@ -1407,7 +1416,7 @@
     var rows = [
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), '<span class="flex gap-1">' + o.sources.map(function (x) {
-        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? APP_ON : APP_OFF) + '">' + App(x.id, 'size-4') + (x.id === 'codex' ? 'Codex' : 'Claude') + '</button>';
+        return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-k="' + x.id + '" class="s-app inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1 pr-2 text-xs transition ' + (x.enabled ? APP_ON : APP_OFF) + '">' + App(x.id, 'size-4') + agentShort(x.id) + '</button>';
       }).join('') + '</span>'),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
@@ -1556,7 +1565,12 @@
       { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You asked: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', via: 'terminal', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
-      { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }
+      { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      /* the other agents: OpenCode at work in Ghostty, and pi in a herdr pane (herdr shown in Ghostty) */
+      { id: 'tui', name: 'tui-kit', via: 'ghostty', branch: 'main', away: '2m', at: '12:03 PM', headline: 'Keyboard focus for the table.', context: 'Moving focus with the arrow keys, then making Tab leave the table.', now: 'Running `bun test`', next: '', topic: 'Keyboard focus for the table component', app: 'opencode', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'OpenCode is working', app: 'opencode' },
+        said: 'Arrow keys now move focus between cells, and Home and End jump to the ends of a row. I am running the tests before I touch Tab.' },
+      { id: 'scraper', name: 'price-scraper', via: 'ghostty', host: 'herdr', branch: 'main', away: '12m', at: '11:52 AM', headline: 'You were retrying failed pages.', context: 'Failed pages now retry three times with backoff, and the run log lists the ones that never loaded.', next: 'Run it against the full catalogue', topic: 'Retry failed pages with backoff', app: 'pi', attention: false, fresh: true, line: 'Finished 12m ago', status: { kind: 'done', text: 'pi finished', app: 'pi' },
+        said: 'Failed pages now retry three times, waiting 1, 4 and 16 seconds. Pages that still fail go to `failed.txt` with their status code.\n\nNext: run it against the full catalogue.' }
     ];
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
@@ -1588,9 +1602,10 @@
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], summaries: 'ready', accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
       },
-      onboarding: function (step, accessibility, summaries, only, live) {
+      onboarding: function (step, accessibility, summaries, only, live, all) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
+        if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
         apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
           onboarding: { step: step, total: 7, accessibility: !!accessibility, summaries: summaries || 'off', scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
       },

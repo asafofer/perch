@@ -112,6 +112,16 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
       ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }]
     ]],
+    ['More agents', [
+      ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', null, false, true); }],
+      ['OpenCode needs your OK', 'OpenCode asks before running a command. Allow with A or Deny with D from the notch, or answer in OpenCode: whichever comes first.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode wants to run a command', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'OpenCode wants to run a command', subject: 'rm -rf dist && bun run build', options: [], answerable: true } }); }],
+      ['OpenCode asked you something', 'Its question tool, answered with a number.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode asked you something', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'OpenCode asked you something', subject: 'Should Tab leave the table or move to the next cell?', answerable: true, questions: [Q('Should Tab leave the table or move to the next cell?', 'Tab key', [['Leave the table (Recommended)', 'Like a native grid: arrows move, Tab leaves'], ['Next cell', 'Like a spreadsheet']])] } }); }],
+      ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', null, false, true); }],
+      ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
+      ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
+      ['Settings: four agents', 'The Apps row with an agent of each kind.', function () { d.settings({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }, { id: 'opencode', name: 'OpenCode', enabled: true }, { id: 'pi', name: 'pi', enabled: false }] }); }],
+      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(3, true, null, false, null, true); }]
+    ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
@@ -154,7 +164,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows a session finishing and one needing you.', function () { d.onboarding(0); }],
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
       ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
-      ['3. Choose your apps', 'Claude and Codex, on or off.', function () { d.onboarding(3, true); }],
+      ['3. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(3, true); }],
       ['4. Live status', 'The hook, with consent.', function () { d.onboarding(4, true); }],
       ['4. Live status: on', 'Ticked.', function () { d.onboarding(4, true, null, false, 'on'); }],
       ['5. Better summaries', 'Apple Intelligence: off, downloading or on.', function () { d.onboarding(5, true, 'off'); }],
