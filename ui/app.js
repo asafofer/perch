@@ -808,16 +808,22 @@
     } else look(.8, dir > 0 ? 2 : -2);
     if (held || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     var mood = !p ? '' : p.ask || p.status.kind === 'attention' ? 'alert' : p.status.kind === 'done' && p.fresh !== false ? 'happy' : '';
-    if (switchFx === 'hop') { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); }
-    else if (switchFx === 'fetch') ci.animate([{ transform: 'none' }, { transform: 'translateY(2px) scale(1.16,.82)', offset: .18 },
-      { transform: 'translateY(-28px) scale(.86,1.16)', opacity: 1, offset: .4 }, { transform: 'translateY(-28px)', opacity: 0, offset: .46 },
-      { transform: 'translateY(-10px) scale(.9,1.12)', opacity: 1, offset: .62 }, { transform: 'translateY(1px) scale(1.14,.84)', offset: .8 },
-      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .9 }, { transform: 'none' }], { duration: 760, easing: 'cubic-bezier(.3,.8,.4,1)' });
+    /* script animations, so a class left from an earlier one (running home, perching) cannot cover them */
+    ci.style.transformOrigin = '50% 100%';
+    /* each stretch eases on its own: out of a crouch, up slowing, down speeding, a settle */
+    var up = 'cubic-bezier(.2,.8,.4,1)', down = 'cubic-bezier(.6,0,.8,.4)';
+    if (switchFx === 'hop') ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(1px) scale(1.14,.86)', offset: .16, easing: up },
+      { transform: 'translateY(-9px) scale(.9,1.12)', offset: .46, easing: down }, { transform: 'translateY(1px) scale(1.12,.88)', offset: .74, easing: up },
+      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .88, easing: up }, { transform: 'none' }], { duration: 520 });
+    else if (switchFx === 'fetch') ci.animate([{ transform: 'none', easing: up }, { transform: 'translateY(2px) scale(1.16,.82)', offset: .18, easing: down },
+      { transform: 'translateY(-28px) scale(.86,1.16)', opacity: 1, offset: .4 }, { transform: 'translateY(-28px)', opacity: 0, offset: .46, easing: down },
+      { transform: 'translateY(-10px) scale(.9,1.12)', opacity: 1, offset: .62, easing: down }, { transform: 'translateY(1px) scale(1.14,.84)', offset: .8, easing: up },
+      { transform: 'translateY(-1px) scale(.97,1.03)', offset: .9, easing: up }, { transform: 'none' }], { duration: 760 });
     else if (switchFx === 'watch') {
       cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 110);
       if (row && mood) {
         var was = cr.dataset.m; cr.dataset.m = mood;
-        ci.classList.remove('squish'); void ci.offsetWidth; ci.classList.add('squish');
+        ci.animate([{ transform: 'none', easing: up }, { transform: 'scale(1.18,.8)', offset: .3, easing: up }, { transform: 'scale(.9,1.12)', offset: .55, easing: up }, { transform: 'scale(1.04,.97)', offset: .78, easing: up }, { transform: 'none' }], { duration: 600 });
         setTimeout(function () { if (cr.dataset.m === mood && lastSt === 'switch') cr.dataset.m = was; }, 900);
       }
     }
