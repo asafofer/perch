@@ -258,7 +258,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   /* a soft, still glow in the mark's own colour, if asked for */
   function Mark(r) {
     var m = Mark0(r), col = r.st === 'working' ? C.running : r.st === 'done' ? C.done : C.attention;
-    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 1.5px ' + col + ') drop-shadow(0 0 5px ' + col + 'b3)"') : m;
+    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 1px ' + col + '99) drop-shadow(0 0 4px ' + col + '66)"') : m;
   }
   function Mark0(r) {
     if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
@@ -307,7 +307,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('With a glow', true, 'Each ring lit in its own colour, a close halo and a softer one around it, still. Enough to see from across the card.', 'proj', 'ring', true) +
+      card('With a glow', true, 'Each ring lit faintly in its own colour, a close halo and a softer one around it, still.', 'proj', 'ring', true) +
       card('Without', false, 'The same rings, no glow.', 'proj', 'ring');
   }
   draw();
