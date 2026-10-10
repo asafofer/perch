@@ -100,6 +100,18 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
     ] } };
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
+  /* Proposed wording for the break setting, drawn over the real Settings until one is chosen: the label, and an optional line under the row */
+  function away(label, hint) {
+    return function () {
+      d.settings();
+      setTimeout(function () {
+        var r = document.querySelectorAll('.p-set .s-row')[3];
+        if (!r) return;
+        r.firstElementChild.textContent = label;
+        if (hint) r.insertAdjacentHTML('afterend', '<p class="mx-2 truncate px-2 text-xs text-muted-foreground" style="margin-top:-5px;padding-bottom:3px">' + hint + '</p>');
+      }, 450);
+    };
+  }
   var GROUPS = [
     ['Coming back', [
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
@@ -160,7 +172,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings', 'The gear on the card or the list, or Command+comma.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off' }); }],
       ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, true); }],
-      ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
+      ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }],
+      ['Break: away for at least', 'Proposed. How long you are away from the Mac before it counts as a break, so the card tells you where you left off when you come back. Not a reminder after an agent replies.', away('Away for at least')],
+      ['Break: away from your Mac', 'Proposed. Names what you are away from, so it reads as one sentence: away from your Mac for 20 min.', away('Away from your Mac for')],
+      ['Break: with a line', 'Proposed. The same, with a line saying what happens after. The card stays under 300 pt.', away('Away from your Mac for', 'Then Perch shows where you left off when you come back.')]
     ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows a session finishing and one needing you.', function () { d.onboarding(0); }],
