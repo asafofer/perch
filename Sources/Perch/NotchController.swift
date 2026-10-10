@@ -963,7 +963,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: refreshing, sources: sourcesState(), only: onbOnly, live: liveState)
+        // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
+        // (and start a scan) every half second while an agent works.
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState)
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
@@ -1015,7 +1017,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let self, self.machine.phase == .onboarding || self.machine.phase == .settings else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
-                let key = "\(trusted)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
+                let key = "\(trusted)|\(self.scannedOnce)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
                 if key != last { last = key; self.push() }
             }
         }
