@@ -70,6 +70,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .plist .row{cursor:default}
 /* take two: the mark's slot, the project column, the badge on the icon */
 .plist .mk{width:15px;height:15px;flex:none;display:grid;place-items:center}
+.plist .mk-r{width:14px;height:14px}
+.plist .mk-s{width:14px;height:14px;flex:none;border-radius:50%;display:grid;place-items:center;color:#000;font:800 9.5px/1 Inter,sans-serif}
+.plist .mk-s svg.mk-g{width:8px;height:8px}
 .plist .mslot{width:15px;flex:none;display:flex;justify-content:flex-end}
 .plist .pcol{min-width:0;max-width:38%;flex:none}
 .plist .bdg{position:absolute;right:-4px;top:-4px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 1.5px #000;display:grid;place-items:center;color:#000;font:800 8px/1 Inter,sans-serif}
@@ -97,8 +100,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </section>
 
   <section>
-    <h2>Proposal: the list row, take two</h2>
-    <p class="note" style="margin-bottom:10px">The time follows the session's name, the project moves to the right, and status is a mark: a spinner while it works, the check the notch already shows when it finished, an orange mark when it needs you (the live activity's: a prompt for a command, ? for a question). Seen and idle sessions get no mark. Three places for the mark.</p>
+    <h2>Proposal: the list row, take three</h2>
+    <p class="note" style="margin-bottom:10px">Session, time, mark, then the project on the right. The mark: a spinner while it works, a check when it finished and you have not seen it, orange when it needs you (! for a command to allow, ? for a question). Seen and idle sessions get none. Three ways to draw the marks so they read as clearly as the spinner.</p>
     <div class="props" id="propRow"></div>
   </section>
 
@@ -247,13 +250,22 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var CHECK = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   var CMD = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg>';
   function Spin(c) { return '<svg class="animate-spin flex-none ' + (c || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
-  /* the mark: the same ones the live activity uses (app.js MARK) */
+  /* the mark, in one of three styles. tint: the live activity's (app.js MARK), a faint disc. solid: a full disc, dark glyph.
+     ring: the spinner's family, a coloured circle drawn like it (a full ring with the glyph inside). */
+  var MS = 'tint';
+  function ringSvg(col, inner) { return '<svg class="mk-r" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/>' + inner + '</svg>'; }
   function Mark(r) {
     if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
+    var need = r.st === 'run-cmd' || r.st === 'question';
+    if (!need && r.st !== 'done') return '';
+    if (MS === 'solid') return '<span class="mk-s" style="background:' + (need ? C.attention : C.done) + '">' +
+      (r.st === 'done' ? CHECK.replace('size-2.5', 'mk-g').replace('stroke-width="2"', 'stroke-width="3.6"') : r.st === 'question' ? '?' : '!') + '</span>';
+    if (MS === 'ring') return '<span class="mk">' + (r.st === 'done' ? ringSvg(C.done, '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>')
+      : r.st === 'question' ? ringSvg(C.attention, '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>')
+      : ringSvg(C.attention, '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>')) + '</span>';
     if (r.st === 'done') return '<span class="act-m ok">' + CHECK + '</span>';
     if (r.st === 'run-cmd') return '<span class="act-m">' + CMD + '</span>';
-    if (r.st === 'question') return '<span class="act-m">?</span>';
-    return '';
+    return '<span class="act-m">?</span>';
   }
   /* on the icon's corner: solid, with a black ring, so it reads over the icon */
   function Badge(r) {
@@ -281,15 +293,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, at);
     }).join('') + '</div></div>';
   }
-  function card(title, pick, text, at) {
+  function card(title, pick, text, at, ms) {
+    MS = ms || 'tint';
     return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(at) + '</div>';
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('Session, time, mark, then the project', true, 'Your layout. The row reads left to right: what it is, how long ago, how it stands. The project sits apart on the right. A session that is working has no time, so its spinner follows the title.', 'after') +
-      card('A. Mark at the far right', false, 'Status gets its own column at the edge, so one glance down the right side tells you what is working, done or waiting. The projects line up beside it; a row with no mark keeps the space so they stay aligned.', 'end') +
-      card('B. Mark beside the time', false, 'Status sits with the session it belongs to: the title, its mark, how long ago. The project has the right side to itself. The marks do not line up, so they are harder to scan.', 'time') +
-      card('C. Mark on the icon', false, 'The quietest: a small badge on the app icon’s corner, the rest of the row is just words. Small, though, and next to a terminal session’s badge it gets busy.', 'icon');
+      card('1. Faint discs (the notch’s marks)', false, 'What the live activity uses: a faint tinted disc with a small glyph. Next to the spinner they fade into the row.', 'after', 'tint') +
+      card('2. Solid discs', false, 'The same marks filled in, the glyph dark on the colour. The most visible; the green and orange are the only solid colour in the list, so they jump out, perhaps more than a quiet list wants.', 'after', 'solid') +
+      card('3. Rings, like the spinner', true, 'One family with the spinner: a full ring in the status colour with its glyph drawn inside, the same size and line weight. As visible as the spinner, no heavier.', 'after', 'ring');
   }
   draw();
   fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
