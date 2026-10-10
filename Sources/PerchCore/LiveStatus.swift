@@ -195,6 +195,17 @@ public struct LiveStatus: Equatable, Sendable {
     }
 }
 
+extension LiveStatus {
+    /// Whether what the hooks said still stands for this session: it is not much older than the transcript, and you did not
+    /// stop the session after it. A stop sends Claude no hook, so only the transcript knows; a hook a moment after it is
+    /// the stopped turn's last tool finishing.
+    public func holds(for p: Project) -> Bool {
+        guard at >= (p.lastActive ?? .distantPast).addingTimeInterval(-30) else { return false }
+        if let stop = p.stoppedAt, stop.addingTimeInterval(2) >= at { return false }
+        return true
+    }
+}
+
 extension Project {
     /// The same project with what its hooks said in place of what the transcript suggested.
     public func applying(_ live: LiveStatus) -> Project {
@@ -216,7 +227,7 @@ extension Project {
                         topic: topic, app: app, agents: [status], steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
-        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via
+        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.stoppedAt = stoppedAt
         p.now = live.kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p

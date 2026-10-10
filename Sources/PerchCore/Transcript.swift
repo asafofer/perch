@@ -19,6 +19,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var pendingTool: PendingTool?
     /// You stopped the agent (Esc, or Codex's turn was aborted) and have not written since.
     public var interrupted = false
+    /// When you stopped it, while `interrupted`.
+    public var stoppedAt: Date?
     /// The last thing you asked that says something: "yes", "ok go ahead" and "push it" are skipped.
     public var lastAsk: String?
     /// The agent used a tool (edited, ran, searched) somewhere in the part of the session that was read.
@@ -84,6 +86,7 @@ public enum TranscriptParser {
                 }
             } else if isInterrupt(message?["content"]) {
                 d.turnOpen = false; d.interrupted = true; open = []
+                d.stoppedAt = (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }
             } else {
                 d.turnOpen = true
                 let answered = Set(blocks.compactMap { $0["type"] as? String == "tool_result" ? $0["tool_use_id"] as? String : nil })
@@ -94,7 +97,7 @@ public enum TranscriptParser {
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
-            d.interrupted = false
+            d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }
@@ -204,6 +207,7 @@ public enum Recap {
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
+        p.stoppedAt = d.interrupted ? d.stoppedAt : nil
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         return p
@@ -385,7 +389,7 @@ extension Project {
         let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
                         topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.said = said
+        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.said = said; p.stoppedAt = stoppedAt
         return p
     }
 }
@@ -465,6 +469,7 @@ extension Project {
                         context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
                         agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via; p.said = said
+        p.stoppedAt = stoppedAt
         return p
     }
 }
@@ -483,7 +488,8 @@ public enum CodexTranscript {
                   let payload = o["payload"] as? [String: Any] else { continue }
             let type = o["type"] as? String
             if type == "event_msg", let kind = payload["type"] as? String {
-                if kind == "task_started" { d.turnOpen = true; d.interrupted = false } else if kind == "task_complete" { d.turnOpen = false } else if kind == "turn_aborted" { d.turnOpen = false; d.interrupted = true }
+                if kind == "task_started" { d.turnOpen = true; d.interrupted = false; d.stoppedAt = nil } else if kind == "task_complete" { d.turnOpen = false }
+                else if kind == "turn_aborted" { d.turnOpen = false; d.interrupted = true; d.stoppedAt = (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) } }
             }
             if type == "response_item", let kind = payload["type"] as? String, kind.hasSuffix("_call") {
                 d.didWork = true
@@ -506,7 +512,7 @@ public enum CodexTranscript {
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
-            if role == "assistant" { d.interrupted = false }
+            if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }

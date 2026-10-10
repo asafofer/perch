@@ -399,7 +399,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Live hook status over the transcript's guess, then cached model words, then what needs you first.
     private func decorate(_ list: [Project]) -> [Project] {
         let withLive = list.map { p -> Project in
-            guard let l = live[p.sessionId ?? p.id], l.at >= (p.lastActive ?? .distantPast).addingTimeInterval(-30) else { return p }
+            guard let l = live[p.sessionId ?? p.id], l.holds(for: p) else { return p }
             return p.applying(l)
         }
         let since = newsSince

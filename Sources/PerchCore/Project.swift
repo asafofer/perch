@@ -48,6 +48,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var via: String?
     /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
     public var said: String?
+    /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
+    public var stoppedAt: Date?
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,

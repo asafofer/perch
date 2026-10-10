@@ -93,4 +93,23 @@ import Foundation
         #expect(done.status.kind == "done"); #expect(done.context == "The hero now fits at phone width."); #expect(done.ask == nil)
         #expect(p.applying(LiveStatus(kind: .failed, at: Date())).status.text == "Claude stopped on an error")
     }
+
+    /// Stop in the Claude app sends no hook: the last one said working. The transcript's interruption, after it, wins.
+    @Test func aStopInTheAppBeatsTheLastHook() {
+        let lines = [
+            #"{"type":"user","sessionId":"s","cwd":"/Users/a/site","timestamp":"2026-10-10T07:56:00.000Z","message":{"content":"run it locally"}}"#,
+            #"{"type":"assistant","sessionId":"s","timestamp":"2026-10-10T07:56:39.510Z","message":{"stop_reason":"tool_use","content":[{"type":"text","text":"Reopening the app."},{"type":"tool_use","id":"t1","name":"Bash"}]}}"#,
+            #"{"type":"user","timestamp":"2026-10-10T07:56:40.574Z","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"rejected"}]}}"#,
+            #"{"type":"user","timestamp":"2026-10-10T07:56:40.575Z","message":{"content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}"#,
+        ]
+        let d = TranscriptParser.digest(lines: lines)
+        let p = Recap.project(digest: d, git: nil, now: d.lastTimestamp!.addingTimeInterval(60))!
+        #expect(p.stoppedAt != nil); #expect(p.status.text == "You stopped Claude")
+        let lastTool = d.lastTimestamp!.addingTimeInterval(-5)
+        #expect(!LiveStatus(kind: .working, at: lastTool).holds(for: p))
+        // Writing again starts a new turn: the stop is over and the hooks speak for it again.
+        let again = TranscriptParser.digest(lines: lines + [#"{"type":"user","timestamp":"2026-10-10T07:57:00.000Z","message":{"content":"try again"}}"#])
+        let q = Recap.project(digest: again, git: nil, now: again.lastTimestamp!)!
+        #expect(q.stoppedAt == nil); #expect(LiveStatus(kind: .working, at: again.lastTimestamp!).holds(for: q))
+    }
 }
