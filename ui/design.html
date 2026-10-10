@@ -68,14 +68,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .plist .ph{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:14px;font-weight:500}
 .plist .ph span{font-size:12px;font-weight:400;color:hsl(var(--muted-foreground))}
 .plist .row{cursor:default}
-.plist .r2{height:44px}
-.plist .pj-q{font-size:12px;color:hsl(var(--muted-foreground) / .7)}
-.plist .pj-r{flex:0 1 auto;max-width:42%;text-align:right;color:hsl(var(--muted-foreground))}
-/* a ring round the app icon: arc while working, orange needs you, green finished */
-.icring{position:relative;display:flex;flex:none;padding:3px;margin:-3px}
-.icring::before{content:"";position:absolute;inset:0;border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--rc)}
-.icring.spin::before{border-radius:50%;box-shadow:none;border:1.5px solid transparent;border-top-color:var(--rc);border-right-color:var(--rc);animation:spin 1.1s linear infinite}
-@media (prefers-reduced-motion:reduce){.icring.spin::before{animation:none}}
+/* take two: the mark's slot, the project column, the badge on the icon */
+.plist .mk{width:15px;height:15px;flex:none;display:grid;place-items:center}
+.plist .mslot{width:15px;flex:none;display:flex;justify-content:flex-end}
+.plist .pcol{min-width:0;max-width:38%;flex:none}
+.plist .bdg{position:absolute;right:-4px;top:-4px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 1.5px #000;display:grid;place-items:center;color:#000;font:800 8px/1 Inter,sans-serif}
+.plist .bdg svg.sp{width:9px;height:9px}
+.plist .bdg svg.ck{width:7px;height:7px}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -98,15 +97,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </section>
 
   <section>
-    <h2>Proposal: where the project goes</h2>
-    <p class="note" style="margin-bottom:10px">The same five sessions in each, with today's status words, so only the project moves.</p>
-    <div class="props" id="propProject"></div>
-  </section>
-
-  <section>
-    <h2>Proposal: working, finished, needs you</h2>
-    <p class="note" style="margin-bottom:10px">The same sessions, the project placed as in the recommended option above. The Needs you section header stays in every one.</p>
-    <div class="props" id="propStatus"></div>
+    <h2>Proposal: the list row, take two</h2>
+    <p class="note" style="margin-bottom:10px">The time follows the session's name, the project moves to the right, and status is a mark: a spinner while it works, the check the notch already shows when it finished, an orange mark when it needs you (the live activity's: a prompt for a command, ? for a question). Seen and idle sessions get no mark. Three places for the mark.</p>
+    <div class="props" id="propRow"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -233,12 +226,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 })();
 </script>
 <script>
-/* Proposals for the list: the rows drawn as app.js draws them (same classes), one idea per card. */
+/* Proposals for the list: the rows drawn as app.js draws them (same classes, the live activity's marks), one idea per card. */
 (function () {
   var C = { attention: '#E9A877', done: '#8CCFA4', running: '#8DC8E8' };
   var ROWS = [
-    { sec: 'Needs you', t: 'Prototype a background reply to Claude', p: 'perch', app: 'claude', st: 'ask', away: '2m' },
-    { sec: 'Today', t: 'Simulation lighting realism', p: 'room-planner-prototype', app: 'claude', st: 'run' },
+    { sec: 'Needs you', t: 'Prototype a background reply to Claude', p: 'perch', app: 'claude', st: 'run-cmd', away: '2m' },
+    { sec: 'Needs you', t: 'Invoice matching rules', p: 'finance-tools', app: 'claude', st: 'question', away: '8m' },
+    { sec: 'Today', t: 'Simulation lighting realism', p: 'room-planner-prototype', app: 'claude', st: 'working' },
     { sec: 'Today', t: 'Thinking animations library', p: 'perch', app: 'claude', st: 'done', away: '45m' },
     { sec: 'Today', t: 'PDF gap analysis app initialization', p: 'spec-gap-finder', app: 'claude', st: 'idle', away: '3h', sel: true },
     { sec: 'Today', t: 'README project summary', p: 'perch', app: 'claude', via: 'terminal', st: 'idle', away: '14h' }
@@ -250,55 +244,51 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var g = { claude: '#D97757', codex: '#F4F4F5', terminal: '#27272A' }[k] || '#52525B';
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g + '"/></svg>';
   }
-  function Icon(r) {
-    if (!r.via) return App(r.app);
-    return '<span class="relative flex flex-none">' + App(r.via) + '<span class="absolute size-[11px] -bottom-[3px] -right-[3px] flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(r.app, 'size-full') + '</span></span>';
+  var CHECK = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  var CMD = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg>';
+  function Spin(c) { return '<svg class="animate-spin flex-none ' + (c || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
+  /* the mark: the same ones the live activity uses (app.js MARK) */
+  function Mark(r) {
+    if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
+    if (r.st === 'done') return '<span class="act-m ok">' + CHECK + '</span>';
+    if (r.st === 'run-cmd') return '<span class="act-m">' + CMD + '</span>';
+    if (r.st === 'question') return '<span class="act-m">?</span>';
+    return '';
   }
-  function Spin() { return '<svg class="animate-spin flex-none size-3" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
-  function Time(r, col) { return '<span class="min-w-[22px] text-right' + (col ? '' : ' text-muted-foreground') + '"' + (col ? ' style="color:' + col + '"' : '') + '>' + r.away + '</span>'; }
-  /* how status shows, on the right of the row (and, for ring, round the icon) */
-  var STATUS = {
-    words: function (r) {
-      if (r.st === 'run') return '<span class="flex items-center gap-1.5">' + Spin() + '<span style="color:' + C.running + '">Working</span></span>';
-      var w = r.st === 'ask' ? ['Needs your OK', C.attention] : r.st === 'done' ? ['Finished', C.done] : null;
-      return (w ? '<span style="color:' + w[1] + '">' + w[0] + '</span>' : '') + Time(r);
-    },
-    time: function (r) { return r.st === 'run' ? '<span class="flex min-w-[22px] justify-end">' + Spin() + '</span>' : Time(r, r.st === 'ask' ? C.attention : r.st === 'done' ? C.done : ''); },
-    ring: function (r) { return r.st === 'run' ? '' : Time(r); }
-  };
-  function ringed(r, html) {
-    var c = r.st === 'run' ? C.running : r.st === 'ask' ? C.attention : r.st === 'done' ? C.done : '';
-    return c ? '<span class="icring' + (r.st === 'run' ? ' spin' : '') + '" style="--rc:' + c + '">' + html + '</span>' : html;
+  /* on the icon's corner: solid, with a black ring, so it reads over the icon */
+  function Badge(r) {
+    if (r.st === 'working') return '<span class="bdg" style="background:#000">' + Spin('sp') + '</span>';
+    if (r.st === 'done') return '<span class="bdg" style="background:' + C.done + '">' + CHECK.replace('size-2.5', 'ck').replace('stroke-width="2"', 'stroke-width="3.5"') + '</span>';
+    if (r.st === 'run-cmd' || r.st === 'question') return '<span class="bdg" style="background:' + C.attention + '">' + (r.st === 'question' ? '?' : '!') + '</span>';
+    return '';
   }
-  /* where the project goes */
-  function row(r, place, status) {
-    var icon = status === 'ring' ? ringed(r, Icon(r)) : Icon(r), right = '<span class="flex flex-none items-center gap-2 text-xs tabular-nums">' + STATUS[status](r) + '</span>';
-    var title = '<span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>', mid;
-    if (place === 'inline') mid = '<span class="flex min-w-0 flex-1 items-baseline gap-2">' + title.replace('min-w-0 truncate', 'min-w-0 flex-[0_1_auto] truncate') + '<span class="min-w-0 flex-[1_1_0%] truncate text-muted-foreground">' + esc(r.p) + '</span></span>';
-    else if (place === 'quiet') mid = '<span class="flex min-w-0 flex-1 items-baseline gap-2">' + title.replace('min-w-0 truncate', 'min-w-0 flex-[0_1_auto] truncate') + '<span class="pj-q min-w-0 flex-[1_1_0%] truncate">' + esc(r.p) + '</span></span>';
-    else if (place === 'right') mid = '<span class="flex min-w-0 flex-1">' + title + '</span><span class="pj-r truncate text-xs">' + esc(r.p) + '</span>';
-    else mid = '<span class="flex min-w-0 flex-1 flex-col"><span class="truncate font-medium leading-[18px]">' + esc(r.t) + '</span><span class="truncate text-xs leading-4 text-muted-foreground">' + esc(r.p) + '</span></span>';
-    return '<div class="row flex ' + (place === 'under' ? 'r2' : 'h-9') + ' items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + icon + mid + right + '</div>';
+  function Icon(r, badge) {
+    var b = badge ? Badge(r) : '';
+    if (!r.via) return b ? '<span class="relative flex flex-none">' + App(r.app) + b + '</span>' : App(r.app);
+    return '<span class="relative flex flex-none">' + App(r.via) + '<span class="absolute size-[11px] -bottom-[3px] -right-[3px] flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(r.app, 'size-full') + '</span>' + b + '</span>';
   }
-  function List(place, status) {
-    var sec = '', rows = ROWS.slice(0, place === 'under' ? 4 : 5);
-    return '<div class="pstage"><div class="plist perch"><div class="ph">Jump back in<span>Type to filter</span></div>' + rows.map(function (r) {
-      var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, place, status);
+  /* where the mark goes: 'end' a column at the far right, 'time' beside the time, 'icon' on the icon's corner */
+  function row(r, at) {
+    var time = r.away ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + r.away + '</span>' : '';
+    var left = '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>' + (at === 'time' ? Mark(r) : '') + time + '</span>';
+    var proj = '<span class="pcol truncate text-right text-xs text-muted-foreground">' + esc(r.p) + '</span>';
+    var end = at === 'end' ? '<span class="mslot">' + Mark(r) + '</span>' : '';
+    return '<div class="row flex h-9 items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + Icon(r, at === 'icon') + left + proj + end + '</div>';
+  }
+  function List(at) {
+    var sec = '';
+    return '<div class="pstage"><div class="plist perch"><div class="ph">Jump back in<span>Type to filter</span></div>' + ROWS.map(function (r) {
+      var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, at);
     }).join('') + '</div></div>';
   }
-  function card(title, pick, text, place, status) {
-    return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(place, status) + '</div>';
+  function card(title, pick, text, at) {
+    return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(at) + '</div>';
   }
   function draw() {
-    document.getElementById('propProject').innerHTML =
-      card('A. After the title (today)', false, 'Reads as one phrase. Title and project are the same size and weight apart from colour, so a long title and its project run together.', 'inline', 'words') +
-      card('B. After the title, quieter', true, 'Same place, one step down: a smaller size and a softer grey. The title stands out on its own and the project reads as a note on it. Nothing moves, nothing new to learn.', 'quiet', 'words') +
-      card('C. On the right', false, 'Projects line up in a column you can scan. But the right side fills up (project, status, time), long titles are cut shorter, and three columns of grey compete.', 'right', 'words') +
-      card('D. Under the title', false, 'Easiest to read, and the title gets the whole width. Rows grow from 36 to 44 pt, so four fit where five did.', 'under', 'words');
-    document.getElementById('propStatus').innerHTML =
-      card('1. Words (today)', false, 'Needs your OK, Working, Finished, in their colours. Clear, but the words take room from the title and repeat what the section header says.', 'quiet', 'words') +
-      card('2. The time carries it', true, 'No words. The time turns orange when it needs you, green when it finished and you have not seen it, and a small spinner takes its place while it works. Seen and idle stay grey. The colours are the card’s, so they already mean something.', 'quiet', 'time') +
-      card('3. A ring on the icon', false, 'The app icon wears it: a turning arc while working, orange when it needs you, green when finished. The right side keeps only the time. Busier near the icon, and it crowds a terminal’s badge.', 'quiet', 'ring');
+    document.getElementById('propRow').innerHTML =
+      card('A. Mark at the far right', true, 'Status gets its own column at the edge, so one glance down the right side tells you what is working, done or waiting. The projects line up beside it; a row with no mark keeps the space so they stay aligned.', 'end') +
+      card('B. Mark beside the time', false, 'Status sits with the session it belongs to: the title, its mark, how long ago. The project has the right side to itself. The marks do not line up, so they are harder to scan.', 'time') +
+      card('C. Mark on the icon', false, 'The quietest: a small badge on the app icon’s corner, the rest of the row is just words. Small, though, and next to a terminal session’s badge it gets busy.', 'icon');
   }
   draw();
   fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
