@@ -73,6 +73,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .plist .mk-r{width:14px;height:14px}
 .plist .mk-s{width:14px;height:14px;flex:none;border-radius:50%;display:grid;place-items:center;color:#000;font:800 9.5px/1 Inter,sans-serif}
 .plist .mk-s svg.mk-g{width:8px;height:8px}
+.plist .pfix{width:30%;flex:none;min-width:0}
 .plist .mslot{width:15px;flex:none;display:flex;justify-content:flex-end}
 .plist .pcol{min-width:0;max-width:38%;flex:none}
 .plist .bdg{position:absolute;right:-4px;top:-4px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 1.5px #000;display:grid;place-items:center;color:#000;font:800 8px/1 Inter,sans-serif}
@@ -100,8 +101,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </section>
 
   <section>
-    <h2>Proposal: the list row, take three</h2>
-    <p class="note" style="margin-bottom:10px">Session, time, mark, then the project on the right. The mark: a spinner while it works, a check when it finished and you have not seen it, orange when it needs you (! for a command to allow, ? for a question). Seen and idle sessions get none. Three ways to draw the marks so they read as clearly as the spinner.</p>
+    <h2>Proposal: the list row, take four</h2>
+    <p class="note" style="margin-bottom:10px">Session and time on the left; the mark and the project on the right. The mark: a spinner while it works, a check when it finished and you have not seen it, orange when it needs you (! for a command to allow, ? for a question). Seen and idle sessions get none. Rings, drawn like the spinner. Two ways to place them.</p>
     <div class="props" id="propRow"></div>
   </section>
 
@@ -284,6 +285,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var time = r.away ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + r.away + '</span>' : '';
     var left = '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>' + (at === 'time' ? Mark(r) : '') + time + (at === 'after' ? Mark(r) : '') + '</span>';
     var proj = '<span class="pcol truncate text-right text-xs text-muted-foreground">' + esc(r.p) + '</span>';
+    /* proj: the mark right before the project, the two kept together at the right; cols: a mark column, then the project left-aligned in its own column */
+    if (at === 'proj') proj = '<span class="pcol flex items-center justify-end gap-2">' + Mark(r) + '<span class="min-w-0 truncate text-xs text-muted-foreground">' + esc(r.p) + '</span></span>';
+    if (at === 'cols') proj = '<span class="mslot">' + Mark(r) + '</span><span class="pfix truncate text-xs text-muted-foreground">' + esc(r.p) + '</span>';
     var end = at === 'end' ? '<span class="mslot">' + Mark(r) + '</span>' : '';
     return '<div class="row flex h-9 items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + Icon(r, at === 'icon') + left + proj + end + '</div>';
   }
@@ -299,9 +303,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('1. Faint discs (the notch’s marks)', false, 'What the live activity uses: a faint tinted disc with a small glyph. Next to the spinner they fade into the row.', 'after', 'tint') +
-      card('2. Solid discs', false, 'The same marks filled in, the glyph dark on the colour. The most visible; the green and orange are the only solid colour in the list, so they jump out, perhaps more than a quiet list wants.', 'after', 'solid') +
-      card('3. Rings, like the spinner', true, 'One family with the spinner: a full ring in the status colour with its glyph drawn inside, the same size and line weight. As visible as the spinner, no heavier.', 'after', 'ring');
+      card('1. Mark beside the project', true, 'Session and time on the left; on the right, the mark and then the project, kept together. The marks sit at the right but move with each project’s length.', 'proj', 'ring') +
+      card('2. Mark and project in columns', false, 'The marks line up in one column; the projects start at the same place after it. Easiest to scan down, but a long project name is cut sooner and short ones leave a gap.', 'cols', 'ring');
   }
   draw();
   fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
