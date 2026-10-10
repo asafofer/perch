@@ -163,7 +163,7 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -867,7 +867,7 @@
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
-    applyCharacter(s.character);
+    if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
@@ -894,7 +894,7 @@
     n.dataset.g = gk ? 'status' : 'char';
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
-    n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
+    n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || charNow.color);
     var was = lastSt;
     lastSt = st;
     layout(st, s);
@@ -999,8 +999,29 @@
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
-    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * pr.width * .1 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * pr.width * .075 * pk).toFixed(2) + 'px'); }
+    /* measured from its box, which stays put while the character itself squashes and hops */
+    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.parentNode.getBoundingClientRect(), w = pv.offsetWidth, px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); eyesTo(pv, (px / pd) * w * .1 * pk, (py / pd) * w * .075 * pk); }
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
+  }
+  /* The big character's eyes (and, a little, its body) move on a spring run here rather than a CSS transition. The app reads
+     the pointer 30 times a second, and a transition started again at each reading moves in stops and starts. */
+  function eyesTo(el, x, y) {
+    var s = el._eyes || (el._eyes = { x: 0, y: 0, vx: 0, vy: 0, t: 0, on: false });
+    s.tx = x; s.ty = y;
+    if (STILL) { s.x = x; s.y = y; } else if (!s.on) { s.on = true; s.t = 0; requestAnimationFrame(step); }
+    put();
+    function put() { el.style.setProperty('--lx', s.x.toFixed(2) + 'px'); el.style.setProperty('--ly', s.y.toFixed(2) + 'px'); }
+    function step(now) {
+      if (!el.isConnected) { s.on = false; return; }
+      /* stiff enough to settle in about a third of a second, damped to the faintest overshoot */
+      var dt = s.t ? Math.min(.034, (now - s.t) / 1000) : .016, k = 380, c = 26; s.t = now;
+      s.vx += (k * (s.tx - s.x) - c * s.vx) * dt; s.vy += (k * (s.ty - s.y) - c * s.vy) * dt;
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      var rest = Math.abs(s.tx - s.x) < .02 && Math.abs(s.ty - s.y) < .02 && Math.abs(s.vx) + Math.abs(s.vy) < .1;
+      if (rest) { s.x = s.tx; s.y = s.ty; s.vx = s.vy = 0; s.on = false; }
+      put();
+      if (!rest) requestAnimationFrame(step);
+    }
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
   if (!NATIVE) scene.addEventListener('mousemove', function (e) {
@@ -1029,7 +1050,7 @@
       'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
     /* an octopus, after the emoji: a tall round head with a waist, and six tentacles splaying out under it, their tips curling */
     ['octo', 'Octopus', 'M12 1.4C16.3 1.4 18.9 4.5 18.9 8.3C18.9 11.1 17.6 12.7 16.5 13.7C18 14.6 20.3 14.9 21.8 14.2C22.8 13.7 23.8 14.6 23.2 15.6C22.6 16.6 21 16.9 19.6 16.8C18.9 16.8 18.4 17 18.2 17.4C18.4 18.6 19.7 19.6 20.6 20.4C21.4 21.1 20.9 22.2 19.9 21.9C18.3 21.4 16.8 20.2 15.9 19.1C15.8 20.3 16.1 21.6 16 22.3C15.9 23.1 14.8 23.3 14.3 22.6C13.6 21.6 13.1 19.9 12 19.2C10.9 19.9 10.4 21.6 9.7 22.6C9.2 23.3 8.1 23.1 8 22.3C7.9 21.6 8.2 20.3 8.1 19.1C7.2 20.2 5.7 21.4 4.1 21.9C3.1 22.2 2.6 21.1 3.4 20.4C4.3 19.6 5.6 18.6 5.8 17.4C5.6 17 5.1 16.8 4.4 16.8C3 16.9 1.4 16.6 0.8 15.6C0.2 14.6 1.2 13.7 2.2 14.2C3.7 14.9 6 14.6 7.5 13.7C6.4 12.7 5.1 11.1 5.1 8.3C5.1 4.5 7.7 1.4 12 1.4Z', '30%', '32%', '54%', '13%'],
-    /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
+    /* a bao, after the Bun mascot: broad and soft with a rounded top and pleats */
     ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
       'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
     /* a small robot: an antenna on a rounded tile */
@@ -1076,7 +1097,7 @@
     post({ type: 'menuIcon', png: cv.toDataURL('image/png') });
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: six short steps inside the notch ---- */
@@ -1188,16 +1209,14 @@
     if (a === 'finish') helloNext = true;
     if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
   }
+  var pickedAt = 0;   /* apply() leaves the character alone just after a pick: a snapshot sent before the app heard of it still has the old one */
   function pickCharacter(c) {
+    if (shapeOf(c.shape)[0] === charNow.shape && c.color === charNow.color) return;   /* already this one */
     var shapeChanged = shapeOf(c.shape)[0] !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
+    pickedAt = Date.now();
     post({ type: 'character', shape: c.shape, color: c.color });
-    var commit = function () { applyCharacter(charNow); };
-    if (shapeChanged && pv) {
-      /* squash, swap the shape at the lowest point, spring back */
-      var f = pv.querySelector('.f'); f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
-      setTimeout(commit, 120); setTimeout(function () { f.classList.remove('swap'); }, 560);
-    } else commit();
     charNow = { shape: shapeOf(c.shape)[0], color: c.color };   /* an old name (Ghost, Arch) counts as the shape that replaced it */
+    if (!pv) applyCharacter(charNow);
     document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
     if (box) {
       box.querySelectorAll('.o-shape').forEach(function (b) {
@@ -1209,45 +1228,66 @@
         b.className = b.className.replace(/ring-2 ring-white ring-offset-2 ring-offset-black|hover:scale-110/, on ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110');
       });
     }
-    if (pv) {
-      pv._busy = Date.now() + 1500;
-      pv.dataset.m = 'happy';
-      var ci = pv.querySelector('.cr-in'); ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
-      clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850);
-    }
+    if (!pv) return;
+    pv._busy = Date.now() + 1500;
+    /* One motion for the whole character, eyes and all: down into a squash, up with a little stretch, a soft landing. A new
+       shape and its happy face come in together at the lowest point. A pick made mid-motion carries on from wherever the
+       character is, so going through the shapes quickly never snaps it back to the start. */
+    var settle = function () { clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850); };
+    if (!shapeChanged) { pv.dataset.m = 'happy'; settle(); if (!pv._swap) applyCharacter(charNow); }
+    else if (!pv._swap) pv._swap = setTimeout(function () { pv._swap = 0; reshape(pv, function () { applyCharacter(charNow); pv.dataset.m = 'happy'; }); settle(); }, STILL ? 0 : 110);
+    if (STILL) return;
+    var from = getComputedStyle(pv).transform, up = 'cubic-bezier(.2,.8,.4,1)';
+    if (pv._pop) pv._pop.cancel();
+    pv._pop = pv.animate([{ transform: from, easing: 'cubic-bezier(.3,0,.5,1)' }, { transform: 'scale(1.12,.86)', offset: .2, easing: up },
+      { transform: 'translateY(-3px) scale(.95,1.07)', offset: .5, easing: 'cubic-bezier(.5,0,.7,.4)' }, { transform: 'scale(1.04,.97)', offset: .74, easing: up }, { transform: 'none' }], { duration: 560 });
   }
+  /* the shape and the face change in one frame, without their usual glide, so the eyes land with the new body instead of sliding across it */
+  function reshape(el, fn) { el.classList.add('reshape'); fn(); void el.offsetWidth; el.classList.remove('reshape'); }
   /* the preview and the little shape tiles are alive: they blink and glance about while you choose */
   function blinkEl(el) { el.classList.add('blink'); setTimeout(function () { el.classList.remove('blink'); }, 150); }
-  /* while you choose, the big preview plays: a hop, a wiggle, a flip, a squish, a short nap, a happy bounce. Never the same twice in a row. */
-  var TRICKS = ['hop', 'wiggle', 'flip', 'squish', 'nap', 'happy'], lastTrick = '';
-  function trick(pv) {
-    var ci = pv.querySelector('.cr-in'), pick = TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
+  /* while you choose, the big preview plays: a jump, a wiggle, a squish, a short nap, a happy bounce. Never the same twice in a row. */
+  var TRICKS = ['jump', 'wiggle', 'squish', 'nap', 'happy'], lastTrick = '';
+  function trick(pv, only) {
+    var ci = pv.querySelector('.cr-in'), pick = only || TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
     lastTrick = pick; pv._busy = Date.now() + 1800;
     var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
     if (pick === 'nap') {
-      pv.dataset.m = 'sleep'; pv.style.setProperty('--lx', '0px'); pv.style.setProperty('--ly', '0px');
+      pv.dataset.m = 'sleep'; eyesTo(pv, 0, 0);
       setTimeout(function () { if (pv.dataset.m === 'sleep') { pv.dataset.m = 'awake'; play('hop', 600); } }, 1500);
+    } else if (pick === 'jump') {
+      /* its eyes drop as it crouches, go up as it leaves the ground, and come back as it lands */
+      play('jump', 1000); eyesTo(pv, 0, 1.2);
+      setTimeout(function () { eyesTo(pv, 0, -1.8); }, 200);
+      setTimeout(function () { eyesTo(pv, 0, 0); }, 620);
     } else if (pick === 'happy') {
       pv.dataset.m = 'happy'; play('hop', 600);
       setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
     } else play(pick, 950);
   }
-  /* clicked while you choose it: tickled. Its eyes squeeze shut, its cheeks flush, and it squirms and giggles */
+  /* clicked while you choose it: tickled. Its eyes squeeze shut and it squirms and giggles */
   function tickle(pv) {
     var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1900; clearTimeout(pv._tk); clearTimeout(pv._tk2);
-    pv.dataset.m = 'happy'; pv.classList.add('tickled');
+    pv.dataset.m = 'happy';
     ci.classList.remove('giggle'); void ci.offsetWidth; ci.classList.add('giggle');
     /* the eyes open again as the wobble settles; the classes go once everything has come to rest */
     pv._tk = setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1050);
-    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); }, 1500);
+    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); }, 1500);
   }
   scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
+  /* A shape or a colour is picked on the press. A snapshot that draws the card again between press and release replaces
+     the swatch under the pointer, and the browser then sends no click at all. The click that follows is the same pick
+     again, which pickCharacter ignores. */
+  scene.addEventListener('pointerdown', function (e) {
+    var b = e.button === 0 && e.target.closest('.o-shape, .o-color'); if (!b) return;
+    pickCharacter(b.dataset.k ? { shape: b.dataset.k, color: charNow.color } : { shape: charNow.shape, color: b.dataset.c });
+  });
   (function previewLife() {
     var pv = q('.cr-pv');
     if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now()) && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && Math.random() < 0.4) trick(pv);
     else if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now())) {
       blinkEl(pv); if (Math.random() < 0.3) setTimeout(function () { blinkEl(pv); }, 280);
-      pv.style.setProperty('--lx', ((Math.random() - 0.5) * 5).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((Math.random() - 0.5) * 3).toFixed(2) + 'px');
+      eyesTo(pv, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3);
     }
     var hi = q('.cr-hi'); if (hi && hi.dataset.m === 'awake' && Math.random() < 0.6) blinkEl(hi);
     scene.querySelectorAll('.cr-mini').forEach(function (m, i) { if (Math.random() < 0.55) setTimeout(function () { blinkEl(m); }, i * 130); });
@@ -1361,7 +1401,7 @@
     /* 6. back to its own colour, and a glance at the button */
     at(7500, function () {
       introGlow = ''; n.style.setProperty('--gcol', charNow.color); hi.dataset.m = 'awake';
-      hi.style.setProperty('--lx', '2.6px'); hi.style.setProperty('--ly', '2px');
+      eyesTo(hi, 2.6, 2);
     });
   }
   function onb(o) {
@@ -1387,8 +1427,8 @@
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
     if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
-    /* left and right change the shape, up and down the colour; both wrap */
-    var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
+    /* left and right change the shape, up and down the colour (up goes right along the swatches); both wrap */
+    var d = (k === 'right' || k === 'up') ? 1 : -1, i = 0;
     if (k === 'up' || k === 'down') {
       PALETTE.forEach(function (c, j) { if (c[1] === charNow.color) i = j; });
       i = (i + d + PALETTE.length) % PALETTE.length;
@@ -1671,6 +1711,12 @@
       clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
         setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
       say: function (t) { window.perch.say(t); },
+      /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
+      trick: function (name) {
+        window.perchDev.onboarding(1);
+        var me = ++fxPlay;
+        (function again(ms) { setTimeout(function () { var pv = q('.cr-pv'); if (me !== fxPlay || !pv) return; pv._busy = Date.now() + 99999; trick(pv, name); again(2400); }, ms); })(900);
+      },
       /* the whole permission moment: working quietly, a request arrives, you look, you answer, all clear */
       permission: function () {
         d0(); base.selected = 0;

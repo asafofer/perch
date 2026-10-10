@@ -90,10 +90,28 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr-in.talk { animation: talk .22s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes talk { 50% { scale: 1.035 .965; } }
 .cr-in.wiggle { animation: wiggle .8s ease-in-out; transform-origin: 50% 100%; }
-.cr-in.flip { animation: flip .9s cubic-bezier(.3,1.2,.5,1); }
 .cr-in.squish { animation: squish .7s cubic-bezier(.3,1.5,.5,1); transform-origin: 50% 100%; }
 @keyframes wiggle { 0%,100% { rotate: 0deg; } 20% { rotate: -9deg; } 45% { rotate: 8deg; } 70% { rotate: -5deg; } 88% { rotate: 2deg; } }
-@keyframes flip { 0% { transform: none; } 30% { transform: translateY(-14px) rotate(160deg); } 62% { transform: translateY(0) rotate(360deg) scale(1.12,.88); } 80% { transform: scale(.96,1.05); } 100% { transform: none; } }
+/* a jump: it crouches, pushes off stretched, rises and slows to the top, falls faster, lands in a squash and settles.
+   Height and squash run on their own curves: the height moves like a thrown thing, the squash and stretch ease in and out. */
+.cr-in.jump { animation: jump-y 1s, jump-s 1s; transform-origin: 50% 100%; }
+@keyframes jump-y {
+  0%, 18% { translate: 0 0; animation-timing-function: cubic-bezier(.35,0,.25,1); }
+  45% { translate: 0 -10px; animation-timing-function: cubic-bezier(.55,0,.85,.4); }
+  66% { translate: 0 0; animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+  80% { translate: 0 -1px; animation-timing-function: ease-in-out; }
+  100% { translate: 0 0; }
+}
+@keyframes jump-s {
+  0% { scale: 1 1; animation-timing-function: cubic-bezier(.4,0,.6,1); }
+  18% { scale: 1.14 .84; animation-timing-function: cubic-bezier(.3,0,.3,1); }
+  27% { scale: .9 1.12; animation-timing-function: cubic-bezier(.4,0,.4,1); }
+  42%, 56% { scale: 1 1; animation-timing-function: cubic-bezier(.5,0,.9,.6); }
+  65% { scale: .94 1.07; animation-timing-function: cubic-bezier(.2,.7,.4,1); }
+  71% { scale: 1.16 .84; animation-timing-function: cubic-bezier(.4,0,.4,1); }
+  84% { scale: .97 1.03; animation-timing-function: ease-in-out; }
+  100% { scale: 1 1; }
+}
 @keyframes squish { 0%,100% { scale: 1 1; } 30% { scale: 1.18 .8; } 55% { scale: .9 1.12; } 78% { scale: 1.04 .97; } }
 .cr .f { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .cr .f svg { width: 100%; height: 100%; display: block; overflow: visible; }
@@ -105,14 +123,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* the coat: light, a rounded form and a rim of light; from 30 px up also a fuzzy edge, faint grain and a ground shadow */
 .cr .f g.coat { filter: url(#coat-sm); }
 @container (min-width: 30px) { .cr .f g.coat { filter: url(#coat); } }
-.cr .f.swap { animation: swap .56s cubic-bezier(.3,1.4,.5,1); }
 /* the party at the end of onboarding */
 .cr-in.party { animation: party 1.8s cubic-bezier(.3,1.2,.5,1) both; }
 @keyframes party { 0% { transform: scale(.4); opacity: 0; } 10% { transform: scale(1.1,.86); opacity: 1; } 24% { transform: translateY(-26px) scale(.92,1.12); } 38% { transform: translateY(0) scale(1.14,.84); } 52% { transform: translateY(-18px) scale(.95,1.08) rotate(-4deg); } 66% { transform: translateY(0) scale(1.1,.88) rotate(2deg); } 82% { transform: translateY(-8px) scale(.98,1.04); } 100% { transform: none; } }
 .cf-wrap { position: absolute; left: 50%; pointer-events: none; z-index: 12; }
 .cf { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 1.5px; opacity: 0; animation: cf 1.5s cubic-bezier(.2,.8,.3,1) var(--d, 0s) both; }
 @keyframes cf { 0% { transform: translate(0,0) rotate(0) scale(.4); opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--x), calc(var(--y) + 46px)) rotate(var(--r)) scale(1); opacity: 0; } }
-@keyframes swap { 0% { transform: scale(1); } 24% { transform: scale(.76,.9) rotate(-6deg); } 62% { transform: scale(1.13,.94) rotate(3deg); } 100% { transform: scale(1); } }
 .pv-tile { background: color-mix(in srgb, var(--cr) 9%, #0b0b0c); }
 .pv-bloom { background: radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--cr) 34%, transparent), transparent 68%); }
 .onb.go .o-i { animation: onbin .42s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i, 0) * .05s); }
@@ -126,12 +142,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   transition: translate .34s cubic-bezier(.3,1.45,.5,1), width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
     border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
 .cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
-/* Bun's cheeks: flat blush under the eyes */
-.cr .ck { position: absolute; top: 72%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: 0; scale: .4; transition: opacity .3s, scale .45s cubic-bezier(.3,1.5,.5,1), top .3s; }
-.cr .ck.l { left: 18%; } .cr .ck.r { left: 68%; }
-.cr[data-shape=bun] .ck { opacity: .75; scale: 1; }
-/* happy: a blush comes up under the eyes */
-.cr[data-m=happy] .ck { opacity: .7; scale: 1; top: calc(var(--et) + 19%); }
 /* each shape's details, flat: lines a shade darker than its colour (pleats, whiskers), filled marks (inner ears),
    the onigiri's nori, the robot's antenna in its own colour */
 .cr .f path.pl { fill: none; stroke: #2B1B0E; stroke-opacity: .22; stroke-width: 1.1; stroke-linecap: round; }
@@ -147,6 +157,13 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr.blink .ey { transform: scaleY(.1); }
 .cr .f { transition: translate .4s cubic-bezier(.3,1.35,.5,1); }
 .cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
+/* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
+   look itself is not transitioned; their faces still are */
+.cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
+  border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
+.cr-pv .f, .cr-hi .f { transition: none; }
+/* a new shape: the eyes take their places at once, with the body (app.js reshape) */
+.cr.reshape .ey { transition: none; }
 /* something needs you: eyes open wide */
 .cr[data-m=alert] .ey { width: calc(var(--ew, 14%) + 2%); height: 30%; top: calc(var(--et) - 3%); }
 /* a word beside the character, black like the notch it hangs from */
@@ -247,7 +264,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .gulp { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }
 /* the big preview while you choose: click it and it is tickled (app.js tickle) */
-.cr-pv { cursor: pointer; pointer-events: auto; }
+.cr-pv { cursor: pointer; pointer-events: auto; transform-origin: 50% 100%; }
 .cr-in.giggle { animation: giggle 1.35s both; transform-origin: 50% 100%; }
 /* a wobble that dies away: each sway eased, a little hop in the middle, and a soft exhale to finish */
 @keyframes giggle {
@@ -262,10 +279,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   74% { rotate: 1.1deg; scale: 1.015 .985; animation-timing-function: cubic-bezier(.45,0,.55,1); }
   85% { rotate: -.4deg; scale: 1.005 .995; animation-timing-function: cubic-bezier(.3,0,.3,1); }
   100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
-/* the blush comes up and fades, never pops */
-.cr.tickled .ck { display: block; top: calc(var(--et) + 17%); animation: blush 1.45s ease-out both; }
-@keyframes blush { 0% { opacity: 0; } 14% { opacity: .9; } 65% { opacity: .85; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .cr-in.giggle, .cr.tickled .ck { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
 /* replying (app.js showSaid): the agent's message takes the summary's place */
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
