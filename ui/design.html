@@ -101,8 +101,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </section>
 
   <section>
-    <h2>Proposal: the list row, take four</h2>
-    <p class="note" style="margin-bottom:10px">Session and time on the left; the mark and the project on the right. The mark: a spinner while it works, a check when it finished and you have not seen it, orange when it needs you (! for a command to allow, ? for a question). Seen and idle sessions get none. Rings, drawn like the spinner. Two ways to place them.</p>
+    <h2>Proposal: the list row, take five</h2>
+    <p class="note" style="margin-bottom:10px">Session and time on the left; the mark and the project on the right. Three marks, each a ring drawn like the spinner: the spinner while it works, a check when it finished and you have not seen it, and ! when it is waiting on you, whatever for (a command to allow, a question, a plan). The card says which. Seen and idle sessions get none.</p>
     <div class="props" id="propRow"></div>
   </section>
 
@@ -258,7 +258,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   /* a soft, still glow in the mark's own colour, if asked for */
   function Mark(r) {
     var m = Mark0(r), col = r.st === 'working' ? C.running : r.st === 'done' ? C.done : C.attention;
-    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 3px ' + col + '80)"') : m;
+    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 1.5px ' + col + ') drop-shadow(0 0 5px ' + col + 'b3)"') : m;
   }
   function Mark0(r) {
     if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
@@ -267,7 +267,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     if (MS === 'solid') return '<span class="mk-s" style="background:' + (need ? C.attention : C.done) + '">' +
       (r.st === 'done' ? CHECK.replace('size-2.5', 'mk-g').replace('stroke-width="2"', 'stroke-width="3.6"') : r.st === 'question' ? '?' : '!') + '</span>';
     if (MS === 'ring') return '<span class="mk">' + (r.st === 'done' ? ringSvg(C.done, '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>')
-      : r.st === 'question' ? ringSvg(C.attention, '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>')
       : ringSvg(C.attention, '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>')) + '</span>';
     if (r.st === 'done') return '<span class="act-m ok">' + CHECK + '</span>';
     if (r.st === 'run-cmd') return '<span class="act-m">' + CMD + '</span>';
@@ -308,9 +307,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('1. Mark beside the project', false, 'Session and time on the left; on the right, the mark and then the project, kept together. The marks sit at the right but move with each project’s length.', 'proj', 'ring') +
-      card('1, with a soft glow', true, 'The same, each ring lit by a faint, still glow in its own colour. Just enough to say it is live; it does not pulse.', 'proj', 'ring', true) +
-      card('2. Mark and project in columns', false, 'The marks line up in one column; the projects start at the same place after it. Easiest to scan down, but a long project name is cut sooner and short ones leave a gap.', 'cols', 'ring');
+      card('With a glow', true, 'Each ring lit in its own colour, a close halo and a softer one around it, still. Enough to see from across the card.', 'proj', 'ring', true) +
+      card('Without', false, 'The same rings, no glow.', 'proj', 'ring');
   }
   draw();
   fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
