@@ -64,7 +64,7 @@ Useful flags: `--show`, `--simulate`, `--setup`, `--onboarding` (replays it from
 
 - Linear-grade restraint. Neutral sans (Inter), tight tracking, sentence case, small type (card text 13 to 14 px), small call-to-action buttons.
 - **No dividing lines.** No pulsing or glowing dots. No drawn icons where a real app icon exists (use the real Claude and Codex icons from `AppIcons`).
-- The character is a flat shape with flat eyes. No shaders, no gradients on the character. Shapes live in `SHAPES` in `app.js`.
+- The character is a soft plush shape with flat, matte eyes. Its depth is one SVG filter on the body (`coatFilter` in `app.js`): light from the top left, a rounded form, shade that deepens its colour, a rim of light, and from 30 px up a fuzzy edge and faint grain. Small, it keeps a crisp outline. Nothing else goes on the character. Shapes live in `SHAPES` in `app.js`.
 - Glow is internal, soft, and tinted by status: orange needs you, green done, otherwise the character's colour. Dithering was tried and rejected.
 - Never suggest committing, pushing or merging as the "next step". Hide the Next row when there is nothing real to say.
 - Pick up closes the card at once. No success screen.

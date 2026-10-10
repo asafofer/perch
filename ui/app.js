@@ -76,10 +76,71 @@
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
+  /* ---- the character's coat: light from the top left, a rounded form, a rim of light and a soft fuzzy edge ----
+     One SVG filter on the body (g.coat); the eyes sit on top of it, untouched. It works in the character's own 24-unit box,
+     so it looks the same at every size. Shading compares the rounded height with a copy shifted toward the light: rising
+     toward the light is lit, falling away is shade. (feDiffuseLighting measures slopes per pixel and turns the tiny steps
+     of a soft blur into rings.) Two copies: from 30 px up, a fuzzy edge, faint grain and a ground shadow; smaller, they would
+     only read as blur and dirt, so the small one keeps a crisp outline and gets its depth from the shading alone. */
+  var COAT = { az: 235, el: 50, lit: .6, shade: 1, deep: 1.4, rim: .45, rimw: .5, rimb: 1.5, puff: 6.5, depth: 5, ao: .35, below: .3, fur: .6, fine: 8, strands: 3, grain: .14, gsize: 12, shine: .15, tight: 4 };
+  function coatFilter(id, big) {
+    var C = COAT, a = C.az * Math.PI / 180, lo = (C.fine / C.strands).toFixed(3), d = C.puff * .6, K = C.depth * 1.12 * Math.cos(C.el * Math.PI / 180);
+    var Kd = (K * C.shade).toFixed(3), Kl = (K * C.lit).toFixed(3), len = .3 + .9 * (1 - C.el / 90);
+    var rgb = function (f) { return '<feFuncR ' + f + '/><feFuncG ' + f + '/><feFuncB ' + f + '/>'; };
+    var mix = function (i1, i2, k, out) { return '<feComposite in="' + i1 + '" in2="' + i2 + '" operator="arithmetic" ' + k + ' result="' + out + '"/>'; };
+    return '<filter id="' + id + '" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">' +
+      /* fur: the edge pushed around by noise, sideways along the sides and up and down along the top and bottom, so strands point outward */
+      (big ? '<feTurbulence type="fractalNoise" baseFrequency="' + lo + ' ' + C.fine + '" numOctaves="2" seed="3" result="nA"/>' +
+        '<feTurbulence type="fractalNoise" baseFrequency="' + C.fine + ' ' + lo + '" numOctaves="2" seed="9" result="nB"/>' +
+        '<feColorMatrix in="nA" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0 1" result="mA"/>' +
+        '<feColorMatrix in="nB" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 0 1" result="mB"/>' +
+        mix('mA', 'mB', 'k2="1" k3="1"', 'strands') +
+        '<feGaussianBlur in="SourceGraphic" stdDeviation="' + Math.min(.25, C.fur * .25) + '" result="soft"/>' +
+        '<feDisplacementMap in="soft" in2="strands" scale="' + C.fur + '" xChannelSelector="R" yChannelSelector="G" result="spiky"/>' +
+        '<feGaussianBlur in="spiky" stdDeviation="' + Math.min(.06, C.fur * .1) + '" result="fuzzy"/>'
+        : '<feMerge result="fuzzy"><feMergeNode in="SourceGraphic"/></feMerge>') +
+      /* form: a blurred silhouette is a pillow, high in the middle and falling to the edge, as grey */
+      '<feGaussianBlur in="fuzzy" stdDeviation="' + C.puff + '" result="pillow"/>' +
+      '<feColorMatrix in="pillow" type="matrix" values="0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 0 1" result="H"/>' +
+      '<feOffset in="H" dx="' + (-Math.cos(a) * d).toFixed(2) + '" dy="' + (-Math.sin(a) * d).toFixed(2) + '" result="Hs"/>' +
+      /* shade (1 on the lit side, less away from the light) and light (brighter toward it), with a little shine on the brightest part */
+      mix('H', 'Hs', 'k2="' + Kd + '" k3="-' + Kd + '" k4="1"', 'S') +
+      mix('H', 'Hs', 'k2="-' + Kl + '" k3="' + Kl + '" k4="1"', 'Q') +
+      '<feComponentTransfer in="Q" result="L">' + rgb('type="linear" slope="-1" intercept="1"') + '</feComponentTransfer>' +
+      '<feComponentTransfer in="L" result="Sh">' + rgb('type="gamma" amplitude="' + C.shine + '" exponent="' + C.tight + '" offset="0"') + '</feComponentTransfer>' +
+      mix('L', 'Sh', 'k2="1" k3="1"', 'A') +
+      /* the rim falls into a little shade all round */
+      '<feComponentTransfer in="H" result="AO">' + rgb('type="linear" slope="' + C.ao + '" intercept="' + (1 - C.ao).toFixed(2) + '"') + '</feComponentTransfer>' +
+      mix('S', 'AO', 'k1="1"', 'SA') +
+      /* colour: shade deepens it (toward the colour raised to a power, richer and darker) instead of greying it; light brightens it */
+      '<feComponentTransfer in="fuzzy" result="opaque"><feFuncA type="linear" slope="0" intercept="1"/></feComponentTransfer>' +
+      '<feComponentTransfer in="opaque" result="deep">' + rgb('type="gamma" amplitude="' + (1 - C.deep * .25) + '" exponent="' + (1 + C.deep) + '" offset="0"') + '</feComponentTransfer>' +
+      '<feComponentTransfer in="SA" result="iSA">' + rgb('type="linear" slope="-1" intercept="1"') + '</feComponentTransfer>' +
+      mix('opaque', 'SA', 'k1="1"', 'cS') + mix('deep', 'iSA', 'k1="1"', 'dS') + mix('cS', 'dS', 'k2="1" k3="1"', 'dark') +
+      mix('dark', 'A', 'k1="1" k2="1" k3=".25"', 'lit') +
+      /* grain: fine, like the tips of fur */
+      (big ? '<feTurbulence type="fractalNoise" baseFrequency="' + C.gsize + '" numOctaves="3" seed="5" result="gN"/>' +
+        '<feColorMatrix in="gN" type="matrix" values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 1" result="G"/>' +
+        mix('lit', 'G', 'k1="' + 2 * C.grain + '" k2="' + (1 - C.grain) + '"', 'grainy') : '<feMerge result="grainy"><feMergeNode in="lit"/></feMerge>') +
+      /* rim light: the fringe catches light all round, most on the shadow side, like fur with a lamp behind it */
+      '<feGaussianBlur in="fuzzy" stdDeviation="' + C.rimw + '" result="rb"/>' +
+      '<feColorMatrix in="rb" type="matrix" values="0 0 0 -1 1  0 0 0 -1 1  0 0 0 -1 1  0 0 0 0 1" result="R0"/>' +
+      '<feComponentTransfer in="R0" result="R1">' + rgb('type="linear" slope="1.8" intercept="0"') + '</feComponentTransfer>' +
+      mix('R1', 'S', 'k1="-' + C.rimb + '" k2="' + (1 + C.rimb) + '"', 'R') +
+      mix('grainy', 'R', 'k1="' + (C.rim * .9).toFixed(3) + '" k2="1" k3="' + (C.rim * .08).toFixed(3) + '"', 'rimmed') +
+      '<feComposite in="rimmed" in2="fuzzy" operator="in" result="body"/>' +
+      /* a soft shadow under it, away from the light */
+      (big ? '<feGaussianBlur in="fuzzy" stdDeviation="1" result="sb"/>' +
+        '<feOffset in="sb" dx="' + (-Math.cos(a) * len).toFixed(2) + '" dy="' + (-Math.sin(a) * len * .6 + .7).toFixed(2) + '" result="so"/>' +
+        '<feFlood flood-color="#000" flood-opacity="' + C.below + '"/><feComposite in2="so" operator="in" result="shadow"/>' +
+        '<feMerge><feMergeNode in="shadow"/><feMergeNode in="body"/></feMerge>' : '') + '</filter>';
+  }
+  document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true">' + coatFilter('coat', true) + coatFilter('coat-sm', false) + '</svg>');
+
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -872,7 +933,7 @@
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
-    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * 4.5 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * 3 * pk).toFixed(2) + 'px'); }
+    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * pr.width * .1 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * pr.width * .075 * pk).toFixed(2) + 'px'); }
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
@@ -949,7 +1010,7 @@
     post({ type: 'menuIcon', png: cv.toDataURL('image/png') });
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: six short steps inside the notch ---- */

@@ -52,7 +52,7 @@ html[data-glow="off"] .glow { opacity: 0 !important; }
 html[data-glow="external"] .glow { opacity: 0 !important; }
 html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px rgba(var(--glow, 245,184,59), .42), 0 26px 46px -12px rgba(0,0,0,.4); }
 
-/* character: a flat dome with flat eyes */
+/* character: a soft plush shape (its coat, app.js coatFilter) with flat, matte eyes */
 /* a size container, so the eyes' strokes scale with the character instead of staying a fixed hairline */
 .cr { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; z-index: 10; --et: 44%; container-type: size;
   transition: transform .5s cubic-bezier(.3,1.35,.5,1), width .5s cubic-bezier(.3,1.35,.5,1), height .5s cubic-bezier(.3,1.35,.5,1), opacity .3s; }
@@ -102,6 +102,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @property --cr { syntax: '<color>'; inherits: true; initial-value: #F5B83D; }
 :root { transition: --cr .6s cubic-bezier(.3,.9,.4,1); }
 .cr .f path { fill: var(--cr); }
+/* the coat: light, a rounded form and a rim of light; from 30 px up also a fuzzy edge, faint grain and a ground shadow */
+.cr .f g.coat { filter: url(#coat-sm); }
+@container (min-width: 30px) { .cr .f g.coat { filter: url(#coat); } }
 .cr .f.swap { animation: swap .56s cubic-bezier(.3,1.4,.5,1); }
 /* the party at the end of onboarding */
 .cr-in.party { animation: party 1.8s cubic-bezier(.3,1.2,.5,1) both; }
@@ -136,10 +139,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr[data-shape=peak] .f path.fd { fill: #1E2524; fill-opacity: 1; }
 .cr[data-shape=tile] .f path.fd { fill: var(--cr); fill-opacity: 1; }
 .cr[data-shape=tile] .f path.pl { stroke: var(--cr); stroke-opacity: 1; stroke-width: 1.3; }
-/* a white sparkle in each eye; gone where it would only be noise: tiny sizes, closed or smiling eyes */
-.cr .ey::after { content: ""; position: absolute; left: 20%; top: 14%; width: 40%; height: 28%; border-radius: 50%; background: #fff; }
-.cr[data-m=happy] .ey::after, .cr[data-m=sleep] .ey::after, .cr[data-m=peek] .ey::after { display: none; }
-@container (max-width: 21px) { .cr .ey::after, .cr .f path.pl, .cr .f path.fd { display: none; } }
+/* the details are gone where they would only be noise */
+@container (max-width: 21px) { .cr .f path.pl, .cr .f path.fd { display: none; } }
 .cr[data-m=sleep] .f { animation: breathe 3.6s ease-in-out infinite; }
 .cr[data-m=peek] .ey { height: 13%; top: calc(var(--et) + 6%); border-radius: 50%; }
 .cr[data-m=sleep] .ey { height: max(1.2px, 5%); border-radius: 3px; top: calc(var(--et) + 13%); }
