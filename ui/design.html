@@ -253,9 +253,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function Spin(c) { return '<svg class="animate-spin flex-none ' + (c || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   /* the mark, in one of three styles. tint: the live activity's (app.js MARK), a faint disc. solid: a full disc, dark glyph.
      ring: the spinner's family, a coloured circle drawn like it (a full ring with the glyph inside). */
-  var MS = 'tint';
+  var MS = 'tint', GLOW = false;
   function ringSvg(col, inner) { return '<svg class="mk-r" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/>' + inner + '</svg>'; }
+  /* a soft, still glow in the mark's own colour, if asked for */
   function Mark(r) {
+    var m = Mark0(r), col = r.st === 'working' ? C.running : r.st === 'done' ? C.done : C.attention;
+    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 3px ' + col + '80)"') : m;
+  }
+  function Mark0(r) {
     if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
     var need = r.st === 'run-cmd' || r.st === 'question';
     if (!need && r.st !== 'done') return '';
@@ -297,13 +302,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, at);
     }).join('') + '</div></div>';
   }
-  function card(title, pick, text, at, ms) {
-    MS = ms || 'tint';
+  function card(title, pick, text, at, ms, glow) {
+    MS = ms || 'tint'; GLOW = !!glow;
     return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(at) + '</div>';
   }
   function draw() {
     document.getElementById('propRow').innerHTML =
-      card('1. Mark beside the project', true, 'Session and time on the left; on the right, the mark and then the project, kept together. The marks sit at the right but move with each project’s length.', 'proj', 'ring') +
+      card('1. Mark beside the project', false, 'Session and time on the left; on the right, the mark and then the project, kept together. The marks sit at the right but move with each project’s length.', 'proj', 'ring') +
+      card('1, with a soft glow', true, 'The same, each ring lit by a faint, still glow in its own colour. Just enough to say it is live; it does not pulse.', 'proj', 'ring', true) +
       card('2. Mark and project in columns', false, 'The marks line up in one column; the projects start at the same place after it. Easiest to scan down, but a long project name is cut sooner and short ones leave a gap.', 'cols', 'ring');
   }
   draw();
