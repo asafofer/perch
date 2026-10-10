@@ -142,12 +142,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   transition: translate .34s cubic-bezier(.3,1.45,.5,1), width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
     border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
 .cr .ey.l { left: var(--el, 30%); } .cr .ey.r { left: var(--er, 56%); }
-/* Bun's cheeks: flat blush under the eyes */
-.cr .ck { position: absolute; top: 72%; width: 14%; height: 9%; border-radius: 50%; background: #F47C6B; opacity: 0; scale: .4; transition: opacity .3s, scale .45s cubic-bezier(.3,1.5,.5,1), top .3s; }
-.cr .ck.l { left: 18%; } .cr .ck.r { left: 68%; }
-.cr[data-shape=bun] .ck { opacity: .75; scale: 1; }
-/* happy: a blush comes up under the eyes */
-.cr[data-m=happy] .ck { opacity: .7; scale: 1; top: calc(var(--et) + 19%); }
 /* each shape's details, flat: lines a shade darker than its colour (pleats, whiskers), filled marks (inner ears),
    the onigiri's nori, the robot's antenna in its own colour */
 .cr .f path.pl { fill: none; stroke: #2B1B0E; stroke-opacity: .22; stroke-width: 1.1; stroke-linecap: round; }
@@ -168,8 +162,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
   border-radius .3s, --bite .34s cubic-bezier(.3,1.2,.5,1), transform .09s; }
 .cr-pv .f, .cr-hi .f { transition: none; }
-/* a new shape: the eyes and cheeks take their places at once, with the body (app.js reshape) */
-.cr.reshape .ey, .cr.reshape .ck { transition: none; }
+/* a new shape: the eyes take their places at once, with the body (app.js reshape) */
+.cr.reshape .ey { transition: none; }
 /* something needs you: eyes open wide */
 .cr[data-m=alert] .ey { width: calc(var(--ew, 14%) + 2%); height: 30%; top: calc(var(--et) - 3%); }
 /* a word beside the character, black like the notch it hangs from */
@@ -285,10 +279,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   74% { rotate: 1.1deg; scale: 1.015 .985; animation-timing-function: cubic-bezier(.45,0,.55,1); }
   85% { rotate: -.4deg; scale: 1.005 .995; animation-timing-function: cubic-bezier(.3,0,.3,1); }
   100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
-/* the blush comes up and fades, never pops */
-.cr.tickled .ck { display: block; top: calc(var(--et) + 17%); animation: blush 1.45s ease-out both; }
-@keyframes blush { 0% { opacity: 0; } 14% { opacity: .9; } 65% { opacity: .85; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .cr-in.giggle, .cr.tickled .ck { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
 /* replying (app.js showSaid): the agent's message takes the summary's place */
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }

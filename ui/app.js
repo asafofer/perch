@@ -163,7 +163,7 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -1050,7 +1050,7 @@
       'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
     /* an octopus, after the emoji: a tall round head with a waist, and six tentacles splaying out under it, their tips curling */
     ['octo', 'Octopus', 'M12 1.4C16.3 1.4 18.9 4.5 18.9 8.3C18.9 11.1 17.6 12.7 16.5 13.7C18 14.6 20.3 14.9 21.8 14.2C22.8 13.7 23.8 14.6 23.2 15.6C22.6 16.6 21 16.9 19.6 16.8C18.9 16.8 18.4 17 18.2 17.4C18.4 18.6 19.7 19.6 20.6 20.4C21.4 21.1 20.9 22.2 19.9 21.9C18.3 21.4 16.8 20.2 15.9 19.1C15.8 20.3 16.1 21.6 16 22.3C15.9 23.1 14.8 23.3 14.3 22.6C13.6 21.6 13.1 19.9 12 19.2C10.9 19.9 10.4 21.6 9.7 22.6C9.2 23.3 8.1 23.1 8 22.3C7.9 21.6 8.2 20.3 8.1 19.1C7.2 20.2 5.7 21.4 4.1 21.9C3.1 22.2 2.6 21.1 3.4 20.4C4.3 19.6 5.6 18.6 5.8 17.4C5.6 17 5.1 16.8 4.4 16.8C3 16.9 1.4 16.6 0.8 15.6C0.2 14.6 1.2 13.7 2.2 14.2C3.7 14.9 6 14.6 7.5 13.7C6.4 12.7 5.1 11.1 5.1 8.3C5.1 4.5 7.7 1.4 12 1.4Z', '30%', '32%', '54%', '13%'],
-    /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
+    /* a bao, after the Bun mascot: broad and soft with a rounded top and pleats */
     ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
       'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
     /* a small robot: an antenna on a rounded tile */
@@ -1097,7 +1097,7 @@
     post({ type: 'menuIcon', png: cv.toDataURL('image/png') });
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: six short steps inside the notch ---- */
@@ -1265,14 +1265,14 @@
       setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
     } else play(pick, 950);
   }
-  /* clicked while you choose it: tickled. Its eyes squeeze shut, its cheeks flush, and it squirms and giggles */
+  /* clicked while you choose it: tickled. Its eyes squeeze shut and it squirms and giggles */
   function tickle(pv) {
     var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1900; clearTimeout(pv._tk); clearTimeout(pv._tk2);
-    pv.dataset.m = 'happy'; pv.classList.add('tickled');
+    pv.dataset.m = 'happy';
     ci.classList.remove('giggle'); void ci.offsetWidth; ci.classList.add('giggle');
     /* the eyes open again as the wobble settles; the classes go once everything has come to rest */
     pv._tk = setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1050);
-    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); }, 1500);
+    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); }, 1500);
   }
   scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
   /* A shape or a colour is picked on the press. A snapshot that draws the card again between press and release replaces
