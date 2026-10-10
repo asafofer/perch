@@ -1387,8 +1387,8 @@
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
     if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
-    /* left and right change the shape, up and down the colour; both wrap */
-    var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
+    /* left and right change the shape, up and down the colour (up goes right along the swatches); both wrap */
+    var d = (k === 'right' || k === 'up') ? 1 : -1, i = 0;
     if (k === 'up' || k === 'down') {
       PALETTE.forEach(function (c, j) { if (c[1] === charNow.color) i = j; });
       i = (i + d + PALETTE.length) % PALETTE.length;
