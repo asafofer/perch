@@ -14,6 +14,9 @@ enum AppIcons {
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
     ].merging(Terminals.keys.filter { $0.value != "terminal" }.map { ($0.value, ($0.key, "")) }, uniquingKeysWith: { a, _ in a })
 
+    /// Whether the page could get a real icon for this key at all (pi has no app).
+    static func knows(_ key: String) -> Bool { apps[key] != nil }
+
     /// Where an app lives on this Mac, if it is installed.
     static func url(_ key: String) -> URL? {
         guard let app = apps[key] else { return nil }

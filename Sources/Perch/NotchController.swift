@@ -574,7 +574,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Icons go once per page load. An app missing from them (installed later, or mid-update at launch) is looked for again each minute.
     private func iconsToSend() -> [String: String]? {
         if let keys = iconKeys {
-            guard projects.contains(where: { !keys.contains($0.app) }), Date().timeIntervalSince(iconsCheckedAt) > 60 else { return nil }
+            guard projects.contains(where: { !keys.contains($0.app) && AppIcons.knows($0.app) }), Date().timeIntervalSince(iconsCheckedAt) > 60 else { return nil }
         }
         iconsCheckedAt = Date()
         let icons = AppIcons.all()
