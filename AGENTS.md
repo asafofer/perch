@@ -57,6 +57,7 @@ cd ui && npm install && cd ..       # once
 ./scripts/run.sh --idle 15          # welcome card after 15 s idle (testing). Relaunch without it afterwards.
 swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
+./scripts/make-icon.sh              # Resources/AppIcon.icns and docs/assets/icon.png from docs/assets/icon.svg (WebKit draws the coat)
 ```
 
 Useful flags: `--show`, `--simulate`, `--setup`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
