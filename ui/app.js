@@ -835,33 +835,34 @@
      app until chosen. Going in, the row's title and icon rise into the card's heading while the list steps aside to the
      left and the rest of the card comes in from the right. Coming back, the card steps aside to the right and the list
      returns from the left. ---- */
-  var drillFx = false;
+  var drillFx = false, drillT = 0;
   function drill(from, to, s) {
+    n.classList.remove('drill'); [].forEach.call(scene.querySelectorAll('.drill-in'), function (el) { el.classList.remove('drill-in'); });
     if (!drillFx || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    var spring = 'cubic-bezier(.3,1.25,.5,1)', ease = 'cubic-bezier(.2,.9,.3,1)';
-    /* the panes trade places at once (their own fade waits a beat, which would hide the move) */
-    var swap = function (out, into) { out.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: ease }); into.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: ease }); };
-    var aside = function (el, dx) { if (el) el.animate([{ transform: 'none' }, { transform: 'translateX(' + dx + 'px)' }], { duration: 200, easing: 'cubic-bezier(.4,0,.8,.6)' }); };
-    var arrive = function (els, dx) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0, filter: 'blur(2px)' }, { transform: 'none', opacity: 1, filter: 'none' }], { duration: 460, delay: 40 + i * 45, easing: spring, fill: 'backwards' }); }); };
-    if (from === 'switch' && to === 'open') {
-      var row = q('.p-switch .row[data-i="' + s.selected + '"]'), nm = row && row.querySelector('.nm'), icon = row && row.firstElementChild;
-      var head = q('.o-name').closest('.rv'), title = q('.o-name'), big = q('.o-app');
-      swap(q('.p-switch'), q('.p-open'));
-      aside(q('.p-switch .inner'), -24);
-      arrive([].slice.call(q('.p-open .inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 24);
-      if (!nm || !icon) { arrive([head], 24); return; }
-      var a = nm.getBoundingClientRect(), b = title.getBoundingClientRect(), ai = icon.getBoundingClientRect(), bi = big.getBoundingClientRect();
-      /* the heading is there at once, so the title is seen to move, not to appear */
-      head.animate([{ opacity: 1, filter: 'none', transform: 'none' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 560 });
-      title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 560, easing: spring });
-      big.style.transformOrigin = '0 0';
-      big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 560, easing: spring });
-      [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: 200, easing: ease, fill: 'backwards' }); });
-    } else if (from === 'open' && to === 'switch') {
-      swap(q('.p-open'), q('.p-switch'));
-      aside(q('.p-open .inner'), 24);
-      arrive([].slice.call(q('.p-switch .inner').children), -24);
-    }
+    var going = from === 'switch' && to === 'open', back = from === 'open' && to === 'switch';
+    if (!going && !back) return;
+    var out = q(going ? '.p-switch' : '.p-open'), into = q(going ? '.p-open' : '.p-switch'), dx = going ? 28 : -28;
+    var settle = 'cubic-bezier(.2,.9,.25,1.08)', glide = 'cubic-bezier(.45,0,.2,1.12)', leave = 'cubic-bezier(.5,0,.75,.4)';
+    /* the panes' own fades step aside (they wait a beat, which hid the move); this moves them instead */
+    n.classList.add('drill'); into.classList.add('drill-in'); clearTimeout(drillT);
+    drillT = setTimeout(function () { n.classList.remove('drill'); into.classList.remove('drill-in'); }, 1000);
+    /* the one you leave slides off the other way and fades, its rows still there while it goes */
+    out.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: leave });
+    out.querySelector('.inner').animate([{ transform: 'none' }, { transform: 'translateX(' + (-dx) + 'px)' }], { duration: 240, easing: leave });
+    [].slice.call(out.querySelectorAll('.rv')).forEach(function (el) { el.animate([{ opacity: 1, transform: 'none', filter: 'none' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 240 }); });
+    into.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 60, easing: 'ease-out', fill: 'backwards' });
+    var arrive = function (els, from0) { els.forEach(function (el, i) { el.animate([{ transform: 'translateX(' + dx + 'px)', opacity: 0, filter: 'blur(2px)' }, { transform: 'none', opacity: 1, filter: 'none' }], { duration: 520, delay: from0 + i * 50, easing: settle, fill: 'backwards' }); }); };
+    if (back) { arrive([].slice.call(into.querySelector('.inner').children), 110); return; }
+    /* going in: the row's title and icon travel up into the card's heading, and the rest of the card follows them in */
+    var row = q('.p-switch .row[data-i="' + s.selected + '"]'), nm = row && row.querySelector('.nm'), icon = row && row.firstElementChild;
+    var title = q('.o-name'), big = q('.o-app'), head = title.closest('.rv');
+    arrive([].slice.call(into.querySelector('.inner').children).filter(function (el) { return el !== head && el.offsetParent; }), 150);
+    if (!nm || !icon) { arrive([head], 60); return; }
+    var a = nm.getBoundingClientRect(), b = title.getBoundingClientRect(), ai = icon.getBoundingClientRect(), bi = big.getBoundingClientRect();
+    title.animate([{ transform: 'translate(' + (a.left - b.left) + 'px,' + (a.top - b.top) + 'px)' }, { transform: 'none' }], { duration: 600, easing: glide });
+    big.style.transformOrigin = '0 0';
+    big.animate([{ transform: 'translate(' + (ai.left - bi.left) + 'px,' + (ai.top - bi.top) + 'px) scale(' + (ai.width / Math.max(1, bi.width)) + ')' }, { transform: 'none' }], { duration: 600, easing: glide });
+    [q('.o-sub'), q('.o-st')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: 300, easing: settle, fill: 'backwards' }); });
   }
   /* cursor position in page coordinates, sent by Swift from anywhere on screen */
   var trackTimer = null;
