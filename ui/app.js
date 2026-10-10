@@ -54,7 +54,10 @@
   }
   /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
   function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : p && (p.app === 'codex' || (p.status && p.status.app === 'codex')) ? 'Codex' : 'Claude'); }
-  function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
+  /* The arc turns inside its own drawing, around its own centre (12, 12). Turning the whole icon with CSS made it wobble
+     wherever it sat on a fraction of a pixel (beside a project name of any width): it circled a centre a little off its own. */
+  var STILL = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function Spinner(cls, style) { return '<svg class="flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '><path d="M12 3a9 9 0 1 1-9 9">' + (STILL ? '' : '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>') + '</path></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
   function phrase(p, short) {
     var a = p.ask, k = p.status.kind;
@@ -364,7 +367,7 @@
     if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
+    q('.o-st').dataset.h = ''; q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
@@ -428,7 +431,7 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    var st = q('.o-st'); st.innerHTML = Phrase(ph); st.title = p.status.text;
+    var st = q('.o-st'), sh = Phrase(ph); if (st.dataset.h !== sh) { st.innerHTML = sh; st.dataset.h = sh; } st.title = p.status.text;   /* drawn again only when it changes, so its spinner keeps turning */
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
@@ -575,7 +578,7 @@
       var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r;
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (tm.textContent !== t) tm.textContent = t;
-      if (rk.innerHTML !== m) rk.innerHTML = m;
+      if (rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel) {
@@ -601,7 +604,7 @@
   function rowMark(p) {
     var k = p.status.kind, a = p.ask;
     /* the glow rides on the spinner itself, on its own layer, so it turns as one piece instead of being redrawn (and wobbling) every frame */
-    if (k === 'running' && !a) return Spinner('size-3.5').replace('<svg ', '<svg style="will-change:transform;' + glow(COLORS.running) + '" ');
+    if (k === 'running' && !a) return Spinner('size-3.5', glow(COLORS.running));
     var g = a ? (RING[a.kind] ? a.kind : 'need') : k === 'attention' ? 'need' : k === 'done' && p.fresh !== false ? 'done' : '';
     if (!g) return '';
     var c = g === 'done' ? COLORS.done : COLORS.attention;
