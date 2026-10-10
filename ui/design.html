@@ -67,10 +67,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .pcard{width:400px;max-width:100%;background:#000;border-radius:0 0 20px 20px;padding:12px 0 14px;color:#fafafa}
 /* the thing to the left of the step: a 16 pt box, the step's words beside it */
 .nowrow{display:flex;align-items:center;gap:8px;padding:0 16px;margin-top:10px;font-size:13px;line-height:18px}
-.nowrow .an{width:16px;height:16px;flex:none;display:grid;place-items:center;color:#8DC8E8}
+.nowrow .an{width:16px;height:16px;flex:none;display:grid;place-items:center;color:var(--cr)}
 .nowrow .an canvas{width:16px;height:16px}
-.an-star{font:500 14px/1 -apple-system,system-ui,sans-serif}
-.an-braille{font:500 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+/* hopping dots: each jumps in turn, stretching on the way up and squashing as it lands */
+.an-hop{display:flex;align-items:flex-end;gap:2.5px;height:12px}
+.an-hop i{width:3.5px;height:3.5px;border-radius:50%;background:var(--cr);transform-origin:50% 100%;animation:anhop 1.15s cubic-bezier(.3,0,.5,1) infinite}
+.an-hop i:nth-child(2){animation-delay:.13s}.an-hop i:nth-child(3){animation-delay:.26s}
+@keyframes anhop{0%,46%,100%{transform:none}8%{transform:scale(1.35,.65)}22%{transform:translateY(-6px) scale(.8,1.25)}36%{transform:translateY(0) scale(1.3,.7)}}
+/* the character itself, tiny, bouncing on the spot */
+.an-me{position:relative;width:16px;height:16px}
+.an-me .cr{position:absolute!important;left:2px!important;top:auto!important;bottom:0;transform:none!important;width:12px!important;height:12px!important;transform-origin:50% 100%;animation:anme .9s cubic-bezier(.3,0,.5,1) infinite}
+@keyframes anme{0%,100%{translate:0 0;scale:1.18 .82}30%{translate:0 -4px;scale:.9 1.12}55%{translate:0 -4.5px;scale:1 1}80%{translate:0 0;scale:1.12 .88}}
+/* two drops that meet in the middle and pull apart, gooey */
+.an-goo svg{width:16px;height:16px;overflow:visible}
+@media (prefers-reduced-motion:reduce){.an-hop i,.an-me .cr{animation:none}}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -94,7 +104,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
   <section>
     <h2>Proposal: something alive beside the step</h2>
-    <p class="note" style="margin-bottom:10px">While a session works, the card's last line says what it is doing, in grey with a passing light. Each option puts a small animation to its left, in the working colour. They stop when the step is done, and stand still with reduced motion.</p>
+    <p class="note" style="margin-bottom:10px">While a session works, the card's last line says what it is doing, in grey with a passing light. Each option puts a small animation to its left, in your character's colour (change it in Settings, Change character, and these follow). They stop when the step is done, and stand still with reduced motion.</p>
     <div class="props" id="propNow"></div>
   </section>
 
@@ -226,11 +236,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 (function () {
   var BLUE = '#8DC8E8', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var OPTS = [
-    ['star', 'Claude’s star', true, 'The star Claude Code itself turns while it thinks, its glyph stepping from a dot to a full asterisk and back. Anyone who uses Claude Code knows what it means.'],
-    ['orb', 'A dotted orb', false, 'A tiny globe of dots turning on its axis, the nearer dots brighter. After the thinking orbs; reads as busy without being loud.'],
+    ['hop', 'Hopping dots', true, 'Three dots taking turns to jump, stretching up and squashing as they land. Playful, and still just three dots.'],
+    ['me', 'Your character, bouncing', false, 'A tiny copy of your character bouncing on the spot. The most playful; it does repeat the character already in the corner of the card.'],
+    ['goo', 'Two drops', false, 'Two drops circling each other, meeting in the middle and pulling apart like something soft.'],
     ['orbit', 'Three in orbit', false, 'Three points circling on a tilted ring, bigger as they come round the front. Calm and continuous.'],
-    ['braille', 'A terminal spinner', false, 'The braille spinner terminals use: dots chasing round a cell. Fits a tool for people who live in terminals.'],
-    ['none', 'Today: nothing', false, 'Only the passing light on the words.']
+    ['orb', 'A dotted orb', false, 'A tiny globe of dots turning on its axis, the nearer dots brighter.']
   ];
   function card(o) {
     return '<div class="prop"><h3>' + o[1] + (o[2] ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + o[3] + '</p>' +
@@ -244,28 +254,36 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   document.getElementById('propNow').innerHTML = OPTS.map(card).join('');
 
-  /* Claude Code's star: · ✢ ✳ ✶ ✻ ✽, out and back */
-  var STAR = ['·', '✢', '✳', '✶', '✻', '✽'], STARS = STAR.concat(STAR.slice(1, -1).reverse());
-  var BRAILLE = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  function theme() { return getComputedStyle(document.documentElement).getPropertyValue('--cr').trim() || '#F5B83D'; }
   function canvas(el) { var c = document.createElement('canvas'), d = window.devicePixelRatio || 1; c.width = c.height = 16 * d; el.appendChild(c); var g = c.getContext('2d'); g.scale(d, d); return g; }
   /* points on a sphere, spread evenly */
   var SPH = []; for (var i = 0, n = 42; i < n; i++) { var y = 1 - (i + .5) / n * 2, r = Math.sqrt(1 - y * y), th = i * 2.39996; SPH.push([Math.cos(th) * r, y, Math.sin(th) * r]); }
   var draws = [];
   document.querySelectorAll('#propNow .an').forEach(function (el) {
     var k = el.dataset.an;
-    if (k === 'star') { el.className += ' an-star'; draws.push(function (t) { el.textContent = STARS[Math.floor(t / 130) % STARS.length]; }); }
-    if (k === 'braille') { el.className += ' an-braille'; draws.push(function (t) { el.textContent = BRAILLE[Math.floor(t / 80) % BRAILLE.length]; }); }
+    if (k === 'hop') { el.innerHTML = '<span class="an-hop"><i></i><i></i><i></i></span>'; }
+    if (k === 'me') {
+      /* the character the page is showing: its shape and its eyes, from the one beside the notch */
+      var src = document.querySelector('#scene > .cr'), path = src.querySelector('.f path').getAttribute('d'), cs = src.getAttribute('style') || '';
+      var v = function (n, d) { var m = cs.match(new RegExp(n + ':\\s*([^;]+)')); return m ? m[1] : d; };
+      el.innerHTML = '<span class="an-me"><div class="cr" data-m="awake" data-shape="' + (src.dataset.shape || '') + '" style="--et:' + v('--et', '44%') + ';--el:' + v('--el', '30%') + ';--er:' + v('--er', '56%') + ';--ew:' + v('--ew', '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + path + '"/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div></div></span>';
+    }
+    if (k === 'goo') {
+      el.innerHTML = '<span class="an-goo"><svg viewBox="0 0 16 16"><defs><filter id="goo" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 14 -6"/></filter></defs><g filter="url(#goo)" fill="var(--cr)"><circle class="d1" r="2.6" cx="8" cy="8"/><circle class="d2" r="2.6" cx="8" cy="8"/></g></svg></span>';
+      var d1 = el.querySelector('.d1'), d2 = el.querySelector('.d2');
+      draws.push(function (t) { var a = t / 520, r = 2.6 + 2.4 * Math.abs(Math.sin(t / 900)); d1.setAttribute('cx', 8 + Math.cos(a) * r); d1.setAttribute('cy', 8 + Math.sin(a) * r * .7); d2.setAttribute('cx', 8 - Math.cos(a) * r); d2.setAttribute('cy', 8 - Math.sin(a) * r * .7); });
+    }
     if (k === 'orb') { var g = canvas(el); draws.push(function (t) {
-      g.clearRect(0, 0, 16, 16); var a = t / 1400, ca = Math.cos(a), sa = Math.sin(a), tilt = .45, ct = Math.cos(tilt), st = Math.sin(tilt);
+      var col = theme(); g.clearRect(0, 0, 16, 16); var a = t / 1400, ca = Math.cos(a), sa = Math.sin(a), tilt = .45, ct = Math.cos(tilt), st = Math.sin(tilt);
       SPH.map(function (p) { var x = p[0] * ca + p[2] * sa, z = -p[0] * sa + p[2] * ca, y = p[1] * ct - z * st; z = p[1] * st + z * ct; return [x, y, z]; })
         .sort(function (u, v) { return u[2] - v[2]; })
-        .forEach(function (p) { var f = (p[2] + 1) / 2; g.globalAlpha = .18 + .82 * f; g.fillStyle = BLUE; g.beginPath(); g.arc(8 + p[0] * 6.4, 8 + p[1] * 6.4, .45 + .55 * f, 0, Math.PI * 2); g.fill(); });
+        .forEach(function (p) { var f = (p[2] + 1) / 2; g.globalAlpha = .18 + .82 * f; g.fillStyle = col; g.beginPath(); g.arc(8 + p[0] * 6.4, 8 + p[1] * 6.4, .45 + .55 * f, 0, Math.PI * 2); g.fill(); });
     }); }
     if (k === 'orbit') { var h = canvas(el); draws.push(function (t) {
-      h.clearRect(0, 0, 16, 16); var a = t / 700;
+      var col = theme(); h.clearRect(0, 0, 16, 16); var a = t / 700;
       [0, 1, 2].map(function (j) { var b = a + j * 2.0944, z = Math.sin(b); return [Math.cos(b) * 6, z * 2.4 - Math.cos(b) * 1.2, z]; })
         .sort(function (u, v) { return u[2] - v[2]; })
-        .forEach(function (p) { var f = (p[2] + 1) / 2; h.globalAlpha = .35 + .65 * f; h.fillStyle = BLUE; h.beginPath(); h.arc(8 + p[0], 8 + p[1], 1 + 1 * f, 0, Math.PI * 2); h.fill(); });
+        .forEach(function (p) { var f = (p[2] + 1) / 2; h.globalAlpha = .35 + .65 * f; h.fillStyle = col; h.beginPath(); h.arc(8 + p[0], 8 + p[1], 1 + 1 * f, 0, Math.PI * 2); h.fill(); });
     }); }
   });
   function loop(t) { draws.forEach(function (d) { d(t); }); if (!reduce) requestAnimationFrame(loop); }
