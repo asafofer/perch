@@ -526,7 +526,7 @@
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
        in order, by section (what needs you, today, earlier), and a small header starts each. A row leads with the
-       session's title; its project follows in grey. */
+       session's title and how long ago; at the right, its mark (rowMark) and its project in grey. */
     var sec = '';
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
@@ -534,9 +534,10 @@
       return head + '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span dir="auto" class="mq nm min-w-0 flex-[0_1_auto] truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 flex-[1_1_0%] truncate text-left text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>' +
-        '<span class="st flex flex-none items-center gap-2 text-xs tabular-nums"></span></div>';
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
+        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
+        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span></div>';
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
@@ -551,7 +552,9 @@
     var sel = null;
     sl.querySelectorAll('.row').forEach(function (r) {
       var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r;
-      var st = rowStatus(s.projects[+r.dataset.i]), el = r.querySelector('.st'); if (el.innerHTML !== st) el.innerHTML = st;
+      var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
+      if (tm.textContent !== t) tm.textContent = t;
+      if (rk.innerHTML !== m) rk.innerHTML = m;
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel) {
@@ -568,10 +571,19 @@
   /* the design page's sample data has no section from Swift: worked out the same way */
   function sectionOf(p) { return p.section || (p.attention ? 'Needs you' : /^\d+[mh]/.test(p.away || '') ? 'Today' : 'Earlier'); }
   /* a row's status in words when it is news or needs you, and how long ago at the right edge. Working has no age: it sits at the edge itself. */
-  function rowStatus(p) {
-    var ph = phrase(p, true), word = ph.c ? '<span class="flex items-center gap-1.5">' + Phrase(ph) + '</span>' : '';
-    if (p.status.kind === 'running') return word;
-    return word + '<span class="min-w-[22px] text-right text-muted-foreground">' + esc(String(p.away || '').split(' ')[0]) + '</span>';
+  /* A row's status is a mark, a ring drawn like the spinner, in the card's colours, with a faint still glow: the spinner
+     while it works, a check when it finished and you have not seen it, ? when it asked you something, the prompt when a
+     command waits for your OK, a list for a plan, ! for anything else waiting on you. Seen and idle sessions get none. */
+  var RING = { done: '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>', question: '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>',
+    permission: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>', plan: '<path d="M8.5 9.5h7M8.5 12h7M8.5 14.5h4.5"/>', need: '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>' };
+  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '99) drop-shadow(0 0 4px ' + c + '66)'; }
+  function rowMark(p) {
+    var k = p.status.kind, a = p.ask;
+    if (k === 'running' && !a) return '<span class="flex" style="' + glow(COLORS.running) + '">' + Spinner('size-3.5') + '</span>';
+    var g = a ? (RING[a.kind] ? a.kind : 'need') : k === 'attention' ? 'need' : k === 'done' && p.fresh !== false ? 'done' : '';
+    if (!g) return '';
+    var c = g === 'done' ? COLORS.done : COLORS.attention;
+    return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" aria-label="' + esc(phrase(p, true).t) + '"><circle cx="12" cy="12" r="9.5"/>' + RING[g] + '</svg>';
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;
@@ -583,7 +595,7 @@
     if (!row || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     mq.t = setTimeout(function () {
       /* the title if it is cut short, else the name; a right-to-left title glides the other way */
-      var box = [row.querySelector('.tp'), row.querySelector('.nm')].filter(function (b) { return b && b.scrollWidth - b.clientWidth >= 4; })[0];
+      var box = [row.querySelector('.nm'), row.querySelector('.tp')].filter(function (b) { return b && b.scrollWidth - b.clientWidth >= 4; })[0];
       if (!box || mq.el !== row) return;
       var inner = box.querySelector('.mq-in'), rtl = getComputedStyle(box).direction === 'rtl';
       var over = box.scrollWidth - box.clientWidth + 14;   /* clear of the fade at the far edge */

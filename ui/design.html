@@ -54,32 +54,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
 .cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
-/* proposals drawn side by side: the list as the app draws it, one idea per card */
-.props{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
-@media (min-width:860px){.props{grid-template-columns:1fr 1fr}}
-.prop{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.prop h3{margin:0;font:600 14px/18px Inter,sans-serif;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
-.prop p{margin:0;font-size:12.5px;line-height:18px;color:var(--pg-muted)}
-.prop .pick-me{font:500 11px/16px Inter,sans-serif;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,#8CCFA4 18%,transparent);color:#4E9A6B}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .prop .pick-me{color:#8CCFA4}}
-:root[data-theme="dark"] .prop .pick-me{color:#8CCFA4}
-.pstage{border-radius:10px;background:#16201e url(wallpapers/blue-distortion-1.webp) center 30%/cover;padding:0 10px 14px;display:flex;justify-content:center;overflow:hidden}
-.plist{width:400px;max-width:100%;background:#000;border-radius:0 0 20px 20px;padding:0 8px 8px;color:#fafafa}
-.plist .ph{height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:14px;font-weight:500}
-.plist .ph span{font-size:12px;font-weight:400;color:hsl(var(--muted-foreground))}
-.plist .row{cursor:default}
-/* take two: the mark's slot, the project column, the badge on the icon */
-.plist .mk{width:16px;height:16px;flex:none;display:grid;place-items:center}
-.plist .mk > svg.animate-spin{width:14px;height:14px}
-.plist .mk-r{width:16px;height:16px}
-.plist .mk-s{width:14px;height:14px;flex:none;border-radius:50%;display:grid;place-items:center;color:#000;font:800 9.5px/1 Inter,sans-serif}
-.plist .mk-s svg.mk-g{width:8px;height:8px}
-.plist .pfix{width:30%;flex:none;min-width:0}
-.plist .mslot{width:15px;flex:none;display:flex;justify-content:flex-end}
-.plist .pcol{min-width:0;max-width:38%;flex:none}
-.plist .bdg{position:absolute;right:-4px;top:-4px;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 1.5px #000;display:grid;place-items:center;color:#000;font:800 8px/1 Inter,sans-serif}
-.plist .bdg svg.sp{width:9px;height:9px}
-.plist .bdg svg.ck{width:7px;height:7px}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -99,12 +73,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     <h2>Scenarios</h2>
     <p class="note" style="margin-bottom:10px">Each one is the live card in that state.</p>
     <div class="groups" id="groups"></div>
-  </section>
-
-  <section>
-    <h2>Proposal: the list row, take six</h2>
-    <p class="note" style="margin-bottom:10px">Session and time on the left; the mark and the project on the right. Each mark a ring drawn like the spinner, with a faint glow: the spinner while it works, a check when it finished and you have not seen it, ? when it asked you something, and for a command waiting for your OK one of three marks below. Seen and idle sessions get none.</p>
-    <div class="props" id="propRow"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -228,98 +196,5 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   showTab(saved < boxes.length ? saved : 0);
   btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
-})();
-</script>
-<script>
-/* Proposals for the list: the rows drawn as app.js draws them (same classes, the live activity's marks), one idea per card. */
-(function () {
-  var C = { attention: '#E9A877', done: '#8CCFA4', running: '#8DC8E8' };
-  var ROWS = [
-    { sec: 'Needs you', t: 'Prototype a background reply to Claude', p: 'perch', app: 'claude', st: 'run-cmd', away: '2m' },
-    { sec: 'Needs you', t: 'Invoice matching rules', p: 'finance-tools', app: 'claude', st: 'question', away: '8m' },
-    { sec: 'Today', t: 'Simulation lighting realism', p: 'room-planner-prototype', app: 'claude', st: 'working' },
-    { sec: 'Today', t: 'Thinking animations library', p: 'perch', app: 'claude', st: 'done', away: '45m' },
-    { sec: 'Today', t: 'PDF gap analysis app initialization', p: 'spec-gap-finder', app: 'claude', st: 'idle', away: '3h', sel: true },
-    { sec: 'Today', t: 'README project summary', p: 'perch', app: 'claude', via: 'terminal', st: 'idle', away: '14h' }
-  ];
-  var icons = {};
-  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function App(k, c) {
-    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none rounded-[5px]" src="' + icons[k] + '" alt="">';
-    var g = { claude: '#D97757', codex: '#F4F4F5', terminal: '#27272A' }[k] || '#52525B';
-    return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g + '"/></svg>';
-  }
-  var CHECK = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-  var CMD = '<svg class="size-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7l5 5-5 5M13 18h6"/></svg>';
-  function Spin(c) { return '<svg class="animate-spin flex-none ' + (c || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
-  /* the mark, in one of three styles. tint: the live activity's (app.js MARK), a faint disc. solid: a full disc, dark glyph.
-     ring: the spinner's family, a coloured circle drawn like it (a full ring with the glyph inside). */
-  var MS = 'tint', GLOW = false, GLYPH = 'prompt';
-  /* what a command waiting for your OK wears inside its ring */
-  var CMDG = {
-    prompt: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>',
-    key: '<circle cx="9.6" cy="12" r="2.3"/><path d="M11.9 12h4.6M15 12v2.2"/>',
-    play: '<path d="M10.2 8.8v6.4l5-3.2z" fill="currentColor" stroke-width="1.6"/>'
-  };
-  function ringSvg(col, inner) { return '<svg class="mk-r" viewBox="0 0 24 24" fill="none" stroke="' + col + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/>' + inner.replace(/currentColor/g, col) + '</svg>'; }
-  /* a soft, still glow in the mark's own colour, if asked for */
-  function Mark(r) {
-    var m = Mark0(r), col = r.st === 'working' ? C.running : r.st === 'done' ? C.done : C.attention;
-    return GLOW && m ? m.replace('<span class="mk"', '<span class="mk" style="filter:drop-shadow(0 0 1px ' + col + '99) drop-shadow(0 0 4px ' + col + '66)"') : m;
-  }
-  function Mark0(r) {
-    if (r.st === 'working') return '<span class="mk">' + Spin() + '</span>';
-    var need = r.st === 'run-cmd' || r.st === 'question';
-    if (!need && r.st !== 'done') return '';
-    if (MS === 'solid') return '<span class="mk-s" style="background:' + (need ? C.attention : C.done) + '">' +
-      (r.st === 'done' ? CHECK.replace('size-2.5', 'mk-g').replace('stroke-width="2"', 'stroke-width="3.6"') : r.st === 'question' ? '?' : '!') + '</span>';
-    if (MS === 'ring') return '<span class="mk">' + (r.st === 'done' ? ringSvg(C.done, '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>')
-      : r.st === 'question' ? ringSvg(C.attention, '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>')
-      : ringSvg(C.attention, CMDG[GLYPH])) + '</span>';
-    if (r.st === 'done') return '<span class="act-m ok">' + CHECK + '</span>';
-    if (r.st === 'run-cmd') return '<span class="act-m">' + CMD + '</span>';
-    return '<span class="act-m">?</span>';
-  }
-  /* on the icon's corner: solid, with a black ring, so it reads over the icon */
-  function Badge(r) {
-    if (r.st === 'working') return '<span class="bdg" style="background:#000">' + Spin('sp') + '</span>';
-    if (r.st === 'done') return '<span class="bdg" style="background:' + C.done + '">' + CHECK.replace('size-2.5', 'ck').replace('stroke-width="2"', 'stroke-width="3.5"') + '</span>';
-    if (r.st === 'run-cmd' || r.st === 'question') return '<span class="bdg" style="background:' + C.attention + '">' + (r.st === 'question' ? '?' : '!') + '</span>';
-    return '';
-  }
-  function Icon(r, badge) {
-    var b = badge ? Badge(r) : '';
-    if (!r.via) return b ? '<span class="relative flex flex-none">' + App(r.app) + b + '</span>' : App(r.app);
-    return '<span class="relative flex flex-none">' + App(r.via) + '<span class="absolute size-[11px] -bottom-[3px] -right-[3px] flex overflow-hidden rounded-[3px] ring-[1.5px] ring-black">' + App(r.app, 'size-full') + '</span>' + b + '</span>';
-  }
-  /* where the mark goes: 'after' right after the time, 'end' a column at the far right, 'time' before the time, 'icon' on the icon's corner */
-  function row(r, at) {
-    var time = r.away ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + r.away + '</span>' : '';
-    var left = '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + esc(r.t) + '</span>' + (at === 'time' ? Mark(r) : '') + time + (at === 'after' ? Mark(r) : '') + '</span>';
-    var proj = '<span class="pcol truncate text-right text-xs text-muted-foreground">' + esc(r.p) + '</span>';
-    /* proj: the mark right before the project, the two kept together at the right; cols: a mark column, then the project left-aligned in its own column */
-    if (at === 'proj') proj = '<span class="pcol flex items-center justify-end gap-2">' + Mark(r) + '<span class="min-w-0 truncate text-xs text-muted-foreground">' + esc(r.p) + '</span></span>';
-    if (at === 'cols') proj = '<span class="mslot">' + Mark(r) + '</span><span class="pfix truncate text-xs text-muted-foreground">' + esc(r.p) + '</span>';
-    var end = at === 'end' ? '<span class="mslot">' + Mark(r) + '</span>' : '';
-    return '<div class="row flex h-9 items-center gap-2 rounded-md px-1.5 text-sm' + (r.sel ? ' bg-accent' : '') + '">' + Icon(r, at === 'icon') + left + proj + end + '</div>';
-  }
-  function List(at) {
-    var sec = '';
-    return '<div class="pstage"><div class="plist perch"><div class="ph">Jump back in<span>Type to filter</span></div>' + ROWS.map(function (r) {
-      var h = r.sec !== sec ? '<div class="s-sec' + (sec ? '' : ' first') + '">' + r.sec + '</div>' : ''; sec = r.sec; return h + row(r, at);
-    }).join('') + '</div></div>';
-  }
-  function card(title, pick, text, at, ms, glow, glyph) {
-    MS = ms || 'tint'; GLOW = !!glow; GLYPH = glyph || 'prompt';
-    return '<div class="prop"><h3>' + title + (pick ? '<span class="pick-me">Recommended</span>' : '') + '</h3><p>' + text + '</p>' + List(at) + '</div>';
-  }
-  function draw() {
-    document.getElementById('propRow').innerHTML =
-      card('A command: a prompt', true, 'The terminal prompt, the mark the notch already shows when an agent wants to run something. ? stays for a question.', 'proj', 'ring', true, 'prompt') +
-      card('A command: a key', false, 'It is asking for permission. Clear as a metaphor, a little fussy at this size.', 'proj', 'ring', true, 'key') +
-      card('A command: play', false, 'Run this? The simplest shape, but it reads as media more than as a command.', 'proj', 'ring', true, 'play');
-  }
-  draw();
-  fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) { if (o) { icons = o; draw(); } }).catch(function () {});
 })();
 </script>
