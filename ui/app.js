@@ -600,7 +600,8 @@
   function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '99) drop-shadow(0 0 4px ' + c + '66)'; }
   function rowMark(p) {
     var k = p.status.kind, a = p.ask;
-    if (k === 'running' && !a) return '<span class="flex" style="' + glow(COLORS.running) + '">' + Spinner('size-3.5') + '</span>';
+    /* the glow rides on the spinner itself, on its own layer, so it turns as one piece instead of being redrawn (and wobbling) every frame */
+    if (k === 'running' && !a) return Spinner('size-3.5').replace('<svg ', '<svg style="will-change:transform;' + glow(COLORS.running) + '" ');
     var g = a ? (RING[a.kind] ? a.kind : 'need') : k === 'attention' ? 'need' : k === 'done' && p.fresh !== false ? 'done' : '';
     if (!g) return '';
     var c = g === 'done' ? COLORS.done : COLORS.attention;
