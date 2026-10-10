@@ -122,9 +122,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
-    ['Proposal: moving between sessions', [
-      ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx(true, 'list'); }],
-      ['Into the details and back', 'Right opens the card of the row you are on: the character leans in toward the card, eyes on its title, then blinks. Left goes back and it leans back, eyes on the row you came from. The card and list themselves move as they always have. Plays it twice; then try Right and Left.', function () { d.fx(true, 'details'); }]
+    ['Moving between sessions', [
+      ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
+      ['Into the details and back', 'Right opens the card of the row you are on: the character leans in toward the card, eyes on its title, then blinks. Left goes back and it leans back, eyes on the row you came from. The card and list themselves move as they always have. Plays it twice; then try Right and Left.', function () { d.fx('details'); }]
     ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
@@ -168,7 +168,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fx(false); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

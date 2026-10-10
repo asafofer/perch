@@ -803,11 +803,10 @@
     }
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
-  /* ---- the character watches you move between sessions (a proposal: off in the app until it is chosen; the design
-     page turns it on with perchDev.fx). In the list its eyes go to the row you are on, and when you stop there it blinks.
+  /* ---- the character watches you move between sessions. In the list its eyes go to the row you are on, and when you stop there it blinks.
      Its face is that session's: wide-eyed if it needs you, with a start as you arrive, a happy squint if it finished.
      Typing a filter, it reads along; flipping cards, its eyes go to the new title. A held arrow only moves its eyes. ---- */
-  var switchFx = '', fxAt = 0, fxBlink = 0, fxMood = '', fxTyped = '';
+  var fxPlay = 0, switchFx = 'watch', fxAt = 0, fxBlink = 0, fxMood = '', fxTyped = '';
   /* Measured in the card, from where the character sits in its corner (layout), so it aims right even while the card
      and the character are still moving into place. */
   function lookAt(el, along) {
@@ -834,9 +833,8 @@
   }
 
   /* ---- into a session's card from the list (Right, or a click on its row) and back (Left): the character leans in to
-     look at the card, and leans back to the list. The panes keep their own quiet fade. A proposal, off in the app until
-     chosen. ---- */
-  var drillFx = false;
+     look at the card, and leans back to the list. The panes keep their own quiet fade. ---- */
+  var drillFx = true;
   function drill(from, to, s) {
     var going = from === 'switch' && to === 'open', back = from === 'open' && to === 'switch';
     if (!drillFx || celebrating || hello || (!going && !back)) return;
@@ -1499,10 +1497,12 @@
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, setup: 'off', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
-      fx: function (on, play) {
-        switchFx = on ? 'watch' : ''; drillFx = !!on; fxMood = ''; if (!on) return;
-        window.perchDev.show('switcher');
-        var go = function (i, f) { setTimeout(function () { if (switchFx) f(); }, 900 + i * 850); };
+      /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
+         scenario stops it (fxStop). */
+      fxStop: function () { fxPlay++; },
+      fx: function (play) {
+        fxMood = ''; window.perchDev.show('switcher');
+        var me = ++fxPlay, go = function (i, f) { setTimeout(function () { if (me === fxPlay) f(); }, 900 + i * 850); };
         if (play === 'list') [1, 1, 1, -1, -1, -1].forEach(function (d, i) { go(i, function () { if (lastSt === 'switch') window.perchDev.step(d); }); });
         if (play === 'details') { go(0, function () { window.perchDev.step(1); }); go(1, function () { window.perchDev.show('open', null, false, true); }); go(3, function () { window.perchDev.show('switcher'); }); go(4, function () { window.perchDev.step(1); }); go(5, function () { window.perchDev.show('open', null, false, true); }); }
       },
