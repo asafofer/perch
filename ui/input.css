@@ -232,6 +232,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* the working step: grey words with a light passing over them, so it reads as happening rather than as yours to do. A white
    copy of the words (app.js sets data-shine) sits on top, and a soft band of mask moves across it. The mask repeats and each
    pass moves it exactly one repeat, so the light comes in from the left, leaves at the right, and the loop has no seam. */
+/* the orb beside a working step (app.js orbFor) draws in the character's colour */
+.o-orb { color: var(--cr); }
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
 .shimmer::after { content: attr(data-shine); position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%); mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);

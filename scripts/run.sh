@@ -12,7 +12,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/ui"
 cp ".build/$CONFIG/Perch" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-cp ui/index.html ui/app.js "$APP/Contents/Resources/ui/"
+cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
 # Sign with the stable local "Perch Dev" certificate when it exists, so macOS remembers privacy permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)

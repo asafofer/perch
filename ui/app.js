@@ -156,7 +156,7 @@
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-white/[0.05] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
-      '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
+      '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
@@ -461,6 +461,7 @@
     var now = !a && p.status.kind === 'running' && p.now;
     if (now) nx = now;
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
+    orbFor(now);
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
@@ -470,6 +471,22 @@
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go');
+  }
+  /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
+     searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
+     the card shows a step and taken down after, so nothing keeps running behind a closed card. */
+  var orb = { el: null, state: '' };
+  function orbState(t) {
+    return /^(Searching|Looking for|Reading)\b/.test(t) ? 'searching' : /^(Helper:|Working with a helper)/.test(t) ? 'background'
+      : /compact/i.test(t) ? 'compacting' : /\b(retry|retrying|overloaded|rate limit)/i.test(t) ? 'retrying' : /^(Thinking|Planning)\b/.test(t) ? 'reasoning' : 'working';
+  }
+  function orbFor(step) {
+    var box = q('.o-orb'), st = step && window.ThinkingOrbs ? orbState(step) : '';
+    box.classList.toggle('hidden', !st);
+    if (st === orb.state) return;
+    if (orb.el) { orb.el.destroy(); orb.el = null; }
+    orb.state = st;
+    if (st) orb.el = window.ThinkingOrbs.mountOrb(box.querySelector('svg'), { state: st, size: 18 });
   }
   /* About five rows show at a time, with their section headers; the rest scroll, with a soft edge where there is more. */
   var sl = q('.s-l'), listSig = '', lastSel = -1;
@@ -823,6 +840,7 @@
     if (st === 'setup') setup(s.setup);
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
+    if (st !== 'open') orbFor('');
     if (flipped) setTimeout(function () { switched(p); }, 0);   /* after layout sets its face */
     cardId = st === 'open' && p ? p.id : null;
     moments(s, st);
