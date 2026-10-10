@@ -14,6 +14,10 @@ enum AppIcons {
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
     ].merging(Terminals.keys.filter { $0.value != "terminal" }.map { ($0.value, ($0.key, "")) }, uniquingKeysWith: { a, _ in a })
 
+    /// The agent's own mark, shipped inside its app, where the app's icon is no longer the agent's: Codex's app now wears
+    /// ChatGPT's icon but still carries the Codex mark in its resources.
+    private static let marks: [String: String] = ["codex": "icon-codex-light.png"]
+
     /// Whether the page could get a real icon for this key at all (pi has no app).
     static func knows(_ key: String) -> Bool { apps[key] != nil }
 
@@ -26,12 +30,16 @@ enum AppIcons {
 
     static func all() -> [String: String] {
         var out: [String: String] = [:]
-        for key in apps.keys { if let path = url(key)?.path, let data = dataURL(forFile: path) { out[key] = data } }
+        for key in apps.keys { if let app = url(key), let data = dataURL(for: image(key, app)) { out[key] = data } }
         return out
     }
 
-    private static func dataURL(forFile path: String, points: CGFloat = 64) -> String? {
-        let icon = NSWorkspace.shared.icon(forFile: path)
+    private static func image(_ key: String, _ app: URL) -> NSImage {
+        if let mark = marks[key], let image = NSImage(contentsOf: app.appendingPathComponent("Contents/Resources/" + mark)) { return image }
+        return NSWorkspace.shared.icon(forFile: app.path)
+    }
+
+    private static func dataURL(for icon: NSImage, points: CGFloat = 64) -> String? {
         let size = NSSize(width: points, height: points)
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(points), pixelsHigh: Int(points), bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
