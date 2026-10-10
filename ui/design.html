@@ -54,6 +54,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .cell .stage{display:grid;place-items:center;width:100%;height:100%;background:#0b0e0d;border-radius:10px}
 .cell .cr{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:38px!important;height:38px!important}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
+/* ?record (scripts/record.sh): only the desktop, filling the window */
+.rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
+.rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -197,5 +200,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   showTab(saved < boxes.length ? saved : 0);
   btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
 
+})();
+</script>
+<script>
+/* ?record: the desktop alone playing a set flow, filmed by scripts/record.sh for the README's GIF and stills: a card that
+   asks, two flips to a session at work, the list, then a session you are not in finishing while you work. */
+(function () {
+  if (!/[?&]record\b/.test(location.search) || !window.perchDev) return;
+  var d = window.perchDev;
+  document.documentElement.classList.add('rec');
+  function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
+  [[600, function () { d.project(0); d.show('open', null, false, true); }],
+   [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],
+   [8800, function () { key('ArrowLeft'); }], [10000, function () { key('ArrowDown'); }], [10800, function () { key('ArrowDown'); }], [11600, function () { key('ArrowUp'); }],
+   [12800, function () { key('Escape'); }],
+   [13600, function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }]
+  ].forEach(function (t) { setTimeout(t[1], t[0]); });
 })();
 </script>

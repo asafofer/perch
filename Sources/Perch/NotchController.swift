@@ -212,14 +212,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `top`: keep only that much of the panel from its top edge, in points (the live activity is a strip, not a card).
     func snapshot(to path: String, top: CGFloat? = nil) {
         let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
-        let panel = NotchGeometry.panelSize
+        let screen = info.frame.size, panel = NotchGeometry.panelSize, wall = snapshotWallpaper
         web.evaluateJavaScript("window.perch && window.perch.still && window.perch.still()", completionHandler: nil)
-        web.takeSnapshot(with: cfg) { [weak self] image, _ in
-            guard let self, let image else { return }
+        web.takeSnapshot(with: cfg) { image, _ in
+            guard let image else { return }
             let size = image.size
             let out = NSImage(size: size)
             out.lockFocus()
-            self.drawWallpaper(in: size)
+            if let wall, wall.size.width > 0 {
+                // Scale the wallpaper to fill the screen and take the strip under the panel, centred, a little way down
+                // where the colour is: the very top of most wallpapers is dark, and the card is black.
+                let k = max(screen.width / wall.size.width, screen.height / wall.size.height)
+                let x = ((wall.size.width * k - screen.width) / 2 + (screen.width - panel.width) / 2) / k
+                let h = (panel.height + NotchGeometry.overscan) / k
+                let top = wall.size.height * 0.2
+                wall.draw(in: NSRect(origin: .zero, size: size), from: NSRect(x: x, y: wall.size.height - top - h, width: panel.width / k, height: h), operation: .copy, fraction: 1)
+            } else {
+                NSColor(calibratedRed: 0.13, green: 0.19, blue: 0.18, alpha: 1).setFill()
+                NSRect(origin: .zero, size: size).fill()
+            }
             image.draw(in: NSRect(origin: .zero, size: size))
             out.unlockFocus()
             guard let tiff = out.tiffRepresentation, var rep = NSBitmapImageRep(data: tiff) else { return }
@@ -229,49 +240,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             if let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
         }
-    }
-
-    /// The wallpaper under the panel, filling `size` (the panel's pixels), into the current graphics context.
-    private func drawWallpaper(in size: NSSize) {
-        let screen = info.frame.size, panel = NotchGeometry.panelSize
-        if let wall = snapshotWallpaper, wall.size.width > 0 {
-            // Scale the wallpaper to fill the screen and take the strip under the panel, centred, a little way down
-            // where the colour is: the very top of most wallpapers is dark, and the card is black.
-            let k = max(screen.width / wall.size.width, screen.height / wall.size.height)
-            let x = ((wall.size.width * k - screen.width) / 2 + (screen.width - panel.width) / 2) / k
-            let h = (panel.height + NotchGeometry.overscan) / k
-            let top = wall.size.height * 0.2
-            wall.draw(in: NSRect(origin: .zero, size: size), from: NSRect(x: x, y: wall.size.height - top - h, width: panel.width / k, height: h), operation: .copy, fraction: 1)
-        } else {
-            NSColor(calibratedRed: 0.13, green: 0.19, blue: 0.18, alpha: 1).setFill()
-            NSRect(origin: .zero, size: size).fill()
-        }
-    }
-
-    /// For the README's GIF: the panel as numbered PNG frames for `seconds`, and the wallpaper under it as wall.png.
-    /// scripts/record.sh lays the frames over the wallpaper and makes the GIF. Nothing is held still, so it blinks.
-    func record(to dir: String, fps: Double = 20, seconds: Double) {
-        let cfg = WKSnapshotConfiguration(); cfg.snapshotWidth = NSNumber(value: Double(web.bounds.width) * 2)
-        let size = NSSize(width: web.bounds.width * 2, height: web.bounds.height * 2)
-        let wall = NSImage(size: size)
-        wall.lockFocus(); drawWallpaper(in: size); wall.unlockFocus()
-        if let tiff = wall.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: dir + "/wall.png")) }
-        // Encoding happens off the main thread, so the capture keeps its pace; the frames are numbered as they are taken.
-        let queue = DispatchQueue(label: "perch.record")
-        var n = 0
-        let timer = Timer(timeInterval: 1 / fps, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                n += 1
-                let path = String(format: "%@/f%05d.png", dir, n)
-                self.web.takeSnapshot(with: cfg) { image, _ in
-                    guard let cg = image?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
-                    queue.async { if let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) } }
-                }
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { timer.invalidate() }
     }
 
     // MARK: state

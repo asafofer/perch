@@ -132,7 +132,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 - **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects` and `~/.codex/sessions`, and which sessions are running in a terminal. Claude app sessions, Codex threads, and sessions started in a terminal are listed; headless runs (`claude -p`, `codex exec`) are not.
 - **See the notch while you work.** `./scripts/run.sh --activity` plays a finish, a command to allow and a question over your real sessions.
 - **Status lags or guesses.** Turn on Live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
-- **README screenshots.** `./scripts/run.sh --snapshot docs/assets --wallpaper ui/wallpapers/blue-distortion-1.webp`. The GIF: `./scripts/record.sh` (needs `ffmpeg`, and the screen unlocked: a locked Mac stops drawing the panel).
+- **README GIF and screenshots.** `./scripts/record.sh` films the design page's sample flow and writes them to `docs/assets` (needs `ffmpeg`, and the screen unlocked: a locked Mac stops drawing the page).
 
 ## Roadmap
 

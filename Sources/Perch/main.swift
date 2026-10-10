@@ -55,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(0)
         }
         // Demos and snapshots always use sample data, so they never open Terminal.
-        let sample = args.contains("--fake") || ((args.contains("--demo") || args.contains("--snapshot") || args.contains("--record")) && !args.contains("--real"))
+        let sample = args.contains("--fake") || ((args.contains("--demo") || args.contains("--snapshot")) && !args.contains("--real"))
         let provider: SessionProviding = sample ? FakeSessionProvider() : RealSessionProvider()
         let c = NotchController(provider: provider)
         controller = c
@@ -111,25 +111,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 13.6) { c.playActivityDemo() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 15.6) { c.snapshot(to: dir + "/activity.png", top: 105) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 16.4) { NSApp.terminate(nil) }
-        }
-        // The README's GIF (scripts/record.sh): back to a card that asks, a flip to a session at work, the list, then a
-        // session you are not in finishing while you work. Sample data over a wallpaper, recorded as frames.
-        if let i = args.firstIndex(of: "--record"), args.indices.contains(i + 1) {
-            let dir = args[i + 1]
-            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-            if let w = args.firstIndex(of: "--wallpaper"), args.indices.contains(w + 1) { c.snapshotWallpaper = NSImage(contentsOfFile: args[w + 1]) }
-            c.holdOpen = true
-            let at = { (t: Double, f: @escaping @MainActor () -> Void) in DispatchQueue.main.asyncAfter(deadline: .now() + t) { f() } }
-            at(1.2) { c.record(to: dir, seconds: 19.5) }
-            at(2.0) { c.comeBack() }
-            at(5.0) { c.send(.next) }
-            at(7.0) { c.send(.next) }   // the session at work, with its orb
-            at(10.4) { c.send(.openSwitcher) }
-            at(11.6) { c.send(.next) }
-            at(12.4) { c.send(.previous) }
-            at(13.6) { c.send(.dismiss) }
-            at(14.4) { c.playActivityDemo() }
-            at(21.2) { NSApp.terminate(nil) }
         }
         if args.contains("--simulate") {
             // "I was away, I'm back": asleep for a few seconds, then you return and the card stays open.

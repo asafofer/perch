@@ -72,12 +72,12 @@
      ? for a question, the prompt for a command waiting for your OK, a list for a plan, ! for anything else waiting. */
   var RING = { done: '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>', question: '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>',
     permission: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>', plan: '<path d="M8.5 9.5h7M8.5 12h7M8.5 14.5h4.5"/>', need: '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>' };
-  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '99) drop-shadow(0 0 4px ' + c + '66)'; }
+  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '80) drop-shadow(0 0 3.5px ' + c + '4d)'; }
   function Ring(k, label) {
     var c = k === 'done' ? COLORS.done : COLORS.attention;
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
   }
-  function Phrase(ph) { return (ph.spin ? Spinner('size-3') : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
+  function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
   function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
