@@ -90,10 +90,28 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr-in.talk { animation: talk .22s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes talk { 50% { scale: 1.035 .965; } }
 .cr-in.wiggle { animation: wiggle .8s ease-in-out; transform-origin: 50% 100%; }
-.cr-in.flip { animation: flip .9s cubic-bezier(.3,1.2,.5,1); }
 .cr-in.squish { animation: squish .7s cubic-bezier(.3,1.5,.5,1); transform-origin: 50% 100%; }
 @keyframes wiggle { 0%,100% { rotate: 0deg; } 20% { rotate: -9deg; } 45% { rotate: 8deg; } 70% { rotate: -5deg; } 88% { rotate: 2deg; } }
-@keyframes flip { 0% { transform: none; } 30% { transform: translateY(-14px) rotate(160deg); } 62% { transform: translateY(0) rotate(360deg) scale(1.12,.88); } 80% { transform: scale(.96,1.05); } 100% { transform: none; } }
+/* a jump: it crouches, pushes off stretched, rises and slows to the top, falls faster, lands in a squash and settles.
+   Height and squash run on their own curves: the height moves like a thrown thing, the squash and stretch ease in and out. */
+.cr-in.jump { animation: jump-y 1s, jump-s 1s; transform-origin: 50% 100%; }
+@keyframes jump-y {
+  0%, 18% { translate: 0 0; animation-timing-function: cubic-bezier(.35,0,.25,1); }
+  45% { translate: 0 -10px; animation-timing-function: cubic-bezier(.55,0,.85,.4); }
+  66% { translate: 0 0; animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+  80% { translate: 0 -1px; animation-timing-function: ease-in-out; }
+  100% { translate: 0 0; }
+}
+@keyframes jump-s {
+  0% { scale: 1 1; animation-timing-function: cubic-bezier(.4,0,.6,1); }
+  18% { scale: 1.14 .84; animation-timing-function: cubic-bezier(.3,0,.3,1); }
+  27% { scale: .9 1.12; animation-timing-function: cubic-bezier(.4,0,.4,1); }
+  42%, 56% { scale: 1 1; animation-timing-function: cubic-bezier(.5,0,.9,.6); }
+  65% { scale: .94 1.07; animation-timing-function: cubic-bezier(.2,.7,.4,1); }
+  71% { scale: 1.16 .84; animation-timing-function: cubic-bezier(.4,0,.4,1); }
+  84% { scale: .97 1.03; animation-timing-function: ease-in-out; }
+  100% { scale: 1 1; }
+}
 @keyframes squish { 0%,100% { scale: 1 1; } 30% { scale: 1.18 .8; } 55% { scale: .9 1.12; } 78% { scale: 1.04 .97; } }
 .cr .f { position: absolute; inset: 0; transform-origin: 50% 100%; }
 .cr .f svg { width: 100%; height: 100%; display: block; overflow: visible; }

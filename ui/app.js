@@ -1246,15 +1246,20 @@
   function reshape(el, fn) { el.classList.add('reshape'); fn(); void el.offsetWidth; el.classList.remove('reshape'); }
   /* the preview and the little shape tiles are alive: they blink and glance about while you choose */
   function blinkEl(el) { el.classList.add('blink'); setTimeout(function () { el.classList.remove('blink'); }, 150); }
-  /* while you choose, the big preview plays: a hop, a wiggle, a flip, a squish, a short nap, a happy bounce. Never the same twice in a row. */
-  var TRICKS = ['hop', 'wiggle', 'flip', 'squish', 'nap', 'happy'], lastTrick = '';
-  function trick(pv) {
-    var ci = pv.querySelector('.cr-in'), pick = TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
+  /* while you choose, the big preview plays: a jump, a wiggle, a squish, a short nap, a happy bounce. Never the same twice in a row. */
+  var TRICKS = ['jump', 'wiggle', 'squish', 'nap', 'happy'], lastTrick = '';
+  function trick(pv, only) {
+    var ci = pv.querySelector('.cr-in'), pick = only || TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
     lastTrick = pick; pv._busy = Date.now() + 1800;
     var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
     if (pick === 'nap') {
       pv.dataset.m = 'sleep'; eyesTo(pv, 0, 0);
       setTimeout(function () { if (pv.dataset.m === 'sleep') { pv.dataset.m = 'awake'; play('hop', 600); } }, 1500);
+    } else if (pick === 'jump') {
+      /* its eyes drop as it crouches, go up as it leaves the ground, and come back as it lands */
+      play('jump', 1000); eyesTo(pv, 0, 1.2);
+      setTimeout(function () { eyesTo(pv, 0, -1.8); }, 200);
+      setTimeout(function () { eyesTo(pv, 0, 0); }, 620);
     } else if (pick === 'happy') {
       pv.dataset.m = 'happy'; play('hop', 600);
       setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
@@ -1706,6 +1711,12 @@
       clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
         setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
       say: function (t) { window.perch.say(t); },
+      /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
+      trick: function (name) {
+        window.perchDev.onboarding(1);
+        var me = ++fxPlay;
+        (function again(ms) { setTimeout(function () { var pv = q('.cr-pv'); if (me !== fxPlay || !pv) return; pv._busy = Date.now() + 99999; trick(pv, name); again(2400); }, ms); })(900);
+      },
       /* the whole permission moment: working quietly, a request arrives, you look, you answer, all clear */
       permission: function () {
         d0(); base.selected = 0;
