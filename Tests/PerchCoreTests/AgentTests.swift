@@ -18,6 +18,7 @@ import Testing
         // pi runs under node and renames itself in argv[0].
         #expect(Agent.recognise(executable: "/Users/a/.nvm/versions/node/v22.16.0/bin/node", argv0: "pi") == .pi)
         #expect(Agent.recognise(executable: "/Users/a/.nvm/versions/node/v22.16.0/bin/node", argv0: "node") == nil)
+        #expect(Agent.recognise(executable: "/usr/local/bin/node", argv0: "claude") == .claude)
         #expect(Agent.recognise(executable: "/bin/zsh", argv0: "-zsh") == nil)
     }
 

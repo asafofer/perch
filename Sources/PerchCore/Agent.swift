@@ -29,7 +29,8 @@ public struct Agent: Equatable, Sendable {
         return id == "opencode" ? "\(resumeCommand) \(session) --prompt \(quoted)" : "\(resumeCommand) \(session) \(quoted)"
     }
 
-    /// Which agent a process is, from its executable path and argv[0]. pi runs under node or bun and names itself in argv[0].
+    /// Which agent a process is, from its executable path and argv[0]. pi, and Claude Code installed with npm, run under
+    /// node or bun and name themselves in argv[0].
     /// The native Claude installer runs ~/.local/share/claude/versions/<version>. Nil for anything else.
     public static func recognise(executable: String, argv0: String?) -> Agent? {
         let name = (executable as NSString).lastPathComponent
@@ -37,7 +38,10 @@ public struct Agent: Equatable, Sendable {
         if name == "codex" || name.hasPrefix("codex-") { return .codex }
         if name == "opencode" { return .opencode }
         if name == "pi" { return .pi }
-        if ["node", "bun"].contains(name), let a = argv0.map({ ($0 as NSString).lastPathComponent }), a == "pi" { return .pi }
+        if ["node", "bun"].contains(name), let a = argv0.map({ ($0 as NSString).lastPathComponent }) {
+            if a == "pi" { return .pi }
+            if a == "claude" { return .claude }
+        }
         return nil
     }
 }
