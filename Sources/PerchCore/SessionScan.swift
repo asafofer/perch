@@ -54,6 +54,8 @@ public final class SessionScanner: @unchecked Sendable {
     public var usable: (String) -> Bool = SessionScanner.isUsable
     public var lookUpGit: (String) -> GitInfo? = SessionScanner.git(at:)
     public var lookUpBranch: (String) -> String? = SessionScanner.branch(at:)
+    /// For a git worktree, the name of the project it belongs to. Nil for anything else.
+    public var lookUpRepo: (String) -> String? = SessionScanner.repo(at:)
     let home: URL
     let desktop: DesktopSessions
 
@@ -64,6 +66,15 @@ public final class SessionScanner: @unchecked Sendable {
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
     private var digestCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
     private var gitCache: [String: (at: Date, info: GitInfo?, branch: String?)] = [:]
+    /// Whether a folder is a worktree, and of which project, does not change.
+    private var repoCache: [String: String?] = [:]
+    private func cachedRepo(_ cwd: String) -> String? {
+        lock.lock(); let hit = repoCache[cwd]; lock.unlock()
+        if let hit { return hit }
+        let r = lookUpRepo(cwd)
+        lock.lock(); repoCache[cwd] = .some(r); lock.unlock()
+        return r
+    }
     /// The first line of a Codex file never changes once written.
     private var headCache: [String: SessionDigest] = [:]
     private var threadNames: (mtime: Date, names: [String: String])?
@@ -142,8 +153,9 @@ public final class SessionScanner: @unchecked Sendable {
         var fromTerminal = 0
         for t in terminal {
             guard fromTerminal < limit else { break }
-            guard let digest = cachedDigest(t.url, mtime: t.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
+            guard var digest = cachedDigest(t.url, mtime: t.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
                   digest.entrypoint == nil || digest.entrypoint == "cli", !Recap.isTrivial(digest), let cwd = digest.cwd, usable(cwd) else { continue }
+            digest.repoName = cachedRepo(cwd)
             let git = cachedGit(cwd).info
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(t.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true
@@ -157,6 +169,7 @@ public final class SessionScanner: @unchecked Sendable {
                   !Recap.isTrivial(digest), let cwd = s.entry.cwd ?? digest.cwd, usable(cwd) else { continue }
             digest.cwd = cwd
             if let t = s.entry.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
+            digest.repoName = cachedRepo(cwd)
             let git = cachedGit(cwd).info
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
                 p.focusedAt = s.entry.focusedAt
@@ -195,6 +208,7 @@ public final class SessionScanner: @unchecked Sendable {
             digest.cwd = cwd; digest.sessionId = head.sessionId
             guard !Recap.isTrivial(digest) else { continue }
             if let id = head.sessionId, let t = names[id], !t.isEmpty { digest.title = t }
+            digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
             digest.branch = cg.branch
@@ -224,6 +238,7 @@ public final class SessionScanner: @unchecked Sendable {
             guard digest.lastTimestamp != nil, !Recap.isTrivial(digest) else { continue }
             digest.sessionId = s.id; digest.cwd = s.directory
             if !OpenCodeTranscript.isPlaceholder(s.title) { digest.title = s.title }
+            digest.repoName = cachedRepo(s.directory)
             let cg = cachedGit(s.directory, withBranch: true)
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .opencode, quietFor: now.timeIntervalSince(s.updated)), let last = digest.lastTimestamp {
@@ -255,6 +270,7 @@ public final class SessionScanner: @unchecked Sendable {
             guard digest.lastTimestamp != nil, !Recap.isTrivial(digest) else { continue }
             // Unnamed, it goes by your first prompt, as pi's own list does.
             if digest.title == nil { digest.title = cachedFirstPrompt(item.url) }
+            digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
@@ -339,6 +355,14 @@ public final class SessionScanner: @unchecked Sendable {
         let end = data[hit.upperBound...].firstIndex(of: 0x0A) ?? data.count
         guard let obj = (try? JSONSerialization.jsonObject(with: data[start..<end])) as? [String: Any] else { return nil }
         return (obj[key] as? String).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// A linked git worktree keeps its git folder inside the main checkout's (`git-common-dir`), whose folder names the project.
+    public static func repo(at cwd: String) -> String? {
+        guard let out = run("git", ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir", "--git-dir"]) else { return nil }
+        let lines = out.split(separator: "\n").map(String.init)
+        guard lines.count == 2, lines[0] != lines[1], (lines[0] as NSString).lastPathComponent == ".git" else { return nil }
+        return ((lines[0] as NSString).deletingLastPathComponent as NSString).lastPathComponent
     }
 
     public static func branch(at cwd: String) -> String? {

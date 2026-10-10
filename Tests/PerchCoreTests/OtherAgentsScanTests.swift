@@ -17,7 +17,7 @@ private final class AgentHome {
     var scanner: SessionScanner {
         let s = SessionScanner(home: url, desktop: DesktopSessions(root: url.appendingPathComponent("none")))
         s.usable = { FileManager.default.fileExists(atPath: $0) }
-        s.lookUpGit = { _ in nil }; s.lookUpBranch = { _ in nil }
+        s.lookUpGit = { _ in nil }; s.lookUpBranch = { _ in nil }; s.lookUpRepo = { _ in nil }
         return s
     }
 

@@ -104,3 +104,21 @@ import Foundation
         #expect(HerdrStatus.apply("working", to: finished).status.text == "Claude Code is working")
     }
 }
+
+@Suite struct ProjectNameTests {
+    @Test func aWorktreeIsNamedByItsProjectOrNotAtAll() {
+        #expect(Recap.projectName(cwd: "/Users/a/code/perch/.claude/worktrees/wizardly-williams-42a0c0", repo: nil) == "perch")
+        #expect(Recap.projectName(cwd: "/Users/a/.codex/worktrees/1a2b/perch", repo: nil) == "perch")
+        #expect(Recap.projectName(cwd: "/Users/a/somewhere/worktrees/feature-x", repo: nil) == "")
+        #expect(Recap.projectName(cwd: "/Users/a/code/perch-feature", repo: "perch") == "perch")
+        #expect(Recap.projectName(cwd: "/Users/a/code/site", repo: nil) == "site")
+    }
+
+    @Test func gitNamesTheProjectOfAWorktree() throws {
+        // This checkout: a worktree names its project, a main checkout does not need to.
+        let here = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().path
+        let r = SessionScanner.repo(at: here)
+        if here.contains("/worktrees/") { #expect(r != nil && r != (here as NSString).lastPathComponent) } else { #expect(r == nil) }
+        #expect(SessionScanner.repo(at: "/") == nil)
+    }
+}

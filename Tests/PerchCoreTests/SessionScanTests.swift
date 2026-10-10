@@ -15,7 +15,7 @@ private final class Home {
     var scanner: SessionScanner {
         let s = SessionScanner(home: url, desktop: DesktopSessions(root: url.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")))
         s.usable = { FileManager.default.fileExists(atPath: $0) }
-        s.lookUpGit = { _ in nil }; s.lookUpBranch = { _ in nil }
+        s.lookUpGit = { _ in nil }; s.lookUpBranch = { _ in nil }; s.lookUpRepo = { _ in nil }
         return s
     }
 

@@ -35,6 +35,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var headless = false
     /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
     public var entrypoint: String?
+    /// The project a git worktree belongs to ("perch" for perch/.claude/worktrees/<name>), when the folder is one.
+    public var repoName: String?
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
@@ -192,7 +194,7 @@ public enum Recap {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
         let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
-        let name = titled ? title! : URL(fileURLWithPath: cwd).lastPathComponent
+        let name = titled ? title! : projectName(cwd: cwd, repo: d.repoName)
         let headline = headlineText(d)
         // What the agent did or found is what you need when you come back; your own last prompt is only the fallback.
         let settled = d.failed.map { clip($0, 150) } ?? outcome(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
@@ -213,6 +215,18 @@ public enum Recap {
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         return p
+    }
+
+    /// The project's name: its folder's, or for a worktree, the project it belongs to. A worktree's own name ("wizardly-
+    /// williams-42a0c0") says nothing, so with no project to show the name is empty.
+    public static func projectName(cwd: String, repo: String?) -> String {
+        if let repo, !repo.isEmpty { return repo }
+        let parts = cwd.split(separator: "/").map(String.init)
+        guard let i = parts.lastIndex(of: "worktrees"), i >= 1, i < parts.count - 1 else { return parts.last ?? cwd }
+        // Claude Code's: <project>/.claude/worktrees/<name>. Codex's: ~/.codex/worktrees/<id>/<project>.
+        if parts[i - 1] == ".claude" { return i >= 2 ? parts[i - 2] : "" }
+        if parts[i - 1] == ".codex" { return i + 2 < parts.count ? parts[i + 2] : "" }
+        return i == parts.count - 2 ? "" : parts.last ?? ""
     }
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
