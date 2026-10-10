@@ -286,7 +286,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func startWatching() {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let paths = [".claude/projects", ".codex/sessions"].map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
+        // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
+        // you are in (and so what the notch keeps quiet about).
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions"]
+            .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
         let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
