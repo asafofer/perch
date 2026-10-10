@@ -79,7 +79,7 @@ On first launch Perch walks you through setup: character, Accessibility, which a
 | Where was I | Control + Option + P |
 | All sessions | Control + Option + L |
 | Between the card and the list | Left and Right (or Tab) |
-| Switch to the session | Return |
+| Open the session | Return |
 | Allow or deny what the agent asks | A or D |
 | Pick an answer to a question | 1 to 4 |
 | Reply, then scroll the agent's message | R, then Up and Down |

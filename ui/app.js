@@ -52,8 +52,8 @@
     return '<span class="relative flex flex-none" title="' + (p.app === 'codex' ? 'Codex' : 'Claude Code') + ' in ' + esc(TERMS[p.via] || 'a terminal') + '">' + term +
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, 'size-full') + '</span></span>';
   }
-  /* where the main button takes you, by name: "Switch to Claude", "Switch to Ghostty" */
-  function goLabel(p) { return 'Switch to ' + (p && p.via ? TERMS[p.via] || 'Terminal' : p && (p.app === 'codex' || (p.status && p.status.app === 'codex')) ? 'Codex' : 'Claude'); }
+  /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
+  function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : p && (p.app === 'codex' || (p.status && p.status.app === 'codex')) ? 'Codex' : 'Claude'); }
   function Spinner(cls) { return '<svg class="animate-spin flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
   function phrase(p, short) {
@@ -88,8 +88,8 @@
       /* the app's icon at full size, like a notification, beside two lines: the title with its status, and in grey the
          project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-        '<p dir="auto" class="o-sub truncate text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
+        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
+        '<p dir="auto" class="o-sub truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -453,13 +453,13 @@
       return head + '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span dir="auto" class="mq nm min-w-0 flex-[0_1_auto] truncate font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
+        '<span class="flex min-w-0 flex-1 items-baseline gap-2"><span dir="auto" class="mq nm min-w-0 flex-[0_1_auto] truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
         (second ? '<span dir="auto" class="mq tp min-w-0 flex-[1_1_0%] truncate text-left text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>' +
         '<span class="st flex flex-none items-center gap-2 text-xs tabular-nums"></span></div>';
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
-      /* a row shows that session's card in the notch; Return (or the card's Switch to) opens it */
+      /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
         r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
         r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
