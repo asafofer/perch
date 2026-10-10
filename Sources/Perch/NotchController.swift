@@ -41,6 +41,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
     private var askedForAccessibility = false
+    /// A reply typed before Perch had Accessibility, held until it is on (Allow and send).
+    private var waitingReply: (id: String, text: String)?
+    private var waitingTask: Task<Void, Never>?
     /// After a card closes, hovering won't reopen it until the cursor has left the notch once.
     private var hoverLatched = false
     /// Simulation mode: the welcome card stays until you act on it.
@@ -561,6 +564,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
+        sent.allowing = waitingReply != nil
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
     }
@@ -675,7 +679,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
-            if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer() }
+            if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer(); cancelWaiting() }
             push()
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "snoozeMenu":
@@ -772,11 +776,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// It is typed only when Perch knows the focused input belongs to that session; otherwise, and without Accessibility,
     /// the reply stays on the clipboard for you to paste. When it was typed, your clipboard is put back.
     /// `closeAfter`: when the card closes after a terminal reply, so the send animation lands first (the page says).
-    private func reply(_ text: String, closeAfter: Double = 0.78) {
-        guard projects.indices.contains(machine.selected) else { return }
+    /// `pid`: the session to answer, when it is not the one on the card.
+    private func reply(_ text: String, to pid: String? = nil, closeAfter: Double = 0.78) {
+        guard let i = projectIndex(pid) else { return }
         // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
-        let p = projects[machine.selected]
+        let p = projects[i]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " ")
             let preferred = Terminals.preferred, sentAt = Date()
@@ -792,7 +797,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        guard done else { self.pasteReply(text); return }
+                        guard done else { self.pasteReply(text, to: p.id); return }
                         // The words are already in the terminal; the card closes once they have flown into the notch.
                         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, closeAfter - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
@@ -803,8 +808,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             return
         }
+        // An app session needs Accessibility: Send asks for it first and holds the words (Allow and send).
+        if !AXIsProcessTrusted() { waitForAccess(text, for: p); return }
         // A session in the Claude app takes the words in the background: its window never comes forward.
-        if p.app == "claude", let id = p.desktopSessionId, AXIsProcessTrusted() {
+        if p.app == "claude", let id = p.desktopSessionId {
             let cli = p.sessionId, topic = p.topic
             markSeen(p)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); push()
@@ -814,18 +821,72 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text) }
+                        if sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id) }
                     }
                 }
             }
             return
         }
-        pasteReply(text)
+        pasteReply(text, to: p.id)
+    }
+    private func projectIndex(_ pid: String?) -> Int? {
+        if let pid { return projects.firstIndex { $0.id == pid } }
+        return projects.indices.contains(machine.selected) ? machine.selected : nil
+    }
+
+    /// Allow and send: asks for Accessibility the way Settings does and holds the reply until it is on, then sends it.
+    /// Leaving System Settings for another app without turning it on, or two minutes going by, copies the reply and opens
+    /// the session instead, as before. Esc on the card drops the wait.
+    private func waitForAccess(_ text: String, for p: Project) {
+        guard waitingReply == nil else { return }
+        waitingReply = (p.id, text)
+        onboardingAction("accessibility")   // redraws: Send now says it is waiting
+        // Asking for a password or showing the system's own prompt is still part of turning it on; so is coming back to the card.
+        let passing: Set<String> = ["com.apple.SecurityAgent", "com.apple.coreservices.uiagent", "com.apple.UserNotificationCenter",
+                                    "com.apple.LocalAuthentication.UIAgent", Bundle.main.bundleIdentifier ?? "app.perch.mac"]
+        waitingTask?.cancel()
+        waitingTask = Task { [weak self] in
+            let start = Date()
+            var sawSettings = false
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self, self.waitingReply != nil else { return }
+                if AXIsProcessTrusted() { self.sendWaitingReply(); return }
+                let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
+                if front == "com.apple.systempreferences" { sawSettings = true; continue }
+                guard (sawSettings && !passing.contains(front)) || Date().timeIntervalSince(start) > 120 else { continue }
+                // The switch can take a moment to count after it is turned on.
+                try? await Task.sleep(for: .seconds(1.5))
+                guard !Task.isCancelled, self.waitingReply != nil else { return }
+                if AXIsProcessTrusted() { self.sendWaitingReply() } else { self.giveUpWaiting() }
+                return
+            }
+        }
+    }
+    private func sendWaitingReply() {
+        guard let w = waitingReply else { return }
+        waitingReply = nil; waitingTask = nil
+        if !accessibilityWas { accessibilityWas = true; onAccessibilityGranted?() }
+        guard projects.contains(where: { $0.id == w.id }) else { push(); return }
+        reply(w.text, to: w.id)
+    }
+    /// Access never came: the reply is copied and the session opens, for you to paste.
+    private func giveUpWaiting() {
+        guard let w = waitingReply else { return }
+        waitingReply = nil; waitingTask = nil
+        askedForAccessibility = true   // already asked
+        guard projects.contains(where: { $0.id == w.id }) else { push(); return }
+        pasteReply(w.text, to: w.id)
+    }
+    private func cancelWaiting() {
+        guard waitingReply != nil else { return }
+        waitingReply = nil; waitingTask?.cancel(); waitingTask = nil
+        push()
     }
 
     /// Reply by pasting: Pick up brings the session forward, then the words are pasted and sent. Needs Accessibility.
-    private func pasteReply(_ text: String) {
-        guard projects.indices.contains(machine.selected) else { return }
+    private func pasteReply(_ text: String, to pid: String? = nil) {
+        guard let i = projectIndex(pid) else { return }
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
@@ -836,8 +897,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let app = projects[machine.selected].app == "codex" ? "Codex" : "Claude"
-        pickUp(machine.selected) { [weak self] landing in
+        let app = projects[i].app == "codex" ? "Codex" : "Claude"
+        pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
             switch landing {

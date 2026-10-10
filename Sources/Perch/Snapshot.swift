@@ -67,8 +67,10 @@ struct UISnapshot: Encodable {
     let activeId: String?
     /// The first scan is still running, so an empty list means "looking", not "nothing".
     let scanning: Bool
-    /// Perch can type a reply for you (Accessibility). Without it, Reply copies and opens the session.
+    /// Perch can type a reply for you (Accessibility). Without it, Send asks for it first.
     let canSend: Bool
+    /// Send asked for Accessibility and holds the reply until it is on.
+    var allowing = false
     /// What you typed in the list, and the rows that match it (all of them when nil).
     var query = ""
     var shown: [Int]?
