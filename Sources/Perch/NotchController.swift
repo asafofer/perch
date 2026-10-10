@@ -795,7 +795,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let p = projects[i]
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " ")
-            let preferred = Terminals.preferred, sentAt = Date()
+            let preferred = Terminals.preferred, sentAt = Date(), back = WhereYouWere.now()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let hits = LiveSessions.all().filter { $0.agent == agent && $0.cwd == cwd }
@@ -804,6 +804,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 else {
                     Terminals.open("\(agent == "codex" ? "codex resume" : "claude --resume") \(id) \(Terminals.shellQuote(line))", in: cwd, app: preferred)
                     done = true
+                    // It carries on in its new tab; you go back to what you were doing.
+                    Thread.sleep(forTimeInterval: 1.5)
+                    DispatchQueue.main.async { back.restore() }
                 }
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
@@ -823,16 +826,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !AXIsProcessTrusted() { waitForAccess(text, for: p); return }
         // A session in the Claude app takes the words in the background: its window never comes forward.
         if p.app == "claude", let id = p.desktopSessionId {
-            let cli = p.sessionId, topic = p.topic
+            let cli = p.sessionId, topic = p.topic, back = WhereYouWere.now()
             markSeen(p)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
-                let sent = ClaudeComposer.send(text, to: id, titles: titles)
+                let r = ClaudeComposer.send(text, to: id, titles: titles)
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id) }
+                        if r.sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
                     }
                 }
             }
@@ -896,8 +899,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Reply by pasting: Pick up brings the session forward, then the words are pasted and sent. Needs Accessibility.
-    private func pasteReply(_ text: String, to pid: String? = nil) {
+    /// Then you are put back where you were: that app and window, and in Claude the session it showed (`claudeShown`).
+    /// `send` false: paste only, leaving it with your draft for you to send (a draft was in the field).
+    private func pasteReply(_ text: String, to pid: String? = nil, claudeShown: String? = nil, back: WhereYouWere? = nil, send: Bool = true) {
         guard let i = projectIndex(pid) else { return }
+        let back = back ?? WhereYouWere.now(), targetSession = projects[i].desktopSessionId
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
@@ -946,12 +952,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     e?.flags = .maskCommand
                     e?.post(tap: .cghidEventTap)
                 }
-                // You wrote it and pressed Send, so it is sent: Return after the paste.
+                // You wrote it and pressed Send, so it is sent: Return after the paste. Not when a draft was there: it would go too,
+                // so both stay in the field for you, where you are, and nothing is put back over them.
+                guard send else { NSLog("Perch: reply pasted beside a draft in \(target), not sent"); self?.say("Pasted after your draft"); return }
                 try? await Task.sleep(for: .milliseconds(250))
                 for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
                 NSLog("Perch: sent reply into \(target)")
                 try? await Task.sleep(for: .milliseconds(600))
                 if let saved, pb.changeCount == ours { Clipboard.restore(saved) }
+                // Back where you were: in Claude, the session it showed; then that app and window.
+                if let shown = claudeShown, shown != targetSession, let url = URL(string: "claude://code/continue?session=\(shown)") {
+                    NSWorkspace.shared.open(url); try? await Task.sleep(for: .milliseconds(500))
+                }
+                back.restore()
             }
         }
     }
