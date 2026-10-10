@@ -14,7 +14,7 @@ public enum PiTranscript {
             let type = o["type"] as? String
             let at = (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }
             if type == "session" {
-                d.sessionId = o["id"] as? String; d.cwd = o["cwd"] as? String
+                d.sessionId = o["id"] as? String; d.cwd = o["cwd"] as? String; d.startedAt = at
                 continue
             }
             // A name you gave it with /name; cleared when the name is removed.

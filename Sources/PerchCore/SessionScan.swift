@@ -276,7 +276,7 @@ public final class SessionScanner: @unchecked Sendable {
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
-                p.terminal = true; p.startedAt = Self.created(item.url)
+                p.terminal = true; p.startedAt = head.startedAt ?? Self.created(item.url)
                 out.append((p, digest, cg.info, last))
             }
         }

@@ -170,6 +170,7 @@ enum OpenCodeSteps {
         #expect(found.map(\.sessionId) == ["p1", "p2"])
         #expect(found.map(\.topic) == ["make failed pages retry three times with backoff", "Crawler progress bar"])
         #expect(found.first?.app == "pi"); #expect(found.first?.terminal == true)
+        #expect(found.first?.startedAt.map { abs($0.timeIntervalSince(h.now.addingTimeInterval(-90))) < 1 } == true)   // the header's time
         #expect(found.first?.status.text == "pi replied")
         #expect(found.first?.said == "Failed pages now retry three times, waiting 1, 4 and 16 seconds.")
     }

@@ -35,6 +35,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var headless = false
     /// How the session was started: "cli", "claude-desktop", or "sdk-…" for headless runs like `claude -p`.
     public var entrypoint: String?
+    /// When the session began, when the file says (pi's header: the moment pi started it, before its first message).
+    public var startedAt: Date?
     /// The project a git worktree belongs to ("perch" for perch/.claude/worktrees/<name>), when the folder is one.
     public var repoName: String?
     /// The last dozen real messages, oldest first, each clipped. This is what a model reads.
