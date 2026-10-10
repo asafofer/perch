@@ -231,11 +231,10 @@ extension Project {
         case .stopped: status = AgentStatus(kind: .idle, text: "You stopped \(who)", app: app); next = ""
         case .failed: status = AgentStatus(kind: .needsYou, text: "\(who) stopped on an error", app: app); next = ""
         }
-        var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
-                        topic: topic, app: app, agents: [status], steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
+        var p = self
+        p.agents = [status]; p.next = next; p.context = context
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = live.kind == .asking ? live.asks.last : nil
-        p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.host = host; p.stoppedAt = stoppedAt
         p.now = live.kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p

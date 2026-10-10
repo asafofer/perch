@@ -403,10 +403,9 @@ extension Project {
     /// The same project with a "needs you" from before `since` read as history. A request still open (`ask`) always counts.
     public func settled(since: Date) -> Project {
         guard needsAttention, ask == nil, let t = lastActive, t < since else { return self }
-        let calm = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
-        var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: headline, context: context, next: next,
-                        topic: topic, app: app, agents: calm, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.focusedAt = focusedAt; p.terminal = terminal; p.via = via; p.host = host; p.said = said; p.stoppedAt = stoppedAt
+        var p = self
+        p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
+        p.ask = nil
         return p
     }
 }
@@ -482,11 +481,9 @@ public enum RecapPrompt {
 extension Project {
     /// The same project with model-written words in place of the plain recap.
     public func withRecap(_ r: RecapText) -> Project {
-        var p = Project(id: id, name: name, branch: branch, away: away, at: at, headline: r.headline,
-                        context: r.context.isEmpty ? context : r.context, next: r.next, topic: topic, app: app,
-                        agents: agents, steps: steps, sessionId: sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
-        p.lastActive = lastActive; p.ask = ask; p.focusedAt = focusedAt; p.now = now; p.terminal = terminal; p.via = via; p.host = host; p.said = said
-        p.stoppedAt = stoppedAt
+        var p = self
+        p.headline = r.headline; p.next = r.next
+        if !r.context.isEmpty { p.context = r.context }
         return p
     }
 }

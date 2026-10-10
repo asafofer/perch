@@ -122,3 +122,16 @@ import Foundation
         #expect(SessionScanner.repo(at: "/") == nil)
     }
 }
+
+@Suite struct ProjectCopyTests {
+    @Test func whatRunsASessionSurvivesEveryRewrite() {
+        var p = Project(id: "s", name: "perch", branch: nil, away: "", at: "", headline: "H.", context: "C", next: "", topic: "t", app: "opencode",
+                        agents: [AgentStatus(kind: .needsYou, text: "OpenCode is waiting for you", app: "opencode")], steps: [], sessionId: "s", cwd: "/a")
+        p.pid = 42; p.host = "herdr"; p.via = "com.cmuxterm.app"; p.terminal = true; p.lastActive = Date(timeIntervalSince1970: 0)
+        for q in [p.withRecap(RecapText(headline: "New.", context: "", next: "N")), p.applying(LiveStatus(kind: .working, at: Date())), p.settled(since: Date())] {
+            #expect(q.pid == 42); #expect(q.host == "herdr"); #expect(q.via == "com.cmuxterm.app"); #expect(q.terminal)
+        }
+        #expect(p.settled(since: Date()).status.kind == "idle")
+        #expect(p.withRecap(RecapText(headline: "New.", context: "", next: "N")).context == "C")
+    }
+}

@@ -22,9 +22,9 @@ public struct Project: Identifiable, Equatable, Sendable {
     public let branch: String?
     public let away: String          // "2h 14m"
     public let at: String            // "11:32 AM"
-    public let headline: String
-    public let context: String
-    public let next: String
+    public var headline: String
+    public var context: String
+    public var next: String
     public let topic: String         // short label for lists
     public let app: String           // which app icon the UI shows
     public var agents: [AgentStatus]
