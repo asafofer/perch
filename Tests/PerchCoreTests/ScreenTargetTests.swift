@@ -66,4 +66,15 @@ import Foundation
         #expect(NotchGeometry.hovering(CGPoint(x: 756, y: 990), frames: frames2, index: 0, rect: rect) == false)
         #expect(NotchGeometry.hovering(CGPoint(x: 756, y: 970), frames: frames2, index: 0, rect: rect))
     }
+
+    @Test func fullScreenIsAWindowFillingTheWholeDisplay() {
+        let dell = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        #expect(ScreenTarget.fullScreen(frame: dell, windows: [CGRect(x: 0, y: 0, width: 2560, height: 1440)]))
+        #expect(ScreenTarget.fullScreen(frame: dell, windows: [CGRect(x: 0.4, y: 0, width: 2559.6, height: 1440)]))
+        // a zoomed window stops under the menu bar: not full screen
+        #expect(!ScreenTarget.fullScreen(frame: dell, windows: [CGRect(x: 0, y: 0, width: 2560, height: 1410)]))
+        // a window filling another display does not count here
+        #expect(!ScreenTarget.fullScreen(frame: dell, windows: [CGRect(x: -1800, y: -273, width: 1800, height: 1169)]))
+        #expect(!ScreenTarget.fullScreen(frame: dell, windows: []))
+    }
 }

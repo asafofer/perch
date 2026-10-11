@@ -61,6 +61,12 @@ public enum ScreenTarget {
         }
     }
 
+    /// An app is full screen on this display: one of its windows fills the display's whole frame, the menu bar's strip
+    /// too (a zoomed window stops under the menu bar). `windows` are on-screen app windows, in Cocoa's space.
+    public static func fullScreen(frame: CGRect, windows: [CGRect]) -> Bool {
+        windows.contains { abs($0.minX - frame.minX) < 1 && abs($0.minY - frame.minY) < 1 && abs($0.maxX - frame.maxX) < 1 && abs($0.maxY - frame.maxY) < 1 }
+    }
+
     /// A rect in CoreGraphics' global space (origin at the top left of the primary display, as the window list gives it)
     /// in Cocoa's (origin at the bottom left).
     public static func cocoaRect(fromCG r: CGRect, primaryHeight: CGFloat) -> CGRect {

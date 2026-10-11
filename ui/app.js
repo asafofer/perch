@@ -831,9 +831,9 @@
   function layout(st, s) {
     /* No hardware notch (an external display): at rest the box is a small black pill in the menu bar, your character in it. Swift
        sizes and places it (NotchGeometry.pill: the same whole-point gap above and below). The live activity and the card grow
-       from the top centre and close back into it. */
+       from the top centre and close back into it. While an app is full screen there, nothing at all: they shrink to nothing. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
-    var pill = virt && st === 'idle' && !act.mode;
+    var pill = virt && st === 'idle' && !act.mode && !scr.fullScreen, gone = virt && st === 'idle' && !act.mode && !!scr.fullScreen;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
@@ -846,7 +846,7 @@
     if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
     n.dataset.shape = shaped ? '1' : '';
     document.documentElement.dataset.guide = s.guide || '';
-    n.dataset.pill = pill ? '1' : '';
+    n.dataset.pill = pill ? '1' : ''; n.dataset.gone = gone ? '1' : '';
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
@@ -2483,8 +2483,8 @@
     }
     window.perchDev = {
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
-      setNotch: function (has) {
-        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 28, pillW: 30, pillH: 19, pillTop: 5 };
+      setNotch: function (has, full) {
+        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 28, pillW: 30, pillH: 19, pillTop: 5, fullScreen: !!full };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },

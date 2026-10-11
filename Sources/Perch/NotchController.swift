@@ -145,6 +145,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.start()
         startRefreshing()
         startWatchingFocus()
+        watchFullScreen()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -567,6 +568,27 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         send(.dismiss)
         if onCard || putAway?.session == p.id { putAway = nil }   // answered: nothing to bring back
         redecorate()
+    }
+
+    /// An app going full screen (or back) on a display without a notch hides (or brings back) the resting pill there.
+    private func watchFullScreen() {
+        let check: () -> Void = { [weak self] in
+            guard let self, FullScreenWatch.refresh() else { return }
+            self.info = self.screen.screenInfo
+            if self.machine.phase == .idle { self.push() }
+        }
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated {
+                    check()
+                    // the window grows to fill the display a moment after the Space changes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { MainActor.assumeIsolated { check() } }
+                }
+            }
+        }
+        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in MainActor.assumeIsolated { check() } }
+        check()
     }
 
     private func startRefreshing() {
@@ -1567,7 +1589,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// A screen without a notch, at rest with nothing showing: only the pill with the character is there to aim at,
     /// unless Hover opens on external displays makes the whole top edge count.
-    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty }
+    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty && !info.fullScreen }
 
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
     /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.
@@ -1600,7 +1622,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func overNotch() -> Bool {
         let at = NSEvent.mouseLocation
         guard notchHoverRect().contains(at), ScreenChooser.under(at)?.frame == info.frame else { return false }
-        return info.notchSize != nil || Prefs.hoverExternal || onPill
+        return info.notchSize != nil || (Prefs.hoverExternal && !info.fullScreen) || onPill
     }
 
     /// Resting the cursor on the notch for a moment opens the welcome card.

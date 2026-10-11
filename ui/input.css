@@ -27,7 +27,14 @@ html[data-guide="1"] .n[data-shape="1"]::after { clip-path: none; background: #f
 html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 /* A screen without a notch: at rest the box is a small black pill floating just under the top edge, with your character in it.
    A closing card (or live activity) narrows into it as into a notch, then drops the last few points to float. */
-.n[data-virt="1"][data-pill="1"] { border-radius: 9.5px; translate: 0 var(--pt, 3px); --slide: .26s; --slide-delay: .3s; }
+/* Closing into it, the box narrows on one slow, smooth curve (--pill-go) and the character rides in on the same one (.cr[data-pill]),
+   so it stays inside the shrinking box and both arrive together, the pill settling the last points down to float as it goes. */
+/* an app full screen there: nothing at rest, the card (or the live activity) shrinks to nothing at the top centre, as does the pill */
+.n[data-virt="1"][data-gone="1"] { width: 0 !important; height: 0 !important; margin-left: 0 !important;
+  transition: height .34s cubic-bezier(.4,0,.2,1), width .34s cubic-bezier(.4,0,.2,1), margin-left .34s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1), opacity 0s .36s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
+.perch, :root { --pill-go: .5s cubic-bezier(.32,.72,0,1); --pill-at: .06s; }
+.n[data-virt="1"][data-pill="1"] { border-radius: 9.5px; translate: 0 var(--pt, 3px);
+  transition: height .28s cubic-bezier(.55,0,.8,.3), width var(--pill-go) var(--pill-at), margin-left var(--pill-go) var(--pill-at), border-radius var(--pill-go) var(--pill-at), box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1), translate var(--pill-go) var(--pill-at), opacity 0s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
 /* a black cap above the open card, off the top of the screen; it only shows if something nudges the card down */
 .n:not([data-s=idle])::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; background: #000; }
 .ear { position: absolute; top: 0; width: 6px; height: 6px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
@@ -169,6 +176,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
 /* in the resting pill only its eyes move: the body leaning with a glance would tip the even margins round it */
 .cr[data-pill="1"] .f { translate: none !important; }
+.cr[data-pill="1"] { transition: transform var(--pill-go) var(--pill-at), width var(--pill-go) var(--pill-at), height var(--pill-go) var(--pill-at), opacity .3s; }
 /* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
    look itself is not transitioned; their faces still are */
 .cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),

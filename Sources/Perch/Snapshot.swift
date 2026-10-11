@@ -3,7 +3,7 @@ import PerchCore
 
 /// What Swift tells the web UI. The UI never decides anything; it only draws this.
 struct UISnapshot: Encodable {
-    struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat; let pillW: CGFloat; let pillH: CGFloat; let pillTop: CGFloat }
+    struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat; let pillW: CGFloat; let pillH: CGFloat; let pillTop: CGFloat; let fullScreen: Bool }
     struct Status: Encodable { let kind: String; let text: String; let app: String }
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
@@ -143,7 +143,7 @@ struct UISnapshot: Encodable {
         self.timerToken = timerToken
         let pill = NotchGeometry.pill(for: screen)
         self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? NotchGeometry.idleSize(for: screen).height,
-                             pillW: pill.size.width, pillH: pill.size.height, pillTop: pill.top)
+                             pillW: pill.size.width, pillH: pill.size.height, pillTop: pill.top, fullScreen: screen.fullScreen)
         let now = Date()
         self.projects = projects.map { p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,

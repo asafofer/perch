@@ -5,7 +5,8 @@ public struct ScreenInfo: Equatable, Sendable {
     public var frame: CGRect          // screen frame in global coordinates (origin bottom-left)
     public var notchSize: CGSize?     // hardware notch size, nil on Macs without one
     public var menuBarHeight: CGFloat // height of the menu bar here; sizes the stand-in tab on screens without a notch
-    public init(frame: CGRect, notchSize: CGSize?, menuBarHeight: CGFloat = 24) { self.frame = frame; self.notchSize = notchSize; self.menuBarHeight = menuBarHeight }
+    public var fullScreen: Bool       // an app is full screen here: a display without a notch then shows nothing at rest
+    public init(frame: CGRect, notchSize: CGSize?, menuBarHeight: CGFloat = 24, fullScreen: Bool = false) { self.frame = frame; self.notchSize = notchSize; self.menuBarHeight = menuBarHeight; self.fullScreen = fullScreen }
 }
 
 public enum NotchGeometry {

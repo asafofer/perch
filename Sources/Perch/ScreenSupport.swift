@@ -10,7 +10,7 @@ extension NSScreen {
     }
     /// The menu bar's height on this display (0 when it hides itself, so a default is used).
     var menuBarHeight: CGFloat { max(0, frame.maxY - visibleFrame.maxY) }
-    var screenInfo: ScreenInfo { ScreenInfo(frame: frame, notchSize: notchSize, menuBarHeight: menuBarHeight > 0 ? menuBarHeight : 24) }
+    var screenInfo: ScreenInfo { ScreenInfo(frame: frame, notchSize: notchSize, menuBarHeight: menuBarHeight > 0 ? menuBarHeight : 24, fullScreen: FullScreenWatch.covered.contains(frame)) }
     /// This display's own id, the same across reboots and ports: its UUID, else its display number for one without.
     var displayID: String {
         let number = (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
@@ -31,6 +31,30 @@ enum FrontWindow {
             return ScreenTarget.cocoaRect(fromCG: r, primaryHeight: primary.frame.height)
         }
         return nil
+    }
+}
+
+/// Which displays have an app full screen on them, read from the window list (bounds need no permission) when the
+/// Space or the app in front changes, and every couple of seconds while a display without a notch is connected (only
+/// there does it change anything). Kept by frame, so asking costs nothing.
+@MainActor enum FullScreenWatch {
+    nonisolated(unsafe) private(set) static var covered: Set<CGRect> = []   // written on the main thread only
+    /// Reads it again; true when a display went into or out of full screen.
+    @discardableResult static func refresh() -> Bool {
+        let screens = NSScreen.screens
+        var now = Set<CGRect>()
+        if screens.contains(where: { $0.notchSize == nil }), let primary = screens.first,
+           let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            let me = ProcessInfo.processInfo.processIdentifier
+            let windows = list.compactMap { w -> CGRect? in
+                guard (w[kCGWindowLayer as String] as? Int) == 0, (w[kCGWindowOwnerPID as String] as? Int32) != me,
+                      let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b) else { return nil }
+                return ScreenTarget.cocoaRect(fromCG: r, primaryHeight: primary.frame.height)
+            }
+            for s in screens where s.notchSize == nil && ScreenTarget.fullScreen(frame: s.frame, windows: windows) { now.insert(s.frame) }
+        }
+        guard now != covered else { return false }
+        covered = now; return true
     }
 }
 
