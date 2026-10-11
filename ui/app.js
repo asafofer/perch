@@ -924,7 +924,7 @@
     var body = '';
     if (ph === 'available' && (u.notes || bullets.length)) {
       body = notes && bullets.length
-        ? '<div class="act-body tall" data-h="' + (bullets.length * 19 + 8) + '" style="height:' + (bullets.length * 19 + 8) + 'px">' + bullets.map(function (b) { return '<span dir="auto" class="act-li"><i></i>' + esc(b) + '</span>'; }).join('') + '</div>'
+        ? '<div class="act-body tall" data-h="' + (Math.min(bullets.length, 6) * 19 + 8) + '" style="height:' + (Math.min(bullets.length, 6) * 19 + 8) + 'px">' + bullets.map(function (b) { return '<span dir="auto" class="act-li"><i></i>' + esc(b) + '</span>'; }).join('') + '</div>'
         : '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>';
     }
     /* buttons are for the mouse: the notch never takes the keyboard when it opens by itself, so no keys to learn */
@@ -2223,11 +2223,11 @@
       say: function (t) { window.perch.say(t); },
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
-        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         if (o.fresh !== false && (!snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
         base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch',
-          bullets: ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
+          bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */
         if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }

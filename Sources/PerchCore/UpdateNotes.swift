@@ -29,7 +29,7 @@ public struct UpdateNotes: Equatable, Sendable {
         }
         // Only bullets: the first one is the headline too.
         if headline.isEmpty, let first = bullets.first { headline = first }
-        return UpdateNotes(headline: headline, bullets: Array(bullets.prefix(4)))
+        return UpdateNotes(headline: headline, bullets: Array(bullets.prefix(60)))
     }
 
     private static func clean(_ s: String) -> String {
