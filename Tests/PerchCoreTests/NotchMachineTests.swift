@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PerchCore
 
@@ -143,5 +144,75 @@ import Testing
         m.send(.comeBack); m.send(.openSettings); #expect(m.phase == .settings)
         m.send(.dismiss); #expect(m.phase == .idle)
         m.send(.openSettings); #expect(m.phase == .settings)
+    }
+}
+
+@Suite struct PutAwayTests {
+    let t0 = Date(timeIntervalSince1970: 1_000_000)
+
+    @Test func theCardComesBackForFiveMinutesWhileItsSessionIsListed() {
+        let away = PutAway(phase: .open, session: "b", replying: true, at: t0)!
+        #expect(away.replying)
+        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(60)) == .reopen(.open, selected: 1))
+        // the list reordered while it was closed: it follows the session, not the row
+        #expect(away.recall(ids: ["b", "a"], now: t0.addingTimeInterval(299)) == .reopen(.open, selected: 0))
+        #expect(away.recall(ids: ["a", "b"], now: t0.addingTimeInterval(PutAway.keeps)) == nil)
+        #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(10)) == nil)   // archived, or off the list
+    }
+    @Test func theListComesBackWithItsFilterOnTheSameRow() {
+        let away = PutAway(phase: .switcher, session: "c", query: "web", at: t0)!
+        #expect(away.query == "web"); #expect(!away.replying)
+        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: 2))
+        // its row has gone: the list still comes back, on its top row
+        #expect(away.recall(ids: ["a"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: nil))
+        #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(PutAway.keeps + 1)) == nil)
+    }
+    @Test func onlyTheCardAndTheListAreRemembered() {
+        #expect(PutAway(phase: .settings, session: "a", at: t0) == nil)
+        #expect(PutAway(phase: .onboarding, session: nil, at: t0) == nil)
+        #expect(PutAway(phase: .open, session: nil, at: t0) == nil)   // a card without its session is nothing to bring back
+        #expect(PutAway(phase: .switcher, session: nil, at: t0) != nil)   // an empty list is
+        // a reply belongs to a card, a filter to the list
+        #expect(PutAway(phase: .switcher, session: "a", replying: true, at: t0)?.replying == false)
+        #expect(PutAway(phase: .open, session: "a", query: "web", at: t0)?.query == "")
+    }
+    @Test func aClockThatWentBackDoesNotKeepItForever() {
+        let away = PutAway(phase: .open, session: "a", at: t0)!
+        #expect(away.recall(ids: ["a"], now: t0.addingTimeInterval(-3600)) == nil)
+    }
+}
+
+@Suite struct NotchMachineReopenTests {
+    @Test func reopenGoesStraightBackToTheCard() {
+        var m = NotchMachine(projectCount: 3); m.send(.reopen(.open, selected: 2))
+        #expect(m.phase == .open); #expect(m.selected == 2)
+    }
+    @Test func reopenGoesBackToTheListOnItsRow() {
+        var m = NotchMachine(projectCount: 3); m.send(.reopen(.switcher, selected: 1))
+        #expect(m.phase == .switcher); #expect(m.selected == 1)
+        var top = NotchMachine(projectCount: 3); top.send(.reopen(.switcher, selected: nil))
+        #expect(top.phase == .switcher); #expect(top.selected == 0)
+        var empty = NotchMachine(projectCount: 0); empty.send(.reopen(.switcher, selected: 4))
+        #expect(empty.phase == .switcher); #expect(empty.selected == 0)
+    }
+    @Test func reopenIgnoresWhatItCannotShow() {
+        var gone = NotchMachine(projectCount: 2); gone.send(.reopen(.open, selected: 5))
+        #expect(gone.phase == .idle)
+        var none = NotchMachine(projectCount: 2); none.send(.reopen(.open, selected: nil))
+        #expect(none.phase == .idle)
+        var set = NotchMachine(projectCount: 2); set.send(.reopen(.settings, selected: 0))
+        #expect(set.phase == .idle)
+    }
+    @Test func reopenOnlyFromClosed() {
+        var m = NotchMachine(projectCount: 3); m.send(.openSwitcher); m.send(.reopen(.open, selected: 2))
+        #expect(m.phase == .switcher); #expect(m.selected == 0)
+        var o = NotchMachine(projectCount: 3); o.send(.openSettings); o.send(.reopen(.open, selected: 1))
+        #expect(o.phase == .settings)
+    }
+    @Test func putAwayThenReopenIsTheSameCard() {
+        var m = NotchMachine(projectCount: 3); m.send(.comeBack); m.send(.next); m.send(.dismiss)
+        let away = PutAway(phase: .open, session: "b", at: Date())!
+        m.send(away.recall(ids: ["a", "b", "c"], now: Date())!)
+        #expect(m.phase == .open); #expect(m.selected == 1)
     }
 }

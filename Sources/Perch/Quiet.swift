@@ -2,7 +2,7 @@ import AppKit
 import CoreAudio
 import CoreMediaIO
 
-/// Moments when Perch must not speak up on its own: a call, the camera on, a presentation on screen.
+/// Moments when Perch must not speak up on its own: a call, the camera on, a presentation on screen, a launcher open.
 /// Hover and the shortcuts still work; only the proactive card waits.
 enum Quiet {
     /// Dictation apps open the mic for a moment while you talk to them. That is not a call.
@@ -14,7 +14,21 @@ enum Quiet {
         if let app = appUsingMic() { return "the mic is in use by \(app)" }
         if cameraInUse() { return "the camera is on" }
         if presenting() { return "a presentation is on screen" }
+        if let app = launcherOpen() { return "\(app) has the keyboard" }
         return nil
+    }
+
+    /// A launcher has the keyboard (Raycast, Spotlight, Alfred): it types into a panel of an app that is not the one in
+    /// front. Perch's card would cover it. Needs Accessibility; without it, or when the system does not say, nothing counts.
+    static func launcherOpen() -> String? {
+        guard AXIsProcessTrusted() else { return nil }
+        var focused: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(AXUIElementCreateSystemWide(), kAXFocusedApplicationAttribute as CFString, &focused) == .success,
+              let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { return nil }
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(focused as! AXUIElement, &pid) == .success, pid != ProcessInfo.processInfo.processIdentifier,
+              let front = NSWorkspace.shared.frontmostApplication, pid != front.processIdentifier else { return nil }
+        return NSRunningApplication(processIdentifier: pid)?.localizedName ?? "pid \(pid)"
     }
 
     /// The first app recording from any microphone, per process, so an idle headset that is merely open does not count.

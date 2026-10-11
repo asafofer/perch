@@ -166,17 +166,18 @@
   /* ---- markup (built once) ---- */
   var scene = document.getElementById('scene');
   scene.innerHTML =
-    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
+    '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
-    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (S)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('S') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
-      /* the chat's title is the heading; its status, in words, ends the line */
-      /* the app's icon at full size, like a notification, beside two lines: the title with its status, and in grey the
-         project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
+      /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
+      /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
+         the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
+         to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-        '<p dir="auto" class="o-sub truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
+        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -187,7 +188,7 @@
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
-    /* in the list, letters type into the filter, so Settings is Command+comma here */
+    /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -208,11 +209,48 @@
       if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 text-foreground/85">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
       return part.split(/\n{2,}/).map(function (para) {
         var lines = para.trim().split('\n').filter(function (l) { return l.trim(); }); if (!lines.length) return '';
-        if (lines.every(function (l) { return /^\s*([-*]|\d+\.)\s+/.test(l); }))
-          return '<ul class="my-1 flex flex-col gap-0.5">' + lines.map(function (l) { return '<li class="flex gap-2"><span class="text-muted-foreground">\u2022</span><span dir="auto" class="min-w-0">' + md(l.replace(/^\s*([-*]|\d+\.)\s+/, '')) + '</span></li>'; }).join('') + '</ul>';
-        return '<p dir="auto" class="my-1">' + lines.map(function (l) { return /^\s*#{1,6}\s/.test(l) ? '<strong class="font-semibold text-foreground">' + md(l) + '</strong>' : md(l); }).join('<br>') + '</p>';
+        /* a table can follow a line of text with no blank line between: the paragraph is cut into text and tables */
+        var out = '', text = [];
+        for (var k = 0; k < lines.length; k++) {
+          if (lines[k].indexOf('|') < 0 || !mdSep(lines[k + 1])) { text.push(lines[k]); continue; }
+          var end = k + 2; while (end < lines.length && lines[end].indexOf('|') >= 0) end++;
+          out += mdLines(text) + mdTable(lines.slice(k, end)); text = []; k = end - 1;
+        }
+        return out + mdLines(text);
       }).join('');
     }).join('');
+  }
+  function mdLines(lines) {
+    if (!lines.length) return '';
+    if (lines.every(function (l) { return /^\s*([-*]|\d+\.)\s+/.test(l); }))
+      return '<ul class="my-1 flex flex-col gap-0.5">' + lines.map(function (l) { return '<li class="flex gap-2"><span class="text-muted-foreground">\u2022</span><span dir="auto" class="min-w-0">' + md(l.replace(/^\s*([-*]|\d+\.)\s+/, '')) + '</span></li>'; }).join('') + '</ul>';
+    return '<p dir="auto" class="my-1">' + lines.map(function (l) { return /^\s*#{1,6}\s/.test(l) ? '<strong class="font-semibold text-foreground">' + md(l) + '</strong>' : md(l); }).join('<br>') + '</p>';
+  }
+  /* | a | b | rows: the cells, an escaped \| kept as a pipe */
+  function mdCells(l) {
+    return l.replace(/\\\|/g, '\u0000').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.replace(/\u0000/g, '|').trim(); });
+  }
+  /* the line under a table's header: |---|:---:|---:| */
+  function mdSep(l) {
+    return !!l && l.indexOf('|') >= 0 && l.indexOf('-') >= 0 && mdCells(l).every(function (c) { return /^:?-+:?$/.test(c); });
+  }
+  /* A table, without lines: the header in grey, a faint band on every other row, numbers in even columns. A column the
+     separator does not align is right-aligned when it holds only numbers. Short columns stay on one line and a wide table
+     scrolls sideways in the message; a column of long text wraps instead. */
+  function mdTable(rows) {
+    var head = mdCells(rows[0]), n = head.length, fit = function (r) { r = r.slice(0, n); while (r.length < n) r.push(''); return r; };
+    var body = rows.slice(2).map(function (r) { return fit(mdCells(r)); });
+    var align = fit(mdCells(rows[1])).map(function (c, j) {
+      if (/^:-+:$/.test(c)) return 'c';
+      if (/-:$/.test(c)) return 'r';
+      if (/^:-/.test(c)) return '';
+      var vals = body.map(function (r) { return r[j]; }).filter(function (v) { return !/^(|-|\u2013|\u2014|n\/a)$/i.test(v); });
+      return vals.length && vals.every(function (v) { return /^[-+~\u2212\u2248]?[$\u20ac\u00a3]?\d[\d,.]*\s?(%|\u00d7|[a-z\u00b5]{1,3})?$/i.test(v.replace(/\*\*/g, '')); }) ? 'r' : '';
+    });
+    var long = head.map(function (h, j) { return [h].concat(body.map(function (r) { return r[j]; })).some(function (v) { return v.length > 28; }); });
+    var cell = function (tag, v, j) { return '<' + tag + ' dir="auto"' + (align[j] ? ' data-a="' + align[j] + '"' : '') + (long[j] ? ' data-w="1"' : '') + '>' + md(v) + '</' + tag + '>'; };
+    return '<div class="md-tbl -mx-3 my-1.5 px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
+      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
   }
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -263,12 +301,65 @@
   /* the notch's clip never scrolls, whatever asks it to (focus, scrollIntoView): its content only ever grows into place */
   if (window.webkit && window.webkit.messageHandlers) window.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
   n.querySelector('.clip').addEventListener('scroll', function (e) { if (e.target.scrollTop || e.target.scrollLeft) { e.target.scrollTop = 0; e.target.scrollLeft = 0; } });
+  /* the session the open reply is for; what you type there is kept as its draft (Swift holds them, snap.drafts) */
+  var replyFor = '';
   function replyMenu(open, quiet) {
     footer(open ? fRep : fMain);
     showSaid(open);
+    var p = snap && snap.projects[snap.selected];
+    /* the words you left in this session's reply are still there, the caret after them */
+    if (open && p && p.id !== replyFor) { replyFor = p.id; rIn.value = (snap.drafts && snap.drafts[p.id]) || ''; }
     /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
-    if (open) setTimeout(function () { rIn.focus({ preventScroll: true }); }, 30); else { rIn.value = ''; rIn.blur(); }
+    if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
+  }
+  rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
+  /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
+  function addPaths(list) {
+    if (lastSt !== 'open' || !list || !list.length) return;
+    if (dropping) dropped();
+    if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
+    var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
+    var t = list.join(' ');
+    if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
+    if (b < v.length && !/\s/.test(v.charAt(b))) t += ' ';
+    rIn.value = v.slice(0, a) + t + v.slice(b);
+    rIn.dispatchEvent(new Event('input'));
+    var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
+  }
+  /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
+     it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
+     the file right on it; the character looks on wide-eyed, its eyes on the file as it moves. Dropped, it squints happily
+     and hops. */
+  var dropping = 0, dropOpened = false;
+  function dragOver(n, x, y) {
+    if (lastSt !== 'open') return;
+    if (n && !dropping) {
+      if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
+      cr.dataset.m = 'alert'; lookAt(rIn, 60);
+    }
+    var was = dropping; dropping = n;
+    var r = rIn.getBoundingClientRect();
+    var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+    rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    if (!n && was) {
+      if (dropOpened) { dropOpened = false; replyMenu(false, true); }
+      if (snap) layout('open', snap);   /* its face goes back to the session's */
+    }
+  }
+  function dropped() {
+    dropping = 0; rIn.classList.remove('drop', 'on'); rIn.placeholder = replyHint();
+    /* the reply it opened for the drag is yours now: Swift hears it is open, so keys go to it */
+    if (dropOpened) { dropOpened = false; post({ type: 'replyMenu', open: true }); }
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
+  }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
+  /* focus the field with the caret at i, the words scrolled so it shows */
+  function caretAt(i) {
+    rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
+    if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
   function showSaid(open) {
@@ -276,10 +367,28 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); box.scrollTop = box.scrollHeight; }
+    if (on) { var box = q('.o-said-in'); box.innerHTML = mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+  }
+  /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
+     three) so its header shows too; the rows it gave up are a scroll away in the table. */
+  function fitLastTable(box) {
+    var ws = box.querySelectorAll('.md-tbl'), w = ws[ws.length - 1]; if (!w) return;
+    var b = box.getBoundingClientRect(), after = box.scrollHeight - (w.getBoundingClientRect().bottom - b.top + box.scrollTop);
+    var room = Math.floor(box.clientHeight - after - 16);   /* clear of the message's soft top edge */
+    if (room >= 86 && room < w.clientHeight) w.style.maxHeight = room + 'px';
+  }
+  /* a table bigger than its window fades at the sides it goes on (left, right, below; the header stays put above), and
+     the fades follow as you scroll it */
+  function tblEdge(w) {
+    var set = function () {
+      var x = w.scrollLeft, mx = w.scrollWidth - w.clientWidth, my = w.scrollHeight - w.clientHeight;
+      var f = [x > 1 ? 'l' : '', x < mx - 1 ? 'r' : '', w.scrollTop < my - 1 ? 'b' : ''].join(' ').trim();
+      if (f) w.dataset.f = f; else delete w.dataset.f;
+    };
+    set(); w.onscroll = set;
   }
   function sendReply() {
     var t = rIn.value.trim(); if (!t) return;
@@ -319,20 +428,33 @@
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
   /* Eased by hand, frame by frame, toward where the keys want it; a held key keeps adding to the same glide. */
-  var glide = { to: 0, at: 0, raf: 0 };
+  var glide = { el: null, to: 0, at: 0, raf: 0 };
   function saidScroll(d) {
-    var box = q('.o-said-in'), max = Math.max(0, box.scrollHeight - box.clientHeight);
-    if (!glide.raf) glide.at = glide.to = box.scrollTop;   /* start from wherever a trackpad left it */
+    var el = saidTarget(q('.o-said-in'), d);
+    if (glide.el !== el) { cancelAnimationFrame(glide.raf); glide.raf = 0; glide.el = el; }
+    var max = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (!glide.raf) glide.at = glide.to = el.scrollTop;   /* start from wherever a trackpad left it */
     glide.to = Math.max(0, Math.min(max, glide.to + d));
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { box.scrollTop = glide.to; return; }
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.scrollTop = glide.to; return; }
     if (glide.raf) return;
     var step = function () {
       glide.at += (glide.to - glide.at) * 0.18;
       if (Math.abs(glide.to - glide.at) < 0.4) glide.at = glide.to;
-      box.scrollTop = glide.at;
+      el.scrollTop = glide.at;
       glide.raf = glide.at === glide.to ? 0 : requestAnimationFrame(step);
     };
     glide.raf = requestAnimationFrame(step);
+  }
+  /* The keys scroll the message, but a tall table on the way, with rows still to show, takes them until it has shown
+     them: going down once the message has reached its top (or can go no further), going up once it has reached its foot. */
+  function saidTarget(box, d) {
+    var b = box.getBoundingClientRect(), rest = d > 0 ? box.scrollHeight - box.clientHeight - box.scrollTop : box.scrollTop, hit = null;
+    [].forEach.call(box.querySelectorAll('.md-tbl'), function (w) {
+      var r = w.getBoundingClientRect(), left = d > 0 ? w.scrollHeight - w.clientHeight - w.scrollTop : w.scrollTop;
+      if (hit || left < 1 || r.bottom <= b.top || r.top >= b.bottom) return;
+      if (rest < 1 || (d > 0 ? r.top <= b.top + 8 : r.bottom >= b.bottom - 8)) hit = w;
+    });
+    return hit || box;
   }
   rIn.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
@@ -360,7 +482,7 @@
     if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    q('.o-st').dataset.h = ''; q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
+    status(Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention }));
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
@@ -417,6 +539,10 @@
     });
   }
 
+  /* the card's status; drawn again only when it changes, so its spinner keeps turning */
+  function status(html, title) {
+    var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -424,7 +550,7 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    var st = q('.o-st'), sh = Phrase(ph); if (st.dataset.h !== sh) { st.innerHTML = sh; st.dataset.h = sh; } st.title = p.status.text;   /* drawn again only when it changes, so its spinner keeps turning */
+    status(Phrase(ph), p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
@@ -663,7 +789,7 @@
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -869,8 +995,11 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
-    if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
-    applyCharacter(s.character);
+    /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
+    else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
+    if (p && !dropping) rIn.placeholder = replyHint();
+    if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
@@ -897,8 +1026,9 @@
     n.dataset.g = gk ? 'status' : 'char';
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
-    n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || (s.character ? s.character.color : charNow.color));
+    n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || charNow.color);
     var was = lastSt;
+    if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
     layout(st, s);
     if (was !== st) drill(was, st, s);
@@ -995,15 +1125,40 @@
     chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
     hvEls = chain;
     if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+    hand(!!el && getComputedStyle(el).cursor === 'pointer');
   }
+  /* WebKit shows the hand only on a card with the keyboard; on one without, Swift shows it when the page says */
+  var handOn = false;
+  function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
     var d = Math.max(1, Math.hypot(dx, dy)), k = Math.min(1, d / 40);
     tracking = true; look((dx / d) * 3.1 * k, (dy / d) * 2.2 * k);
-    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.getBoundingClientRect(), px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); pv.style.setProperty('--lx', ((px / pd) * pr.width * .1 * pk).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((py / pd) * pr.width * .075 * pk).toFixed(2) + 'px'); }
+    /* measured from its box, which stays put while the character itself squashes and hops */
+    var pv = q('.cr-pv') || q('.cr-hi'); if (pv) { var pr = pv.parentNode.getBoundingClientRect(), w = pv.offsetWidth, px = x - (pr.left + pr.width / 2), py = y - (pr.top + pr.height / 2), pd = Math.max(1, Math.hypot(px, py)), pk = Math.min(1, pd / 60); eyesTo(pv, (px / pd) * w * .1 * pk, (py / pd) * w * .075 * pk); }
     clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
+  }
+  /* The big character's eyes (and, a little, its body) move on a spring run here rather than a CSS transition. The app reads
+     the pointer 30 times a second, and a transition started again at each reading moves in stops and starts. */
+  function eyesTo(el, x, y) {
+    var s = el._eyes || (el._eyes = { x: 0, y: 0, vx: 0, vy: 0, t: 0, on: false });
+    s.tx = x; s.ty = y;
+    if (STILL) { s.x = x; s.y = y; } else if (!s.on) { s.on = true; s.t = 0; requestAnimationFrame(step); }
+    put();
+    function put() { el.style.setProperty('--lx', s.x.toFixed(2) + 'px'); el.style.setProperty('--ly', s.y.toFixed(2) + 'px'); }
+    function step(now) {
+      if (!el.isConnected) { s.on = false; return; }
+      /* stiff enough to settle in about a third of a second, damped to the faintest overshoot */
+      var dt = s.t ? Math.min(.034, (now - s.t) / 1000) : .016, k = 380, c = 26; s.t = now;
+      s.vx += (k * (s.tx - s.x) - c * s.vx) * dt; s.vy += (k * (s.ty - s.y) - c * s.vy) * dt;
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      var rest = Math.abs(s.tx - s.x) < .02 && Math.abs(s.ty - s.y) < .02 && Math.abs(s.vx) + Math.abs(s.vy) < .1;
+      if (rest) { s.x = s.tx; s.y = s.ty; s.vx = s.vy = 0; s.on = false; }
+      put();
+      if (!rest) requestAnimationFrame(step);
+    }
   }
   if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
   if (!NATIVE) scene.addEventListener('mousemove', function (e) {
@@ -1032,7 +1187,7 @@
       'M3 15.4L5.4 15.8M3.2 17.6L5.5 17.2M21 15.4L18.6 15.8M20.8 17.6L18.5 17.2', 'M5.3 4.1Q5.4 3.6 5.9 3.8L8 4.9Q6.8 5.7 6 6.6Z M18.7 4.1Q18.6 3.6 18.1 3.8L16 4.9Q17.2 5.7 18 6.6Z'],
     /* an octopus, after the emoji: a tall round head with a waist, and six tentacles splaying out under it, their tips curling */
     ['octo', 'Octopus', 'M12 1.4C16.3 1.4 18.9 4.5 18.9 8.3C18.9 11.1 17.6 12.7 16.5 13.7C18 14.6 20.3 14.9 21.8 14.2C22.8 13.7 23.8 14.6 23.2 15.6C22.6 16.6 21 16.9 19.6 16.8C18.9 16.8 18.4 17 18.2 17.4C18.4 18.6 19.7 19.6 20.6 20.4C21.4 21.1 20.9 22.2 19.9 21.9C18.3 21.4 16.8 20.2 15.9 19.1C15.8 20.3 16.1 21.6 16 22.3C15.9 23.1 14.8 23.3 14.3 22.6C13.6 21.6 13.1 19.9 12 19.2C10.9 19.9 10.4 21.6 9.7 22.6C9.2 23.3 8.1 23.1 8 22.3C7.9 21.6 8.2 20.3 8.1 19.1C7.2 20.2 5.7 21.4 4.1 21.9C3.1 22.2 2.6 21.1 3.4 20.4C4.3 19.6 5.6 18.6 5.8 17.4C5.6 17 5.1 16.8 4.4 16.8C3 16.9 1.4 16.6 0.8 15.6C0.2 14.6 1.2 13.7 2.2 14.2C3.7 14.9 6 14.6 7.5 13.7C6.4 12.7 5.1 11.1 5.1 8.3C5.1 4.5 7.7 1.4 12 1.4Z', '30%', '32%', '54%', '13%'],
-    /* a bao, after the Bun mascot: broad and soft with a rounded top, pleats and blush cheeks */
+    /* a bao, after the Bun mascot: broad and soft with a rounded top and pleats */
     ['bun', 'Bun', 'M12 4.2C15.4 4.2 18.4 6.6 20.4 9.6C21.9 11.9 22.7 13.9 22.7 16.1C22.7 19.6 18.2 21.6 12 21.6S1.3 19.6 1.3 16.1C1.3 13.9 2.1 11.9 3.6 9.6C5.6 6.6 8.6 4.2 12 4.2Z', '54%', '31%', '55%', '14%',
       'M9.4 9Q10.3 6.8 11.5 5.8M12.1 9.2Q12.3 7.1 12.4 5.5M14.6 8.9Q14.2 6.9 13.3 5.7'],
     /* a small robot: an antenna on a rounded tile */
@@ -1079,7 +1234,7 @@
     post({ type: 'menuIcon', png: cv.toDataURL('image/png') });
   }
   function crHtml(cls, size, sh, mood) {
-    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ck l"></i><i class="ck r"></i><i class="ey l"></i><i class="ey r"></i></div></div>';
+    return '<div class="cr ' + cls + '" data-shape="' + sh[0] + '" data-m="' + (mood || 'awake') + '" style="position:relative;left:auto;top:auto;width:' + size + 'px;height:' + size + 'px;transform:none;--et:' + sh[3] + ';--el:' + (sh[4] || '30%') + ';--er:' + (sh[5] || '56%') + ';--ew:' + (sh[6] || '14%') + '"><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + sh[2] + '"/><path class="pl" d="' + (sh[7] || '') + '"/><path class="fd" d="' + (sh[8] || '') + '"/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div></div>';
   }
 
   /* ---- onboarding: six short steps inside the notch ---- */
@@ -1197,16 +1352,14 @@
     if (a === 'finish') helloNext = true;
     if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
   }
+  var pickedAt = 0;   /* apply() leaves the character alone just after a pick: a snapshot sent before the app heard of it still has the old one */
   function pickCharacter(c) {
+    if (shapeOf(c.shape)[0] === charNow.shape && c.color === charNow.color) return;   /* already this one */
     var shapeChanged = shapeOf(c.shape)[0] !== charNow.shape, box = q('.onb'), pv = q('.cr-pv');
+    pickedAt = Date.now();
     post({ type: 'character', shape: c.shape, color: c.color });
-    var commit = function () { applyCharacter(charNow); };
-    if (shapeChanged && pv) {
-      /* squash, swap the shape at the lowest point, spring back */
-      var f = pv.querySelector('.f'); f.classList.remove('swap'); void f.offsetWidth; f.classList.add('swap');
-      setTimeout(commit, 120); setTimeout(function () { f.classList.remove('swap'); }, 560);
-    } else commit();
     charNow = { shape: shapeOf(c.shape)[0], color: c.color };   /* an old name (Ghost, Arch) counts as the shape that replaced it */
+    if (!pv) applyCharacter(charNow);
     document.documentElement.style.setProperty('--cr', c.color); if (n && !(onbLast && onbStep === onbLast.total - 1 && n.dataset.s === 'onb')) n.style.setProperty('--gcol', c.color);
     if (box) {
       box.querySelectorAll('.o-shape').forEach(function (b) {
@@ -1218,45 +1371,66 @@
         b.className = b.className.replace(/ring-2 ring-white ring-offset-2 ring-offset-black|hover:scale-110/, on ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : 'hover:scale-110');
       });
     }
-    if (pv) {
-      pv._busy = Date.now() + 1500;
-      pv.dataset.m = 'happy';
-      var ci = pv.querySelector('.cr-in'); ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
-      clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850);
-    }
+    if (!pv) return;
+    pv._busy = Date.now() + 1500;
+    /* One motion for the whole character, eyes and all: down into a squash, up with a little stretch, a soft landing. A new
+       shape and its happy face come in together at the lowest point. A pick made mid-motion carries on from wherever the
+       character is, so going through the shapes quickly never snaps it back to the start. */
+    var settle = function () { clearTimeout(pv._t); pv._t = setTimeout(function () { pv.dataset.m = 'awake'; }, 850); };
+    if (!shapeChanged) { pv.dataset.m = 'happy'; settle(); if (!pv._swap) applyCharacter(charNow); }
+    else if (!pv._swap) pv._swap = setTimeout(function () { pv._swap = 0; reshape(pv, function () { applyCharacter(charNow); pv.dataset.m = 'happy'; }); settle(); }, STILL ? 0 : 110);
+    if (STILL) return;
+    var from = getComputedStyle(pv).transform, up = 'cubic-bezier(.2,.8,.4,1)';
+    if (pv._pop) pv._pop.cancel();
+    pv._pop = pv.animate([{ transform: from, easing: 'cubic-bezier(.3,0,.5,1)' }, { transform: 'scale(1.12,.86)', offset: .2, easing: up },
+      { transform: 'translateY(-3px) scale(.95,1.07)', offset: .5, easing: 'cubic-bezier(.5,0,.7,.4)' }, { transform: 'scale(1.04,.97)', offset: .74, easing: up }, { transform: 'none' }], { duration: 560 });
   }
+  /* the shape and the face change in one frame, without their usual glide, so the eyes land with the new body instead of sliding across it */
+  function reshape(el, fn) { el.classList.add('reshape'); fn(); void el.offsetWidth; el.classList.remove('reshape'); }
   /* the preview and the little shape tiles are alive: they blink and glance about while you choose */
   function blinkEl(el) { el.classList.add('blink'); setTimeout(function () { el.classList.remove('blink'); }, 150); }
-  /* while you choose, the big preview plays: a hop, a wiggle, a flip, a squish, a short nap, a happy bounce. Never the same twice in a row. */
-  var TRICKS = ['hop', 'wiggle', 'flip', 'squish', 'nap', 'happy'], lastTrick = '';
-  function trick(pv) {
-    var ci = pv.querySelector('.cr-in'), pick = TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
+  /* while you choose, the big preview plays: a jump, a wiggle, a squish, a short nap, a happy bounce. Never the same twice in a row. */
+  var TRICKS = ['jump', 'wiggle', 'squish', 'nap', 'happy'], lastTrick = '';
+  function trick(pv, only) {
+    var ci = pv.querySelector('.cr-in'), pick = only || TRICKS.filter(function (t) { return t !== lastTrick; })[Math.floor(Math.random() * (TRICKS.length - 1))];
     lastTrick = pick; pv._busy = Date.now() + 1800;
     var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
     if (pick === 'nap') {
-      pv.dataset.m = 'sleep'; pv.style.setProperty('--lx', '0px'); pv.style.setProperty('--ly', '0px');
+      pv.dataset.m = 'sleep'; eyesTo(pv, 0, 0);
       setTimeout(function () { if (pv.dataset.m === 'sleep') { pv.dataset.m = 'awake'; play('hop', 600); } }, 1500);
+    } else if (pick === 'jump') {
+      /* its eyes drop as it crouches, go up as it leaves the ground, and come back as it lands */
+      play('jump', 1000); eyesTo(pv, 0, 1.2);
+      setTimeout(function () { eyesTo(pv, 0, -1.8); }, 200);
+      setTimeout(function () { eyesTo(pv, 0, 0); }, 620);
     } else if (pick === 'happy') {
       pv.dataset.m = 'happy'; play('hop', 600);
       setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 900);
     } else play(pick, 950);
   }
-  /* clicked while you choose it: tickled. Its eyes squeeze shut, its cheeks flush, and it squirms and giggles */
+  /* clicked while you choose it: tickled. Its eyes squeeze shut and it squirms and giggles */
   function tickle(pv) {
     var ci = pv.querySelector('.cr-in'); pv._busy = Date.now() + 1900; clearTimeout(pv._tk); clearTimeout(pv._tk2);
-    pv.dataset.m = 'happy'; pv.classList.add('tickled');
+    pv.dataset.m = 'happy';
     ci.classList.remove('giggle'); void ci.offsetWidth; ci.classList.add('giggle');
     /* the eyes open again as the wobble settles; the classes go once everything has come to rest */
     pv._tk = setTimeout(function () { if (pv.dataset.m === 'happy') pv.dataset.m = 'awake'; }, 1050);
-    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); pv.classList.remove('tickled'); }, 1500);
+    pv._tk2 = setTimeout(function () { ci.classList.remove('giggle'); }, 1500);
   }
   scene.addEventListener('click', function (e) { var pv = e.target.closest('.cr-pv'); if (pv) tickle(pv); });
+  /* A shape or a colour is picked on the press. A snapshot that draws the card again between press and release replaces
+     the swatch under the pointer, and the browser then sends no click at all. The click that follows is the same pick
+     again, which pickCharacter ignores. */
+  scene.addEventListener('pointerdown', function (e) {
+    var b = e.button === 0 && e.target.closest('.o-shape, .o-color'); if (!b) return;
+    pickCharacter(b.dataset.k ? { shape: b.dataset.k, color: charNow.color } : { shape: charNow.shape, color: b.dataset.c });
+  });
   (function previewLife() {
     var pv = q('.cr-pv');
     if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now()) && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) && Math.random() < 0.4) trick(pv);
     else if (pv && pv.dataset.m === 'awake' && !(pv._busy > Date.now())) {
       blinkEl(pv); if (Math.random() < 0.3) setTimeout(function () { blinkEl(pv); }, 280);
-      pv.style.setProperty('--lx', ((Math.random() - 0.5) * 5).toFixed(2) + 'px'); pv.style.setProperty('--ly', ((Math.random() - 0.5) * 3).toFixed(2) + 'px');
+      eyesTo(pv, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3);
     }
     var hi = q('.cr-hi'); if (hi && hi.dataset.m === 'awake' && Math.random() < 0.6) blinkEl(hi);
     scene.querySelectorAll('.cr-mini').forEach(function (m, i) { if (Math.random() < 0.55) setTimeout(function () { blinkEl(m); }, i * 130); });
@@ -1377,7 +1551,7 @@
     /* 6. back to its own colour, and a glance at the button */
     at(7500, function () {
       introGlow = ''; n.style.setProperty('--gcol', charNow.color); hi.dataset.m = 'awake';
-      hi.style.setProperty('--lx', '2.6px'); hi.style.setProperty('--ly', '2px');
+      eyesTo(hi, 2.6, 2);
     });
   }
   function onb(o) {
@@ -1423,8 +1597,8 @@
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
     if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
-    /* left and right change the shape, up and down the colour; both wrap */
-    var d = (k === 'right' || k === 'down') ? 1 : -1, i = 0;
+    /* left and right change the shape, up and down the colour (up goes right along the swatches); both wrap */
+    var d = (k === 'right' || k === 'up') ? 1 : -1, i = 0;
     if (k === 'up' || k === 'down') {
       PALETTE.forEach(function (c, j) { if (c[1] === charNow.color) i = j; });
       i = (i + d + PALETTE.length) % PALETTE.length;
@@ -1458,7 +1632,9 @@
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
-      srow(slabel('Come back after'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>'),
+      /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
+      srow(slabel('Away from your Mac for'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>') +
+        '<p class="mx-2 -mt-1 truncate px-2 pb-0.5 text-xs text-muted-foreground">Then Perch shows where you left off when you come back.</p>',
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ].join('');
@@ -1579,7 +1755,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -1591,9 +1767,12 @@
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   var devFrom = '';
   function dev(m) {
+    /* the drafts Swift keeps, kept here instead */
+    if (m.type === 'draft') { base.drafts = base.drafts || {}; if (m.text) base.drafts[m.id] = m.text; else delete base.drafts[m.id]; if (snap) snap.drafts = base.drafts; return; }
+    if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
@@ -1636,7 +1815,8 @@
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '48m', at: '10:44 AM', headline: 'You were tightening the hero spacing.', context: 'The hero now fits at phone width. The full-bleed video is gone because it slowed the page.', next: 'Check the hero on a real phone',
         said: 'Done. The hero now fits at phone width:\n\n- Padding drops from 96px to 48px under 640px\n- The headline wraps at 18ch instead of overflowing\n- The full-bleed video is gone; it cost 1.8s on 4G\n\nI left the poster image in its place so the fold still has something to look at.\n\nWant me to bring the video back for desktop only, behind `prefers-reduced-motion`?', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Claude finished', app: 'claude' } },
       { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 AM', headline: 'Rewriting the install guide.', context: 'Moving the setup steps above troubleshooting, then cutting the duplicate FAQ.', now: 'Editing install.md', next: '', topic: 'Install guide', app: 'codex', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Codex is working', app: 'codex' } },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices', app: 'claude', attention: false, fresh: false, line: '3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices',
+        said: 'September is reconciled except two invoices. By vendor:\n\n| Vendor | Invoices | Total | Matched |\n|---|---|---|---|\n| Hetzner | 12 | $1,842.60 | 100% |\n| AWS | 9 | $20,000.00 | 100% |\n| Linear | 18 | $1,320.00 | 94% |\n| Figma | 4 | $540.00 | 75% |\n\nThe two still open are a Figma seat refund and a Linear credit note. Should I book them as credits against October?', app: 'claude', attention: false, fresh: false, line: '3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       /* more than five: the list scrolls. Long topics read themselves out after a second on the row. */
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
@@ -1717,6 +1897,12 @@
       clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
         setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
       say: function (t) { window.perch.say(t); },
+      /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
+      trick: function (name) {
+        window.perchDev.onboarding(1);
+        var me = ++fxPlay;
+        (function again(ms) { setTimeout(function () { var pv = q('.cr-pv'); if (me !== fxPlay || !pv) return; pv._busy = Date.now() + 99999; trick(pv, name); again(2400); }, ms); })(900);
+      },
       /* the whole permission moment: working quietly, a request arrives, you look, you answer, all clear */
       permission: function () {
         d0(); base.selected = 0;
@@ -1742,6 +1928,8 @@
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
+      /* each scenario starts with no replies left typed */
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
@@ -1776,7 +1964,7 @@
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
       else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', false, true); }
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
-      else if ((e.metaKey && e.key === ',') || (ph === 'open' && (e.key === 's' || e.key === 'S'))) { e.preventDefault(); window.perchDev.settings(); }
+      else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
