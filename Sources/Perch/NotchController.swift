@@ -96,7 +96,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         self.provider = provider
         projects = []
         machine = NotchMachine(projectCount: 0)
-        screen = ScreenChooser.home()
+        // With Show Perch on set to a screen, the resting notch starts there, so the first activity grows where it should.
+        screen = Prefs.showOn == .mouse ? ScreenChooser.home() : ScreenChooser.rest()
         info = screen.screenInfo
         // Without this macOS naps an app with no visible window, which makes cursor polling erratic.
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Watching the cursor for the notch")
@@ -837,7 +838,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
         case "activity":
+            let wasShowing = activityMode != ""
             activityMode = body["mode"] as? String ?? ""
+            // Following the active window, an activity that just arrived goes where that window is now: it may have
+            // moved, or another of the same app's windows come forward, since the app last switched.
+            if !wasShowing, activityMode != "", Prefs.showOn == .window, machine.phase == .idle, !awayForHover {
+                let to = ScreenChooser.rest(); if to !== screen { place(on: to); push() }
+            }
             if let w = body["width"] as? Double, let h = body["height"] as? Double { activitySize = CGSize(width: w, height: h) }
             if activityMode != "full" { hoverLatched = true }   // what it folds to under the cursor is not a hover
             onActivityKeys?(body["keys"] as? [String] ?? [])
@@ -1556,14 +1563,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
     /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.
     private var awayForHover = false
+    /// When the cursor came into another screen's hover zone, and which screen (while an activity shows it waits a dwell).
+    private var detourFrom: (screen: NSScreen, at: Date)?
     private func followHoverWhileFixed() {
         let at = NSEvent.mouseLocation, screens = NSScreen.screens, frames = screens.map(\.frame)
         if let i = ScreenPicker.index(of: at, in: frames), screens[i] !== screen, screens[i].notchSize != nil || Prefs.hoverExternal,
            NotchGeometry.hovering(at, frames: frames, index: i, rect: NotchGeometry.hoverRect(for: screens[i].screenInfo)) {
-            awayForHover = true; place(on: screens[i]); push(); return
+            if detourFrom?.screen !== screens[i] { detourFrom = (screens[i], Date()) }
+            guard HoverDetour.leave(enteredAt: detourFrom!.at, now: Date(), activityShowing: activityMode != "") else { return }
+            detourFrom = nil; awayForHover = true; place(on: screens[i]); push(); return
         }
-        // Back home once, when the cursor has left the zone it came for (asking where home is reads the window list).
-        guard awayForHover, hoverTask == nil, !notchHoverRect().contains(at) else { return }
+        detourFrom = nil
+        // Back home once, when the cursor has left the zone it came for and the activity it brought along (asking where
+        // home is reads the window list).
+        guard awayForHover, hoverTask == nil,
+              HoverDetour.goBack(at: at, zone: notchHoverRect(), activity: activityMode == "full" ? activityRect : nil) else { return }
         awayForHover = false
         let home = ScreenChooser.rest()
         if home !== screen { place(on: home); push() }

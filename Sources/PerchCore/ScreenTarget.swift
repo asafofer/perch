@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// Where the shortcut opens Perch and where it shows up by itself (Settings, Show Perch on). Hovering the top of a
 /// screen still opens it on that screen, whatever this says.
@@ -24,6 +25,21 @@ public enum ShowOn: Equatable, Sendable {
         case .window: return "window"
         case .display(let id): return id
         }
+    }
+}
+
+/// With Show Perch on set to a screen, the resting notch waits there, and resting the cursor on another screen's top
+/// takes it there for a while: a detour. These say when it leaves and when it comes back.
+public enum HoverDetour {
+    /// Back to the resting screen once the cursor has left the hover zone it came for, and is not on the activity it
+    /// brought along (its buttons hang well below the zone).
+    public static func goBack(at p: CGPoint, zone: CGRect, activity: CGRect?) -> Bool {
+        !zone.contains(p) && !(activity?.contains(p) ?? false)
+    }
+    /// Leave for another screen's hover zone: at once while nothing shows, but only after a hover's dwell while an
+    /// activity shows, so reaching for the menu bar there does not carry it off.
+    public static func leave(enteredAt: Date, now: Date, activityShowing: Bool, dwell: TimeInterval = 0.25) -> Bool {
+        !activityShowing || now.timeIntervalSince(enteredAt) >= dwell
     }
 }
 

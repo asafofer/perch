@@ -1,5 +1,6 @@
 import Testing
 import CoreGraphics
+import Foundation
 @testable import PerchCore
 
 @Suite struct ScreenTargetTests {
@@ -45,6 +46,18 @@ import CoreGraphics
     @Test func hoverRectMatchesTheOldZone() {
         let notched = ScreenInfo(frame: laptop, notchSize: CGSize(width: 185, height: 32))
         #expect(NotchGeometry.hoverRect(for: notched) == CGRect(x: 633.5, y: 948, width: 223, height: 72))
+    }
+    @Test func detourStaysWhileTheCursorIsOnTheActivity() {
+        let zone = CGRect(x: 633.5, y: 948, width: 223, height: 72), activity = CGRect(x: 556, y: 862, width: 400, height: 120)
+        #expect(HoverDetour.goBack(at: CGPoint(x: 756, y: 900), zone: zone, activity: activity) == false)   // below the zone, on the activity's buttons
+        #expect(HoverDetour.goBack(at: CGPoint(x: 756, y: 900), zone: zone, activity: nil))
+        #expect(HoverDetour.goBack(at: CGPoint(x: 756, y: 960), zone: zone, activity: nil) == false)
+    }
+    @Test func detourWaitsForTheDwellWhileAnActivityShows() {
+        let t = Date(timeIntervalSince1970: 1000)
+        #expect(HoverDetour.leave(enteredAt: t, now: t, activityShowing: false))
+        #expect(HoverDetour.leave(enteredAt: t, now: t.addingTimeInterval(0.1), activityShowing: true) == false)
+        #expect(HoverDetour.leave(enteredAt: t, now: t.addingTimeInterval(0.25), activityShowing: true))
     }
     @Test func hoverZoneNeedsTheCursorOnThatScreen() {
         let top = CGRect(x: 0, y: 982, width: 1512, height: 982)   // a display stacked above the laptop
