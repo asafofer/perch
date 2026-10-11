@@ -38,6 +38,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
+/* proposal: the character resting at the top centre of a display without a notch (#rmk, design page only) */
+#rmk{position:absolute;left:50%;top:0;z-index:6;pointer-events:none;display:grid;place-items:center;translate:-50% 0}
+#rmk.bare{height:24px}
+#rmk.peek{height:17px;overflow:hidden;align-items:start}#rmk.peek .cr{margin-top:-5px}
+#rmk.tab{height:24px;width:40px;background:#000;border-radius:0 0 9px 9px;corner-shape:squircle}
+#rmk.pill{top:3px;height:18px;width:30px;background:#000;border-radius:9px}
+#rmk.glass{top:2px;height:20px;width:32px;border-radius:7px;background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22);backdrop-filter:blur(12px) saturate(1.4)}
+#rmk.row{translate:-50% 0;display:flex;gap:28px;height:24px;align-items:center}
 /* the hardware notch: its pixels are not there, so whatever the card draws under it is gone. Painted over the card, with a thin pink edge to find it by. */
 .desk #hw{position:absolute;left:50%;top:0;width:185px;height:32px;margin-left:-92.5px;background:#000;border-radius:0 0 11px 11px;box-shadow:0 0 0 1px rgba(255,70,190,.6);z-index:5;pointer-events:none}
 .desk.ext #hw,.desk.noguide #hw{display:none}
@@ -339,6 +347,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Closing', 'The same shrink as into a notch, but with no notch there it goes on shrinking to nothing at the top centre: no pill left behind, no fade. Opens and closes on a loop; switch Display to MacBook to compare with the notch.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.project(0); d.show('open', false, true); setTimeout(function () { if (me !== charRun) return; d.show('idle', true); setTimeout(loop, 1400); }, 1800); })(); }],
       ['Live activity closing', 'Put away (the cross, or by itself after six seconds), the live activity shrinks the same way, to nothing at the top centre. Plays on a loop.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); setTimeout(function () { if (me !== charRun) return; var x = document.querySelector('.act [data-a=gone]'); if (x) x.click(); setTimeout(loop, 1400); }, 3200); })(); }],
       ['Settings: Hover opens', 'At the end of the Show Perch on menu, only while a display without a notch is connected. Off by default: resting the pointer on the top edge does nothing there. On, it opens Perch there like the notch does, with nothing drawn to aim at. It switches in place and the menu stays open.', function () { setDisplay(0); d.settings(); setTimeout(function () { var t = document.querySelector('.set .s-showtrig'); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); }, 400); }],
+      ['Avatar: bare', 'Proposal. At rest your character sits at the top centre of the display, on the menu bar, with nothing behind it: 16 px, eyes open. Nothing else is drawn.', function () { restMock('bare', 16); }],
+      ['Avatar: peeking', 'Proposal. No background; the character hangs from the top edge, the top of its head out of sight, as if peering over it. 22 px, about 17 px of it showing.', function () { restMock('peek', 22); }],
+      ['Avatar: small tab', 'Proposal. A small black tab, a notch of its own, 40 x 24, with the character inside at 14 px. Reads as Perch\u2019s place on any display.', function () { restMock('tab', 14); }],
+      ['Avatar: black pill', 'Proposal. A small black pill floating just under the top edge, the character inside at 13 px.', function () { restMock('pill', 13); }],
+      ['Avatar: frosted', 'Proposal. A frosted chip like a menu bar item\u2019s highlight, the character inside at 15 px.', function () { restMock('glass', 15); }],
+      ['Avatar: every character', 'Proposal. The bare version with each shape, side by side, to see how each reads at 16 px on the menu bar.', function () { restMock('row', 16); }],
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); setTimeout(function () { var t = document.querySelector('.set .s-showtrig'); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); }, 400); }]
     ]],
     ['Which screen', [
@@ -447,6 +461,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]]
   ];
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
+  /* proposal: the character at rest on a display without a notch, drawn over the desk */
+  function restMock(kind, size) {
+    setDisplay(0); d.show('idle', true);
+    var el = document.createElement('div'); el.id = 'rmk'; el.className = kind;
+    el.innerHTML = kind === 'row' ? ['ears', 'octo', 'bun', 'tile', 'peak'].map(function (k) { return d.mini(size, 'awake', k); }).join('') : d.mini(size, 'awake');
+    document.getElementById('desk').appendChild(el);
+  }
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
     document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
@@ -458,7 +479,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); var rm = document.getElementById('rmk'); if (rm) rm.remove(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
