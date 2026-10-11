@@ -196,14 +196,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 id = DesktopSessions.shared.index().values.compactMap { e in e.focusedAt.map { (e.id, $0) } }.max { $0.1 < $1.1 }?.0
             }
             let hit = Set(projects.filter { $0.desktopSessionId != nil && $0.desktopSessionId == id }.map(\.id))
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
+                let line = "claude app shows \(String(describing: focus.fresh(for: bid)?.claude)) -> \(id ?? "none") in=\(hit.sorted())"
+                if line != traced { traced = line; NSLog("Perch in: \(line)") }
+            }
             return (hit, hit)
         case Restorer.codexApp: return ([], Focus.inCodexApp(projects))
         default:
             guard Terminals.keys[bid] != nil else { return ([], []) }
-            return Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
+            let r = Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
+            traceFocus(bid, r)
+            return r
         }
     }
     private let focus = FocusProbe()
+    private var traced = ""
+    private func traceFocus(_ bid: String, _ r: (sure: Set<String>, maybe: Set<String>)) {
+        guard ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil else { return }
+        let line = "\(bid) looking \(focus.fresh(for: bid)?.looking.spots.sorted() ?? []) unknown=\(focus.fresh(for: bid)?.looking.unknown ?? true) sure=\(r.sure.sorted()) maybe=\(r.maybe.sorted()) live=\(projects.compactMap { p in p.spot.map { "\(p.sessionId?.prefix(8) ?? "?") \($0.suffix(12))" } })"
+        if line != traced { traced = line; NSLog("Perch in: \(line)") }
+    }
     /// A second apart while the app in front is one Perch can read, so a switch is seen before anything arrives.
     private func startWatchingFocus() {
         focus.changed = { [weak self] in if self?.machine.phase == .idle { self?.push() } }
