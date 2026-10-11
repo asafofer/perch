@@ -13,6 +13,42 @@ public enum NotchEvent: Equatable, Sendable {
     /// The list was refreshed while the card is up: keep the card, clamp what is selected.
     case projectsChanged(count: Int, selected: Int)
     case hoverChanged(Bool), restoreFinished
+    /// Command+Option soon after you put it away: straight back to that card, or to the list on that row (nil: its top row).
+    case reopen(NotchPhase, selected: Int?)
+}
+
+/// What showed when you put Perch away (Esc, a click elsewhere, Command+Option, the card folding away), so Command+Option
+/// brings it back: that session's card, or the list with its filter on the same row, and a reply you had open. It keeps
+/// five minutes, and a card only while its session is still listed. Done with it (Pick up, a reply sent, an answer,
+/// Not now) and there is nothing to bring back: Command+Option opens the list.
+public struct PutAway: Equatable, Sendable {
+    public let phase: NotchPhase
+    /// The session on the card, or the row the list was on.
+    public let session: String?
+    /// What was typed in the list.
+    public let query: String
+    /// The card's reply field was open.
+    public let replying: Bool
+    public let at: Date
+
+    public static let keeps: TimeInterval = 5 * 60
+
+    /// Only the card and the list come back, and a card only with its session.
+    public init?(phase: NotchPhase, session: String?, query: String = "", replying: Bool = false, at: Date) {
+        guard phase == .switcher || (phase == .open && session != nil) else { return nil }
+        self.phase = phase; self.session = session; self.at = at
+        self.query = phase == .switcher ? query : ""
+        self.replying = phase == .open && replying
+    }
+
+    /// Where to go back to among the sessions listed now (`ids`, in the machine's order). Nil once it is too old, or
+    /// when the card's session has gone; a list whose row has gone comes back on its top row.
+    public func recall(ids: [String], now: Date) -> NotchEvent? {
+        guard now.timeIntervalSince(at) < Self.keeps, now >= at.addingTimeInterval(-1) else { return nil }
+        let row = session.flatMap { ids.firstIndex(of: $0) }
+        if phase == .open { return row.map { .reopen(.open, selected: $0) } }
+        return .reopen(.switcher, selected: row)
+    }
 }
 
 /// Pure state machine for the notch. No UI, no timers.
@@ -53,6 +89,12 @@ public struct NotchMachine: Equatable, Sendable {
             phase = .onboarding
         case (.onboarding, .openSettings):
             phase = .settings   // back from changing the character
+        case (.idle, .reopen(.open, let i?)):
+            guard (0..<projectCount).contains(i) else { return }
+            selected = i; phase = .open
+        case (.idle, .reopen(.switcher, let i)):
+            selected = i.map { min(max($0, 0), max(projectCount - 1, 0)) } ?? 0
+            phase = .switcher
         case (.idle, .openSwitcher):
             phase = .switcher   // asked for: an empty list says so instead of doing nothing
         case (.open, .openSwitcher):

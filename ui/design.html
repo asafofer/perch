@@ -21,10 +21,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
+/* a file dragged across the desktop as macOS draws it (fileDrag): it stays put, a see-through copy follows the pointer */
+.fdrag{position:absolute;z-index:30;pointer-events:none}
+.desk #scene{z-index:2}.fdrag.file{z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:96px;margin:-27px 0 0 -48px}
+.fdrag.file span{font:500 11px/1.25 Inter,sans-serif;color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.7);word-break:break-all}
+.fdrag.ghost{opacity:.55;margin:-27px 0 0 -22px;transition:opacity .2s,transform .2s}
+.fdrag.cur{margin:-2px 0 0 -2px;transition:opacity .3s}
+.fdrag.cur i{position:absolute;left:11px;top:15px;width:15px;height:15px;border-radius:50%;background:#34c759;box-shadow:0 0 0 1.5px #fff;display:none}
+.fdrag.cur i::before,.fdrag.cur i::after{content:"";position:absolute;left:50%;top:50%;background:#fff;border-radius:1px;transform:translate(-50%,-50%)}
+.fdrag.cur i::before{width:7px;height:1.6px}.fdrag.cur i::after{width:1.6px;height:7px}
+.fdrag.cur.copy i{display:block}
 .now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
 
 /* display switch */
-.disp{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
+.disp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
@@ -86,7 +96,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 (function () {
   var d = window.perchDev; if (!d) return;
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
-  function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
@@ -100,6 +110,79 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       Q('What should the floor do?', 'Floor', [['Subtle reflection (Recommended)', 'A satin floor that reflects the shelter faintly'], ['Matte with shadow', 'A plain matte floor with a soft contact shadow'], ['Measured grid', 'A matte floor with a fine metric grid']]),
       Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
     ] } };
+  /* a load test, twelve runs in nine columns: taller and wider than the message, so the table scrolls in its own window */
+  var WIDE = 'Ran the load test against the new limiter, twelve runs. Every run held its limit:\n\n| Run | Requests | Allowed | Rejected (429) | p50 | p95 | p99 | Error rate | Notes |\n|---|---|---|---|---|---|---|---|---|\n' +
+    '| 121 | 20,000 | 100% | 0 | 12 ms | 27 ms | 41 ms | 0.00% | cold start |\n' +
+    '| 122 | 20,000 | 100% | 0 | 13 ms | 28 ms | 43 ms | 0.00% | warm cache |\n' +
+    '| 123 | 20,000 | 97% | 612 | 14 ms | 30 ms | 52 ms | 0.01% | burst of 20 |\n' +
+    '| 124 | 20,000 | 100% | 0 | 13 ms | 29 ms | 44 ms | 0.00% | after the fix |\n' +
+    '| 125 | 20,000 | 88% | 2,410 | 16 ms | 38 ms | 70 ms | 0.04% | burst of 40 |\n' +
+    '| 126 | 20,000 | 100% | 0 | 12 ms | 27 ms | 40 ms | 0.00% | partner keys |\n' +
+    '| 127 | 20,000 | 99% | 204 | 14 ms | 31 ms | 49 ms | 0.00% | two regions |\n' +
+    '| 128 | 20,000 | 100% | 0 | 14 ms | 31 ms | 48 ms | 0.00% | warm cache |\n' +
+    '| 129 | 20,000 | 94% | 1,188 | 15 ms | 34 ms | 58 ms | 0.02% | burst of 30 |\n' +
+    '| 130 | 20,000 | 100% | 0 | 13 ms | 28 ms | 42 ms | 0.00% | new pool |\n' +
+    '| 131 | 20,000 | 92% | 1,604 | 15 ms | 35 ms | 61 ms | 0.02% | burst of 20 |\n' +
+    '| 132 | 20,000 | 100% | 0 | 13 ms | 29 ms | 44 ms | 0.00% | after the fix |\n' +
+    '\nShould I raise the burst to 40 for the partner keys?';
+  /* A file dragged from the desktop, slowly, as macOS draws it: the file stays where it is and a see-through copy follows
+     the pointer, which gains a green plus over a place that takes it. The card hears what the app's drag events would
+     tell it (dragOver as the file comes on and goes off, paths on the drop), and the character's eyes follow the pointer
+     as the app feeds it (cursor). legs: [[where, ms, caption]], where is a point on the desk, a function giving one, or
+     'drop'; a leg with no where waits. */
+  var FILE_SVG = '<svg viewBox="0 0 44 54" width="44" height="54"><path d="M4 2h24l12 12v36a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#f4f5f7"/><path d="M28 2v10a2 2 0 0 0 2 2h10z" fill="#cfd3da"/><rect x="8" y="20" width="28" height="22" rx="2" fill="#7d9be0"/><path d="M8 38l9-9 6 6 5-5 8 8v2a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2z" fill="#3e5ea9"/><circle cx="29" cy="26" r="2.6" fill="#f6d36b"/></svg>';
+  var CURSOR_SVG = '<svg viewBox="0 0 20 28" width="17" height="24"><path d="M2 1.5v20.2l5-4.6 3.3 7.6 3.4-1.5-3.3-7.4h6.8z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><i></i>';
+  var dragRun = 0;
+  function fileDragStop() { dragRun++; document.querySelectorAll('.fdrag').forEach(function (e) { e.remove(); }); }
+  function fileDrag(path, legs) {
+    fileDragStop();
+    var me = ++dragRun, desk = document.getElementById('desk'), H = desk.clientHeight;
+    var mk = function (cls, html) { var e = document.createElement('div'); e.className = 'fdrag ' + cls; e.innerHTML = html; desk.appendChild(e); return e; };
+    var name = path.split('/').pop(), start = [desk.clientWidth - 70, H - 70];
+    var file = mk('file', FILE_SVG + '<span>' + name + '</span>'), ghost = mk('ghost', FILE_SVG), cur = mk('cur', CURSOR_SVG);
+    var at = start.slice(), over = false, was = false;
+    var put = function (e, p) { e.style.left = p[0] + 'px'; e.style.top = p[1] + 'px'; };
+    put(file, start); put(ghost, start); ghost.style.display = 'none'; put(cur, [start[0] - 60, start[1] - 30]);
+    var card = function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = desk.getBoundingClientRect(); return document.querySelector('#scene .n').dataset.s === 'open' ? { l: r.left - dr.left, t: r.top - dr.top, r: r.right - dr.left, b: r.bottom - dr.top } : null; };
+    var frame = function () {
+      put(ghost, at); put(cur, at);
+      var c = card(), on = !!c && at[0] > c.l && at[0] < c.r && at[1] > c.t && at[1] < c.b;
+      var sc = document.getElementById('scene').getBoundingClientRect(), dr = desk.getBoundingClientRect(), x = at[0] + dr.left - sc.left, y = at[1] + dr.top - sc.top;
+      if (on !== over) { over = on; cur.classList.toggle('copy', on); }
+      if (on || was) window.perch.dragOver(on ? 1 : 0, at[0] + dr.left, at[1] + dr.top);
+      was = on;
+      window.perch.cursor(x, y);
+    };
+    var ease = function (t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+    var i = 0;
+    (function next() {
+      if (me !== dragRun) return;
+      var leg = legs[i++]; if (!leg) return;
+      if (leg[2]) now.textContent = leg[2];
+      var where = leg[0];
+      if (where === 'pick') { cur.style.transition = 'left .55s cubic-bezier(.4,0,.2,1), top .55s cubic-bezier(.4,0,.2,1)'; put(cur, start); setTimeout(function () { if (me !== dragRun) return; cur.style.transition = ''; ghost.style.display = ''; at = start.slice(); frame(); next(); }, leg[1]); return; }
+      if (where === 'drop') {
+        ghost.style.opacity = '0'; ghost.style.transform = 'scale(.4)'; cur.classList.remove('copy');
+        window.perch.paths([path]); over = false;
+        setTimeout(function () { if (me === dragRun) { cur.style.opacity = '0'; next(); } }, leg[1]); return;
+      }
+      if (!where) { setTimeout(next, leg[1]); return; }
+      var from = at.slice(), t0 = 0;
+      (function step(ts) {
+        if (me !== dragRun) return;
+        if (!t0) t0 = ts;
+        var to = typeof where === 'function' ? where() : where, k = ease(Math.min(1, (ts - t0) / leg[1]));
+        at = [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]; frame();
+        if (k < 1) requestAnimationFrame(step); else next();
+      })(performance.now());
+    })();
+  }
+  /* points on the desk, measured when the file gets there: the middle of the card, and the reply field */
+  function deskPoint(el, dx, dy) { var r = el.getBoundingClientRect(), dr = document.getElementById('desk').getBoundingClientRect(); return [r.left - dr.left + r.width / 2 + (dx || 0), r.top - dr.top + r.height / 2 + (dy || 0)]; }
+  function onCard(dx, dy) { return function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = document.getElementById('desk').getBoundingClientRect(); return [r.left - dr.left + r.width / 2 + dx, r.top - dr.top + dy]; }; }
+  /* near the field's right end, so the file does not hide what the field says */
+  function onField() { var w = document.querySelector('.r-in').getBoundingClientRect().width; return deskPoint(document.querySelector('.r-in'), w / 2 - 46, 0); }
+  function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
   var GROUPS = [
     ['Coming back', [
@@ -112,7 +195,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Finished', 'Finished while you were away: what it did, and what is next.', function () { d.project(1); d.show('open'); }],
       ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: '48m ago' }); }],
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
-      ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }]
+      ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }],
+      ['Working, a long title', 'A title that runs long has its whole line: the status sits on the grey line under it, at the right.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
     ['More agents', [
       ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
@@ -127,7 +211,49 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
-      ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
+      ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
+      ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.project(1); d.show('open', false, true);
+        at(700, function () { window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Bring it back for desktop only, and keep this poster for phones:'; r.dispatchEvent(new Event('input')); });
+        at(2800, function () { now.textContent = 'A click in Finder: the card makes way, your words are kept'; d.show('idle'); });
+        at(4600, function () { now.textContent = 'Command+Option: back as you left it'; d.show('open', false, true); window.perch.replyMenu(true); });
+        at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
+      }],
+      ['A file dragged onto the card', 'A file from the desktop, dragged slowly. Over the card the pointer gains a green plus (macOS draws it when the place takes the file), the reply opens for it, its field lights up and says what a drop does, more so with the file right on it, and the character looks on wide-eyed, its eyes on the file. Dragged off, it all goes back. Brought back and dropped on the field: the path goes in and the character hops.', function () {
+        d.project(1); d.show('open', false, true);
+        setTimeout(function () {
+          fileDrag('/Users/asaf/Desktop/hero-poster.png', [
+            [null, 500, 'A file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onCard(-70, 115), 1300, 'Dragging it onto the card'],
+            [null, 700, 'Over the card: the reply opens, its field lights up, the character watches the file'],
+            [onCard(60, 150), 1000],
+            [offCard, 1200, 'Off the card again'],
+            [null, 900, 'Off the card: it all goes back'],
+            [onCard(-20, 120), 1200, 'Back onto the card'],
+            [onField, 800, 'Onto the reply field'],
+            [null, 1100, 'Right on the field: release to add its path'],
+            ['drop', 1500, 'Dropped: its path goes in, and the character hops']
+          ]);
+        }, 700);
+      }],
+      ['A file dragged onto a reply', 'While you write, a file dragged onto the card lights the field, more so right on it; dropped, its path goes in after your words.', function () {
+        reply(true)();
+        setTimeout(function () {
+          fileDrag('/Users/asaf/Desktop/invoice-scan.png', [
+            [null, 500, 'Writing a reply, with a file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onCard(40, 110), 1200, 'Dragging it onto the card'],
+            [null, 700, 'Over the card: the field lights up, the character watches the file'],
+            [onField, 800, 'Onto the reply field'],
+            [null, 1100, 'Right on the field: release to add its path'],
+            ['drop', 1500, 'Dropped: its path goes in after your words']
+          ]);
+        }, 1400);
+      }],
+      ['Reply: a table', 'The agent answered with a table. No lines: the header in grey, a faint band on every other row, even numerals, numbers on the right.', function () { d.project(3); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
+      ['Reply: a long, wide table', 'Taller and wider than the message: the table scrolls in its own window, both ways, its header staying put, and fades at the sides it goes on. Up and Down in the reply scroll the message and, when the table is in the way, its rows first.', function () { d.variant(7, { said: WIDE }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
       ['Reply: no Accessibility', 'Perch cannot type for you yet, so Send reads Allow and send. Return or a click asks for Accessibility, as Settings does, and keeps your words.', function () { d.noAccess(); reply(true)(); }],
       ['Reply: waiting for access', 'System Settings is open on Accessibility. Your words stay in the field and go out the moment Perch is on. Esc goes back to the card and drops the wait. If it never comes on, they are copied and the session opens, as before.', function () { d.noAccess(true); reply(true)(); }],
@@ -191,7 +317,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); charRun++; fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

@@ -71,6 +71,8 @@ struct UISnapshot: Encodable {
     let canSend: Bool
     /// Send asked for Accessibility and holds the reply until it is on.
     var allowing = false
+    /// Replies typed and not sent, by project id: the reply field opens with them.
+    var drafts: [String: String] = [:]
     /// Perch opened the card by itself (you came back, or a Not now came due): it offers Not now, not the Up and Down hint.
     var proactive = false
     /// What you typed in the list, and the rows that match it (all of them when nil).
