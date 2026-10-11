@@ -223,7 +223,7 @@
   /* a whole message, not one line: paragraphs, lists and code blocks; the words inside them as md() draws a line */
   function mdBlock(t) {
     return String(t || '').split('```').map(function (part, i) {
-      if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 text-foreground/85">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
+      if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 md-code">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
       return part.split(/\n{2,}/).map(function (para) {
         var lines = para.replace(/^\s*\n/, '').replace(/\s+$/, '').split('\n').filter(function (l) { return l.trim(); }); if (!lines.length) return '';
         /* a table can follow a line of text with no blank line between: the paragraph is cut into text and tables */
@@ -291,7 +291,7 @@
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return h.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/`([^`]+)`/g, '<code class="rounded bg-white/[0.09] px-1 py-px font-mono text-[11.5px] text-foreground/90">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="rounded bg-white/[0.09] px-1 py-px font-mono text-[11.5px] md-code">$1</code>')
       .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, function (m, a, b) { return '<strong class="font-semibold text-foreground">' + (a || b) + '</strong>'; })
       .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>')
       .replace(/(^|[^\w])_([^_\s][^_]*)_(?![\w])/g, '$1<em>$2</em>');
