@@ -23,6 +23,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   LiveStatus          Hook events (HookEvent), what an agent asks (Ask: words for the card, the reply JSON), live status per session.
   SessionScan         SessionScanner: which sessions get a row (Claude app list, Codex threads, OpenCode, pi), tail reading, caches.
   Focus               Which running session you are in: a Spot (cmux surface, herdr pane, tty) compared with what is in front (Looking); unsure means every live session in that app is a maybe.
+  Shortcut            The shortcut that opens Perch: a tap of two or more modifiers (default Command+Option) or a key combo; the rules (what is refused and why) and ShortcutRecorder, which turns key events into a recording. Recorded from Settings (Change opens a full-card page, `onbOpen` step 3 only) or onboarding step 3; HotkeyService applies it and pauses every Perch hotkey while recording.
   Place               Where a running agent lives (herdr pane, cmux surface, tab) from its environment; which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
