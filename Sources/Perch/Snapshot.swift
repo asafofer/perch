@@ -33,6 +33,8 @@ struct UISnapshot: Encodable {
         let section: String
         /// The agent's own last message, shown while you reply.
         let said: String?
+        /// Your last message, shown above it.
+        let asked: String?
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -147,7 +149,7 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host,
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said)
+                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked)
         }
     }
 }

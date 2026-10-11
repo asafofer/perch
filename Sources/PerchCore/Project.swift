@@ -56,6 +56,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var startedAt: Date?
     /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
     public var said: String?
+    /// Your own last message, as you wrote it. The card shows it above the agent's while you reply.
+    public var asked: String?
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
 

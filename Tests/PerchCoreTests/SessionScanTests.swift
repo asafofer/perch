@@ -122,6 +122,19 @@ private final class Home {
         #expect(p?.context.contains("\n") == false)   // summaries stay on one line
     }
 
+    @Test func yourLastMessageKeepsItsLineBreaks() {
+        let h = Home(), site = h.folder("code/site")
+        h.claude("a", cwd: site, title: "Hero spacing")
+        let path = ".claude/projects/" + String(site.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" }) + "/a.jsonl"
+        let ts = ISO8601DateFormatter().string(from: h.now)
+        let you = #"{"type":"user","sessionId":"a","cwd":"\#(site)","timestamp":"\#(ts)","message":{"role":"user","content":"Make the hero fit.\n\nKeep the poster."}}"#
+        let said = #"{"type":"assistant","sessionId":"a","cwd":"\#(site)","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"Done."}]}}"#
+        h.write(path, Home.transcript("a", cwd: site, at: h.now.addingTimeInterval(-60)) + you + "\n" + said + "\n")
+        let p = h.scanner.claude(limit: 15, now: h.now).first?.project
+        #expect(p?.asked == "Make the hero fit.\n\nKeep the poster.")
+        #expect(p?.said == "Done.")
+    }
+
     @Test func archivedSessionsAreLeftOut() {
         let h = Home(), site = h.folder("code/site")
         h.claude("a", cwd: site, title: "Hero spacing")
