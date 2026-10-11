@@ -1065,8 +1065,15 @@
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
+  var verSig = '';
   function apply(s) {
-    q('.s-ver').textContent = s.testBuild ? '' : (s.version || '');   /* Settings says which build this is, small, beside its close; a test build says so under the notch instead */
+    /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
+    var vs = (s.testBuild ? '' : (s.version || '')) + '|' + (s.update ? s.update.version : '');
+    if (vs !== verSig) {
+      verSig = vs;
+      q('.s-ver').innerHTML = (s.update ? '<button title="Perch ' + esc(s.update.version) + ' is downloaded. It installs and restarts Perch" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] tracking-[-0.005em] text-foreground transition-colors hover:bg-white/10">Restart to update</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
+      var ub = q('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update' }); };
+    }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -2026,6 +2033,7 @@
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
+    if (m.type === 'update') s.update = null;   /* the real one installs and relaunches */
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -2080,7 +2088,7 @@
       settings: function (o, keep) {
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
+        apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null,
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same

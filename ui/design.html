@@ -308,6 +308,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Shortcut: custom', 'A recorded shortcut; Reset puts back the Command+Option tap.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false } }); }],
       ['Shortcut: not available', 'The Open Perch row in orange with why: it is a tap and Accessibility is off. Click the keys to record a combo instead.', function () { d.settings({ accessibility: false }); }],
       ['Shortcut: taken', 'A combo another app holds.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false, saved: false, taken: true } }); }],
+      ['Update ready', 'Perch updates itself: it checks daily and downloads in the background. Once a new version is ready, a small Restart to update sits beside the version in Settings. It never interrupts: Perch restarts by itself at a quiet moment (nothing open, no reply half written), and this is for doing it now. The menu bar has Check for updates.', function () { d.settings({ update: { version: '0.3.1' } }); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
