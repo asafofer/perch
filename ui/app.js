@@ -1134,18 +1134,21 @@
      hardware notch's neighbour, Settings and the close, with no room): Update, a ring while it downloads, Restart when it is ready. */
   /* where the update stands, as one small thing for Settings' Updates row: Check for updates when there is nothing to say, then what is
      happening, then the button for what comes next */
+  function updSub(s) {
+    var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
+    return { checking: 'looking for a new version', current: 'you have the latest', failed: 'could not check', available: v + ' is available', downloading: 'downloading ' + v, ready: v + ' is ready', restarting: 'updating to ' + v }[ph] || 'checked daily';
+  }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
     var chipB = function (label, tip) { return '<button title="' + esc(tip) + '" class="s-upd h-[22px] cursor-pointer rounded-md px-2 text-[11.5px] font-medium tracking-[-0.005em] transition-colors">' + label + '</button>'; };
-    var note = function (inner, c) { return '<span class="flex h-[22px] items-center gap-1.5 px-1 text-[12px]" style="color:' + c + '">' + inner + '</span>'; };
-    if (ph === 'available') return chipB('Update to ' + esc(u.version), 'Perch ' + u.version + ' is available');
+    var mark = function (inner) { return '<span class="flex h-[22px] w-6 items-center justify-center">' + inner + '</span>'; };
+    if (ph === 'available') return chipB('Update', 'Perch ' + u.version + ' is available');
     if (ph === 'ready') return chipB('Restart to update', 'Perch ' + u.version + ' is downloaded. It installs and restarts Perch');
-    if (ph === 'checking') return note(Spinner('size-3', haze(COLORS.running)) + 'Checking', COLORS.running);
-    if (ph === 'current') return note(Ring('done').replace('size-4', 'size-3') + 'Up to date', COLORS.done);
-    if (ph === 'failed') return note(Ring('need').replace('size-4', 'size-3') + 'Couldn\u2019t check', COLORS.attention);
-    if (ph === 'downloading') return note(updRing(u.progress || 0, 'size-3') + 'Downloading', COLORS.running);
-    if (ph === 'restarting') return note(Spinner('size-3', haze(COLORS.running)) + 'Updating', COLORS.running);
-    return Button('ghost', 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
+    if (ph === 'checking') return mark(Spinner('size-3.5', haze(COLORS.running)));
+    if (ph === 'current') return mark(Ring('done'));
+    if (ph === 'downloading') return mark(updRing(u.progress || 0, 'size-4'));
+    if (ph === 'restarting') return mark(Spinner('size-3.5', haze(COLORS.running)));
+    return Button('ghost', ph === 'failed' ? 'Try again' : 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
     var ph = s.update ? s.update.phase : '';
@@ -1938,15 +1941,15 @@
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', snap.version ? esc(snap.version) : ''), '<span class="s-updslot">' + updSlot(snap) + '</span>')
+      srow(slabel('Updates', updSub(snap)), '<span class="s-updslot">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer */
-    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : 'h-[26px]'); }) : rows;
+    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[26px]' : 'h-[28px]'); }) : rows;
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
+      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
     paintFocus();

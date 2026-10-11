@@ -72,7 +72,7 @@ final class Updater: NSObject, SPUUserDriver {
         switch action {
         case "install": if let offer { self.offer = nil; offer(.install) }
         case "later": if let offer { self.offer = nil; offer(.dismiss) }; if info?.phase == "available" { info = nil }
-        case "restart": restartNow()
+        case "restart": if relaunch == nil, updater == nil, demoTask != nil { demoRestart() } else { restartNow() }
         case "check": check()
         default: break
         }
@@ -188,6 +188,20 @@ final class Updater: NSObject, SPUUserDriver {
     }
 
     // MARK: --update-demo
+
+    /// Restart in the demo: what the real one does after the click, without quitting anything.
+    private func demoRestart() {
+        let v = info?.version ?? "0.3.1"
+        demoTask?.cancel()
+        demoTask = Task { @MainActor [weak self] in
+            func wait(_ s: Double) async -> Bool { try? await Task.sleep(for: .seconds(s)); return !Task.isCancelled }
+            guard let self else { return }
+            self.info = UpdateInfo(version: v, phase: "restarting"); guard await wait(2.4) else { return }
+            self.info = nil; guard await wait(1.4) else { return }
+            self.info = UpdateInfo(version: v, phase: "updated"); guard await wait(6) else { return }
+            self.info = nil
+        }
+    }
 
     /// Plays an update over the real notch, with no Sparkle and nothing downloaded: checking, offered, downloading, restarting, updated.
     func demo() {
