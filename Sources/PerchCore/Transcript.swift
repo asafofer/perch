@@ -7,6 +7,8 @@ public struct SessionDigest: Equatable, Sendable {
     public var branch: String?
     public var title: String?
     public var lastUserText: String?
+    /// Your last message with its line breaks, for showing it as written.
+    public var lastUserFull: String?
     public var lastAssistantText: String?
     /// The same message with its line breaks, for showing it as written.
     public var lastAssistantFull: String?
@@ -194,7 +196,7 @@ public enum TranscriptParser {
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
+            if type == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: message?["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
             d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
@@ -314,6 +316,7 @@ public enum Recap {
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
+        p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
         return p
     }
 
@@ -439,6 +442,12 @@ public enum Recap {
     public static func said(_ text: String?) -> String? {
         guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
         return t.count > 4000 ? "\u{2026}" + String(t.suffix(4000)) : t
+    }
+
+    /// Your last message for the card to show above it while you reply: as written, and only its start when it is very long.
+    public static func asked(_ text: String?) -> String? {
+        guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t.count > 1500 ? String(t.prefix(1500)) + "\u{2026}" : t
     }
 
     static func headlineText(_ d: SessionDigest) -> String {
@@ -639,7 +648,7 @@ public enum CodexTranscript {
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text; if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
+            if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
             if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
