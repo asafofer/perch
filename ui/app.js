@@ -1421,9 +1421,11 @@
     }).join('');
     var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
-    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : SC_EMPTY;
+    /* no separate recording look: while it listens the card shows the shortcut you have now, plain grey, and says it is listening */
+    var current = sc.keys.map(function (k) { return '<span class="kcap" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
+    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : current;
     scRest = tried;
-    var shown = sc.recording ? tried : big, ask = 'Hold two modifier keys and let go, or press a key with one.',
+    var shown = sc.recording ? tried : big, ask = 'Listening for your new shortcut\u2026',
       listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
@@ -1450,7 +1452,7 @@
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
   var scHeldNow = [], scWasTried = '';
-  var SC_EMPTY = '<span class="kcap rec">Press your shortcut\u2026</span>', scRest = '', scRef = 0;
+  var scRest = '', scRef = 0;
   function scHeldApply() {
     document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
       var sig = scHeldNow.join('');
