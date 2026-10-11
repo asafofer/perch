@@ -35,16 +35,16 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
 /* the disk image window (Installing): Finder's window as a stand-in, the picture inside is the real one that ships (install/background.html) */
 .desk.inst{height:500px}
-.fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#E9ECE9;box-shadow:0 0 0 .5px rgba(0,0,0,.4),0 26px 64px rgba(0,0,0,.5);transition:opacity .35s,transform .35s}
-.fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#505852;letter-spacing:-.005em}
-.fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#C9CDCA;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.18)}
+.fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#161B19;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 0 0 .5px rgba(0,0,0,.6),0 26px 64px rgba(0,0,0,.6);transition:opacity .35s,transform .35s}
+.fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#9AA39E;letter-spacing:-.005em}
+.fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#3A423E;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
 .fin .dbar i:nth-child(1){left:12px}.fin .dbar i:nth-child(2){left:30px}.fin .dbar i:nth-child(3){left:48px}
 .fin .dpic{position:relative;width:660px;height:400px;overflow:hidden}
 .fin iframe{display:block;border:0;width:660px;height:400px;pointer-events:none}
-.fin .dic{position:absolute;top:149px;width:112px;margin-left:-56px;text-align:center;transition:opacity .25s}
+.fin .dic{position:absolute;top:124px;width:112px;margin-left:-56px;text-align:center;transition:opacity .25s}
 .fin .dic img,.fin .dic svg{display:block;width:112px;height:112px;border-radius:24px;transition:background .2s}
-.fin .dic span{display:inline-block;margin-top:5px;font:400 12px/1.25 Inter,sans-serif;color:#141816;padding:1px 6px;border-radius:5px}
-.fin .dic.hl svg{background:rgba(20,24,22,.09)}.fin .dic.hl span{background:#2F6FE0;color:#fff}
+.fin .dic span{display:inline-block;margin-top:5px;font:400 12px/1.25 Inter,sans-serif;color:#EDF1EE;padding:1px 6px;border-radius:5px}
+.fin .dic.hl svg{background:rgba(255,255,255,.1)}.fin .dic.hl span{background:#2F6FE0;color:#fff}
 .fin .dic.lift{opacity:.4}
 .fin .dghost{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;opacity:.7;pointer-events:none;transition:opacity .25s,transform .25s}
 .fin .dghost.in{opacity:0;transform:scale(.45)}
@@ -445,7 +445,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: mac too old', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[9][1]) }); }],
     ]],
     ['Installing', [
-      ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, so there is only one thing to do.', function () { d.show('idle'); disk(false); }],
+      ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, and the characters peeking up from the bottom edge.', function () { d.show('idle'); disk(false); }],
       ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken across the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
     ]],
     ['Onboarding', [
@@ -480,7 +480,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       '<div class="dic" id="icP" style="left:175px"><img src="install/icon.png" alt=""><span>Perch</span></div><div class="dic" id="icA" style="left:485px">' + APPS_SVG + '<span>Applications</span></div></div>';
     desk.appendChild(w);
     if (!play) return;
-    var pic = w.querySelector('.dpic'), P = [175, 205], A = [485, 205];
+    var pic = w.querySelector('.dpic'), P = [175, 180], A = [485, 180];
     var cur = document.createElement('div'); cur.className = 'dcur'; cur.innerHTML = CURSOR_SVG.replace(/<i><\/i>/, ''); pic.appendChild(cur);
     var ghost = document.createElement('img'); ghost.className = 'dghost'; ghost.src = 'install/icon.png'; ghost.style.display = 'none'; pic.appendChild(ghost);
     var put = function (e, p, ms, ease) { e.style.transition = ms ? 'left ' + ms + 'ms ' + (ease || 'cubic-bezier(.4,0,.2,1)') + ', top ' + ms + 'ms ' + (ease || 'cubic-bezier(.4,0,.2,1)') + ', opacity .3s, transform .25s' : 'none'; e.style.left = p[0] + 'px'; e.style.top = p[1] + 'px'; };

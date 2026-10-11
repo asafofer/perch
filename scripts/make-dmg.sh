@@ -39,8 +39,8 @@ tell application "Finder"
     set icon size of opts to 112
     set text size of opts to 12
     set background picture of opts to file ".background:background.tiff"
-    set position of item "Perch.app" of container window to {175, 205}
-    set position of item "Applications" of container window to {485, 205}
+    set position of item "Perch.app" of container window to {175, 180}
+    set position of item "Applications" of container window to {485, 180}
     update without registering applications
     delay 2
     close
