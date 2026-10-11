@@ -1023,6 +1023,11 @@
      hour-old guess would hang there as a ! for ever. A command that needs your OK, or a plan, still waits until answered: the agent
      is stopped on it. */
   var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;   /* nine seconds in full, then the setting's seconds as wings (Swift sends it as questionSeconds) */
+  /* Settings > Notify me about: the kinds the notch may announce. Turning one off only stops the live activity (the full row and the
+     wings); the list, the cards, the status rings and the welcome card keep saying everything. Swift sends the kinds that are off. */
+  var NOTIFY = [['done', 'Finished', 'done'], ['run', 'Needs your OK', 'permission'], ['ask', 'Asked you something', 'question'], ['plan', 'Has a plan', 'plan'], ['error', 'Stopped on an error', 'need']];
+  function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
+  function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
   function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
     if (blocking(p)) return false;
@@ -1030,7 +1035,7 @@
     return Date.now() - t > ACT_Q_MS;
   }
   function waiting(s) {
-    var list = s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)] && !actExpired(p); });
+    var list = s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)] && !muted(s, p) && !actExpired(p); });
     /* wake when the soonest question runs out, so the wings go without waiting for the next snapshot */
     var left = list.filter(function (p) { return !blocking(p); }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
     clearTimeout(actExpTimer);
@@ -1044,8 +1049,8 @@
   function activity(s, st) {
     ACT_Q_MS = 9000 + 1000 * (s.questionSeconds || 60);
     var others = s.projects.filter(function (p) { return !inside(s, p.id); });
-    var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
-    var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
+    var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)] && !muted(s, p); });
+    var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)] && !muted(s, p); }), heard = need.concat(errs);
     /* What is remembered does not depend on which sessions you are in: that guess can flicker (a reading goes stale while a card is
        up), and a finish that dropped out of the list for a moment would land again. Only what is said is left out for the ones you are in. */
     var everyDone = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
@@ -1932,6 +1937,8 @@
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
+      /* which moments the notch announces (the list and the cards say all of them) */
+      srow(slabel('Notify me about'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
       srow(slabel('Live status'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Away from your Mac for'), awaySeg),
@@ -1949,7 +1956,7 @@
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer */
-    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[26px]' : 'h-[28px]'); }) : rows;
+    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 10 ? 'h-[22px]' : rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[25px]' : 'h-[28px]'); }) : rows;
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
@@ -1964,7 +1971,7 @@
       if (b.dataset.k === 'login' || b.dataset.k === 'hoverExternal') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    bindApps(box); bindUpdSlot(box, snap);
+    bindApps(box); bindNotify(box); bindUpdSlot(box, snap);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2006,6 +2013,7 @@
   }
   /* opens or closes the menu in place; a click anywhere else on the card closes it */
   function appsMenu(open) {
+    if (open && notOpen) notifyMenu(false);
     appsOpen = open; if (open) appsAt = 0;
     var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
     if (!m) return;
@@ -2013,7 +2021,39 @@
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     paintFocus();
   }
-  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); });
+  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); });
+  /* Notify me about: the marks of the moments the notch announces and a chevron; it opens a menu with a check for each, as Apps does */
+  var notOpen = false, notAt = 0;
+  function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
+  function notifyHtml() {
+    var on = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
+    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return Ring(x[2]); }).join('') + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>';
+    var items = NOTIFY.map(function (x, i) {
+      var y = notifyOn(x[0]);
+      return '<button role="menuitemcheckbox" aria-checked="' + y + '" data-k="' + x[0] + '" data-i="' + i + '" class="s-nitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (y ? 'text-foreground' : 'text-muted-foreground') + '">' +
+        '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + Ring(x[2]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
+        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
+    }).join('');
+    return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
+      '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (notOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+  }
+  function bindNotify(box) {
+    var trig = box.querySelector('.s-notrig');
+    if (trig) trig.onclick = function (e) { e.stopPropagation(); notifyMenu(!notOpen); };
+    box.querySelectorAll('.s-nitem').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
+      b.onmouseenter = function () { notAt = +b.dataset.i; paintFocus(); };
+    });
+  }
+  function notifyMenu(open) {
+    if (open && appsOpen) appsMenu(false);
+    notOpen = open; if (open) notAt = 0;
+    var box = q('.set'), m = box && box.querySelector('.s-notmenu'), t = box && box.querySelector('.s-notrig');
+    if (!m) return;
+    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
+    paintFocus();
+  }
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
   var setFocus = 0, appsAt = 0, liveNext = false;
   /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
@@ -2024,10 +2064,13 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen && !notOpen); });
     var items = box.querySelectorAll('.s-app');
     appsAt = Math.max(0, Math.min(appsAt, items.length - 1));
     items.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', appsOpen && i === appsAt); });
+    var nitems = box.querySelectorAll('.s-nitem');
+    notAt = Math.max(0, Math.min(notAt, nitems.length - 1));
+    nitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', notOpen && i === notAt); });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
@@ -2040,11 +2083,20 @@
       else if (k === 'esc' || k === 'left') appsMenu(false);
       return;
     }
+    if (notOpen) {
+      var ni = box.querySelectorAll('.s-nitem');
+      if (k === 'down' || k === 'up') { notAt = (notAt + (k === 'down' ? 1 : -1) + ni.length) % ni.length; paintFocus(); }
+      else if (k === 'enter' && ni[notAt]) ni[notAt].click();
+      else if (k === 'esc' || k === 'left') notifyMenu(false);
+      return;
+    }
     if (k === 'esc') { post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
     var seg = row.querySelectorAll('.s-seg'), apps = row.querySelector('.s-apptrig');
     if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
+    var nt = row.querySelector('.s-notrig');
+    if (nt && (k === 'right' || k === 'enter')) { notifyMenu(true); return; }
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
       /* on a row that has no sideways choice, Left goes back to where Settings came from */
@@ -2061,13 +2113,14 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
     var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
+      var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -2159,6 +2212,7 @@
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
@@ -2220,7 +2274,7 @@
       settings: function (o, keep) {
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null,
+        apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
@@ -2306,11 +2360,12 @@
         }, 1600);
       },
       /* the notch at rest, then one session changes: what the live activity does when an answer or a request arrives */
-      arrive: function (i, o) {
+      /* `off`: the kinds Settings > Notify me about has switched off */
+      arrive: function (i, o, off) {
         d0(); base.selected = 0;
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
-        apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', timerToken: Math.random() }));
-        autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', timerToken: Math.random() })); }, 900);
+        apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', notifyOff: off || [], timerToken: Math.random() }));
+        autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', notifyOff: off || [], timerToken: Math.random() })); }, 900);
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
