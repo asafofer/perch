@@ -571,23 +571,37 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// An app going full screen (or back) on a display without a notch hides (or brings back) the resting pill there.
+    /// macOS says nothing to other apps as a window starts going full screen, but the window list shows it filling the
+    /// display about 0.1 s in, long before the Space-change notice at the end of the animation; leaving, the list clears
+    /// about 70 ms after that notice. So the list is read every quarter second while the pill is showing (about 1 ms a
+    /// read), and every 40 ms for a moment after a Space or app change.
+    private var fullScreenBurst = 0
     private func watchFullScreen() {
         let check: () -> Void = { [weak self] in
             guard let self, FullScreenWatch.refresh() else { return }
             self.info = self.screen.screenInfo
             if self.machine.phase == .idle { self.push() }
         }
-        let ws = NSWorkspace.shared.notificationCenter
-        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
-            ws.addObserver(forName: name, object: nil, queue: .main) { _ in
-                MainActor.assumeIsolated {
-                    check()
-                    // the window grows to fill the display a moment after the Space changes
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { MainActor.assumeIsolated { check() } }
+        let burst: () -> Void = { [weak self] in
+            guard let self else { return }
+            self.fullScreenBurst += 1
+            let token = self.fullScreenBurst
+            for k in 0...30 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(k) * 0.04) { [weak self] in
+                    MainActor.assumeIsolated { if self?.fullScreenBurst == token { check() } }
                 }
             }
         }
-        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in MainActor.assumeIsolated { check() } }
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { _ in MainActor.assumeIsolated { burst() } }
+        }
+        Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.machine.phase == .idle, self.info.notchSize == nil || !FullScreenWatch.covered.isEmpty else { return }
+                check()
+            }
+        }
         check()
     }
 

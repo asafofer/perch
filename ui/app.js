@@ -820,7 +820,7 @@
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
   /* the centre of the character's drawn outline in its 24-unit box, per shape (its details only show from 22 px up, so the body alone) */
-  var bodyMids = {};
+  var bodyMids = {}, backTimer = 0;
   function bodyMid() {
     var k = charNow.shape; if (bodyMids[k]) return bodyMids[k];
     var p = cr.querySelector('.f path:not(.pl):not(.fd)'), b = null;
@@ -837,7 +837,9 @@
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
-    else if (pill) { w = scr.pillW || 30; h = scr.pillH || 18; n.style.setProperty('--pt', (scr.pillTop || 3) + 'px'); }
+    var pt = scr.pillTop || 3, ph = scr.pillH || 18;
+    if (virt) { n.style.setProperty('--pt', pt + 'px'); n.style.setProperty('--ph', ph + 'px'); }
+    if (pill && st === 'idle' && !act.mode) { w = scr.pillW || 30; h = ph; }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
@@ -846,21 +848,26 @@
     if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
     n.dataset.shape = shaped ? '1' : '';
     document.documentElement.dataset.guide = s.guide || '';
+    /* back from full screen, the pill and the character grow out of the point they shrank into, with a light pop */
+    var back = pill && n.dataset.gone === '1';
     n.dataset.pill = pill ? '1' : ''; n.dataset.gone = gone ? '1' : '';
+    if (back) { clearTimeout(backTimer); n.dataset.from = cr.dataset.from = 'gone'; backTimer = setTimeout(function () { n.dataset.from = cr.dataset.from = ''; }, 700); }
+    else if (!pill) { clearTimeout(backTimer); n.dataset.from = cr.dataset.from = ''; }
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
-      var d = pill ? 14 : 18; cr.style.width = cr.style.height = d + 'px';
+      /* full screen: it shrinks into the pill's centre, the same point the pill shrinks into */
+      var d = pill ? 14 : gone ? 0 : 18; cr.style.width = cr.style.height = d + 'px';
       /* in the pill, centred by its drawn outline rather than its box (an ear or a tentacle reaches further than a bun);
          otherwise beside the notch, or beside the live activity when it has widened the notch */
-      if (pill) { var mid = bodyMid(), k = d / 24; idleXf = 'translate(' + (-d / 2 + (12 - mid[0]) * k) + 'px,' + ((scr.pillTop || 3) + h / 2 - d / 2 + (12 - mid[1]) * k) + 'px)'; }
+      if (pill || gone) { var mid = bodyMid(), k = d / 24; idleXf = 'translate(' + (-d / 2 + (12 - mid[0]) * k) + 'px,' + (pt + ph / 2 - d / 2 + (12 - mid[1]) * k) + 'px)'; }
       else idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)';
       idleD = d;
-      cr.dataset.pill = pill ? '1' : '';
+      cr.dataset.pill = pill || gone ? '1' : ''; cr.dataset.gone = gone ? '1' : '';
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
-      cr.dataset.pill = '';
+      cr.dataset.pill = cr.dataset.gone = '';
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
@@ -873,7 +880,7 @@
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : pill ? 'awake' : 'sleep')
+    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : pill || gone ? 'awake' : 'sleep')   /* hidden for full screen it stays awake, so coming back it does not hop out of the pill */
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
