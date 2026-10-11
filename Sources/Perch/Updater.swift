@@ -19,7 +19,7 @@ struct UpdateInfo: Encodable, Equatable {
 /// at a quiet moment; one you asked for (Check for updates) offers it first. The update is signed with Perch's own key
 /// (SUPublicEDKey), so it needs no Apple notarization. Test builds never update themselves.
 @MainActor
-final class Updater: NSObject, SPUUserDriver {
+final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     private var updater: SPUUpdater?
     private var offer: ((SPUUserUpdateChoice) -> Void)?      // an update you can take or leave
     private var relaunch: ((SPUUserUpdateChoice) -> Void)?   // downloaded, waiting for a quiet moment to restart
@@ -48,7 +48,7 @@ final class Updater: NSObject, SPUUserDriver {
 
     func start() {
         guard updater == nil, TestBuild.label == nil else { return }
-        let u = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: self, delegate: nil)
+        let u = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: self, delegate: self)
         do { try u.start() } catch { NSLog("Perch updates: \(error.localizedDescription)"); return }
         updater = u
         announceUpdated()
@@ -121,6 +121,14 @@ final class Updater: NSObject, SPUUserDriver {
         info?.phase = "restarting"
         // The notch says Updating for a moment before Perch goes.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { go(.install) }
+    }
+
+    // MARK: SPUUpdaterDelegate
+
+    /// A different address on every check: GitHub keeps the feed in a cache for up to five minutes, and a new address goes past it,
+    /// so a release is there the moment it is published. The server ignores the extra part.
+    nonisolated func feedParameters(for updater: SPUUpdater, sendingSystemProfile sendingProfile: Bool) -> [[String: String]] {
+        [["key": "t", "value": String(Int(Date().timeIntervalSince1970)), "displayKey": "t", "displayValue": ""]]
     }
 
     // MARK: SPUUserDriver
