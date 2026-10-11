@@ -834,7 +834,7 @@
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
-    var mode = st === 'idle' ? act.mode : '', keys = !mode ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });
+    var mode = st === 'idle' ? act.mode : '', keys = !mode || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
   }
@@ -928,7 +928,7 @@
         : '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>';
     }
     /* buttons are for the mouse: the notch never takes the keyboard when it opens by itself, so no keys to learn */
-    var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' px-2.5" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
+    var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
     act.keys = keys;
@@ -1053,6 +1053,8 @@
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
+    /* the timer of the phase before (the offer folding away) must not fold this one */
+    if (u && act.p && act.p.update && act.p.update.phase !== u.phase) clearTimeout(actTimer);
     if (up && !s.quiet && !actGone[ukey]) {
       var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase;
       /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */

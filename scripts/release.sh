@@ -13,9 +13,11 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resourc
 [ -x "$BIN/generate_appcast" ] || { echo "Sparkle tools missing: run swift build once"; exit 1; }
 rm -rf build/appcast && mkdir -p build/appcast
 cp build/Perch.zip "build/appcast/Perch-$VERSION.zip"
+# What the notch says about this release: release-notes/<version>.md, a headline line then "- " lines (at most four are shown).
+if [ -f "release-notes/$VERSION.md" ]; then cp "release-notes/$VERSION.md" "build/appcast/Perch-$VERSION.md"; else echo "No release-notes/$VERSION.md: the update will say nothing about what is new."; fi
 # Earlier releases stay in the appcast: start from the published one when there is one.
 curl -fsSL "https://raw.githubusercontent.com/$REPO/main/appcast.xml" -o build/appcast/appcast.xml 2>/dev/null || rm -f build/appcast/appcast.xml
-"$BIN/generate_appcast" --download-url-prefix "https://github.com/$REPO/releases/download/v$VERSION/" build/appcast
+"$BIN/generate_appcast" --embed-release-notes --download-url-prefix "https://github.com/$REPO/releases/download/v$VERSION/" build/appcast
 echo "Ready: build/appcast/Perch-$VERSION.zip and appcast.xml (version $VERSION, build $(git rev-list --count HEAD))"
 [ "${1:-}" = "--publish" ] || { echo "Not published. Run again with --publish."; exit 0; }
 gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" --repo "$REPO" --title "Perch $VERSION" --notes "Perch $VERSION"

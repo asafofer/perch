@@ -24,8 +24,6 @@
 	<true/>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
-	<key>SUAutomaticallyUpdate</key>
-	<true/>
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/asafofer/perch-releases/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
