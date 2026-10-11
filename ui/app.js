@@ -185,7 +185,7 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
-    '<div class="pane p-open">' + '<button aria-label="Expand the chat" title="Expand the chat (\u2318E)" class="x-exp rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0"><span class="x-exp-i flex">' + svg('expand', 'size-2.5') + '</span><span class="x-exp-l pr-0.5 text-[11px] font-medium">Expand</span></button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Expand the chat" title="Expand the chat (\u2318E)" class="x-exp rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0"><span class="x-exp-i flex translate-y-[0.75px]">' + svg('expand', 'size-[9px]') + '</span><span class="x-exp-l pr-0.5 text-[11px] font-medium">Expand</span></button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
@@ -412,7 +412,7 @@
     big = on; CARD_W = on ? BIG_W : 400;
     var pane = q('.p-open'), p = snap && snap.projects[snap.selected]; pane.dataset.big = on ? '1' : '';
     q('.x-exp').title = on ? 'Fold the chat (\u2318E)' : 'Expand the chat (\u2318E)'; q('.x-exp').setAttribute('aria-label', on ? 'Fold the chat' : 'Expand the chat');
-    q('.x-exp-i').innerHTML = svg(on ? 'shrink' : 'expand', 'size-2.5'); q('.x-exp-l').textContent = on ? 'Collapse' : 'Expand';
+    q('.x-exp-i').innerHTML = svg(on ? 'shrink' : 'expand', 'size-[9px]'); q('.x-exp-l').textContent = on ? 'Collapse' : 'Expand';
     if (p) paintSaid(p);
     if (snap && lastSt === 'open') layout('open', snap);
     if (!quiet) post({ type: 'bigView', open: on });
