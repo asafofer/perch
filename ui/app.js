@@ -965,7 +965,7 @@
         : '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>';
     }
     /* it could not: one line on why and what to do, and the way to do it */
-    if (ph === 'failed' && u.problem) body = '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.problem) + '</span></div>';
+    if (ph === 'failed' && u.problem) body = '<div class="act-body fail" data-h="32"><span dir="auto" class="act-t">' + esc(u.problem) + '</span></div>';
     /* buttons are for the mouse: the notch never takes the keyboard when it opens by itself, so no keys to learn */
     var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
@@ -2051,7 +2051,7 @@
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
+      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer; a pixel more room while it fits
        (the classes, so Tailwind builds them: h-[22px] h-[24px] h-[25px] h-[26px] h-[28px] h-[29px] h-[30px] h-[31px]) */
