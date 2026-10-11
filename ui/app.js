@@ -779,13 +779,15 @@
     if (on) { void g.offsetWidth; g.style.transition = 'opacity 9s linear'; g.style.opacity = '.3'; }
     else g.style.transition = '';
   }
-  /* The resting notch's outline: the size the system reports, drawn a point inside it at the sides and bottom, so it can only
-     ever hide behind the hardware and never show past it. The bottom corners are smooth (a superellipse, not a plain circle). */
+  /* The resting notch's outline. A photo of a 14-inch MacBook Pro with the full reported size (185 x 32) in magenta showed the
+     hardware about 1.5 to 2 pt narrower on each side and about 1.5 pt shorter, with bottom corners near 10 pt. So it is drawn
+     2.5 pt in at the sides and 1.5 pt up from the bottom, with smooth corners (a superellipse), and can only hide behind the
+     hardware, never show past it. */
   function notchPath(w, h) {
-    var i = 1, r = 12, e = 2 / 2.6, pts = [], k, t, x0 = w - i - r, y0 = h - i - r, N = 14;
-    pts.push([i, -2], [w - i, -2]);
+    var ix = 2.5, iy = 1.5, r = 12, e = 2 / 2.6, pts = [], k, t, x0 = w - ix - r, y0 = h - iy - r, N = 14;
+    pts.push([ix, -2], [w - ix, -2]);
     for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([x0 + r * Math.pow(Math.cos(t), e), y0 + r * Math.pow(Math.sin(t), e)]); }
-    for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([i + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
+    for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([ix + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
   function layout(st, s) {
@@ -801,7 +803,7 @@
     var shaped = st === 'idle' && !act.mode && !virt;
     if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
     n.dataset.shape = shaped ? '1' : '';
-    document.documentElement.dataset.guide = s.guide ? '1' : '';
+    document.documentElement.dataset.guide = s.guide || '';
     n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
     n.dataset.s = st;
     curH = h;

@@ -24,6 +24,7 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n[data-shape="1"] { background-color: transparent; transition-property: height, width, margin-left, border-radius, box-shadow, transform, opacity, --gcol, background-color; transition-delay: 0s, .07s, .07s, 0s, 0s, 0s, 0s, 0s, .4s; transition-duration: .26s, .32s, .32s, .3s, .3s, .35s, 0s, .7s, 0s; }
 .n[data-shape="1"]::after { opacity: 1; }
 html[data-guide="1"] .n[data-shape="1"]::after { clip-path: none; background: #f0f; }
+html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 /* a screen without a notch draws nothing at rest; the box is still there to grow the live activity and the card from.
    It fades out last when closing (the fade waits for the narrowing) and in at once when something opens. */
 .n[data-hide="1"] { opacity: 0 !important; --fade: .2s; --fade-delay: .32s; }

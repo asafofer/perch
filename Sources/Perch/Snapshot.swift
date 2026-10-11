@@ -98,8 +98,9 @@ struct UISnapshot: Encodable {
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
     /// "branch @ commit" on a test build; the page says so beside the notch.
     var testBuild: String? = TestBuild.label
-    /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports, so any overhang past the hardware shows.
-    var guide: Bool? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"] != nil ? true : nil
+    /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports; =2 paints the shape Perch really draws.
+    /// Either way any overhang past the hardware shows.
+    var guide: String? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"]
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
