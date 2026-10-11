@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }
+        HookInstaller.upgrade()
         // Demos and snapshots always use sample data, so they never open Terminal.
         let sample = args.contains("--fake") || ((args.contains("--demo") || args.contains("--snapshot")) && !args.contains("--real"))
         let provider: SessionProviding = sample ? FakeSessionProvider() : RealSessionProvider()

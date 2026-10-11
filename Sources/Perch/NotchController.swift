@@ -130,6 +130,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         Self.setsCursorInBackground()
         hookServer.onEvent = { [weak self] e in self?.hookEvent(e) }
         hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
+        hookServer.keepHolding = { [weak self] sid in
+            guard let self else { return true }
+            let here = self.youAreIn().maybe
+            return !self.projects.contains { ($0.sessionId ?? $0.id) == sid && here.contains($0.id) }
+        }
         hookServer.start()
         startRefreshing()
         startWatchingFocus()

@@ -9,10 +9,15 @@ final class HookServer: @unchecked Sendable {
     var onEvent: (@MainActor (HookEvent) -> Void)?
     /// A held request's hook went away: answered in the app, or the session ended.
     var onAbandoned: (@MainActor (String) -> Void)?
+    /// Whether a question held by the PreToolUse hook should stay held: false once you are in that session, where the app's own
+    /// prompt is what you want (the hook keeps that prompt from showing until it is let go).
+    var keepHolding: (@MainActor (String) -> Bool)?
 
     private let queue = DispatchQueue(label: "perch.hooks")
     private var listener: DispatchSourceRead?
     private var held: [String: (fd: Int32, watch: DispatchSourceRead)] = [:]
+    /// Questions held by PreToolUse: checked every second, and let go after their time.
+    private var timers: [String: DispatchSourceTimer] = [:]
 
     func start() {
         let path = HookInstaller.socket.path
@@ -40,11 +45,20 @@ final class HookServer: @unchecked Sendable {
         queue.async { [weak self] in
             guard let self, let h = self.held.removeValue(forKey: askId) else { Self.trace("answer for \(askId.prefix(8)) came too late: no longer held"); return }
             Self.trace("answered \(askId.prefix(8)): \(String(decoding: body.prefix(400), as: UTF8.self))")
-            h.watch.cancel()
+            h.watch.cancel(); self.timers.removeValue(forKey: askId)?.cancel()
             Self.respond(h.fd, body)
         }
     }
     func release(_ askId: String) { answer(askId, with: Data()) }
+
+    /// A PreToolUse hold that has run its time, or that you walked in on: the agent's own prompt shows, and the card stops offering the answer.
+    private func letGo(_ id: String) {
+        guard let h = held.removeValue(forKey: id) else { return }
+        h.watch.cancel(); timers.removeValue(forKey: id)?.cancel()
+        Self.trace("\(id.prefix(8)) let go without an answer")
+        Self.respond(h.fd, Data())
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.onAbandoned?(id) } }
+    }
 
     private func handle(_ c: Int32) {
         var one: Int32 = 1
@@ -60,7 +74,13 @@ final class HookServer: @unchecked Sendable {
         // Only the Claude app runs this hook alongside its own prompt, and Perch's OpenCode plugin asks without blocking
         // OpenCode's. Anywhere else (a terminal, `claude -p`) the prompt waits for the hook, so holding it would freeze the
         // session: those are answered at once, with no decision.
-        let alongside = event.agent == "opencode" || DesktopSessions.shared.index()[event.sessionId] != nil
+        var alongside = event.agent == "opencode" || DesktopSessions.shared.index()[event.sessionId] != nil
+        // The PreToolUse hook is not alongside the app's prompt: the prompt waits for it. So it is held only while you are
+        // elsewhere, and only for as long as the notch keeps offering the question.
+        if case .asks(let ask) = event.kind, ask.viaPreToolUse, alongside {
+            let sid = event.sessionId
+            alongside = DispatchQueue.main.sync { MainActor.assumeIsolated { self.keepHolding?(sid) ?? true } }
+        }
         if case .asks(let ask) = event.kind, ask.answerable, alongside {
             // Hold the hook open. If it goes away first (the app answered, the session ended), say so.
             let watch = DispatchSource.makeReadSource(fileDescriptor: c, queue: queue)
@@ -69,12 +89,26 @@ final class HookServer: @unchecked Sendable {
                 var b: UInt8 = 0
                 if recv(c, &b, 1, MSG_PEEK) <= 0 {
                     Self.trace("\(id.prefix(8)) closed by the app before Perch answered")
-                    self.held[id]?.watch.cancel(); self.held[id] = nil; close(c)
+                    self.held[id]?.watch.cancel(); self.held[id] = nil; self.timers.removeValue(forKey: id)?.cancel(); close(c)
                     DispatchQueue.main.async { MainActor.assumeIsolated { self.onAbandoned?(id) } }
                 }
             }
             held[id] = (c, watch)
             watch.resume()
+            if ask.viaPreToolUse {
+                let sid = event.sessionId, until = Date().addingTimeInterval(TimeInterval(9 + Prefs.questionSeconds))
+                let t = DispatchSource.makeTimerSource(queue: queue)
+                t.schedule(deadline: .now() + 1, repeating: 1)
+                t.setEventHandler { [weak self] in
+                    guard let self, self.held[id] != nil else { return }
+                    if Date() >= until { self.letGo(id); return }
+                    DispatchQueue.main.async { MainActor.assumeIsolated {
+                        if self.keepHolding?(sid) == false { self.queue.async { self.letGo(id) } }
+                    } }
+                }
+                timers[id] = t
+                t.resume()
+            }
             Self.trace("holding \(id.prefix(8)) for \(event.sessionId.prefix(8)): \(ask.kind)")
         } else {
             Self.respond(c, Data())
@@ -163,7 +197,7 @@ enum HookInstaller {
     sock="$HOME/.config/perch/perch.sock"
     [ -S "$sock" ] || exit 0
     wait=5
-    [ "$1" = claude ] && [ "$2" = PermissionRequest ] && wait=3600
+    [ "$1" = claude ] && { [ "$2" = PermissionRequest ] || [ "$2" = PreToolUse ]; } && wait=3600
     out=$(/usr/bin/curl -s --max-time "$wait" --unix-socket "$sock" -H 'Expect:' -H 'Content-Type: application/json' -H "X-Perch-Pid: $PPID" --data-binary @- "http://perch/$1/$2" 2>/dev/null) || exit 0
     [ -n "$out" ] && printf '%s\\n' "$out"
     exit 0
@@ -177,6 +211,8 @@ enum HookInstaller {
         Hook(event: "Stop", matcher: nil, async: true, timeout: 10),
         Hook(event: "StopFailure", matcher: nil, async: true, timeout: 10),
         Hook(event: "PermissionRequest", matcher: "*", async: false, timeout: 3600),
+        // Bypass permissions mode sends no PermissionRequest for a question, but this hook still runs.
+        Hook(event: "PreToolUse", matcher: "AskUserQuestion", async: false, timeout: 3600),
     ]
     static let codexHooks_ = [
         Hook(event: "UserPromptSubmit", matcher: nil, async: false, timeout: 5),
@@ -227,6 +263,16 @@ enum HookInstaller {
                 if let m = h.matcher { group["matcher"] = m }
                 hooks[h.event] = (hooks[h.event] as? [[String: Any]] ?? []).filter { !isOurs($0) } + [group]
             }
+        }
+    }
+
+    /// Hooks installed by an earlier Perch lack the newest entries: add them, so Live status does not read off after an update.
+    static func upgrade() {
+        for agent in agents where pluginFiles[agent] == nil && !isInstalled(agent) {
+            guard FileManager.default.isExecutableFile(atPath: script.path), let root = read(file(agent)),
+                  let hooks = root["hooks"] as? [String: Any],
+                  hooks.values.contains(where: { ($0 as? [[String: Any]] ?? []).contains(where: isOurs) }) else { continue }
+            try? install(agent)
         }
     }
 
