@@ -35,7 +35,11 @@ struct UISnapshot: Encodable {
         let said: String?
         /// Your last message, shown above it.
         let asked: String?
+        /// The last turns of the chat, for the reply opened out.
+        let chat: [Turn]?
     }
+    /// One turn of a chat: what you said or what the agent said.
+    struct Turn: Encodable { let you: String?; let said: String? }
 
     struct Character: Encodable { let shape: String; let color: String }
     struct Display: Encodable { let id: String; let name: String; let connected: Bool }
@@ -153,7 +157,8 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host,
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked)
+                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked,
+                      chat: p.chat.isEmpty ? nil : p.chat.map { $0.role == "user" ? Turn(you: $0.text, said: nil) : Turn(you: nil, said: $0.text) })
         }
     }
 }

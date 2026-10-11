@@ -21,6 +21,19 @@ import Foundation
         #expect(d.lastAssistantText == "Done. Want a table next?")
         #expect(d.lastRole == "assistant")
     }
+    @Test func keepsTheLastTurnsOfTheChatAsWritten() {
+        func user(_ t: String) -> String { #"{"type":"user","sessionId":"s1","cwd":"/Users/a/site","timestamp":"2026-10-07T09:00:00.000Z","message":{"content":"\#(t)"}}"# }
+        func agent(_ t: String) -> String { #"{"type":"assistant","sessionId":"s1","cwd":"/Users/a/site","timestamp":"2026-10-07T09:05:00.000Z","message":{"content":[{"type":"text","text":"\#(t)"}]}}"# }
+        // The agent talks between tool calls: of that run only its last message is a turn of the chat.
+        var l = [user("one"), agent("looking\\n\\nat it"), agent("here is one")]
+        for i in 2...9 { l += [user("q\(i)"), agent("a\(i)")] }
+        let d = TranscriptParser.digest(lines: l)
+        #expect(d.chat.count == 8)
+        #expect(d.chat.first == .init(role: "user", text: "q6")); #expect(d.chat.last == .init(role: "assistant", text: "a9"))
+        let short = TranscriptParser.digest(lines: [user("one"), agent("looking"), agent("here is one\\n\\n- a\\n- b")])
+        #expect(short.chat == [.init(role: "user", text: "one"), .init(role: "assistant", text: "here is one\n\n- a\n- b")])
+        #expect(Recap.project(digest: short, git: GitInfo(uncommitted: 0), now: Date())?.chat == short.chat)
+    }
     @Test func ignoresMetaSidechainToolResultsAndGarbage() {
         let d = TranscriptParser.digest(lines: lines)
         #expect(d.lastUserText != "ignored meta"); #expect(d.lastUserText != "ignored sidechain")

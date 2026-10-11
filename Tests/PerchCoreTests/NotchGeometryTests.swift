@@ -25,6 +25,9 @@ import CoreGraphics
     @Test func panelIsWiderThanTheCard() {
         #expect(NotchGeometry.panelSize.width > NotchGeometry.cardWidth)
     }
+    @Test func panelHoldsTheReplyOpenedOut() {
+        #expect(NotchGeometry.panelSize.width >= NotchGeometry.bigCardWidth + 40)
+    }
     @Test func contentRectOnSecondDisplayUsesItsOwnOrigin() {
         let second = ScreenInfo(frame: CGRect(x: 1512, y: 0, width: 1920, height: 1080), notchSize: nil)
         let r = NotchGeometry.contentRect(width: 360, height: 160, screen: second)

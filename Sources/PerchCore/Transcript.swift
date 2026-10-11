@@ -44,6 +44,17 @@ public struct SessionDigest: Equatable, Sendable {
     /// The last dozen real messages, oldest first, each clipped. Enough to tell small talk from work (`Recap.isTrivial`).
     public var recent: [Line] = []
     public struct Line: Equatable, Sendable { public let role: String; public let text: String }
+    /// The last few turns of the chat as written, oldest first: the expanded reply shows them. Of a run of messages from
+    /// the agent (it talks between tool calls) only the last is kept, the one that answers.
+    public var chat: [Line] = []
+    mutating func addChat(role: String, full: String?) {
+        guard let t = full?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return }
+        let user = role == "user"
+        let text = user ? (t.count > 600 ? String(t.prefix(600)) + "\u{2026}" : t) : (t.count > 1800 ? "\u{2026}" + String(t.suffix(1800)) : t)
+        if !user, chat.last?.role == role { chat.removeLast() }
+        chat.append(.init(role: role, text: text))
+        if chat.count > 8 { chat.removeFirst() }
+    }
     /// What the agent did since your last prompt, from its tool calls.
     public var work = Work()
     public init() {}
@@ -200,6 +211,7 @@ public enum TranscriptParser {
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
             d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
+            d.addChat(role: type ?? "user", full: Self.text(from: message?["content"], keepLines: true))
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }
         }
@@ -317,6 +329,7 @@ public enum Recap {
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
+        p.chat = d.chat
         return p
     }
 
@@ -652,6 +665,7 @@ public enum CodexTranscript {
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
             if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
+            d.addChat(role: role, full: Self.text(from: payload["content"], keepLines: true))
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
             if d.recent.count > 12 { d.recent.removeFirst() }
         }

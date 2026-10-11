@@ -100,7 +100,7 @@ Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`), with no Apple
 - Tailwind classes are generated from strings in `app.js`. Rebuild CSS after adding classes.
 - macOS TCC permissions are tied to the code signature. Without the "Perch Dev" certificate the app is signed ad hoc and macOS asks again after every build.
 - Accessibility is needed for Command+Option and for pasting replies. `AXIsProcessTrusted()` can lag after granting; onboarding offers a restart.
-- The panel is one fixed transparent window (480 x 410 plus a 10 pt overscan above the screen). Cards must fit inside it.
+- The panel is one fixed transparent window (600 x 410 plus a 10 pt overscan above the screen; 600 holds the 560 wide reply opened out). Cards must fit inside it.
 - Self-signed and ad-hoc builds cannot register for launch at login reliably.
 - Opening a notch app over full-screen apps depends on window level and collection behavior; see `NotchPanel`.
 - The settings and onboarding cards must fit the panel (410 pt). Settings rows are 30 pt apart whatever shows (348 pt with nine rows, 408 with all eleven: an external display and no Accessibility), so adding a row needs the panel to grow. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.

@@ -58,6 +58,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var said: String?
     /// Your own last message, as you wrote it. The card shows it above the agent's while you reply.
     public var asked: String?
+    /// The last few turns of the chat as written, oldest first, for the reply opened out. Empty when the session has none.
+    public var chat: [SessionDigest.Line] = []
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
 

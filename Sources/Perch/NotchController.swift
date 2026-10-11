@@ -1347,7 +1347,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 return e
             }
             if self.replyOpen {
-                if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
+                if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyEsc()", completionHandler: nil); return nil }
                 // Perch has no Edit menu, so nothing turns Command+V and friends into actions: send them to the field ourselves.
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]

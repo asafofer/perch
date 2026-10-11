@@ -26,6 +26,7 @@ public enum PiTranscript {
                 d.turnOpen = true; d.interrupted = false; d.stoppedAt = nil; d.failed = nil; open = []
                 d.lastUserText = text; d.lastUserFull = TranscriptParser.text(from: m["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work()
                 d.lastTimestamp = at ?? d.lastTimestamp; d.lastRole = "user"
+                d.addChat(role: "user", full: d.lastUserFull)
                 d.recent.append(.init(role: "user", text: Recap.clip(text, 420)))
             case "assistant":
                 let blocks = m["content"] as? [[String: Any]] ?? []
@@ -45,6 +46,7 @@ public enum PiTranscript {
                 guard let text = TranscriptParser.text(from: texts.joined(separator: " ")), !text.isEmpty else { continue }
                 d.lastAssistantText = text; d.lastAssistantFull = TranscriptParser.text(from: texts.joined(separator: "\n\n"), keepLines: true); d.narration = text
                 d.lastTimestamp = at ?? d.lastTimestamp; d.lastRole = "assistant"
+                d.addChat(role: "assistant", full: d.lastAssistantFull)
                 d.recent.append(.init(role: "assistant", text: Recap.clip(text, 420)))
             case "toolResult":
                 let id = m["toolCallId"] as? String ?? ""
