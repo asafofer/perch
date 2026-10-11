@@ -171,7 +171,7 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button class="upd-chip rv absolute right-[84px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] text-foreground transition-colors hover:bg-white/10" style="--i:0"></button>' +
+    '<button class="upd-chip rv absolute right-[76px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
@@ -193,7 +193,7 @@
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button class="upd-chip rv absolute right-[84px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] text-foreground transition-colors hover:bg-white/10" style="--i:0"></button>' +
+    '<button class="upd-chip rv absolute right-[76px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
@@ -1137,7 +1137,7 @@
       b.classList.toggle('hidden', !on); b.classList.toggle('flex', on);
       if (!on) return;
       b.dataset.p = ph; b.title = ph === 'available' ? 'Perch ' + u.version + ' is available. Update now' : ph === 'ready' ? 'Perch ' + u.version + ' is downloaded. Restart to install it' : 'Downloading Perch ' + u.version;
-      b.innerHTML = ph === 'downloading' ? updRing(u.progress || 0, 'size-[15px]') : (ph === 'available' ? svg('down', 'size-3') + 'Update' : svg('restart', 'size-3') + 'Restart to update');
+      b.innerHTML = ph === 'downloading' ? updRing(u.progress || 0, 'size-[15px]') : (ph === 'available' ? 'Update' : 'Restart');
       b.style.cursor = ph === 'downloading' ? 'default' : '';
       b.onclick = function () { if (ph !== 'downloading') post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
     });
@@ -1148,7 +1148,7 @@
     var upReady = s.update && (s.update.phase === 'ready' || s.update.phase === 'available'), vs = (s.testBuild ? '' : (s.version || '')) + '|' + (upReady ? s.update.version + s.update.phase : '');
     if (vs !== verSig) {
       verSig = vs;
-      q('.s-ver').innerHTML = (upReady ? '<button title="Perch ' + esc(s.update.version) + (s.update.phase === 'ready' ? ' is downloaded. It installs and restarts Perch' : ' is available') + '" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] tracking-[-0.005em] text-foreground transition-colors hover:bg-white/10">' + (s.update.phase === 'ready' ? 'Restart to update' : 'Update to ' + esc(s.update.version)) + '</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
+      q('.s-ver').innerHTML = (upReady ? '<button title="Perch ' + esc(s.update.version) + (s.update.phase === 'ready' ? ' is downloaded. It installs and restarts Perch' : ' is available') + '" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] font-medium tracking-[-0.005em] transition-colors">' + (s.update.phase === 'ready' ? 'Restart to update' : 'Update to ' + esc(s.update.version)) + '</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
       var ub = q('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update', action: s.update.phase === 'ready' ? 'restart' : 'install' }); };
     }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
