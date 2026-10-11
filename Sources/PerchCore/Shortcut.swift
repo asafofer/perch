@@ -81,7 +81,9 @@ public struct Shortcut: Equatable, Sendable, Codable {
 /// Listens for the next shortcut while you press it: hold modifiers and let go (a tap), or press modifiers and a key (a
 /// combo). Esc stops. Anything Perch cannot use says why and the recorder keeps listening.
 public struct ShortcutRecorder: Sendable {
-    public enum Outcome: Equatable, Sendable { case none, cancel, refused(String), record(Shortcut) }
+    public enum Outcome: Equatable, Sendable { case none, cancel, record(Shortcut)
+        /// Why it cannot be used, and the keys that were pressed, so the card can still show what you did.
+        case refused(String, keys: [String]) }
 
     private var peak: ShortcutMods = []
     private var keyPressed = false
@@ -92,7 +94,7 @@ public struct ShortcutRecorder: Sendable {
         keyPressed = true
         if keyCode == 53 { return .cancel }
         let s = Shortcut.combo(mods, keyCode: keyCode, name: Shortcut.name(keyCode: keyCode, typed: typed))
-        if let why = Shortcut.problem(s) { return .refused(why) }
+        if let why = Shortcut.problem(s) { return .refused(why, keys: s.keys) }
         peak = []
         return .record(s)
     }
@@ -107,7 +109,7 @@ public struct ShortcutRecorder: Sendable {
         defer { peak = []; keyPressed = false }
         guard !keyPressed, !peak.isEmpty else { return .none }
         let s = Shortcut.tap(peak)
-        if let why = Shortcut.problem(s) { return .refused(why) }
+        if let why = Shortcut.problem(s) { return .refused(why, keys: s.keys) }
         return .record(s)
     }
 }

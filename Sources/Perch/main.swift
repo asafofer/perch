@@ -67,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.onChordTap = { c.chordTap() }
         hotkeys.apply(Prefs.openShortcut)
         c.openComboWorks = { [hotkeys] in hotkeys.openCombo }
-        c.onShortcutRecording = { [hotkeys] recording in if recording { hotkeys.pauseOpen() } else { hotkeys.apply(Prefs.openShortcut) } }
+        c.onShortcutRecording = { [hotkeys] recording in if recording { hotkeys.pauseAll() } else { hotkeys.resumeAll(); hotkeys.apply(Prefs.openShortcut) } }
         c.onAccessibilityGranted = { [hotkeys] in hotkeys.restartChordMonitor() }
         hotkeys.startChordMonitor()
 

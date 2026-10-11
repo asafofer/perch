@@ -29,24 +29,40 @@ final class HotkeyService {
             if let code = s.keyCode { openCombo = register(keyCode: code, modifiers: s.mods.carbonFlags, id: Self.openId) { [weak self] in self?.onChordTap?() } }
         }
     }
-    /// While a new shortcut is being recorded, the old one must not fire.
-    func pauseOpen() { unregister(id: Self.openId); tapFlags = []; chordStart = nil }
+    /// While a new shortcut is being recorded, none of Perch's own shortcuts may fire: a Carbon hotkey takes its key before the
+    /// recorder sees it (pressing Control+Option+Q would quit instead of being refused).
+    func pauseAll() {
+        unregister(id: Self.openId); tapFlags = []; chordStart = nil
+        for ref in refs.values { UnregisterEventHotKey(ref) }
+        refs = [:]
+    }
+    /// After recording: the others come back (the open shortcut is applied again by `apply`).
+    func resumeAll() {
+        for id in specs.keys where refs[id] == nil { arm(id) }
+    }
+    private var specs: [UInt32: (key: Int, mods: Int)] = [:]
+    @discardableResult
+    private func arm(_ id: UInt32) -> Bool {
+        guard let spec = specs[id] else { return false }
+        var ref: EventHotKeyRef?
+        let hotKeyID = EventHotKeyID(signature: OSType(0x50524348), id: id)  // 'PRCH'
+        if let old = refs.removeValue(forKey: id) { UnregisterEventHotKey(old) }
+        let status = RegisterEventHotKey(UInt32(spec.key), UInt32(spec.mods), hotKeyID, GetApplicationEventTarget(), 0, &ref)
+        if let ref { refs[id] = ref }
+        return status == noErr
+    }
 
     @discardableResult
     func register(keyCode: Int, modifiers: Int, id: UInt32, action: @escaping () -> Void) -> Bool {
         installHandlerIfNeeded()
         handlers[id] = action
-        var ref: EventHotKeyRef?
-        let hotKeyID = EventHotKeyID(signature: OSType(0x50524348), id: id)  // 'PRCH'
-        if let old = refs.removeValue(forKey: id) { UnregisterEventHotKey(old) }
-        let status = RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hotKeyID, GetApplicationEventTarget(), 0, &ref)
-        if let ref { refs[id] = ref }
-        return status == noErr
+        specs[id] = (keyCode, modifiers)
+        return arm(id)
     }
 
     func unregister(id: UInt32) {
         if let ref = refs.removeValue(forKey: id) { UnregisterEventHotKey(ref) }
-        handlers[id] = nil
+        handlers[id] = nil; specs[id] = nil
     }
 
     private static var handlerInstalled = false

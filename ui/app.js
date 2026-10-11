@@ -1409,7 +1409,7 @@
   }
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
-  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '' };
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0 };
   function scOf(sc) { return sc || SC0; }
   function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
@@ -1417,19 +1417,21 @@
   function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
   function shortcutStep(o) {
     var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
-      return '<button class="kcap' + (sc.tried ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
+      return '<button class="kcap' + (sc.tried || sc.saved ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
     }).join('');
     var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
-    var shown = sc.recording ? SC_EMPTY : big, ask = 'Hold two modifier keys and let go, or press a key with one.',
+    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : SC_EMPTY;
+    scRest = tried;
+    var shown = sc.recording ? tried : big, ask = 'Hold two modifier keys and let go, or press a key with one.',
       listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
       var note = sc.recording ? listening
           : broken ? broken
           : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. This is your shortcut.</span>'
-          : sc.saved ? 'Saved. Try it now.'
-          : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Try it now.';
+          : sc.saved ? 'Saved.'
+          : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Press Record again to change it.';
       return otitle(o, 'Open Perch with', 'Press the shortcut you want. Esc goes back.') +
         oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
         oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + note + '</p>') +
@@ -1438,7 +1440,7 @@
     var hint = sc.recording ? listening
       : broken ? broken
       : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
-      : sc.saved ? 'Saved. Try it now.'
+      : sc.saved ? 'Saved.'
       : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
       : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
     return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
@@ -1448,13 +1450,13 @@
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
   var scHeldNow = [], scWasTried = '';
-  var SC_EMPTY = '<span class="kcap rec">Press your shortcut\u2026</span>';
+  var SC_EMPTY = '<span class="kcap rec">Press your shortcut\u2026</span>', scRest = '', scRef = 0;
   function scHeldApply() {
     document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
       var sig = scHeldNow.join('');
       if (b.dataset.held === sig) return;
       var before = (b.dataset.held || '').length; b.dataset.held = sig;
-      b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : SC_EMPTY;
+      b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
       if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
     });
     document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
@@ -1472,6 +1474,14 @@
       setTimeout(function () { if (cr.dataset.m === 'happy' && onbStep === 3) cr.dataset.m = 'awake'; }, 1800);
     }
     scWasTried = mark;
+    /* the bottom of the card glows orange for a refusal and green once it is saved, and a refusal shakes the keys */
+    var bad = sc.recording && !!sc.error, good = !sc.recording && (sc.saved || sc.tried);
+    introGlow = bad ? COLORS.attention : good ? COLORS.done : ''; n.style.setProperty('--gcol', introGlow || charNow.color);
+    if (bad && sc.refusals !== scRef && !STILL) {
+      var row = document.querySelector('.o-sc-big');
+      if (row && row.animate) row.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(0)' }], { duration: 460, easing: 'ease-out' });
+    }
+    scRef = sc.refusals || 0;
     scHeldApply();
   }
   var onbStep = -1, onbSig = '', onbLast = null;
@@ -1797,7 +1807,7 @@
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
-      srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
+      srow(slabel('Live status'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Away from your Mac for'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -1930,7 +1940,6 @@
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
-      var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
@@ -1971,7 +1980,7 @@
   }
   function dev(m) {
     if (m.type === 'shortcut') {
-      if (m.action === 'record') devScSync({ recording: true, error: '', saved: false, tried: false });
+      if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
       else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
       else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
@@ -2161,7 +2170,7 @@
     var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
     var scDone = function (keys, kind) {
       var same = keys.join('') === SC0.keys.join('') && kind === 'tap';
-      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', tried: false, saved: true });
+      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], tried: false, saved: true });
     };
     document.addEventListener('keydown', function (e) {
       if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));
@@ -2175,9 +2184,9 @@
       e.preventDefault(); e.stopImmediatePropagation(); scKey = true;
       if (e.key === 'Escape') { devScSync({ recording: false, error: '' }); if (snap.onboarding && snap.onboarding.only) dev({ type: 'onb', action: 'next' }); return; }
       var name = { ' ': 'Space', ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192', Enter: '\u21A9', Tab: '\u21E5' }[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
-      if (!held.length) { devScSync({ error: 'Hold \u2318, \u2325, \u2303 or \u21E7 too' }); return; }
+      if (!held.length) { devScSync({ error: 'Hold \u2318, \u2325, \u2303 or \u21E7 too', attempt: [name], refusals: (devSc.refusals || 0) + 1 }); return; }
       var combo = held.join('') + name;
-      if (scTaken[combo]) { devScSync({ error: combo + ' is ' + scTaken[combo] }); return; }
+      if (scTaken[combo]) { devScSync({ error: combo + ' is ' + scTaken[combo], attempt: held.concat([name]), refusals: (devSc.refusals || 0) + 1 }); return; }
       scDone(held.concat([name]), 'combo');
     }, true);
     document.addEventListener('keyup', function (e) {
@@ -2188,9 +2197,9 @@
       if (!only || !mods.length) return;
       if (devSc.recording) {
         e.preventDefault(); e.stopImmediatePropagation();
-        if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys' }); return; }
+        if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         var tap = mods.join('');
-        if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap] }); return; }
+        if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap], attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         scDone(mods.slice().sort(function (a, b) { return '\u2303\u2325\u21E7\u2318'.indexOf(a) - '\u2303\u2325\u21E7\u2318'.indexOf(b); }), 'tap');
       } else if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'tap' && mods.slice().sort().join('') === devSc.keys.slice().sort().join('')) devScSync({ tried: true });
     }, true);

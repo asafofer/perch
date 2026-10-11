@@ -57,7 +57,7 @@ import Testing
     @Test func oneModifierAloneIsRefused() {
         var r = ShortcutRecorder()
         _ = r.flagsChanged(mods: [.option])
-        #expect(r.flagsChanged(mods: []) == .refused("A tap needs two or more modifier keys"))
+        #expect(r.flagsChanged(mods: []) == .refused("A tap needs two or more modifier keys", keys: ["\u{2325}"]))
     }
 
     @Test func aKeyWithModifiersRecordsACombo() {
@@ -70,7 +70,7 @@ import Testing
 
     @Test func aBareKeyIsRefusedAndRecordingGoesOn() {
         var r = ShortcutRecorder()
-        #expect(r.keyDown(keyCode: 0, typed: "a", mods: []) == .refused("Hold \u{2318}, \u{2325} or \u{2303} too"))
+        #expect(r.keyDown(keyCode: 0, typed: "a", mods: []) == .refused("Hold \u{2318}, \u{2325} or \u{2303} too", keys: ["A"]))
         #expect(r.flagsChanged(mods: [.command, .option]) == .none)
         #expect(r.flagsChanged(mods: []) == .record(.standard))
     }
