@@ -50,7 +50,7 @@ struct UISnapshot: Encodable {
         let shortcut: ShortcutState
     }
     /// The shortcut that opens Perch, as the page draws it: the key caps, and where recording stands.
-    struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool }
+    struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool; let saved: Bool }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String

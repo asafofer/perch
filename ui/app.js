@@ -1406,7 +1406,7 @@
   }
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
-  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false };
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false };
   function scOf(sc) { return sc || SC0; }
   function scKeysHtml(sc) { return '<span class="inline-flex items-baseline gap-[3px]">' + scOf(sc).keys.map(function (k) { return Kbd(k); }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
@@ -1418,6 +1418,7 @@
     }).join('');
     var hint = sc.recording ? scPrompt(sc)
       : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
+      : sc.saved ? 'Saved. Try it now.'
       : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
       : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
     return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
@@ -1426,14 +1427,15 @@
       ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
-  var scHeldNow = [], scWasTried = false;
+  var scHeldNow = [], scWasTried = '';
   function scHeldApply() {
     document.querySelectorAll('.kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
     document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
   }
   function scAfter(o) {
     var sc = scOf(o && o.shortcut);
-    if (sc.tried && !scWasTried) {
+    var mark = sc.tried ? 'tried' : sc.saved ? 'saved' : '';
+    if (mark && mark !== scWasTried) {
       document.querySelectorAll('.o-sc-big .kcap').forEach(function (c, i) {
         if (!c.animate || STILL) return;
         c.animate([{ transform: 'translateY(2px) scale(.96)' }, { transform: 'translateY(-5px) scale(1.12)', offset: .45 }, { transform: 'translateY(0) scale(1)' }], { duration: 520, delay: i * 70, easing: 'cubic-bezier(.3,1.4,.5,1)' });
@@ -1441,7 +1443,7 @@
       var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
       setTimeout(function () { if (cr.dataset.m === 'happy' && onbStep === 3) cr.dataset.m = 'awake'; }, 1800);
     }
-    scWasTried = sc.tried;
+    scWasTried = mark;
     scHeldApply();
   }
   var onbStep = -1, onbSig = '', onbLast = null;
@@ -1691,7 +1693,7 @@
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
     if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
-    var animate = o.step !== onbStep; if (animate) scWasTried = false; onbStep = o.step; onbSig = sig; onbRender(o, animate);
+    var animate = o.step !== onbStep; if (animate) scWasTried = ''; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
@@ -1746,6 +1748,7 @@
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   function slabel(t, sub) { return '<span class="min-w-0 flex-1 truncate">' + t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '') + '</span>'; }
+  var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
@@ -1795,6 +1798,10 @@
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
     bindApps(box);
+    /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
+    var chip = box.querySelector('button.s-sc');
+    if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
+    scSetSaved = sc.saved ? sc.keys.join('') : '';
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
@@ -1928,10 +1935,10 @@
   }
   function dev(m) {
     if (m.type === 'shortcut') {
-      if (m.action === 'record') devScSync({ recording: true, error: '' });
+      if (m.action === 'record') devScSync({ recording: true, error: '', saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
-      else if (m.action === 'reset') devScSync(Object.assign({}, SC0));
-      else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true });
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
+      else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
       return;
     }
     /* the drafts Swift keeps, kept here instead */
@@ -2118,7 +2125,7 @@
     var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
     var scDone = function (keys, kind) {
       var same = keys.join('') === SC0.keys.join('') && kind === 'tap';
-      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', tried: false });
+      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', tried: false, saved: true });
     };
     document.addEventListener('keydown', function (e) {
       if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));

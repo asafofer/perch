@@ -262,7 +262,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func chordTap() {
         // Recording a shortcut: the old one does nothing. On the shortcut step of setup, it is the thing to try.
         if recorder != nil { return }
-        if machine.phase == .onboarding, onbStep == 3, !onbOnly { shortcutTried = true; push(); return }
+        if machine.phase == .onboarding, onbStep == 3, !onbOnly { shortcutTried = true; shortcutSaved = false; push(); return }
         guard machine.phase == .idle else { send(.dismiss); return }
         if !reopen() { toggleSwitcher() }
     }
@@ -651,7 +651,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
-        if old != new { stopRecording(); shortcutTried = false }
+        if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
@@ -1107,8 +1107,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if onbOnly { finishCharacter(); return }
             onbStep = min(onbStep + 1, onbTotal - 1)
             if onbStep == 4 { refreshProjects() }   // the apps step shows what the scan found
-            stopRecording(); shortcutTried = false
-        case "back": onbStep = max(onbStep - 1, 0); stopRecording(); shortcutTried = false
+            stopRecording(); shortcutTried = false; shortcutSaved = false
+        case "back": onbStep = max(onbStep - 1, 0); stopRecording(); shortcutTried = false; shortcutSaved = false
         case "finish": send(.dismiss); return
         case "accessibility":
             // A switch that is on but not working belongs to an older build of Perch (another signature). Clear Perch's own
@@ -1159,10 +1159,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var shortcutError = ""
     /// Setup's shortcut step: you tapped it, and it turned green.
     private var shortcutTried = false
+    /// You just recorded it: the page says so and springs the keys, so a new shortcut never lands without a word.
+    private var shortcutSaved = false
 
     private func shortcutState() -> UISnapshot.ShortcutState {
         let s = Prefs.openShortcut
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried)
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved)
     }
 
     private func shortcutAction(_ action: String) {
@@ -1170,10 +1172,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         switch action {
         case "record":
             guard recorder == nil else { return }
-            recorder = ShortcutRecorder(); shortcutError = ""; shortcutTried = false
+            recorder = ShortcutRecorder(); shortcutError = ""; shortcutTried = false; shortcutSaved = false
             onShortcutRecording?(true)
         case "cancel": stopRecording()
-        case "reset": Prefs.openShortcut = .standard; shortcutTried = false; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+        case "reset": Prefs.openShortcut = .standard; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
         default: break
         }
         push()
@@ -1208,7 +1210,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case .none: return
         case .cancel: stopRecording()
         case .refused(let why): shortcutError = why
-        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
         }
         push()
     }
