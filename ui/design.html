@@ -212,7 +212,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
       ['Settings: four agents', 'Apps shows the agents Perch reads as their icons, with a chevron for the menu.', function () { d.settings({ sources: FOUR }); }],
       ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
-      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(3, true, false, null, true); }]
+      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
@@ -302,17 +302,31 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings', 'The gear on the card or the list, or Command+comma. Away from your Mac for is how long a break must be before the card says where you left off.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off' }); }],
       ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, true); }],
+      ['Shortcut: Change', 'Change (or the keys) on the Open Perch row turns the whole card into the recorder, listening at once. Hold modifiers and let go for a tap, or a modifier and a key for a combo; the keys show as you hold them. Esc goes back to Settings.', function () { d.settings(); setTimeout(function () { document.querySelector('.set button.s-sc').click(); }, 500); }],
+      ['Shortcut: recorder, saved', 'After recording: the keys spring and turn green, the bottom of the card glows green, and it says Saved. Nothing to test: Done goes back.', function () { d.settings(); setTimeout(function () { document.querySelector('.set button.s-sc').click(); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, saved: true }); }, 700); }, 500); }],
+      ['Shortcut: recorder, refused', 'A shortcut Perch cannot take: the keys you pressed stay, shake once, the bottom of the card glows orange, and it says why. It keeps listening.', function () { d.settings(); setTimeout(function () { document.querySelector('.set button.s-sc').click(); setTimeout(function () { d.shortcut({ error: '\u2303\u2325L is the project list', attempt: ['\u2303', '\u2325', 'L'], refusals: 1 }); }, 700); }, 500); }],
+      ['Shortcut: custom', 'A recorded shortcut; Reset puts back the Command+Option tap.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false } }); }],
+      ['Shortcut: not available', 'The Open Perch row in orange with why: it is a tap and Accessibility is off. Click the keys to record a combo instead.', function () { d.settings({ accessibility: false }); }],
+      ['Shortcut: taken', 'A combo another app holds.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false, saved: false, taken: true } }); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
       ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
-      ['3. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(3, true); }],
-      ['3. Choose your apps: first scan', 'Opened before the first scan is in: one quiet line, Scanning, and the tiles keep their size. Each line then fades to what it found, once; the app goes on sending snapshots every half second and nothing moves.', function () { d.onboarding(3, true, false, null, true, true); }],
-      ['4. Live status', 'The hook, with consent: Turn on, or Skip. The switch does the same.', function () { d.onboarding(4, true); }],
-      ['4. Live status: on', 'The switch is on and turns it off again, removing the hooks; the buttons follow it.', function () { d.onboarding(4, true, false, 'on'); }],
-      ['5. All set', 'The three ways to reach Perch.', function () { d.onboarding(5, true); }]
+      ['3. Your shortcut', 'How you use Perch. Tap both keys now (or click the keys): they turn green. Use another shortcut records a new one: hold modifiers and release for a tap, or modifiers and a key for a combo; Esc cancels.', function () { d.onboarding(3, true); }],
+      ['3. Your shortcut: works', 'Green edge: Perch can hear it. Here, with Accessibility allowed.', function () { d.onboarding(3, true); }],
+      ['3. Your shortcut: not available', 'Orange edge and why: a tap needs Accessibility, and it is not allowed yet. The fix is in the same line.', function () { d.onboarding(3, false); }],
+      ['3. Your shortcut: taken', 'A combo another app already holds: orange, and the reason says to record a different one.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true, taken: true }); }, 300); }],
+      ['3. Your shortcut: tried', 'After the tap: the keys turn green and the line says so.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ tried: true }); }, 300); }],
+      ['3. Your shortcut: custom', 'A recorded combo, shown the same way.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true }); }, 300); }],
+      ['3. Your shortcut: recording', 'Waiting for the keys; the big keys dim and the button says Cancel.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ recording: true }); }, 300); }],
+      ['3. Your shortcut: no Accessibility', 'A tap needs Accessibility, so the line points to a key combo.', function () { d.onboarding(3, false); }],
+      ['4. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(4, true); }],
+      ['4. Choose your apps: first scan', 'Opened before the first scan is in: one quiet line, Scanning, and the tiles keep their size. Each line then fades to what it found, once; the app goes on sending snapshots every half second and nothing moves.', function () { d.onboarding(4, true, false, null, true, true); }],
+      ['5. Live status', 'The hook, with consent: Turn on, or Skip. The switch does the same.', function () { d.onboarding(5, true); }],
+      ['5. Live status: on', 'The switch is on and turns it off again, removing the hooks; the buttons follow it.', function () { d.onboarding(5, true, false, 'on'); }],
+      ['6. All set', 'The ways to reach Perch, starting with your shortcut.', function () { d.onboarding(6, true); }]
     ]]
   ];
   var now = document.getElementById('now'), btns = [], lastRun = null;

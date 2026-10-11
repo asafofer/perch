@@ -47,12 +47,20 @@ struct UISnapshot: Encodable {
         let only: Bool
         /// Perch's hook is in every enabled app: "on" or "off".
         let live: String
+        let shortcut: ShortcutState
     }
+    /// The shortcut that opens Perch, as the page draws it: the key caps, and where recording stands.
+    struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool; let saved: Bool
+        /// Whether Perch can hear it: a tap needs Accessibility, a combo must not be held by another app. `why` says so in a sentence.
+        let works: Bool; let why: String
+        /// The keys of the last shortcut that was refused (the card keeps showing them) and how many refusals so far (each shakes them).
+        let attempt: [String]; let refusals: Int }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
         let hasExternal: Bool; let hoverExternal: Bool
+        let shortcut: ShortcutState
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
 
@@ -104,8 +112,7 @@ struct UISnapshot: Encodable {
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
-        let v = (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
-        return TestBuild.label.map { "\(v) test \($0)" } ?? v
+        return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
     }()
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, allowAutoCollapse: Bool = true, activeId: String? = nil, activeIds: [String] = [], scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {

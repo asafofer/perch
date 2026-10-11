@@ -972,18 +972,21 @@
     tbEl.hidden = !t;
   }
   /* A question that goes unanswered does not wait in the wings for ever: it said its piece (nine seconds in full, then a minute
-     as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. A command that needs your
-     OK still waits until answered: the agent is stopped on it. */
+     as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. The same for a session
+     Perch only guesses is waiting on you (its last message ends in a question, no request open): nothing is stopped on it, and an
+     hour-old guess would hang there as a ! for ever. A command that needs your OK, or a plan, still waits until answered: the agent
+     is stopped on it. */
   var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;   /* nine seconds in full, then the setting's seconds as wings (Swift sends it as questionSeconds) */
+  function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
-    if (!p.ask || p.ask.kind !== 'question') return false;
+    if (blocking(p)) return false;
     var k = actKey(p), t = actSeen[k] || (actSeen[k] = Date.now());
     return Date.now() - t > ACT_Q_MS;
   }
   function waiting(s) {
     var list = s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)] && !actExpired(p); });
     /* wake when the soonest question runs out, so the wings go without waiting for the next snapshot */
-    var left = list.filter(function (p) { return p.ask && p.ask.kind === 'question'; }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
+    var left = list.filter(function (p) { return !blocking(p); }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
     clearTimeout(actExpTimer);
     if (left.length) actExpTimer = setTimeout(function () { if (act.mode === 'wings' && snap) actSettle(); }, Math.min.apply(null, left) + 50);
     return list;
@@ -1063,7 +1066,7 @@
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
   function apply(s) {
-    q('.s-ver').textContent = s.version || '';   /* Settings says which build this is, small, beside its close */
+    q('.s-ver').textContent = s.testBuild ? '' : (s.version || '');   /* Settings says which build this is, small, beside its close; a test build says so under the notch instead */
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -1078,7 +1081,7 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') {
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 2; paintFocus(); setTimeout(flashLive, 300); }
+      if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
     } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -1405,6 +1408,84 @@
     }, 1000);
   }
 
+  /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0 };
+  function scOf(sc) { return sc || SC0; }
+  function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
+  function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
+  /* what the recorder asks for, or why it refused the last try (it keeps listening) */
+  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
+  function shortcutStep(o) {
+    var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
+      return '<button class="kcap' + (sc.tried || sc.saved ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
+    }).join('');
+    var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
+    /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
+    /* no separate recording look: while it listens the card shows the shortcut you have now, plain grey, and says it is listening */
+    var current = sc.keys.map(function (k) { return '<span class="kcap" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
+    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : current;
+    scRest = tried;
+    var shown = sc.recording ? tried : big, ask = 'Listening for your new shortcut\u2026',
+      listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
+    if (o.only) {
+      /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
+      var note = sc.recording ? listening
+          : broken ? broken
+          : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. This is your shortcut.</span>'
+          : sc.saved ? 'Saved.'
+          : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Press Record again to change it.';
+      return otitle(o, 'Open Perch with', 'Press the shortcut you want. Esc goes back.') +
+        oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
+        oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + note + '</p>') +
+        ofoot(5, false, '', 'Done', 'next', (sc.recording ? '' : Button('ghost', 'Record again', Kbd('C'), 'o-sc" data-a="record')) + (sc.custom ? Button('ghost', 'Reset', '', 'o-scr') : ''));
+    }
+    var hint = sc.recording ? listening
+      : broken ? broken
+      : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
+      : sc.saved ? 'Saved.'
+      : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
+      : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
+    return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
+      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
+      oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + hint + '</p>') +
+      ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
+  }
+  /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
+  var scHeldNow = [], scWasTried = '';
+  var scRest = '', scRef = 0;
+  function scHeldApply() {
+    document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
+      var sig = scHeldNow.join('');
+      if (b.dataset.held === sig) return;
+      var before = (b.dataset.held || '').length; b.dataset.held = sig;
+      b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
+      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
+    });
+    document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
+    document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
+  }
+  function scAfter(o) {
+    var sc = scOf(o && o.shortcut);
+    var mark = sc.tried ? 'tried' : sc.saved ? 'saved' : '';
+    if (mark && mark !== scWasTried) {
+      document.querySelectorAll('.o-sc-big .kcap').forEach(function (c, i) {
+        if (!c.animate || STILL) return;
+        c.animate([{ transform: 'translateY(2px) scale(.96)' }, { transform: 'translateY(-5px) scale(1.12)', offset: .45 }, { transform: 'translateY(0) scale(1)' }], { duration: 520, delay: i * 70, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+      });
+      var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+      setTimeout(function () { if (cr.dataset.m === 'happy' && onbStep === 3) cr.dataset.m = 'awake'; }, 1800);
+    }
+    scWasTried = mark;
+    /* the bottom of the card glows orange for a refusal and green once it is saved, and a refusal shakes the keys */
+    var bad = sc.recording && !!sc.error, good = !sc.recording && (sc.saved || sc.tried);
+    introGlow = bad ? COLORS.attention : good ? COLORS.done : ''; n.style.setProperty('--gcol', introGlow || charNow.color);
+    if (bad && sc.refusals !== scRef && !STILL) {
+      var row = document.querySelector('.o-sc-big');
+      if (row && row.animate) row.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(0)' }], { duration: 460, easing: 'ease-out' });
+    }
+    scRef = sc.refusals || 0;
+    scHeldApply();
+  }
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
@@ -1426,7 +1507,7 @@
   function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
-  function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
+  function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-[4.5rem] flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
     if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
@@ -1537,11 +1618,13 @@
         ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
           '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2190', '\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Colour</span></span>');
     } else if (st === 2) {
-      h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
+      h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and listens for its shortcut. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
         oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
+      h = shortcutStep(o);
+    } else if (st === 4) {
       var rows = o.sources.map(function (x) {
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
         return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
@@ -1551,7 +1634,7 @@
         oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
-    } else if (st === 4) {
+    } else if (st === 5) {
       var live = o.live === 'on';
       h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
         oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
@@ -1560,7 +1643,7 @@
         oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
     }
     box.className = 'onb' + (animate ? ' go' : '');
@@ -1573,6 +1656,10 @@
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
+    box.querySelectorAll('.o-scr').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'reset' }); }; });
+    box.querySelectorAll('.o-sc').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: b.dataset.a }); }; });
+    box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
+    if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
@@ -1638,16 +1725,16 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 ? o.accessibility : '', o.step === 3 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
-      if (o.step === 3) onbSources(o);
-      if (o.step === 4 && (!was || was.live !== o.live)) onbLive(o);
+      if (o.step === 4) onbSources(o);
+      if (o.step === 5 && (!was || was.live !== o.live)) onbLive(o);
       return;
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
     if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
-    var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
+    var animate = o.step !== onbStep; if (animate) scWasTried = ''; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
@@ -1674,6 +1761,8 @@
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
     /* S skips a step that can be skipped; Left goes back, except on the character page where it changes the shape */
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
+    /* C changes the shortcut on its step */
+    if (k === 'change') { var ch = q('.o-sc'); if (ch && ch.dataset.a === 'record') ch.click(); return; }
     if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
     /* left and right change the shape, up and down the colour (up goes right along the swatches); both wrap */
@@ -1700,6 +1789,7 @@
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   function slabel(t, sub) { return '<span class="min-w-0 flex-1 truncate">' + t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '') + '</span>'; }
+  var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
@@ -1712,10 +1802,14 @@
     };
     var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
+    var sc = scOf(o.shortcut),
+      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
+      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2"><span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
+      scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
-      srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
+      srow(slabel('Live status'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Away from your Mac for'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -1724,10 +1818,13 @@
       /* a display without a notch shows nothing at rest; this lets the top edge of it open Perch (the hotkey always does) */
       srow(slabel('Hover opens on external display'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
     ] : []).concat([
-      /* nothing to do when it is allowed, so with the hover row beside it the card stays within the panel it fits in */
-      o.accessibility && o.hasExternal ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      /* nothing to do when it is allowed, so the row only shows while it is not */
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).join('');
+    ]).filter(Boolean);
+    /* the card has to fit its panel: past seven rows they sit a little closer */
+    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', 'h-[26px]'); }) : rows;
+    rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
@@ -1742,10 +1839,16 @@
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
     bindApps(box);
+    /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
+    var chip = box.querySelector('button.s-sc');
+    if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
+    scSetSaved = sc.saved ? sc.keys.join('') : '';
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
+    on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
+    on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -1789,7 +1892,7 @@
   var setFocus = 0, appsAt = 0, liveNext = false;
   /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
   function flashLive() {
-    var r = q('.set').querySelectorAll('.s-row')[2];
+    var r = q('.set').querySelectorAll('.s-row')[3];
     if (r && r.animate && !STILL) r.animate([{ backgroundColor: 'rgba(255,255,255,.2)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1800, easing: 'ease-out' });
   }
   function paintFocus() {
@@ -1834,12 +1937,11 @@
     if (!o) return;
     var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
-      var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
@@ -1850,7 +1952,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -1860,8 +1962,32 @@
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
-  var devFrom = '';
+  var devFrom = '', devSc = Object.assign({}, SC0);
+  /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
+  /* what Swift sends for "does it work": a tap hears nothing without Accessibility, a combo can be held by another app */
+  function devScOut(ax) {
+    var c = JSON.parse(JSON.stringify(devSc));
+    if (c.taken) { c.works = false; c.why = 'Another app already uses this shortcut. Record a different one.'; }
+    else if (c.kind === 'tap' && ax === false) { c.works = false; c.why = 'A tap needs Accessibility. Allow it, or record a key combo.'; }
+    else { c.works = true; c.why = ''; }
+    return c;
+  }
+  function devScSync(patch) {
+    Object.assign(devSc, patch || {});
+    if (!snap) return;
+    var s = JSON.parse(JSON.stringify(snap));
+    if (s.settings) s.settings.shortcut = devScOut(s.settings.accessibility);
+    if (s.onboarding) s.onboarding.shortcut = devScOut(s.onboarding.accessibility);
+    s.timerToken++; apply(s);
+  }
   function dev(m) {
+    if (m.type === 'shortcut') {
+      if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], saved: false, tried: false });
+      else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
+      else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
+      return;
+    }
     /* the drafts Swift keeps, kept here instead */
     if (m.type === 'draft') { base.drafts = base.drafts || {}; if (m.text) base.drafts[m.id] = m.text; else delete base.drafts[m.id]; if (snap) snap.drafts = base.drafts; return; }
     if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
@@ -1888,14 +2014,14 @@
       else if (m.action === 'back') o.step = Math.max(o.step - 1, 0);
       else if (m.action === 'finish') s.phase = 'idle';
       else if (m.action === 'accessibility') o.accessibility = true;
-      if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
+      if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
-    if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(); return; }
+    if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
@@ -1950,19 +2076,22 @@
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
-      settings: function (o) {
+      shortcut: function (patch) { devScSync(patch); },
+      settings: function (o, keep) {
+        if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
       onboarding: function (step, accessibility, only, live, all, scan) {
+        devSc = only && step === 3 ? Object.assign({}, devSc, { recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {
@@ -2037,9 +2166,49 @@
         apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
       }
     };
+    /* recording and trying the shortcut with the browser's own keys (capture phase, before anything else sees them) */
+    var scMods = [], scKey = false, SC_GLYPH = [['ctrlKey', '\u2303'], ['altKey', '\u2325'], ['shiftKey', '\u21E7'], ['metaKey', '\u2318']];
+    var scHeld = function (e) { return SC_GLYPH.filter(function (g) { return e[g[0]]; }).map(function (g) { return g[1]; }); };
+    var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
+    var scDone = function (keys, kind) {
+      var same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], tried: false, saved: true });
+    };
+    document.addEventListener('keydown', function (e) {
+      if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));
+      if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding') || e.repeat) return;
+      var isMod = /^(Control|Alt|Shift|Meta)$/.test(e.key), held = scHeld(e);
+      if (isMod) { if (held.length >= scMods.length) scMods = held; scKey = false; if (devSc.recording) { e.preventDefault(); e.stopImmediatePropagation(); } return; }
+      if (!devSc.recording) {
+        if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'combo' && held.concat([e.key === ' ' ? 'Space' : e.key.toUpperCase()]).join('') === devSc.keys.join('')) { e.preventDefault(); devScSync({ tried: true }); }
+        scKey = true; return;
+      }
+      e.preventDefault(); e.stopImmediatePropagation(); scKey = true;
+      if (e.key === 'Escape') { devScSync({ recording: false, error: '' }); if (snap.onboarding && snap.onboarding.only) dev({ type: 'onb', action: 'next' }); return; }
+      var name = { ' ': 'Space', ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192', Enter: '\u21A9', Tab: '\u21E5' }[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
+      if (!held.length) { devScSync({ error: 'Hold \u2318, \u2325, \u2303 or \u21E7 too', attempt: [name], refusals: (devSc.refusals || 0) + 1 }); return; }
+      var combo = held.join('') + name;
+      if (scTaken[combo]) { devScSync({ error: combo + ' is ' + scTaken[combo], attempt: held.concat([name]), refusals: (devSc.refusals || 0) + 1 }); return; }
+      scDone(held.concat([name]), 'combo');
+    }, true);
+    document.addEventListener('keyup', function (e) {
+      if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding')) return;
+      window.perch.held(scHeld(e));
+      if (scHeld(e).length) return;
+      var mods = scMods, only = !scKey; scMods = []; scKey = false;
+      if (!only || !mods.length) return;
+      if (devSc.recording) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
+        var tap = mods.join('');
+        if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap], attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
+        scDone(mods.slice().sort(function (a, b) { return '\u2303\u2325\u21E7\u2318'.indexOf(a) - '\u2303\u2325\u21E7\u2318'.indexOf(b); }), 'tap');
+      } else if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'tap' && mods.slice().sort().join('') === devSc.keys.slice().sort().join('')) devScSync({ tried: true });
+    }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+      if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }
       if (ph === 'settings' && (arrows[e.key] || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); settingsKey(arrows[e.key] || 'enter'); return; }
       /* the same keys as the app when the card asks something: A allows, D denies; for questions a number, Return, Left and Right */

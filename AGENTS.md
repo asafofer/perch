@@ -6,7 +6,7 @@ Read this file first. `README.md` has install and usage.
 
 ## How the work is done here
 
-1. **Show it in the design page first.** New UI or a visible change goes into `ui/design.html` (the real UI with sample data) and gets looked at before it is built into the app. The owner will say "build it" when approved. Small fixes and bugs can go straight in.
+1. **Show it in the design page first.** New UI or a visible change goes into `ui/design.html` (the real UI with sample data) and gets looked at before it is built into the app. Whenever you build or change a design there, open the design page for the owner yourself (the browser pane, on the scenario that shows it) and say where to find it; do not only describe it or draw a mock-up in chat. Serve it from this checkout's own `ui/` on a free port (`lsof -iTCP:8765` first: another worktree may already hold it and would show its old files). The owner will say "build it" when approved. Small fixes and bugs can go straight in.
 2. **Look at it before you say it is done.** Render the design page in a browser (`cd ui && python3 -m http.server 8765`, open `/design.html`) and check each state. Say plainly what you checked and what you did not. Mock-ups sit on Raycast wallpapers (`ui/wallpapers/`, from raycast.com/wallpapers). The README's GIF is filmed from the design page (`design.html?record` plays a set flow): `./scripts/record.sh` (needs ffmpeg and an unlocked screen; a corner panel shows for about 22 s and never takes the keyboard).
 3. **Commits:** one-line messages, no mention of AI or co-authors. Commit after every working step.
 4. **Tests must stay green:** `swift test`.
@@ -23,6 +23,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   LiveStatus          Hook events (HookEvent), what an agent asks (Ask: words for the card, the reply JSON), live status per session.
   SessionScan         SessionScanner: which sessions get a row (Claude app list, Codex threads, OpenCode, pi), tail reading, caches.
   Focus               Which running session you are in: a Spot (cmux surface, herdr pane, tty) compared with what is in front (Looking); unsure means every live session in that app is a maybe.
+  Shortcut            The shortcut that opens Perch: a tap of two or more modifiers (default Command+Option) or a key combo; the rules (what is refused and why) and ShortcutRecorder, which turns key events into a recording. Recorded from Settings (Change opens a full-card page, `onbOpen` step 3 only) or onboarding step 3; HotkeyService applies it and pauses every Perch hotkey while recording.
   Place               Where a running agent lives (herdr pane, cmux surface, tab) from its environment; which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
