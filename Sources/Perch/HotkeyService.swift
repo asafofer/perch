@@ -15,29 +15,33 @@ final class HotkeyService {
     /// The modifiers whose tap opens Perch; empty when the shortcut is a key combo (or while one is being recorded).
     private var tapFlags: NSEvent.ModifierFlags = [.command, .option]
     private static let openId: UInt32 = 4
+    /// False when another app already holds the combo, so pressing it would do nothing here.
+    private(set) var openCombo = true
 
     /// Makes `s` the shortcut that opens Perch: a tap watches the modifiers, a combo is a Carbon hotkey. Both call `onChordTap`.
     func apply(_ s: Shortcut) {
         unregister(id: Self.openId)
-        chordStart = nil
+        chordStart = nil; openCombo = true
         switch s.kind {
         case .tap: tapFlags = s.mods.eventFlags
         case .combo:
             tapFlags = []
-            if let code = s.keyCode { register(keyCode: code, modifiers: s.mods.carbonFlags, id: Self.openId) { [weak self] in self?.onChordTap?() } }
+            if let code = s.keyCode { openCombo = register(keyCode: code, modifiers: s.mods.carbonFlags, id: Self.openId) { [weak self] in self?.onChordTap?() } }
         }
     }
     /// While a new shortcut is being recorded, the old one must not fire.
     func pauseOpen() { unregister(id: Self.openId); tapFlags = []; chordStart = nil }
 
-    func register(keyCode: Int, modifiers: Int, id: UInt32, action: @escaping () -> Void) {
+    @discardableResult
+    func register(keyCode: Int, modifiers: Int, id: UInt32, action: @escaping () -> Void) -> Bool {
         installHandlerIfNeeded()
         handlers[id] = action
         var ref: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(signature: OSType(0x50524348), id: id)  // 'PRCH'
         if let old = refs.removeValue(forKey: id) { UnregisterEventHotKey(old) }
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hotKeyID, GetApplicationEventTarget(), 0, &ref)
+        let status = RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hotKeyID, GetApplicationEventTarget(), 0, &ref)
         if let ref { refs[id] = ref }
+        return status == noErr
     }
 
     func unregister(id: UInt32) {
