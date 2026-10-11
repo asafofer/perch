@@ -707,6 +707,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                   query: listQuery, replying: replyOpen, at: Date())
             }
             hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
+            // The card shrinks away where it was; the task below takes the panel home once that has played.
+            closedAt = Date(); awayForHover = false
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
@@ -1568,7 +1570,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var awayForHover = false
     /// When the cursor came into another screen's hover zone, and which screen (while an activity shows it waits a dwell).
     private var detourFrom: (screen: NSScreen, at: Date)?
+    /// When the card last closed: for the 700 ms its closing plays, the panel stays where it is.
+    private var closedAt = Date.distantPast
     private func followHoverWhileFixed() {
+        guard Date().timeIntervalSince(closedAt) > 0.7 else { return }
         let at = NSEvent.mouseLocation, screens = NSScreen.screens, frames = screens.map(\.frame)
         if let i = ScreenPicker.index(of: at, in: frames), screens[i] !== screen, screens[i].notchSize != nil || Prefs.hoverExternal,
            NotchGeometry.hovering(at, frames: frames, index: i, rect: NotchGeometry.hoverRect(for: screens[i].screenInfo)) {
