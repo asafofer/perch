@@ -30,14 +30,10 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .n[data-hide="1"] { opacity: 0 !important; --fade: .01s; --fade-delay: .62s;
   /* the little pill that is left when the card has narrowed does not fade: it tucks up into the top edge of the screen, narrowing as it goes */
   translate: 0 -105%; scale: .8 1; --slide: .3s; --slide-delay: .32s; }
-/* There is no notch there to narrow into, so the card (or the live activity) leaves whole: it rises into the top edge as it
-   fades, what is on it going with it, and only then takes its resting size, unseen. */
-.n[data-virt="1"][data-hide="1"] { translate: 0 -28%; scale: .965; transform-origin: 50% 0;
-  transition: height 0s .34s, width 0s .34s, margin-left 0s .34s, border-radius 0s .34s, box-shadow 0s .34s, transform 0s .34s,
-    translate .34s cubic-bezier(.4,0,.6,1), scale .34s cubic-bezier(.4,0,.6,1), opacity .28s .04s cubic-bezier(.3,0,.7,1), --gcol 0s .34s; }
-.n[data-virt="1"][data-hide="1"] .ear { transition: transform 0s .34s; }
-.n[data-virt="1"][data-hide="1"] .pane, .n[data-virt="1"][data-hide="1"] .rv, .n[data-virt="1"][data-hide="1"] .glow,
-.n[data-virt="1"][data-hide="1"] .act > * { transition: all 0s .34s; }
+/* On a screen without a notch there is nothing to narrow into, so the card (or the live activity) goes on shrinking, both ways
+   at once, to nothing at the top centre: no pill left over, no fade. It grows back from that point when something opens. */
+.n[data-virt="1"][data-hide="1"] { width: 0 !important; height: 0 !important; margin-left: 0 !important; translate: none; scale: none; --fade-delay: .36s;
+  transition: height .34s cubic-bezier(.4,0,.2,1), width .34s cubic-bezier(.4,0,.2,1), margin-left .34s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, transform .35s cubic-bezier(.3,1.5,.5,1), opacity 0s .36s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
 /* a black cap above the open card, off the top of the screen; it only shows if something nudges the card down */
 .n:not([data-s=idle])::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; background: #000; }
 .ear { position: absolute; top: 0; width: 6px; height: 6px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
