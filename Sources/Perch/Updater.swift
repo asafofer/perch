@@ -182,7 +182,8 @@ final class Updater: NSObject, SPUUserDriver {
         relaunch = reply
         if info == nil { info = UpdateInfo(version: "", phase: "ready") }
         info?.phase = "ready"
-        waitForQuiet()
+        // Nothing open: restart now, so the notch goes straight from downloading to updating. Otherwise at the first quiet moment.
+        if isQuiet() { restartNow() } else { waitForQuiet() }
     }
 
     func showInstallingUpdate(withApplicationTerminated applicationTerminated: Bool, retryTerminatingApplication: @escaping () -> Void) {
