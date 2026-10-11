@@ -30,9 +30,9 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .n[data-hide="1"] { opacity: 0 !important; --fade: .2s; --fade-delay: .32s; }
 /* a black cap above the open card, off the top of the screen; it only shows if something nudges the card down */
 .n:not([data-s=idle])::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; background: #000; }
-.ear { position: absolute; top: 0; width: 12px; height: 12px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
-.ear.l { left: -12px; transform-origin: 100% 0; background: radial-gradient(circle at 0 100%, transparent 11.5px, #000 12px); }
-.ear.r { right: -12px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 11.5px, #000 12px); }
+.ear { position: absolute; top: 0; width: 6px; height: 6px; transform: scale(0); transition: transform .4s cubic-bezier(.3,1.3,.5,1); }
+.ear.l { left: -6px; transform-origin: 100% 0; background: radial-gradient(circle at 0 100%, transparent 5.5px, #000 6px); }
+.ear.r { right: -6px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 5.5px, #000 6px); }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
