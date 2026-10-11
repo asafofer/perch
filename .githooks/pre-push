@@ -1,0 +1,6 @@
+#!/bin/bash
+# Nothing leaves this Mac with a red test suite. Skip in an emergency with: git push --no-verify
+cd "$(git rev-parse --show-toplevel)" || exit 1
+echo "pre-push: swift test"
+swift test 2>&1 | tail -n 5
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "pre-push: tests failed, not pushing."; exit 1; }

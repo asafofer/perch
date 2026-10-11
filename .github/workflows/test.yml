@@ -1,0 +1,11 @@
+name: Tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  swift-test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test

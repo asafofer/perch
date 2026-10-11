@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 REPO=asafofer/perch-releases
 BIN=.build/artifacts/sparkle/Sparkle/bin
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+# A release goes to everyone who has Perch: the tests must pass first.
+swift test
 ./scripts/package.sh
 [ -x "$BIN/generate_appcast" ] || { echo "Sparkle tools missing: run swift build once"; exit 1; }
 rm -rf build/appcast && mkdir -p build/appcast
