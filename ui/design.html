@@ -88,6 +88,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
+.rec.play .now{display:block}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -458,6 +459,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
+  /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
+     the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
+  var pm = /[?&]play=([^&]*)/.exec(location.search); if (!pm) return;
+  var hold = +((/[?&]hold=([\d.]+)/.exec(location.search) || [])[1] || 4) * 1000;
+  var all = []; GROUPS.forEach(function (g, gi) { g[1].forEach(function (s, si) { all.push({ g: g[0], s: s, b: boxes[gi].children[si] }); }); });
+  var list = decodeURIComponent(pm[1].replace(/\+/g, ' ')).split('|').map(function (n) {
+    var at = n.indexOf('/'), g = at > 0 ? n.slice(0, at) : null, name = at > 0 ? n.slice(at + 1) : n;
+    var hit = all.filter(function (x) { return x.s[0] === name && (!g || x.g === g); })[0];
+    if (!hit) console.warn('pr-demo: no scenario ' + n);
+    return hit;
+  }).filter(Boolean);
+  document.documentElement.classList.add('play');
+  list.forEach(function (x, i) { setTimeout(function () {
+    setDisplay(1); showTab(GROUPS.findIndex(function (g) { return g[0] === x.g; }));
+    run(x.b, x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0], x.s[2]);
+  }, 300 + i * hold); });
+
 })();
 </script>
 <script>
@@ -467,6 +485,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   if (!/[?&]record\b/.test(location.search) || !window.perchDev) return;
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
+  if (/[?&]play=/.test(location.search)) return;   /* pr-demo.sh: the scenarios script plays them */
   function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
   [[600, function () { d.project(0); d.show('open', false, true); }],
    [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],
