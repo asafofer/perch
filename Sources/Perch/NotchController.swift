@@ -750,6 +750,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "answer":
             if let a = body["answers"] as? [String: String] { answer("", answers: a) }
             else if let c = body["choice"] as? String { answer(c) }
+        case "pick": if let i = body["index"] as? Int { send(.select(i)) }
         case "details": if let i = body["index"] as? Int { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
@@ -1288,6 +1289,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 return nil
             }
             if self.machine.phase == .settings {
+                // The shortcut that opened Settings closes it, as Esc does.
+                if e.modifierFlags.contains(.command), KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "," { self.send(.back); return nil }
                 // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done (or closes the
                 // Apps menu first; the page decides and says "back").
                 let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]

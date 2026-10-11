@@ -505,10 +505,10 @@
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
-        (qn.multi ? '<span class="flex-none ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+        (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
     }).join('') + '</div>';
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
@@ -527,7 +527,7 @@
     var terse = qn.options.length > 3;
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = terse ? '' : qn.notes[i] || '';
-      return '<div class="flex w-full items-center gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
+      return '<div class="flex w-full items-start gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
     }).join('') + '</div>' + (a.why ? '<div class="mt-3 text-[11px] leading-[14px] text-muted-foreground/70">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : '');
@@ -648,6 +648,8 @@
   }
   /* About five rows show at a time, with their section headers; the rest scroll, with a soft edge where there is more. */
   var sl = q('.s-l'), listSig = '', lastSel = -1;
+  /* a row the pointer chose lights at once and waits for Swift to agree (pend); the list never scrolls for it (ptrPick) */
+  var pend = -1, pendT = 0, ptrPick = -1;
   function edges() {
     var up = sl.scrollTop > 1, down = sl.scrollTop + sl.clientHeight < sl.scrollHeight - 1;
     sl.style.webkitMaskImage = sl.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
@@ -710,7 +712,7 @@
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
       if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
-      return head + '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
+      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
@@ -719,24 +721,33 @@
         (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span></div>';
     }).join('');
     if (html !== listSig) {
-      listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
+      listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
         r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
         r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
-        r.onmouseenter = function () { hovered = r; marquee(r); };
+        r.onmouseenter = function () {
+          hovered = r; marquee(r);
+          var i = +r.dataset.i;
+          if (!ptrMoved() || i === (pend >= 0 ? pend : lastSel)) return;
+          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 400);
+          sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
+          post({ type: 'pick', index: i });
+        };
         r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
       });
     }
-    var sel = null;
+    var sel = null, cs = pend >= 0 && s.selected !== pend ? pend : s.selected;
+    if (s.selected === pend) pend = -1;
+    if (cs !== ptrPick) ptrPick = -1;
     sl.querySelectorAll('.row').forEach(function (r) {
-      var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r;
+      var on = +r.dataset.i === cs; r.classList.toggle('bg-accent', on); if (on) sel = r;
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (tm.textContent !== t) tm.textContent = t;
       if (rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
-    if (sel) {
+    if (sel && cs !== ptrPick) {
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
@@ -744,8 +755,9 @@
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
-    if (sel && s.selected !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[s.selected], row); }, 0); }
-    if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
+    if (sel && cs !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[cs], row); }, 0); }
+    if (cs !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
+    if (cs !== lastSel || !hovered) { lastSel = cs; marquee(sel); }
   }
   /* the design page's sample data has no section from Swift: worked out the same way */
   function sectionOf(p) { return p.section || (p.attention ? 'Needs you' : /^\d+[mh]/.test(p.away || '') ? 'Today' : 'Earlier'); }
@@ -859,7 +871,7 @@
      question). A finish folds away after a few seconds; a request folds to small wings, the app and a mark, that stay
      until you answer. Resting the pointer on it holds it open. During a call or a presentation it skips straight to the
      wings. When you come back from a break, the welcome card says all this instead. */
-  var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false;
+  var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
@@ -883,14 +895,26 @@
   function actWords(p, k) {
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
+  /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
+     is already there moves (the pointer would lose it). */
+  function actExtra(p, k) {
+    if (!actMore || act.mode !== 'full' || k !== 'ask') return '';
+    var qs = p.ask && p.ask.questions && p.ask.questions[0]; if (!qs) return '';
+    if (actMore.c != null) {
+      var o = qs.options[actMore.c]; if (o == null) return '';
+      return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + (/\(recommended\)\s*$/i.test(o) ? '<i class="act-rec">Recommended</i>' : '') + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
+    }
+    return '';
+  }
   function renderAct() {
     actEl.dataset.mode = act.mode;
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
-    var p = act.p, k = act.kind, a = p.ask, body = '';
+    var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
+    if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
+    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
     act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
@@ -911,8 +935,8 @@
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
-      (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
+      (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
     actGlide();
@@ -1000,7 +1024,23 @@
     var w = even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw)));   /* the panel is 480 wide */
     if (!actEl.querySelector('.act-btns')) return [even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150))), idleH];   /* an update restarting: just the row */
     var bd = actEl.querySelector('.act-body');
-    return [w, idleH + (bd ? +bd.dataset.h || 24 : 0) + 44];
+    if (bd && bd.classList.contains('askq')) {
+      /* as tall as the question is at this width (a line is 18px), up to five lines; past that it scrolls */
+      var mq = bd.cloneNode(true); mq.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;height:auto;transform:none;width:' + (w - 26) + 'px';
+      actEl.appendChild(mq); var qh = Math.min(96, Math.max(24, mq.offsetHeight + 4)); actEl.removeChild(mq);
+      bd.dataset.h = String(qh); bd.style.height = (qh - 2) + 'px';
+    }
+    var base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
+    /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
+    bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
+    if (ex) {
+      /* as tall as its words are at this width, up to a point */
+      var m = ex.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:' + (w - 26) + 'px';
+      actEl.appendChild(m); var eh = Math.min(96, m.offsetHeight); actEl.removeChild(m);
+      ex.style.top = (base - 3) + 'px'; ex.style.maxHeight = eh + 'px';
+      return [w, base + eh + 6];
+    }
+    return [w, base];
   }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
@@ -1159,7 +1199,23 @@
   }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
-  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); });
+  /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
+  actEl.addEventListener('mousemove', function (e) {
+    if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
+    var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch');
+    if (ch && qs) {
+      var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
+      if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
+    } else actMoreSet(null);
+  });
+  /* it goes away a moment after the pointer leaves what it speaks for, so crossing from one choice to the next does not flicker */
+  function actMoreSet(v) {
+    clearTimeout(actMoreT);
+    if (!v) { if (actMore) actMoreT = setTimeout(function () { actMore = null; renderAct(); if (snap) layout(lastSt, snap); }, 160); return; }
+    if (actMore && JSON.stringify(actMore) === JSON.stringify(v)) return;
+    actMore = v; renderAct(); if (snap) layout(lastSt, snap);
+  }
 
   /* While the list or a card is open the notch cannot say it, so the update waits at the top left, beside the character (the right has the
      hardware notch's neighbour, Settings and the close, with no room): Update, a ring while it downloads, Restart when it is ready. */
@@ -1351,7 +1407,11 @@
      Swift sends where the pointer is anyway (cursor, below). While no real moves arrive, what is under it is marked .hv,
      which every hover style also answers to, and mouseenter and mouseleave play as a real pointer would make them. */
   var hvEls = [], realMoveAt = 0;
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  /* Where the pointer is, and where it was at the last arrow key. A row that slides or is redrawn under a still pointer gets a
+     mouseenter too (here and from WebKit); that must not pull the keyboard's choice back to the pointer. Only a pointer that moved does. */
+  var ptrAt = [-1, -1], keyPtr = null;
+  function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1365,6 +1425,7 @@
   var handOn = false;
   function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
+    ptrAt = [x, y];
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -1970,7 +2031,7 @@
       srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
       srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
-      srow(slabel('Away from your Mac for', '', 'timer'), awaySeg),
+      srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
       srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
     ].concat(o.hasExternal ? [
@@ -1995,7 +2056,7 @@
       /* the keys, like the list's: every setting can be changed without the mouse */
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
-    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
+    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
@@ -2040,7 +2101,7 @@
     if (trig) trig.onclick = function (e) { e.stopPropagation(); appsMenu(!appsOpen); };
     box.querySelectorAll('.s-app').forEach(function (b) {
       b.onclick = function (e) { e.stopPropagation(); post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { appsAt = +b.dataset.i; paintFocus(); };
+      b.onmouseenter = function () { if (ptrMoved()) { appsAt = +b.dataset.i; paintFocus(); } };
     });
   }
   /* opens or closes the menu in place; a click anywhere else on the card closes it */
@@ -2074,7 +2135,7 @@
     if (trig) trig.onclick = function (e) { e.stopPropagation(); notifyMenu(!notOpen); };
     box.querySelectorAll('.s-nitem').forEach(function (b) {
       b.onclick = function (e) { e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { notAt = +b.dataset.i; paintFocus(); };
+      b.onmouseenter = function () { if (ptrMoved()) { notAt = +b.dataset.i; paintFocus(); } };
     });
   }
   function notifyMenu(open) {
@@ -2106,6 +2167,7 @@
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
+    keyPtr = ptrAt.slice();
     var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
     if (appsOpen) {
@@ -2251,6 +2313,7 @@
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
+    if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;

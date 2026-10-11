@@ -7,6 +7,8 @@ public enum NotchEvent: Equatable, Sendable {
     case choose(Int)
     /// From the list: that session's card, without opening it.
     case show(Int)
+    /// From the list: the pointer came onto a row, which is now the one the arrows and Return act on.
+    case select(Int)
     case openOnboarding
     case openSettings
     case back
@@ -76,6 +78,9 @@ public struct NotchMachine: Equatable, Sendable {
         case (.switcher, .show(let i)):
             guard (0..<projectCount).contains(i) else { return }
             selected = i; phase = .open
+        case (.switcher, .select(let i)):
+            guard (0..<projectCount).contains(i) else { return }
+            selected = i
         case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):
             settingsFrom = phase == .idle ? nil : phase
             phase = .settings
