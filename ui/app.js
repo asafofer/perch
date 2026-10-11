@@ -514,7 +514,7 @@
       return '<div class="flex w-full items-center gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
-    }).join('') + '</div>' + (a.why ? '<div class="mt-1 text-[11.5px] leading-[14px] text-muted-foreground">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : '');
+    }).join('') + '</div>' + (a.why ? '<div class="mt-3 text-[11px] leading-[14px] text-muted-foreground/70">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : '');
     q('.o-nx').style.display = 'none';
     q('.o-acts').innerHTML = Flip() + Act('default', goLabel(p), ENTER, 'go');
   }
