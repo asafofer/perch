@@ -3,7 +3,7 @@
 <title>Perch disk image</title>
 <!-- The picture behind the icons in the Perch.dmg window (660 x 400 points). Finder puts the Perch icon on the left and the
      Applications folder on the right (scripts/make-dmg.sh places them at 175,180 and 485,180); this draws everything else:
-     the words, the light behind both icons, an arrow that arcs from one to the other with a small character hopping along it, and the
+     the words, the light behind both icons, an arrow that arcs from one to the other, and the
      crowd of characters, the real ones (app.js draws them, coat and eyes), peeking up from the bottom edge.
      The design page shows it in a Finder window; scripts/render-dmg-background.mjs renders it to Resources/dmg/background.png and @2x. -->
 <link rel="stylesheet" href="../dist/ui.css">
@@ -53,9 +53,7 @@ svg.fx { position: absolute; left: 0; top: 0; overflow: visible; }
 <script>
 /* shape, colour, centre x, top y (the bottom runs off the window), size, mood, which way the eyes look, tilt in degrees */
 var CREW = [['ears', '#F5B83D', 84, 308, 108, 'awake', [6, -3], -3], ['octo', '#B9A2F5', 203, 292, 112, 'happy', [4, -4], 2], ['bun', '#FF9E7A', 330, 330, 100, 'awake', [0, -4], 0],
-            ['tile', '#7DC4F5', 457, 298, 108, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 580, 314, 102, 'awake', [-6, -3], 3],
-            /* the small one hopping along the arrow, on its way to Applications */
-            ['ears', '#F5B83D', 330, 98, 46, 'happy', [4, 0], 6]];
+            ['tile', '#7DC4F5', 457, 298, 108, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 580, 314, 102, 'awake', [-6, -3], 3]];
 document.getElementById('crew').innerHTML = CREW.map(function (c) {
   var x = c[2], y = c[3], z = c[4];
   return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + (z > 60 ? '33' : '55') + ' 0%,' + c[1] + '00 66%)"></div>' +
