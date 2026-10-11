@@ -136,6 +136,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
     ] } };
   /* a load test, twelve runs in nine columns: taller and wider than the message, so the table scrolls in its own window */
+  /* replies that list things: a bold line straight into bullets, numbers, nested items, a table after a list */
+  var SAID_BULLETS = '**Options for the next release**\n- Serve the feed from somewhere that doesn’t cache for 5 minutes, such as a GitHub Pages site or a release asset URL.\n- Or leave it and have `release.sh` print “live in about 5 minutes”.\n\nI would take the first: it also makes the appcast faster for everyone.';
+  var SAID_NUMBERS = 'The release goes out in this order:\n1. Bump the version and write `release-notes/0.4.0.md`\n2. Run `./scripts/release.sh --publish`\n3. Wait for the appcast to refresh, about 5 minutes\n4. Check that an older copy offers the update\n\nStep 3 is the slow one.';
+  var SAID_NESTED = '## What changed\n- The reply card\n  - Bullet and numbered lists now draw\n  - Nested items sit one step in\n    - and a third level too\n- The design page\n  - Four new scenarios under *Acting on it*\n- Tests: **all green**, nothing new to cover\n\nNext: open the PR.';
+  var SAID_MIXED = '**Where September stands**\n- 41 of 43 invoices matched\n- Two are still open:\n  1. A Figma seat refund\n  2. A Linear credit note\n\n| Vendor | Matched |\n|---|---|\n| Hetzner | 100% |\n| Linear | 94% |\n| Figma | 75% |\n\nShould I book the two as credits against October?';
   var WIDE = 'Ran the load test against the new limiter, twelve runs. Every run held its limit:\n\n| Run | Requests | Allowed | Rejected (429) | p50 | p95 | p99 | Error rate | Notes |\n|---|---|---|---|---|---|---|---|---|\n' +
     '| 121 | 20,000 | 100% | 0 | 12 ms | 27 ms | 41 ms | 0.00% | cold start |\n' +
     '| 122 | 20,000 | 100% | 0 | 13 ms | 28 ms | 43 ms | 0.00% | warm cache |\n' +
@@ -293,6 +298,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ]);
         }, 1400);
       }],
+      ['Reply: a bulleted list', 'A bold line straight into bullets, no blank line between. Quiet grey bullets, items that wrap line up under their words.', function () { d.variant(1, { said: SAID_BULLETS }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
+      ['Reply: a numbered list', 'The agent\u2019s own numbers, in grey, aligned.', function () { d.variant(1, { said: SAID_NUMBERS }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
+      ['Reply: nested lists and a heading', 'Deeper indents sit one step in; a heading is a bold line; *italic* and **bold** inside items.', function () { d.variant(1, { said: SAID_NESTED }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
+      ['Reply: a list, a numbered list inside it, and a table', 'Everything in one message: it scrolls, the table keeps its own window.', function () { d.variant(1, { said: SAID_MIXED }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a table', 'The agent answered with a table. No lines: the header in grey, a faint band on every other row, even numerals, numbers on the right.', function () { d.project(3); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a long, wide table', 'Taller and wider than the message: the table scrolls in its own window, both ways, its header staying put, and fades at the sides it goes on. Up and Down in the reply scroll the message and, when the table is in the way, its rows first.', function () { d.variant(7, { said: WIDE }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
