@@ -648,6 +648,8 @@
   }
   /* About five rows show at a time, with their section headers; the rest scroll, with a soft edge where there is more. */
   var sl = q('.s-l'), listSig = '', lastSel = -1;
+  /* a row the pointer chose lights at once and waits for Swift to agree (pend); the list never scrolls for it (ptrPick) */
+  var pend = -1, pendT = 0, ptrPick = -1;
   function edges() {
     var up = sl.scrollTop > 1, down = sl.scrollTop + sl.clientHeight < sl.scrollHeight - 1;
     sl.style.webkitMaskImage = sl.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
@@ -710,7 +712,7 @@
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
       if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
-      return head + '<div class="row flex h-9 cursor-default items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
+      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
@@ -724,19 +726,28 @@
       sl.querySelectorAll('.row').forEach(function (r) {
         r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
         r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
-        r.onmouseenter = function () { hovered = r; marquee(r); if (ptrMoved() && +r.dataset.i !== lastSel) post({ type: 'pick', index: +r.dataset.i }); };
+        r.onmouseenter = function () {
+          hovered = r; marquee(r);
+          var i = +r.dataset.i;
+          if (!ptrMoved() || i === (pend >= 0 ? pend : lastSel)) return;
+          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 400);
+          sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
+          post({ type: 'pick', index: i });
+        };
         r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
       });
     }
-    var sel = null;
+    var sel = null, cs = pend >= 0 && s.selected !== pend ? pend : s.selected;
+    if (s.selected === pend) pend = -1;
+    if (cs !== ptrPick) ptrPick = -1;
     sl.querySelectorAll('.row').forEach(function (r) {
-      var on = +r.dataset.i === s.selected; r.classList.toggle('bg-accent', on); if (on) sel = r;
+      var on = +r.dataset.i === cs; r.classList.toggle('bg-accent', on); if (on) sel = r;
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (tm.textContent !== t) tm.textContent = t;
       if (rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
-    if (sel) {
+    if (sel && cs !== ptrPick) {
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
@@ -744,9 +755,9 @@
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
-    if (sel && s.selected !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[s.selected], row); }, 0); }
-    if (s.selected !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
-    if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
+    if (sel && cs !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[cs], row); }, 0); }
+    if (cs !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
+    if (cs !== lastSel || !hovered) { lastSel = cs; marquee(sel); }
   }
   /* the design page's sample data has no section from Swift: worked out the same way */
   function sectionOf(p) { return p.section || (p.attention ? 'Needs you' : /^\d+[mh]/.test(p.away || '') ? 'Today' : 'Earlier'); }
