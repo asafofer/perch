@@ -921,15 +921,18 @@
     if (!next) actHeld = false;
     if (!quiet && snap) layout(lastSt, snap);
   }
-  function waiting(s) { return s.projects.filter(function (p) { return p.id !== s.activeId && p.attention && !actGone[actKey(p)]; }); }
+  /* a session that stopped on an error has nothing to answer: it says so once, and does not stay as wings */
+  function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
+  function waiting(s) { return s.projects.filter(function (p) { return p.id !== s.activeId && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
     var others = s.projects.filter(function (p) { return p.id !== s.activeId; });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
-    var now = { need: need.map(actKey), done: done.map(function (p) { return p.id; }) };
+    var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
+    var now = { need: heard.map(actKey), done: done.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
-    var arrived = known && need.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
+    var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
@@ -939,14 +942,17 @@
     }
     if ((arrived || landed) && !s.quiet) {
       setAct('full', arrived || landed, true); actLater(arrived ? 9000 : 6000);
-    } else if (full && act.kind !== 'done' && !need.some(function (p) { return p.id === act.p.id; })) {
+    } else if (full && act.kind !== 'done' && !heard.some(function (p) { return p.id === act.p.id; })) {
       clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true);   /* answered somewhere else while it showed */
     } else if (full) {
       var fresh = s.projects.filter(function (p) { return p.id === act.p.id; })[0]; if (fresh) setAct('full', fresh, true);
     } else setAct(need.length ? 'wings' : '', need[0], true);
   }
   /* it has said its piece: whatever still waits on you stays as wings */
-  function actSettle() { if (!snap) return; var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
+  function actSettle() {
+    if (!snap) return;
+    if (act.p && actErr(act.p)) actGone[actKey(act.p)] = 1;   /* said once */
+    var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
   function actDo(a) {
     var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
     if (a === 'gone') {
