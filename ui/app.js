@@ -1635,7 +1635,8 @@
     var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
     /* no separate recording look: while it listens the card shows the shortcut you have now, plain grey, and says it is listening */
-    var current = (sc.recording && sc.pending && sc.pending.length ? sc.pending : sc.keys).map(function (k) { return '<span class="kcap" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
+    var chosen = sc.recording && sc.pending && sc.pending.length;
+    var current = (chosen ? sc.pending : sc.keys).map(function (k) { return '<span class="kcap' + (chosen ? ' ok' : '') + '" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
     var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : current;
     scRest = tried;
     var shown = sc.recording ? tried : big, ask = sc.pending && sc.pending.length ? 'Press Return to save it, or press another shortcut.' : 'Listening for your new shortcut\u2026',
@@ -1690,7 +1691,7 @@
     }
     scWasTried = mark;
     /* the bottom of the card glows orange for a refusal and green once it is saved, and a refusal shakes the keys */
-    var bad = sc.recording && !!sc.error, good = !sc.recording && (sc.saved || sc.tried);
+    var bad = sc.recording && !!sc.error, good = sc.recording ? !sc.error && !!(sc.pending && sc.pending.length) : (sc.saved || sc.tried);
     introGlow = bad ? COLORS.attention : good ? COLORS.done : ''; n.style.setProperty('--gcol', introGlow || charNow.color);
     if (bad && sc.refusals !== scRef && !STILL) {
       var row = document.querySelector('.o-sc-big');
