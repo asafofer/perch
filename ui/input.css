@@ -382,7 +382,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-gr { margin-right: -8px; }
 
 /* the reply opened out (app.js bigView): wider and taller, the whole chat in the message box */
-.p-open:not([data-rep="1"]) .x-exp { display: none; }
 .p-open[data-big="1"] { width: 560px; }
 .p-open[data-big="1"] .o-said-in { max-height: 330px; }
 .p-open[data-big="1"] .o-you { max-width: 78%; margin-top: 14px; }
