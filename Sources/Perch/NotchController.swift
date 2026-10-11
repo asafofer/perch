@@ -1144,7 +1144,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingAction(_ action: String) {
         switch action {
         case "next":
-            if onbOnly { finishCharacter(); return }
+            if onbOnly {
+                // Done with a shortcut chosen saves it: the keys spring and the card glows green, then back to where it came from.
+                if let chosen = recorder?.pending {
+                    finishRecording(.record(chosen))
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                        guard let self, self.machine.phase == .onboarding, self.onbOnly, self.shortcutSaved else { return }
+                        self.finishCharacter()
+                    }
+                    return
+                }
+                finishCharacter(); return
+            }
             onbStep = min(onbStep + 1, onbTotal - 1)
             if onbStep == 4 { refreshProjects() }   // the apps step shows what the scan found
             stopRecording(); shortcutTried = false; shortcutSaved = false

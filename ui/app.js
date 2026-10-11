@@ -2273,6 +2273,10 @@
     s.timerToken++; apply(s);
   }
   function dev(m) {
+    /* Done with a choice waiting: it saves (the keys spring, the card glows green), then goes back to Settings */
+    if (m.type === 'onb' && m.action === 'next' && snap && snap.onboarding && snap.onboarding.only && devSc.recording && devSc.pending && devSc.pending.length) {
+      window.perchDev.saveChoice(); setTimeout(function () { if (snap && snap.phase === 'onboarding') dev(m); }, 900); return;
+    }
     if (m.type === 'update') {
       if (m.action === 'install' || m.action === 'restart') window.perchDev.updRun(m.action === 'restart');
       if (m.action === 'check') { var D = window.perchDev, k = ++updTok; D.update('checking', { fresh: false, stay: true }); setTimeout(function () { if (k === updTok) D.update('current', { fresh: false, stay: true }); }, 1600); setTimeout(function () { if (k === updTok) D.update(null, { fresh: false, stay: true }); }, 5200); }
@@ -2305,6 +2309,8 @@
     }
     if (m.type === 'hooks') { if (s.settings) s.settings.live = m.on ? 'on' : 'off'; if (s.onboarding) s.onboarding.live = m.on ? 'on' : 'off'; }
     if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
+    /* a page opened from Settings: Done goes back there, whatever step it is */
+    if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
     if (m.type === 'onb' && s.onboarding) {
       var o = s.onboarding;
       if (m.action === 'next') o.step = Math.min(o.step + 1, o.total - 1);
@@ -2498,6 +2504,7 @@
       var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
     };
+    window.perchDev.saveChoice = scSave;
     document.addEventListener('keydown', function (e) {
       if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));
       if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding') || e.repeat) return;
