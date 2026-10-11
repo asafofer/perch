@@ -1136,21 +1136,24 @@
      hardware notch's neighbour, Settings and the close, with no room): Update, a ring while it downloads, Restart when it is ready. */
   /* where the update stands, as one small thing for Settings' Updates row: Check for updates when there is nothing to say, then what is
      happening, then the button for what comes next */
+  /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return { checking: 'looking for a new version', current: 'you have the latest', failed: 'could not check', available: v + ' is available', downloading: 'downloading ' + v, ready: v + ' is ready', restarting: 'updating to ' + v }[ph] || 'checked daily';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph ? '' : 'checked daily';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
     var chipB = function (label, tip) { return '<button title="' + esc(tip) + '" class="s-upd h-[22px] cursor-pointer rounded-md px-2 text-[11.5px] font-medium tracking-[-0.005em] transition-colors">' + label + '</button>'; };
-    var mark = function (inner) { return '<span class="grid size-5 flex-none place-items-center">' + inner + '</span>'; };
+    /* a mark and a few words, on the right, in the colour of what they say */
+    var note = function (inner, words, c) { return '<span class="flex h-[22px] items-center justify-end gap-1.5 text-[12px]" style="color:' + c + '"><span class="grid size-4 flex-none place-items-center">' + inner + '</span>' + words + '</span>'; };
     if (ph === 'available') return chipB('Update', 'Perch ' + u.version + ' is available');
     if (ph === 'ready') return chipB('Restart to update', 'Perch ' + u.version + ' is downloaded. It installs and restarts Perch');
-    if (ph === 'checking') return mark(Spinner('size-3.5', haze(COLORS.running)));
-    if (ph === 'current') return mark(Ring('done'));
-    if (ph === 'downloading') return mark(updRing(u.progress || 0, 'size-4'));
-    if (ph === 'restarting') return mark(Spinner('size-3.5', haze(COLORS.running)));
-    return Button('ghost', ph === 'failed' ? 'Try again' : 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
+    if (ph === 'checking') return note(Spinner('size-3.5', haze(COLORS.running)), 'Checking', COLORS.running);
+    if (ph === 'current') return note(Ring('done'), 'You have the latest version', COLORS.done);
+    if (ph === 'downloading') return note(updRing(u.progress || 0, 'size-4'), 'Downloading ' + esc(u.version), COLORS.running);
+    if (ph === 'restarting') return note(Spinner('size-3.5', haze(COLORS.running)), 'Updating', COLORS.running);
+    if (ph === 'failed') return note(Ring('need'), 'Couldn\u2019t check', COLORS.attention) + Button('ghost', 'Try again', '', 's-chk" title="Look for a newer version of Perch');
+    return Button('ghost', 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
     var ph = s.update ? s.update.phase : '';
@@ -1943,7 +1946,7 @@
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', updSub(snap)), '<span class="s-updslot flex items-center">' + updSlot(snap) + '</span>')
+      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer */
     rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[26px]' : 'h-[28px]'); }) : rows;
@@ -2069,6 +2072,7 @@
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
         if (us._k !== key) { us.innerHTML = html; us._k = key; bindUpdSlot(us, snap); }
+        var sb = box.querySelector('.s-updsub'); if (sb) sb.textContent = ''; if (sb) sb.innerHTML = updSub(snap);
         var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
       }
       box.querySelectorAll('.s-seg').forEach(function (b) {
