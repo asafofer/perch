@@ -1263,8 +1263,8 @@
       /* Hello: the character lands on the notch, wakes up and says who it is, then shows what it does with two sessions */
       h = oi(0, '<div class="flex items-start gap-3 px-4 pt-0.5"><div class="hi-cr relative grid size-[60px] flex-none place-items-center">' + crHtml('cr-hi', 52, shapeOf(charNow.shape), 'sleep') + '</div>' +
             '<div class="min-w-0 flex-1 pt-1"><p class="hi-say inline-block rounded-2xl rounded-bl-md bg-white/[0.09] px-3 py-1.5 text-[15px] font-semibold leading-5 tracking-[-0.02em]"><span class="hi-t"></span><span class="hi-ghost invisible">Hi, I\u2019m Perch.</span></p>' +
-            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch. While you\u2019re away I keep an eye on your coding agents, and when you\u2019re back I\u2019ll tell you where you left off.</p></div></div>') +
-        oi(1, '<div class="hi-demo mt-3 flex flex-col gap-1 px-2.5">' + introRow(0, 'claude', 'Website', 'Hero spacing') + introRow(1, 'codex', 'Docs', 'Install guide') + '</div>') +
+            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch and watch your coding agents. When one finishes or needs your OK, I\u2019ll tell you. Answer it here, or jump straight back in.</p></div></div>') +
+        oi(1, '<div class="hi-demo pointer-events-none mx-2.5 mt-3 flex select-none flex-col rounded-lg bg-white/[0.04] py-0.5" aria-hidden="true">' + introRow(0, 'claude', 'Hero spacing', 'Website') + introRow(1, 'codex', 'Install guide', 'Docs') + '</div>') +
         ofoot(2, false, '', 'Nice to meet you', 'next');
     } else if (st === 1) {
       var shapes = SHAPES.map(function (sh) {
@@ -1318,10 +1318,12 @@
   }
   /* ---- the introduction: Perch says who it is (names start with intro: `hello` is the hello beside the notch after setup) ---- */
   var introToken = 0, introGlow = '';
-  function introRow(i, app, name, topic) {
-    return '<div class="hi-row flex h-8 items-center gap-2 rounded-md bg-white/[0.045] px-2 text-[13px]" data-i="' + i + '">' + App(app, 'size-4') +
-      '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + name + '</span><span class="ml-2 text-muted-foreground">' + topic + '</span></span>' +
-      '<span class="hi-st flex flex-none items-center gap-1.5 text-xs">' + Phrase({ t: 'Working', c: COLORS.running, spin: true }) + '</span></div>';
+  /* A sample session, drawn like a row of the list: its title and how long ago, and at the right its mark and its project
+     in grey. Only a picture: the frame around the two takes no pointer. */
+  function introRow(i, app, title, project) {
+    return '<div class="hi-row flex h-9 items-center gap-2 px-1.5 text-sm" data-i="' + i + '">' + App(app) +
+      '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + title + '</span><span class="hi-tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+      '<span class="flex flex-none items-center gap-2"><span class="hi-st grid size-4 flex-none place-items-center">' + Spinner('size-3.5', glow(COLORS.running)) + '</span><span class="text-xs text-muted-foreground">' + project + '</span></span></div>';
   }
   function introduce(animate) {
     var tok = introToken, box = q('.onb'), hi = box.querySelector('.cr-hi'), ci = hi.querySelector('.cr-in');
@@ -1329,18 +1331,19 @@
     var words = 'Hi, I\u2019m Perch.', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var at = function (ms, fn) { setTimeout(function () { if (tok === introToken && onbStep === 0) fn(); }, ms); };
     var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
-    var status = function (i, ph, mood, glow) {
-      rows[i].querySelector('.hi-st').innerHTML = Phrase(ph);
-      if (!reduce) rows[i].querySelector('.hi-st').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+    /* the spinner gives way to the row's mark, as in the list: a check when it finished, the prompt for a command waiting for your OK */
+    var mark = function (i, k, label) { rows[i].querySelector('.hi-st').innerHTML = Ring(k, label); rows[i].querySelector('.hi-tm').textContent = '1m'; };
+    var status = function (i, k, label, mood, glow) {
+      mark(i, k, label);
+      if (!reduce) rows[i].querySelector('.hi-st').animate([{ opacity: 0, transform: 'scale(.5)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)' });
       hi.dataset.m = mood; play('hop', 600);
       introGlow = glow; n.style.setProperty('--gcol', glow || charNow.color);
     };
-    var finished = function () { status(0, { t: 'Finished', c: COLORS.done }, 'happy', COLORS.done); };
-    var needs = function () { status(1, { t: 'Needs your OK', c: COLORS.attention }, 'alert', COLORS.attention); };
+    var finished = function () { status(0, 'done', 'Finished', 'happy', COLORS.done); };
+    var needs = function () { status(1, 'permission', 'Needs your OK', 'alert', COLORS.attention); };
     if (reduce || !animate) {
       say.textContent = words; ghost.textContent = ''; hi.dataset.m = 'awake';
-      rows[0].querySelector('.hi-st').innerHTML = Phrase({ t: 'Finished', c: COLORS.done });
-      rows[1].querySelector('.hi-st').innerHTML = Phrase({ t: 'Needs your OK', c: COLORS.attention });
+      mark(0, 'done', 'Finished'); mark(1, 'permission', 'Needs your OK');
       return;
     }
     /* 1. it drops onto its perch, asleep, and lands with a squash */
