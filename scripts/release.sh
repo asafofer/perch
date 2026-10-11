@@ -7,6 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=asafofer/perch-releases
+SOURCE_REPO=asafofer/perch
 BIN=.build/artifacts/sparkle/Sparkle/bin
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
 # A release goes to everyone who has Perch: the tests must pass first.
@@ -23,6 +24,9 @@ curl -fsSL "https://raw.githubusercontent.com/$REPO/main/appcast.xml" -o build/a
 echo "Ready: build/appcast/Perch-$VERSION.zip and appcast.xml (version $VERSION, build $(git rev-list --count HEAD))"
 [ "${1:-}" = "--publish" ] || { echo "Not published. Run again with --publish."; exit 0; }
 gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" --repo "$REPO" --title "Perch $VERSION" --notes "Perch $VERSION"
+# The source repo's Releases page says the same, with what is new, so it never falls behind (the zip there is for people with access; updates come from $REPO).
+NOTES="Perch $VERSION"; [ -f "release-notes/$VERSION.md" ] && NOTES="$(cat "release-notes/$VERSION.md")"
+gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" --repo "$SOURCE_REPO" --target "$(git rev-parse HEAD)" --title "Perch $VERSION" --notes "$NOTES" || echo "The release in $SOURCE_REPO was not made (the one in $REPO is): make it by hand."
 # appcast.xml goes to the repo's main branch through the contents API: the feed is read from there.
 SHA=$(gh api "repos/$REPO/contents/appcast.xml" -q .sha 2>/dev/null || true)
 gh api -X PUT "repos/$REPO/contents/appcast.xml" -f message="Perch $VERSION" -f content="$(base64 < build/appcast/appcast.xml)" ${SHA:+-f sha="$SHA"} >/dev/null
