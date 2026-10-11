@@ -229,6 +229,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .upd-arc { transition: stroke-dashoffset .5s linear; }
 .act-body { left: 13px; right: 13px; top: calc(var(--ah) + 1px); height: 22px; display: flex; align-items: center; transform: translateY(-4px); }
 .act-body.tall { flex-direction: column; align-items: stretch; justify-content: flex-start; padding-top: 4px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }   /* a long list scrolls, six lines show */
+.act-body.more { padding-top: 2px; }
+.act-q { flex: none; white-space: normal; color: #e4e4e7; line-height: 18px; }
+.act-nt { flex: none; white-space: normal; padding-top: 3px; font-size: 11.5px; line-height: 15px; color: #a1a1aa; }
+.act-nt b { font-weight: 500; color: #d4d4d8; }
 .act-li { display: flex; align-items: flex-start; gap: 8px; flex: none; min-height: 19px; padding: 2px 0; max-width: 100%; min-width: 0; color: #e4e4e7; font-size: 12.5px; line-height: 15px; white-space: normal; }
 .act-li i { flex: none; width: 3px; height: 3px; margin-top: 6px; border-radius: 50%; background: #71717a; }
 .act-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e4e4e7; }
