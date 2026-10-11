@@ -110,6 +110,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
         hookServer.start()
         startRefreshing()
+        startWatchingFocus()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { guard let self, self.machine.phase == .idle else { return }; self.place(on: ScreenChooser.current()); self.push() }
         }
@@ -132,17 +133,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if projects.isEmpty { openWhenScanned = !scannedOnce; toggleSwitcher(); return }
         }
         if proactive {
-            let active = activeProjectIndex().map { projects[$0].id }
+            let active = youAreIn().maybe
             if reminder {
-                guard projects.contains(where: { $0.id != active }) else { return }
+                guard projects.contains(where: { !active.contains($0.id) }) else { return }
             } else {
                 // Speak up only when something happened since you last looked: a session finished, asked you something or stopped.
-                let news = projects.filter { $0.id != active && isNews($0) }.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
+                let news = projects.filter { !active.contains($0.id) && isNews($0) }.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
                 guard !news.isEmpty else { return }
                 let first = Set(news.map(\.id))
                 projects = news + projects.filter { !first.contains($0.id) }
             }
-            if let active, let i = projects.firstIndex(where: { $0.id == active }) { projects.append(projects.remove(at: i)) }
+            projects = projects.filter { !active.contains($0.id) } + projects.filter { active.contains($0.id) }
         }
         openedByHover = byHover; proactiveOpen = proactive; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.comeBack)
         refreshProjects()   // the card shows what we have now and updates itself a moment later
@@ -177,17 +178,42 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return quietChecked.on
     }
 
-    /// The session you are in: in the Claude app, the one it last had in front; in Codex, its most recent thread.
-    private func activeProjectIndex() -> Int? {
-        guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
+    /// The session you are in (`sure`) and the ones you may be in (`maybe`, which includes `sure`). In a terminal that is the
+    /// agent in the focused cmux surface, herdr pane or Terminal/iTerm2 tab; in the Claude app, the session its window shows.
+    /// Where Perch cannot tell (an app it cannot read, a reading gone stale, the Codex app), every live session in that app
+    /// is a maybe: it would rather stay quiet about one of them than nudge you about the one you are looking at.
+    private func youAreIn() -> (sure: Set<String>, maybe: Set<String>) {
+        guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return ([], []) }
+        if FocusProbe.reads(bid), focus.fresh(for: bid) == nil { focus.poll(app: bid) }
         switch bid {
         case Restorer.claudeApp:
-            let front = DesktopSessions.shared.index().values.compactMap { e in e.focusedAt.map { (e.id, $0) } }.max { $0.1 < $1.1 }?.0
-            return front.flatMap { id in projects.firstIndex { $0.desktopSessionId == id } }
-        case Restorer.codexApp: return projects.firstIndex { $0.app == "codex" && !$0.terminal }
-        // In a terminal: the newest session running in that terminal.
-        default: return Terminals.keys[bid] == nil ? nil : projects.firstIndex { $0.terminal && $0.via == bid }
+            var id: String?
+            switch focus.fresh(for: bid)?.claude {
+            case .session(let shown)?: id = shown
+            case .some(.none): id = nil   // its window shows no session
+            default:
+                // Not readable: the app's own record of the session it had in front last (it can lag behind a switch).
+                id = DesktopSessions.shared.index().values.compactMap { e in e.focusedAt.map { (e.id, $0) } }.max { $0.1 < $1.1 }?.0
+            }
+            let hit = Set(projects.filter { $0.desktopSessionId != nil && $0.desktopSessionId == id }.map(\.id))
+            return (hit, hit)
+        case Restorer.codexApp: return ([], Focus.inCodexApp(projects))
+        default:
+            guard Terminals.keys[bid] != nil else { return ([], []) }
+            return Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
         }
+    }
+    private let focus = FocusProbe()
+    /// A second apart while the app in front is one Perch can read, so a switch is seen before anything arrives.
+    private func startWatchingFocus() {
+        focus.changed = { [weak self] in if self?.machine.phase == .idle { self?.push() } }
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.machine.phase == .idle, let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, FocusProbe.reads(bid) else { return }
+                self.focus.poll(app: bid)
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
     }
     /// Command+Option tapped: open the list, or close whatever is showing.
     func chordTap() { if machine.phase == .idle { toggleSwitcher() } else { send(.dismiss) } }
@@ -337,7 +363,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func noteSeen() {
         if !Prefs.seenBaselined { projects.forEach(markSeen); Prefs.seenBaselined = true }
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
-        if idle < 60, let i = activeProjectIndex() { markSeen(projects[i]) }
+        if idle < 60 { let here = youAreIn().sure; projects.filter { here.contains($0.id) }.forEach(markSeen) }
     }
 
     /// Called on every redraw: a project that stayed on the welcome card for a second has been seen.
@@ -462,7 +488,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated {
                 // Pick up opens a closed terminal session in the terminal you use.
-                if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier, Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
+                if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier {
+                    if Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
+                    if FocusProbe.reads(bid) { self?.focus.poll(app: bid) }
+                }
                 if self?.machine.phase == .idle { self?.push() }
             }
         }
@@ -521,7 +550,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
         let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
-                          activeId: machine.phase == .idle ? activeProjectIndex().map { projects[$0].id } : nil,
+                          activeId: nil, activeIds: machine.phase == .idle ? youAreIn().maybe.sorted() : [],
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)

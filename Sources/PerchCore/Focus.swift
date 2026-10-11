@@ -9,10 +9,12 @@ public enum Spot {
     public static func key(_ place: Place, tty: String) -> String {
         switch place {
         case .herdr(let pane, let socket, _): return herdr(socket: socket, pane: pane)
-        case .cmux(_, let surface): return "cmux:\(surface)"
-        case .tab: return "tty:\(tty)"
+        case .cmux(_, let surface): return cmux(surface: surface)
+        case .tab: return Self.tty(tty)
         }
     }
+    public static func cmux(surface: String) -> String { "cmux:" + surface.lowercased() }
+    public static func tty(_ tty: String) -> String { "tty:" + tty }
     public static func herdr(socket: String, pane: String) -> String { herdrPrefix(socket) + pane }
     static func herdrPrefix(_ socket: String) -> String { "herdr:\(socket)|" }
 }

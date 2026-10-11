@@ -11,33 +11,33 @@ import Testing
     private let cmux = "com.cmuxterm.app", ghostty = "com.mitchellh.ghostty"
 
     @Test func spotsDifferByWhereTheAgentLives() {
-        #expect(Spot.key(.cmux(workspace: "w", surface: "S1"), tty: "/dev/ttys001") == "cmux:S1")
+        #expect(Spot.key(.cmux(workspace: "w", surface: "S1"), tty: "/dev/ttys001") == "cmux:s1")
         #expect(Spot.key(.tab, tty: "/dev/ttys004") == "tty:/dev/ttys004")
         #expect(Spot.key(.herdr(pane: "w1:p2", socket: "/h.sock", session: "default"), tty: "/dev/ttys004") == Spot.herdr(socket: "/h.sock", pane: "w1:p2"))
     }
 
     @Test func onlyTheFocusedCmuxSurfaceIsTheSessionYouAreIn() {
         // Several agents in cmux: the first in the list is not the one in front.
-        let ps = [session("a", via: cmux, spot: "cmux:S1"), session("b", via: cmux, spot: "cmux:S2"), session("c", via: cmux, spot: "cmux:S3")]
-        let r = Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:S2"]))
+        let ps = [session("a", via: cmux, spot: "cmux:s1"), session("b", via: cmux, spot: "cmux:s2"), session("c", via: cmux, spot: "cmux:s3")]
+        let r = Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:s2"]))
         #expect(r.sure == ["b"]); #expect(r.maybe == ["b"])
     }
 
     @Test func aSessionThatIsNotRunningIsNeverTheOneYouAreIn() {
         // It remembers cmux as its last place, but no process runs it: a stale row must not stand in for the focused one.
-        let ps = [session("old", via: cmux, spot: nil), session("live", via: cmux, spot: "cmux:S2")]
-        #expect(Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:S2"])).sure == ["live"])
+        let ps = [session("old", via: cmux, spot: nil), session("live", via: cmux, spot: "cmux:s2")]
+        #expect(Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:s2"])).sure == ["live"])
         #expect(Focus.inTerminal(ps, app: cmux, looking: .cannotTell).maybe == ["live"])
     }
 
     @Test func focusOnAShellWithNoAgentMeansNoSession() {
-        let ps = [session("a", via: cmux, spot: "cmux:S1")]
-        let r = Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:SHELL"]))
+        let ps = [session("a", via: cmux, spot: "cmux:s1")]
+        let r = Focus.inTerminal(ps, app: cmux, looking: Looking(spots: ["cmux:shell"]))
         #expect(r.sure.isEmpty); #expect(r.maybe.isEmpty)
     }
 
     @Test func whenItCannotTellEveryLiveSessionInThatAppStaysQuiet() {
-        let ps = [session("a", via: ghostty, spot: "tty:/dev/ttys001"), session("b", via: ghostty, spot: "tty:/dev/ttys002"), session("c", via: cmux, spot: "cmux:S1")]
+        let ps = [session("a", via: ghostty, spot: "tty:/dev/ttys001"), session("b", via: ghostty, spot: "tty:/dev/ttys002"), session("c", via: cmux, spot: "cmux:s1")]
         let r = Focus.inTerminal(ps, app: ghostty, looking: .cannotTell)
         #expect(r.sure.isEmpty); #expect(r.maybe == ["a", "b"])
     }
@@ -53,7 +53,7 @@ import Testing
 
     @Test func theCodexAppCountsAllItsThreadsAsMaybe() {
         let ps = [session("t1", via: "", spot: nil, terminal: false, app: "codex"), session("t2", via: "", spot: nil, terminal: false, app: "codex"),
-                  session("cli", via: cmux, spot: "cmux:S1", app: "codex")]
+                  session("cli", via: cmux, spot: "cmux:s1", app: "codex")]
         #expect(Focus.inCodexApp(ps) == ["t1", "t2"])
     }
 }

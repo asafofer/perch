@@ -792,10 +792,12 @@
     if (!next) actHeld = false;
     if (!quiet && snap) layout(lastSt, snap);
   }
-  function waiting(s) { return s.projects.filter(function (p) { return p.id !== s.activeId && p.attention && !actGone[actKey(p)]; }); }
+  /* the session you are in, or one of the sessions that may be it when Swift cannot tell which one of an app's is in front */
+  function inside(s, id) { return s.activeId === id || (s.activeIds || []).indexOf(id) >= 0; }
+  function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
-    var others = s.projects.filter(function (p) { return p.id !== s.activeId; });
+    var others = s.projects.filter(function (p) { return !inside(s, p.id); });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var now = { need: need.map(actKey), done: done.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
@@ -804,7 +806,7 @@
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
-    if (full && act.p.id === s.activeId) {
+    if (full && inside(s, act.p.id)) {
       clearTimeout(actTimer); if (act.kind === 'done') post({ type: 'activitySeen', id: act.p.id });
       setAct(need.length ? 'wings' : '', need[0], true); return;
     }
@@ -838,7 +840,7 @@
   var actDemoOn = false, actDemoLast = null;
   function actDemo(tries) {
     if (actDemoOn) return;
-    var s0 = snap, ps = s0 ? s0.projects.filter(function (p) { return p.id !== s0.activeId; }) : [];
+    var s0 = snap, ps = s0 ? s0.projects.filter(function (p) { return !inside(s0, p.id); }) : [];
     /* right after launch the first scan may not be in yet */
     if (!ps.length || s0.phase !== 'idle') { if ((tries || 0) < 40) setTimeout(function () { actDemo((tries || 0) + 1); }, 500); return; }
     post({ type: 'log', text: 'activity demo over ' + ps.length + ' sessions' });
@@ -1149,8 +1151,8 @@
   var known = null;
   function moments(s, st) {
     if (st !== 'idle') return;
-    var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && p.id !== s.activeId; }).map(function (p) { return p.id; });
-    var need = s.projects.filter(function (p) { return p.attention && p.id !== s.activeId; }).length;
+    var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !inside(s, p.id); }).map(function (p) { return p.id; });
+    var need = s.projects.filter(function (p) { return p.attention && !inside(s, p.id); }).length;
     /* a finish, or the last thing waiting on you being answered, is the live activity's to say; the character stays in */
     known = { done: done, need: need };
   }

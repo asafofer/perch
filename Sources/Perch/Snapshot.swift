@@ -65,6 +65,8 @@ struct UISnapshot: Encodable {
     let icons: [String: String]?
     /// The session you are in right now. It never nudges you about itself.
     let activeId: String?
+    /// The sessions you are in or may be in, when Perch cannot tell which of an app's sessions is in front: none of them is nudged.
+    let activeIds: [String]
     /// The first scan is still running, so an empty list means "looking", not "nothing".
     let scanning: Bool
     /// Perch can type a reply for you (Accessibility). Without it, Send asks for it first.
@@ -85,12 +87,12 @@ struct UISnapshot: Encodable {
         return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
     }()
 
-    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, allowAutoCollapse: Bool = true, activeId: String? = nil, scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
+    init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, allowAutoCollapse: Bool = true, activeId: String? = nil, activeIds: [String] = [], scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
         self.onboarding = onboarding; self.settings = settings
         // PERCH_CHARACTER="shape,#colour" picks the character for screenshots without touching your settings.
         let pick = ProcessInfo.processInfo.environment["PERCH_CHARACTER"]?.split(separator: ",").map(String.init)
         character = pick?.count == 2 ? Character(shape: pick![0], color: pick![1]) : Character(shape: Prefs.shape, color: Prefs.color)
-        self.icons = icons; self.activeId = activeId; self.scanning = scanning; self.canSend = canSend
+        self.icons = icons; self.activeId = activeId; self.activeIds = activeIds; self.scanning = scanning; self.canSend = canSend
         phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .onboarding: "onboarding"; case .settings: "settings" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse
