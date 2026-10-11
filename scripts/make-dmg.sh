@@ -14,7 +14,8 @@ trap 'rm -rf "$STAGE" "$RW"' EXIT
 mkdir "$STAGE/.background"
 ditto "$APP" "$STAGE/Perch.app"
 ln -s /Applications "$STAGE/Applications"
-tiffutil -cathidpicheck Resources/dmg/background.png Resources/dmg/background@2x.png -out "$STAGE/.background/background.tiff"
+tiffutil -cathidpicheck Resources/dmg/background.png Resources/dmg/background@2x.png -out "$STAGE/.background/plain.tiff"
+tiffutil -lzw "$STAGE/.background/plain.tiff" -out "$STAGE/.background/background.tiff" && rm "$STAGE/.background/plain.tiff"   # smaller, so Finder has the picture sooner
 cp Resources/AppIcon.icns "$STAGE/.VolumeIcon.icns"
 # a volume of the right size, plus room for Finder's own files
 SIZE=$(( $(du -sm "$STAGE" | cut -f1) + 20 ))
