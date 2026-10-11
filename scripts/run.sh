@@ -13,6 +13,11 @@ cp ".build/$CONFIG/Perch" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # The build number is the commit count, so a build says which commit it came from (the list shows it at its foot).
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(git rev-list --count HEAD 2>/dev/null || echo 1)" "$APP/Contents/Info.plist"
+# A build that is not a release says so (menu bar, Settings): which branch and commit this running copy came from.
+if [ "$CONFIG" != "release" ]; then
+  LABEL="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo ?) @ $(git rev-parse --short HEAD 2>/dev/null || echo ?)$(git diff --quiet HEAD 2>/dev/null || echo +)"
+  /usr/libexec/PlistBuddy -c "Add :PerchTestBuild string $LABEL" "$APP/Contents/Info.plist"
+fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"

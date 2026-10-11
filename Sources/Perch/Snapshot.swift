@@ -86,7 +86,8 @@ struct UISnapshot: Encodable {
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
-        return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
+        let v = (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
+        return TestBuild.label.map { "\(v) test \($0)" } ?? v
     }()
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, allowAutoCollapse: Bool = true, activeId: String? = nil, activeIds: [String] = [], scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
@@ -114,4 +115,9 @@ struct UISnapshot: Encodable {
                       section: ListFilter.section(p, now: now).rawValue, said: p.said)
         }
     }
+}
+
+/// Set by scripts/run.sh on any build that is not a release: "branch @ commit", "+" when it has uncommitted changes.
+enum TestBuild {
+    static let label: String? = Bundle.main.infoDictionary?["PerchTestBuild"] as? String
 }
