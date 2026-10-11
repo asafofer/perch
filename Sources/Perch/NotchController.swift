@@ -29,6 +29,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var hoverTask: Task<Void, Never>?
     /// The cursor is on the tab or notch, so it leans toward you.
     private var tabHot = false
+    /// The pointer is on something to click, the page says (from what it marks under the pointer). WebKit shows the hand
+    /// itself only on a card with the keyboard; a card without it hears no pointer moves, so Perch shows it.
+    private var handCursor = false
     /// When the cursor left a hover-opened card. It closes only if it stays away for a moment.
     private var leftCardAt: Date?
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
@@ -116,6 +119,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSLog("Perch: ui/index.html is missing from the app bundle")
         }
         installMouseMonitors()
+        Self.setsCursorInBackground()
         hookServer.onEvent = { [weak self] e in self?.hookEvent(e) }
         hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
         hookServer.start()
@@ -729,6 +733,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "activitySeen":
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
+        case "hand":
+            handCursor = body["on"] as? Bool ?? false
+            if !handCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
         case "log": NSLog("Perch UI: \(body["text"] ?? "")")
         default: break
         }
@@ -1214,6 +1221,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
                 self.watchLaunchers()
+                if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
@@ -1226,6 +1234,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         t.tolerance = 0
         RunLoop.main.add(t, forMode: .common)
         cursorTimer = t
+    }
+
+    /// macOS ignores a cursor set by an app that is not in front unless the app says it sets the cursor from the background,
+    /// and Perch never comes to the front. A private CoreGraphics switch, looked up at run time: without it, no hand.
+    private static func setsCursorInBackground() {
+        guard let all = dlopen(nil, RTLD_NOW), let conn = dlsym(all, "_CGSDefaultConnection"), let set = dlsym(all, "CGSSetConnectionProperty") else { return }
+        typealias Connection = @convention(c) () -> Int32
+        typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+        let me = unsafeBitCast(conn, to: Connection.self)()
+        _ = unsafeBitCast(set, to: SetProperty.self)(me, me, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
     }
 
     /// A click anywhere outside the card closes it. Not during onboarding: you click into System Settings in the middle of it.

@@ -30,6 +30,10 @@ final class CardWebView: WKWebView {
     /// The dropped files' paths. False when they had nowhere to go.
     var onFiles: ([String]) -> Bool = { _ in false }
 
+    /// A card without the keyboard (hovered open, or opened by Perch) answers the first click. WebKit would spend it taking
+    /// the keyboard, so Reply or Pick up needed a second click.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     private func files(_ info: NSDraggingInfo?) -> [String]? {
         guard let urls = info?.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty else { return nil }
         return urls.map(\.path)
