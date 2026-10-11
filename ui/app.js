@@ -955,7 +955,23 @@
     if (t !== tbText) { tbText = t; tbEl.children[1].textContent = t.replace(/^claude\//, ''); }
     tbEl.hidden = !t;
   }
-  function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
+  /* A question that goes unanswered does not wait in the wings for ever: it said its piece (nine seconds in full, then a minute
+     as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. A command that needs your
+     OK still waits until answered: the agent is stopped on it. */
+  var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;
+  function actExpired(p) {
+    if (!p.ask || p.ask.kind !== 'question') return false;
+    var k = actKey(p), t = actSeen[k] || (actSeen[k] = Date.now());
+    return Date.now() - t > ACT_Q_MS;
+  }
+  function waiting(s) {
+    var list = s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)] && !actExpired(p); });
+    /* wake when the soonest question runs out, so the wings go without waiting for the next snapshot */
+    var left = list.filter(function (p) { return p.ask && p.ask.kind === 'question'; }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
+    clearTimeout(actExpTimer);
+    if (left.length) actExpTimer = setTimeout(function () { if (act.mode === 'wings' && snap) actSettle(); }, Math.min.apply(null, left) + 50);
+    return list;
+  }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
     var others = s.projects.filter(function (p) { return !inside(s, p.id); });
