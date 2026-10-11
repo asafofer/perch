@@ -7,7 +7,7 @@ import PerchCore
 @MainActor
 final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     private let panel = NotchPanel()
-    private let web: WKWebView
+    private let web: CardWebView
     private var machine: NotchMachine
     private var projects: [Project]
     private let provider: SessionProviding
@@ -29,6 +29,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var hoverTask: Task<Void, Never>?
     /// The cursor is on the tab or notch, so it leans toward you.
     private var tabHot = false
+    /// The pointer is on something to click, the page says (from what it marks under the pointer). WebKit shows the hand
+    /// itself only on a card with the keyboard; a card without it hears no pointer moves, so Perch shows it.
+    private var handCursor = false
     /// When the cursor left a hover-opened card. It closes only if it stays away for a moment.
     private var leftCardAt: Date?
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
@@ -40,6 +43,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
+    /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
+    /// the card (a click in Finder to copy a path) keeps it, and the reply field opens with it again.
+    private var drafts: [String: String] = [:]
+    /// What showed when the card or list was put away, for Command+Option to bring back (PutAway).
+    private var putAway: PutAway?
     /// The card takes the keyboard when the pointer comes onto it, or when a hovered card gets something to answer:
     /// once, never again while things stay that way. An app that takes the keyboard after that (Raycast, Spotlight)
     /// keeps it, or Perch would snatch it back within a frame and close it.
@@ -90,8 +98,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let config = WKWebViewConfiguration()
         let controller = WKUserContentController()
         config.userContentController = controller
-        web = WKWebView(frame: .zero, configuration: config)
+        web = CardWebView(frame: .zero, configuration: config)
         super.init()
+        // A card that offers Reply: one asking you something has no field to drop into.
+        web.takesFiles = { [weak self] in
+            guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }
+            return self.projects[self.machine.selected].ask == nil
+        }
+        web.onDrag = { [weak self] n, at in
+            self?.web.evaluateJavaScript("window.perch && window.perch.dragOver(\(n), \(at.x), \(at.y))", completionHandler: nil)
+        }
+        web.onFiles = { [weak self] paths in
+            guard let self, self.machine.phase == .open else { return false }
+            // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.
+            self.addPaths(paths); self.panel.makeKey(); return true
+        }
         controller.add(WeakHandler(self), name: "perch")
         web.setValue(false, forKey: "drawsBackground")
         web.underPageBackgroundColor = .clear
@@ -106,6 +127,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSLog("Perch: ui/index.html is missing from the app bundle")
         }
         installMouseMonitors()
+        Self.setsCursorInBackground()
         hookServer.onEvent = { [weak self] e in self?.hookEvent(e) }
         hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
         hookServer.start()
@@ -123,6 +145,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `awaySince` is when you left, for "Finished 12m after you left".
     func comeBack(byHover: Bool = false, proactive: Bool = false, reminder: Bool = false, awaySince: Date? = nil) {
         guard machine.phase == .idle else { return }
+        // Resting on the notch soon after you put away a reply you were writing brings that back, words and all.
+        if byHover, putAway?.replying == true, reopen(byHover: true) { return }
         if let since = awaySince { lastAway = (since, Date()) }
         if proactive && !reminder && Date() < snoozedUntil { return }
         // On a call, on camera or presenting: hold the card until that is over.
@@ -227,8 +251,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         RunLoop.main.add(t, forMode: .common)
     }
-    /// Command+Option tapped: open the list, or close whatever is showing.
-    func chordTap() { if machine.phase == .idle { toggleSwitcher() } else { send(.dismiss) } }
+    /// Command+Option tapped: close whatever is showing, or bring back what you put away a moment ago, else open the list.
+    func chordTap() {
+        guard machine.phase == .idle else { send(.dismiss); return }
+        if !reopen() { toggleSwitcher() }
+    }
+
+    /// The card or list you put away in the last few minutes, as you left it: the same session's card, or the list with
+    /// what you typed on the same row, and a reply that was open with its words. False when there is nothing to bring back.
+    private func reopen(byHover: Bool = false) -> Bool {
+        guard let away = putAway else { return false }
+        guard let event = away.recall(ids: projects.map(\.id), now: Date()) else { putAway = nil; return false }
+        openedByHover = byHover; proactiveOpen = false; openedAt = Date(); leftCardAt = nil; prepareToShow()
+        if away.phase == .switcher { listQuery = away.query }
+        send(event)
+        guard machine.phase != .idle else { return false }
+        if machine.phase == .switcher, case .reopen(_, nil) = event { filterChanged() }   // its row has gone: the top one that matches
+        if away.replying { web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) }
+        refreshProjects()
+        return true
+    }
     func toggleSwitcher() {
         let fromIdle = machine.phase == .idle
         openedByHover = false; proactiveOpen = false; prepareToShow()
@@ -491,7 +533,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice))
         if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
         markSeen(p)
+        let onCard = machine.phase != .idle
         send(.dismiss)
+        if onCard || putAway?.session == p.id { putAway = nil }   // answered: nothing to bring back
         redecorate()
     }
 
@@ -552,6 +596,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let old = machine.phase
         machine.send(.dismiss)
         phaseChanged(old, machine.phase)
+        // You went there: nothing to bring back. From the live activity, only if it was the card you put away.
+        if old != .idle || putAway?.session == projects[index].id { putAway = nil }
         push()
     }
 
@@ -571,6 +617,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
+        sent.drafts = drafts
         sent.proactive = proactiveOpen
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
@@ -600,6 +647,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         switch new {
         case .idle:
+            if old == .open || old == .switcher {
+                putAway = PutAway(phase: old, session: projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil,
+                                  query: listQuery, replying: replyOpen, at: Date())
+            }
             hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
@@ -671,6 +722,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer(); cancelWaiting() }
             push()
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
+        case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
         case "snoozeMenu":
             snoozeMenuOpen = body["open"] as? Bool ?? false
             if snoozeMenuOpen { timer?.cancel() } else { restartTimer() }
@@ -730,6 +782,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "activitySeen":
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
+        case "hand":
+            handCursor = body["on"] as? Bool ?? false
+            if !handCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
         case "log": NSLog("Perch UI: \(body["text"] ?? "")")
         default: break
         }
@@ -748,7 +803,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             seconds = max(60, tomorrow.timeIntervalSinceNow)
         default: seconds = snoozeSeconds
         }
-        send(.dismiss)
+        send(.dismiss); putAway = nil
         snoozeTask?.cancel()
         snoozedUntil = Date().addingTimeInterval(seconds)
         snoozeTask = Task { [weak self] in
@@ -770,6 +825,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
         let p = projects[i]
+        drafts[p.id] = nil   // on its way; a fallback leaves it on the clipboard
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
             let sentAt = Date(), back = WhereYouWere.now()
@@ -794,7 +850,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                         // The words are already in the terminal; the card closes once they have flown into the notch.
                         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, closeAfter - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
-                            let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.push()
+                            let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push()
                         }
                     }
                 }
@@ -807,7 +863,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if p.app == "claude", let id = p.desktopSessionId {
             let cli = p.sessionId, topic = p.topic, back = WhereYouWere.now()
             markSeen(p)
-            let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); push()
+            let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
                 let r = ClaudeComposer.send(text, to: id, titles: titles)
@@ -868,6 +924,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard let w = waitingReply else { return }
         waitingReply = nil; waitingTask = nil
         askedForAccessibility = true   // already asked
+        drafts[w.id] = nil
         guard projects.contains(where: { $0.id == w.id }) else { push(); return }
         pasteReply(w.text, to: w.id)
     }
@@ -948,6 +1005,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    /// Files dropped on the card or pasted from Finder: their paths go into the reply, which opens for them if it can.
+    private func addPaths(_ paths: [String]) {
+        guard let data = try? JSONEncoder().encode(paths), let json = String(data: data, encoding: .utf8) else { return }
+        web.evaluateJavaScript("window.perch && window.perch.paths(\(json))", completionHandler: nil)
+    }
+
     /// A word beside the notch once the card has closed, when something did not go as you would expect.
     private func say(_ text: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
@@ -1011,7 +1074,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: refreshing, sources: sourcesState(), only: onbOnly, live: liveState)
+        // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
+        // (and start a scan) every half second while an agent works.
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState)
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
@@ -1063,7 +1128,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 guard let self, self.machine.phase == .onboarding || self.machine.phase == .settings else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted, !self.accessibilityWas { self.accessibilityWas = true; self.onAccessibilityGranted?() }
-                let key = "\(trusted)|\(self.refreshing)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
+                let key = "\(trusted)|\(self.scannedOnce)|\(self.projects.count)|\(Prefs.enabledSources.sorted())|\(self.liveState)"
                 if key != last { last = key; self.push() }
             }
         }
@@ -1102,6 +1167,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[e.charactersIgnoringModifiers?.lowercased() ?? ""] {
+                    // A file copied in Finder pastes as its path, not its name.
+                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+                        self.addPaths(urls.map(\.path)); return nil
+                    }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
                 return e
@@ -1203,6 +1272,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
                 self.watchLaunchers()
+                if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
@@ -1217,11 +1287,39 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         cursorTimer = t
     }
 
-    /// A click anywhere outside the card closes it. Not during onboarding: you click into System Settings in the middle of it.
-    private func clickedElsewhere() {
+    /// macOS ignores a cursor set by an app that is not in front unless the app says it sets the cursor from the background,
+    /// and Perch never comes to the front. A private CoreGraphics switch, looked up at run time: without it, no hand.
+    private static func setsCursorInBackground() {
+        guard let all = dlopen(nil, RTLD_NOW), let conn = dlsym(all, "_CGSDefaultConnection"), let set = dlsym(all, "CGSSetConnectionProperty") else { return }
+        typealias Connection = @convention(c) () -> Int32
+        typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+        let me = unsafeBitCast(conn, to: Connection.self)()
+        _ = unsafeBitCast(set, to: SetProperty.self)(me, me, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
+    }
+
+    /// A click anywhere outside the card closes it, as the button comes up. A press that turns into a drag is decided by
+    /// where it ends: on the card (a file from Finder for the reply) the card stays, anywhere else it closes. Not during
+    /// onboarding: you click into System Settings in the middle of it.
+    private var pressedOutside = false
+    /// The drag pasteboard's count when the button went down: it moves on when a drag starts.
+    private var dragBase = 0
+    private var cardRect: CGRect { NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info) }
+    private var draggedSincePress: Bool { NSPasteboard(name: .drag).changeCount != dragBase }
+    /// The button is down and files are on their way somewhere, dragged since it went down.
+    private var draggingFiles: Bool {
+        NSEvent.pressedMouseButtons & 1 != 0 && draggedSincePress
+            && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+    }
+    private func pressedElsewhere() {
+        dragBase = NSPasteboard(name: .drag).changeCount
+        pressedOutside = machine.phase != .idle && !cardRect.contains(NSEvent.mouseLocation)
+    }
+    private func releasedElsewhere() {
+        guard pressedOutside else { return }
+        pressedOutside = false
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
-        let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
-        if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
+        if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
+        send(.dismiss)
     }
 
     /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
@@ -1229,6 +1327,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way.
     private func makeWay() {
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        // A press in another app took it: the release decides, so a file dragged from there can still land on the card.
+        if NSEvent.pressedMouseButtons != 0 { return }
         send(.dismiss)
     }
 
@@ -1252,7 +1352,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.makeWay() }
         }
-        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.clickedElsewhere() } }) { mouseMonitors.append(g) }
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.pressedElsewhere() } }) { mouseMonitors.append(g) }
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp], handler: { [weak self] _ in MainActor.assumeIsolated { self?.releasedElsewhere() } }) { mouseMonitors.append(g) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
@@ -1271,7 +1372,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let inside = notchHoverRect().contains(NSEvent.mouseLocation)
         if inside != tabHot { tabHot = inside; web.evaluateJavaScript("window.perch && window.perch.hot(\(inside))", completionHandler: nil) }
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
-        if hoverLatched || hoverTask != nil || NSEvent.pressedMouseButtons != 0 { return }
+        // Not while a button is down (a drag in passing), unless it carries files: brought to the notch, they open the card to drop on.
+        if hoverLatched || hoverTask != nil || (NSEvent.pressedMouseButtons != 0 && !draggingFiles) { return }
         hoverTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard let self, !Task.isCancelled else { return }
@@ -1297,7 +1399,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         panel.ignoresMouseEvents = !inside
         if inside, !pointerOnCard, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
         pointerOnCard = inside
-        if openedByHover, Date().timeIntervalSince(openedAt) > 0.5 {
+        // Writing a reply makes the card yours: it stays when the pointer wanders off, until a click elsewhere or Esc.
+        if openedByHover, !replyOpen, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }

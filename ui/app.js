@@ -36,13 +36,16 @@
   var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
+  /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
+     the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
+  var MARKS = { codex: 'data:image/png;base64,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' };
+  function iconOf(k) { return icons[k] || MARKS[k]; }
   function App(k, c) {
-    if (icons[k]) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[k] + '" alt="">';
+    if (iconOf(k)) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + iconOf(k) + '" alt="">';
     /* stand-ins for the design page; the app has the real icons. pi has no app, and OpenCode's app is optional: both draw
        their own published marks (pi.dev's logo, opencode.ai's), not ours. */
     var g = {
       claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
-      codex: ['#F4F4F5', '<path d="M8 9.2l3 2.8-3 2.8M12.6 15h3.6" stroke="#18181B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
@@ -60,7 +63,7 @@
     return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[p.via] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
          the ring sits on the icon's own edge instead of leaving a dark band between them */
-      '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, icons[p.app] ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
+      '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, iconOf(p.app) ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
   }
   /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
   function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : agentShort(p && (p.app || (p.status && p.status.app)))); }
@@ -168,12 +171,13 @@
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
-      /* the chat's title is the heading; its status, in words, ends the line */
-      /* the app's icon at full size, like a notification, beside two lines: the title with its status, and in grey the
-         project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
+      /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
+      /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
+         the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
+         to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-        '<p dir="auto" class="o-sub truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
+        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -205,11 +209,48 @@
       if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 text-foreground/85">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
       return part.split(/\n{2,}/).map(function (para) {
         var lines = para.trim().split('\n').filter(function (l) { return l.trim(); }); if (!lines.length) return '';
-        if (lines.every(function (l) { return /^\s*([-*]|\d+\.)\s+/.test(l); }))
-          return '<ul class="my-1 flex flex-col gap-0.5">' + lines.map(function (l) { return '<li class="flex gap-2"><span class="text-muted-foreground">\u2022</span><span dir="auto" class="min-w-0">' + md(l.replace(/^\s*([-*]|\d+\.)\s+/, '')) + '</span></li>'; }).join('') + '</ul>';
-        return '<p dir="auto" class="my-1">' + lines.map(function (l) { return /^\s*#{1,6}\s/.test(l) ? '<strong class="font-semibold text-foreground">' + md(l) + '</strong>' : md(l); }).join('<br>') + '</p>';
+        /* a table can follow a line of text with no blank line between: the paragraph is cut into text and tables */
+        var out = '', text = [];
+        for (var k = 0; k < lines.length; k++) {
+          if (lines[k].indexOf('|') < 0 || !mdSep(lines[k + 1])) { text.push(lines[k]); continue; }
+          var end = k + 2; while (end < lines.length && lines[end].indexOf('|') >= 0) end++;
+          out += mdLines(text) + mdTable(lines.slice(k, end)); text = []; k = end - 1;
+        }
+        return out + mdLines(text);
       }).join('');
     }).join('');
+  }
+  function mdLines(lines) {
+    if (!lines.length) return '';
+    if (lines.every(function (l) { return /^\s*([-*]|\d+\.)\s+/.test(l); }))
+      return '<ul class="my-1 flex flex-col gap-0.5">' + lines.map(function (l) { return '<li class="flex gap-2"><span class="text-muted-foreground">\u2022</span><span dir="auto" class="min-w-0">' + md(l.replace(/^\s*([-*]|\d+\.)\s+/, '')) + '</span></li>'; }).join('') + '</ul>';
+    return '<p dir="auto" class="my-1">' + lines.map(function (l) { return /^\s*#{1,6}\s/.test(l) ? '<strong class="font-semibold text-foreground">' + md(l) + '</strong>' : md(l); }).join('<br>') + '</p>';
+  }
+  /* | a | b | rows: the cells, an escaped \| kept as a pipe */
+  function mdCells(l) {
+    return l.replace(/\\\|/g, '\u0000').trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.replace(/\u0000/g, '|').trim(); });
+  }
+  /* the line under a table's header: |---|:---:|---:| */
+  function mdSep(l) {
+    return !!l && l.indexOf('|') >= 0 && l.indexOf('-') >= 0 && mdCells(l).every(function (c) { return /^:?-+:?$/.test(c); });
+  }
+  /* A table, without lines: the header in grey, a faint band on every other row, numbers in even columns. A column the
+     separator does not align is right-aligned when it holds only numbers. Short columns stay on one line and a wide table
+     scrolls sideways in the message; a column of long text wraps instead. */
+  function mdTable(rows) {
+    var head = mdCells(rows[0]), n = head.length, fit = function (r) { r = r.slice(0, n); while (r.length < n) r.push(''); return r; };
+    var body = rows.slice(2).map(function (r) { return fit(mdCells(r)); });
+    var align = fit(mdCells(rows[1])).map(function (c, j) {
+      if (/^:-+:$/.test(c)) return 'c';
+      if (/-:$/.test(c)) return 'r';
+      if (/^:-/.test(c)) return '';
+      var vals = body.map(function (r) { return r[j]; }).filter(function (v) { return !/^(|-|\u2013|\u2014|n\/a)$/i.test(v); });
+      return vals.length && vals.every(function (v) { return /^[-+~\u2212\u2248]?[$\u20ac\u00a3]?\d[\d,.]*\s?(%|\u00d7|[a-z\u00b5]{1,3})?$/i.test(v.replace(/\*\*/g, '')); }) ? 'r' : '';
+    });
+    var long = head.map(function (h, j) { return [h].concat(body.map(function (r) { return r[j]; })).some(function (v) { return v.length > 28; }); });
+    var cell = function (tag, v, j) { return '<' + tag + ' dir="auto"' + (align[j] ? ' data-a="' + align[j] + '"' : '') + (long[j] ? ' data-w="1"' : '') + '>' + md(v) + '</' + tag + '>'; };
+    return '<div class="md-tbl -mx-3 my-1.5 px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
+      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
   }
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -260,12 +301,65 @@
   /* the notch's clip never scrolls, whatever asks it to (focus, scrollIntoView): its content only ever grows into place */
   if (window.webkit && window.webkit.messageHandlers) window.addEventListener('scroll', function () { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); });
   n.querySelector('.clip').addEventListener('scroll', function (e) { if (e.target.scrollTop || e.target.scrollLeft) { e.target.scrollTop = 0; e.target.scrollLeft = 0; } });
+  /* the session the open reply is for; what you type there is kept as its draft (Swift holds them, snap.drafts) */
+  var replyFor = '';
   function replyMenu(open, quiet) {
     footer(open ? fRep : fMain);
     showSaid(open);
+    var p = snap && snap.projects[snap.selected];
+    /* the words you left in this session's reply are still there, the caret after them */
+    if (open && p && p.id !== replyFor) { replyFor = p.id; rIn.value = (snap.drafts && snap.drafts[p.id]) || ''; }
     /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
-    if (open) setTimeout(function () { rIn.focus({ preventScroll: true }); }, 30); else { rIn.value = ''; rIn.blur(); }
+    if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
+  }
+  rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
+  /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
+  function addPaths(list) {
+    if (lastSt !== 'open' || !list || !list.length) return;
+    if (dropping) dropped();
+    if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
+    var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
+    var t = list.join(' ');
+    if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
+    if (b < v.length && !/\s/.test(v.charAt(b))) t += ' ';
+    rIn.value = v.slice(0, a) + t + v.slice(b);
+    rIn.dispatchEvent(new Event('input'));
+    var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
+  }
+  /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
+     it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
+     the file right on it; the character looks on wide-eyed, its eyes on the file as it moves. Dropped, it squints happily
+     and hops. */
+  var dropping = 0, dropOpened = false;
+  function dragOver(n, x, y) {
+    if (lastSt !== 'open') return;
+    if (n && !dropping) {
+      if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
+      cr.dataset.m = 'alert'; lookAt(rIn, 60);
+    }
+    var was = dropping; dropping = n;
+    var r = rIn.getBoundingClientRect();
+    var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+    rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    if (!n && was) {
+      if (dropOpened) { dropOpened = false; replyMenu(false, true); }
+      if (snap) layout('open', snap);   /* its face goes back to the session's */
+    }
+  }
+  function dropped() {
+    dropping = 0; rIn.classList.remove('drop', 'on'); rIn.placeholder = replyHint();
+    /* the reply it opened for the drag is yours now: Swift hears it is open, so keys go to it */
+    if (dropOpened) { dropOpened = false; post({ type: 'replyMenu', open: true }); }
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
+  }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
+  /* focus the field with the caret at i, the words scrolled so it shows */
+  function caretAt(i) {
+    rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
+    if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
   function showSaid(open) {
@@ -273,10 +367,28 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); box.scrollTop = box.scrollHeight; }
+    if (on) { var box = q('.o-said-in'); box.innerHTML = mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+  }
+  /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
+     three) so its header shows too; the rows it gave up are a scroll away in the table. */
+  function fitLastTable(box) {
+    var ws = box.querySelectorAll('.md-tbl'), w = ws[ws.length - 1]; if (!w) return;
+    var b = box.getBoundingClientRect(), after = box.scrollHeight - (w.getBoundingClientRect().bottom - b.top + box.scrollTop);
+    var room = Math.floor(box.clientHeight - after - 16);   /* clear of the message's soft top edge */
+    if (room >= 86 && room < w.clientHeight) w.style.maxHeight = room + 'px';
+  }
+  /* a table bigger than its window fades at the sides it goes on (left, right, below; the header stays put above), and
+     the fades follow as you scroll it */
+  function tblEdge(w) {
+    var set = function () {
+      var x = w.scrollLeft, mx = w.scrollWidth - w.clientWidth, my = w.scrollHeight - w.clientHeight;
+      var f = [x > 1 ? 'l' : '', x < mx - 1 ? 'r' : '', w.scrollTop < my - 1 ? 'b' : ''].join(' ').trim();
+      if (f) w.dataset.f = f; else delete w.dataset.f;
+    };
+    set(); w.onscroll = set;
   }
   function sendReply() {
     var t = rIn.value.trim(); if (!t) return;
@@ -316,20 +428,33 @@
   q('.x-send').onclick = sendReply;
   q('.x-rclose').onclick = function () { replyMenu(false); };
   /* Eased by hand, frame by frame, toward where the keys want it; a held key keeps adding to the same glide. */
-  var glide = { to: 0, at: 0, raf: 0 };
+  var glide = { el: null, to: 0, at: 0, raf: 0 };
   function saidScroll(d) {
-    var box = q('.o-said-in'), max = Math.max(0, box.scrollHeight - box.clientHeight);
-    if (!glide.raf) glide.at = glide.to = box.scrollTop;   /* start from wherever a trackpad left it */
+    var el = saidTarget(q('.o-said-in'), d);
+    if (glide.el !== el) { cancelAnimationFrame(glide.raf); glide.raf = 0; glide.el = el; }
+    var max = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (!glide.raf) glide.at = glide.to = el.scrollTop;   /* start from wherever a trackpad left it */
     glide.to = Math.max(0, Math.min(max, glide.to + d));
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { box.scrollTop = glide.to; return; }
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) { el.scrollTop = glide.to; return; }
     if (glide.raf) return;
     var step = function () {
       glide.at += (glide.to - glide.at) * 0.18;
       if (Math.abs(glide.to - glide.at) < 0.4) glide.at = glide.to;
-      box.scrollTop = glide.at;
+      el.scrollTop = glide.at;
       glide.raf = glide.at === glide.to ? 0 : requestAnimationFrame(step);
     };
     glide.raf = requestAnimationFrame(step);
+  }
+  /* The keys scroll the message, but a tall table on the way, with rows still to show, takes them until it has shown
+     them: going down once the message has reached its top (or can go no further), going up once it has reached its foot. */
+  function saidTarget(box, d) {
+    var b = box.getBoundingClientRect(), rest = d > 0 ? box.scrollHeight - box.clientHeight - box.scrollTop : box.scrollTop, hit = null;
+    [].forEach.call(box.querySelectorAll('.md-tbl'), function (w) {
+      var r = w.getBoundingClientRect(), left = d > 0 ? w.scrollHeight - w.clientHeight - w.scrollTop : w.scrollTop;
+      if (hit || left < 1 || r.bottom <= b.top || r.top >= b.bottom) return;
+      if (rest < 1 || (d > 0 ? r.top <= b.top + 8 : r.bottom >= b.bottom - 8)) hit = w;
+    });
+    return hit || box;
   }
   rIn.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
@@ -357,7 +482,7 @@
     if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    q('.o-st').dataset.h = ''; q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
+    status(Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention }));
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
@@ -414,6 +539,10 @@
     });
   }
 
+  /* the card's status; drawn again only when it changes, so its spinner keeps turning */
+  function status(html, title) {
+    var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -421,7 +550,7 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    var st = q('.o-st'), sh = Phrase(ph); if (st.dataset.h !== sh) { st.innerHTML = sh; st.dataset.h = sh; } st.title = p.status.text;   /* drawn again only when it changes, so its spinner keeps turning */
+    status(Phrase(ph), p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
@@ -660,7 +789,7 @@
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -794,15 +923,18 @@
   }
   /* the session you are in, or one of the sessions that may be it when Swift cannot tell which one of an app's is in front */
   function inside(s, id) { return s.activeId === id || (s.activeIds || []).indexOf(id) >= 0; }
-  function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actGone[actKey(p)]; }); }
+  /* a session that stopped on an error has nothing to answer: it says so once, and does not stay as wings */
+  function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
+  function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
     var others = s.projects.filter(function (p) { return !inside(s, p.id); });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
-    var now = { need: need.map(actKey), done: done.map(function (p) { return p.id; }) };
+    var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
+    var now = { need: heard.map(actKey), done: done.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
-    var arrived = known && need.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
+    var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
@@ -812,14 +944,17 @@
     }
     if ((arrived || landed) && !s.quiet) {
       setAct('full', arrived || landed, true); actLater(arrived ? 9000 : 6000);
-    } else if (full && act.kind !== 'done' && !need.some(function (p) { return p.id === act.p.id; })) {
+    } else if (full && act.kind !== 'done' && !heard.some(function (p) { return p.id === act.p.id; })) {
       clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true);   /* answered somewhere else while it showed */
     } else if (full) {
       var fresh = s.projects.filter(function (p) { return p.id === act.p.id; })[0]; if (fresh) setAct('full', fresh, true);
     } else setAct(need.length ? 'wings' : '', need[0], true);
   }
   /* it has said its piece: whatever still waits on you stays as wings */
-  function actSettle() { if (!snap) return; var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
+  function actSettle() {
+    if (!snap) return;
+    if (act.p && actErr(act.p)) actGone[actKey(act.p)] = 1;   /* said once */
+    var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
   function actDo(a) {
     var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
     if (a === 'gone') {
@@ -868,7 +1003,10 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
-    if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
+    /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
+    else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
+    if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
@@ -898,6 +1036,7 @@
     var allDone = st === 'onb' && s.onboarding && s.onboarding.step === s.onboarding.total - 1;
     n.style.setProperty('--gcol', allDone ? COLORS.done : (st === 'onb' && introGlow) || charNow.color);
     var was = lastSt;
+    if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
     layout(st, s);
     if (was !== st) drill(was, st, s);
@@ -994,7 +1133,11 @@
     chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
     hvEls = chain;
     if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
+    hand(!!el && getComputedStyle(el).cursor === 'pointer');
   }
+  /* WebKit shows the hand only on a card with the keyboard; on one without, Swift shows it when the page says */
+  var handOn = false;
+  function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
@@ -1200,10 +1343,16 @@
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
   /* `left` sits where Back would be: the keyboard hints on the character step */
-  function ofoot(i, back, mid, label, action, left) {
-    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
-      Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
+  function ofoot(i, back, mid, label, action, left) { return oi(i, ofootIn(back, mid, label, action, left)); }
+  function ofootIn(back, mid, label, action, left) {
+    return '<div class="o-foot mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
+      Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>';
   }
+  /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
+  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
+  function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
+  /* off: Turn on, or Skip; on: Next */
+  function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
@@ -1302,8 +1451,8 @@
       /* Hello: the character lands on the notch, wakes up and says who it is, then shows what it does with two sessions */
       h = oi(0, '<div class="flex items-start gap-3 px-4 pt-0.5"><div class="hi-cr relative grid size-[60px] flex-none place-items-center">' + crHtml('cr-hi', 52, shapeOf(charNow.shape), 'sleep') + '</div>' +
             '<div class="min-w-0 flex-1 pt-1"><p class="hi-say inline-block rounded-2xl rounded-bl-md bg-white/[0.09] px-3 py-1.5 text-[15px] font-semibold leading-5 tracking-[-0.02em]"><span class="hi-t"></span><span class="hi-ghost invisible">Hi, I\u2019m Perch.</span></p>' +
-            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch. While you\u2019re away I keep an eye on your coding agents, and when you\u2019re back I\u2019ll tell you where you left off.</p></div></div>') +
-        oi(1, '<div class="hi-demo mt-3 flex flex-col gap-1 px-2.5">' + introRow(0, 'claude', 'Website', 'Hero spacing') + introRow(1, 'codex', 'Docs', 'Install guide') + '</div>') +
+            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch and watch your coding agents. When one finishes or needs your OK, I\u2019ll tell you. Answer it here, or jump straight back in.</p></div></div>') +
+        oi(1, '<div class="hi-demo pointer-events-none mx-2.5 mt-3 flex select-none flex-col rounded-lg bg-white/[0.04] py-0.5" aria-hidden="true">' + introRow(0, 'claude', 'Hero spacing', 'Website') + introRow(1, 'codex', 'Install guide', 'Docs') + '</div>') +
         ofoot(2, false, '', 'Nice to meet you', 'next');
     } else if (st === 1) {
       var shapes = SHAPES.map(function (sh) {
@@ -1323,9 +1472,8 @@
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       var rows = o.sources.map(function (x) {
-        var sub = o.scanning ? 'Scanning\u2026' : (x.count ? esc(x.names.slice(0, 2).join(', ')) + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
-        return '<div class="flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3"><span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block text-[13px] font-medium leading-4">' + x.name + '</span><span class="block truncate text-xs leading-4 text-muted-foreground">' + sub + '</span></span>' + (o.scanning ? Spinner('size-3.5') : '') + sw + '</div>';
+        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
       }).join('');
       h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
         /* more than two agents sit two to a row, so the card keeps its height */
@@ -1335,9 +1483,10 @@
     } else if (st === 4) {
       var live = o.live === 'on';
       h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
-        oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.') + '</p>') +
-        ofoot(5, true, live ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
+        oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
+          '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
+        oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + liveNote(live) + '</p>') +
+        oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -1347,20 +1496,26 @@
     box.innerHTML = h;
     introToken++; introGlow = '';
     if (st === 0) introduce(animate);
+    onbBind(box);
+  }
+  function onbBind(box) {
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
   /* ---- the introduction: Perch says who it is (names start with intro: `hello` is the hello beside the notch after setup) ---- */
   var introToken = 0, introGlow = '';
-  function introRow(i, app, name, topic) {
-    return '<div class="hi-row flex h-8 items-center gap-2 rounded-md bg-white/[0.045] px-2 text-[13px]" data-i="' + i + '">' + App(app, 'size-4') +
-      '<span class="min-w-0 flex-1 truncate"><span class="font-medium">' + name + '</span><span class="ml-2 text-muted-foreground">' + topic + '</span></span>' +
-      '<span class="hi-st flex flex-none items-center gap-1.5 text-xs">' + Phrase({ t: 'Working', c: COLORS.running, spin: true }) + '</span></div>';
+  /* A sample session, drawn like a row of the list: its title and how long ago, and at the right its mark and its project
+     in grey. Only a picture: the frame around the two takes no pointer. */
+  function introRow(i, app, title, project) {
+    return '<div class="hi-row flex h-9 items-center gap-2 px-1.5 text-sm" data-i="' + i + '">' + App(app) +
+      '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="min-w-0 truncate font-medium">' + title + '</span><span class="hi-tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+      '<span class="flex flex-none items-center gap-2"><span class="hi-st grid size-4 flex-none place-items-center">' + Spinner('size-3.5', glow(COLORS.running)) + '</span><span class="text-xs text-muted-foreground">' + project + '</span></span></div>';
   }
   function introduce(animate) {
     var tok = introToken, box = q('.onb'), hi = box.querySelector('.cr-hi'), ci = hi.querySelector('.cr-in');
@@ -1368,18 +1523,19 @@
     var words = 'Hi, I\u2019m Perch.', reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var at = function (ms, fn) { setTimeout(function () { if (tok === introToken && onbStep === 0) fn(); }, ms); };
     var play = function (cls, ms) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); setTimeout(function () { ci.classList.remove(cls); }, ms); };
-    var status = function (i, ph, mood, glow) {
-      rows[i].querySelector('.hi-st').innerHTML = Phrase(ph);
-      if (!reduce) rows[i].querySelector('.hi-st').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+    /* the spinner gives way to the row's mark, as in the list: a check when it finished, the prompt for a command waiting for your OK */
+    var mark = function (i, k, label) { rows[i].querySelector('.hi-st').innerHTML = Ring(k, label); rows[i].querySelector('.hi-tm').textContent = '1m'; };
+    var status = function (i, k, label, mood, glow) {
+      mark(i, k, label);
+      if (!reduce) rows[i].querySelector('.hi-st').animate([{ opacity: 0, transform: 'scale(.5)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)' });
       hi.dataset.m = mood; play('hop', 600);
       introGlow = glow; n.style.setProperty('--gcol', glow || charNow.color);
     };
-    var finished = function () { status(0, { t: 'Finished', c: COLORS.done }, 'happy', COLORS.done); };
-    var needs = function () { status(1, { t: 'Needs your OK', c: COLORS.attention }, 'alert', COLORS.attention); };
+    var finished = function () { status(0, 'done', 'Finished', 'happy', COLORS.done); };
+    var needs = function () { status(1, 'permission', 'Needs your OK', 'alert', COLORS.attention); };
     if (reduce || !animate) {
       say.textContent = words; ghost.textContent = ''; hi.dataset.m = 'awake';
-      rows[0].querySelector('.hi-st').innerHTML = Phrase({ t: 'Finished', c: COLORS.done });
-      rows[1].querySelector('.hi-st').innerHTML = Phrase({ t: 'Needs your OK', c: COLORS.attention });
+      mark(0, 'done', 'Finished'); mark(1, 'permission', 'Needs your OK');
       return;
     }
     /* 1. it drops onto its perch, asleep, and lands with a squash */
@@ -1408,19 +1564,39 @@
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.only, o.accessibility, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
-    if (sig === onbSig) return;
-    /* the introduction uses none of this data: a scan finishing must not cut it short */
-    if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
-    /* only a switch changed: slide it in place */
-    var same = function (s) { return s.split('|').slice(0, 5).join('|'); };
-    if (onbSig && o.step === onbStep && same(sig) === same(onbSig) && onbLast && onbLast.sources.map(function (x) { return x.id + x.count; }).join() === o.sources.map(function (x) { return x.id + x.count; }).join()) {
-      onbSig = sig; onbLast = o;
-      q('.onb').querySelectorAll('.o-sw').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.id) setSw(b, x.enabled); }); });
+    /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
+       status arrive every half second or so: drawing the step again for them took the element under the pointer away
+       mid-click and restarted the tiles. */
+    var sig = [o.step, o.only, o.step === 2 ? o.accessibility : '', o.step === 3 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    if (sig === onbSig) {
+      var was = onbLast; onbLast = o;
+      if (o.step === 3) onbSources(o);
+      if (o.step === 4 && (!was || was.live !== o.live)) onbLive(o);
       return;
     }
+    /* the introduction uses none of this data: a scan finishing must not cut it short */
+    if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
+  }
+  /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
+  function onbSources(o) {
+    q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
+      var x = o.sources.filter(function (y) { return y.id === t.dataset.id; })[0], b = t.querySelector('.o-sw'), sub = t.querySelector('.o-line'), line;
+      if (!x) return;
+      if (b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); t.querySelector('.o-ic').classList.toggle('opacity-50', !x.enabled); }
+      line = srcLine(o, x);
+      if (sub.textContent === line) return;
+      sub.textContent = line; sub.classList.toggle('opacity-60', !!o.scanning);
+      if (!STILL) sub.animate([{ opacity: 0 }, { opacity: o.scanning ? .6 : 1 }], { duration: 280, easing: 'ease-out' });
+    });
+  }
+  /* live status turned on or off: the switch slides, the note and the buttons follow */
+  function onbLive(o) {
+    var on = o.live === 'on', box = q('.onb'), b = box.querySelector('.o-live'), note = box.querySelector('.o-note'), foot = box.querySelector('.o-foot');
+    if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
+    if (note) note.textContent = liveNote(on);
+    if (foot) { foot.parentNode.innerHTML = liveFoot(on); onbBind(box); }
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
@@ -1587,7 +1763,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -1599,9 +1775,12 @@
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   var devFrom = '';
   function dev(m) {
+    /* the drafts Swift keeps, kept here instead */
+    if (m.type === 'draft') { base.drafts = base.drafts || {}; if (m.text) base.drafts[m.id] = m.text; else delete base.drafts[m.id]; if (snap) snap.drafts = base.drafts; return; }
+    if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
@@ -1644,7 +1823,8 @@
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '48m', at: '10:44 AM', headline: 'You were tightening the hero spacing.', context: 'The hero now fits at phone width. The full-bleed video is gone because it slowed the page.', next: 'Check the hero on a real phone',
         said: 'Done. The hero now fits at phone width:\n\n- Padding drops from 96px to 48px under 640px\n- The headline wraps at 18ch instead of overflowing\n- The full-bleed video is gone; it cost 1.8s on 4G\n\nI left the poster image in its place so the fold still has something to look at.\n\nWant me to bring the video back for desktop only, behind `prefers-reduced-motion`?', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Claude finished', app: 'claude' } },
       { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 AM', headline: 'Rewriting the install guide.', context: 'Moving the setup steps above troubleshooting, then cutting the duplicate FAQ.', now: 'Editing install.md', next: '', topic: 'Install guide', app: 'codex', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Codex is working', app: 'codex' } },
-      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices', app: 'claude', attention: false, fresh: false, line: '3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
+      { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices',
+        said: 'September is reconciled except two invoices. By vendor:\n\n| Vendor | Invoices | Total | Matched |\n|---|---|---|---|\n| Hetzner | 12 | $1,842.60 | 100% |\n| AWS | 9 | $20,000.00 | 100% |\n| Linear | 18 | $1,320.00 | 94% |\n| Figma | 4 | $540.00 | 75% |\n\nThe two still open are a Figma seat refund and a Linear credit note. Should I book them as credits against October?', app: 'claude', attention: false, fresh: false, line: '3d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       /* more than five: the list scrolls. Long topics read themselves out after a second on the row. */
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
@@ -1688,12 +1868,22 @@
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
       },
-      onboarding: function (step, accessibility, only, live, all) {
+      /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
+         snapshot every half second, as it does while sessions are written */
+      onboarding: function (step, accessibility, only, live, all, scan) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
-        apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
+        var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
+          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+        apply(s0);
+        if (!scan) return;
+        var k = 0, again = function () {
+          if (!snap || snap.phase !== 'onboarding' || snap.onboarding.step !== step) return;
+          var s1 = JSON.parse(JSON.stringify(snap)); s1.onboarding.scanning = false; s1.timerToken = Math.random(); apply(s1);
+          if (++k < 12) autoTimer = setTimeout(again, 500);
+        };
+        autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
@@ -1746,6 +1936,8 @@
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
+      /* each scenario starts with no replies left typed */
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
