@@ -166,4 +166,19 @@ import Foundation
         live.asks = [a]
         #expect(p.applying(live).ask?.answerable == true)
     }
+
+    /// Bypass permissions mode sends no PermissionRequest for a question; the PreToolUse hook is how Perch answers it there.
+    @Test func aQuestionFromThePreToolUseHookIsAnsweredInThatHooksShape() throws {
+        let body = Data(#"{"session_id":"s3","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Colour?","options":[{"label":"Red"},{"label":"Blue"}]}]}}"#.utf8)
+        guard case .asks(let a)? = HookEvent.parse(agent: "claude", event: "PreToolUse", body: body, requestId: "p1")?.kind else { Issue.record("not an ask"); return }
+        #expect(a.answerable); #expect(a.viaPreToolUse)
+        let out = try #require(JSONSerialization.jsonObject(with: a.reply("Red")) as? [String: Any])
+        let h = try #require(out["hookSpecificOutput"] as? [String: Any])
+        #expect(h["hookEventName"] as? String == "PreToolUse"); #expect(h["permissionDecision"] as? String == "allow")
+        let input = try #require(h["updatedInput"] as? [String: Any])
+        #expect((input["answers"] as? [String: String]) == ["Colour?": "Red"])
+    }
+    @Test func preToolUseForAnythingElseIsIgnored() {
+        #expect(HookEvent.parse(agent: "claude", event: "PreToolUse", body: Data(#"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#.utf8), requestId: "p2") == nil)
+    }
 }

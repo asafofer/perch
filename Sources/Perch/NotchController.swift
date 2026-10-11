@@ -132,6 +132,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         Self.setsCursorInBackground()
         hookServer.onEvent = { [weak self] e in self?.hookEvent(e) }
         hookServer.onAbandoned = { [weak self] id in self?.askWentAway(id) }
+        hookServer.keepHolding = { [weak self] sid in
+            guard let self else { return true }
+            let here = self.youAreIn().maybe
+            return !self.projects.contains { ($0.sessionId ?? $0.id) == sid && here.contains($0.id) }
+        }
         hookServer.start()
         startRefreshing()
         startWatchingFocus()
@@ -583,9 +588,26 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
 
+    /// Moving to another display, the panel would show there what it last drew for the old one until the page draws
+    /// again (a frame or two: the notch of the laptop on a display that shows nothing at rest). So it goes see-through,
+    /// moves, and shows again once the page has drawn for its new place (`painted`), or after a moment at the latest.
+    private var revealToken = 0
+    private var revealPending = false
     private func place(on s: NSScreen) {
+        let moving = s.frame != info.frame
+        if moving, ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch screen: \(s.localizedName), cursor at \(NSEvent.mouseLocation)") }
         screen = s; info = s.screenInfo
+        if moving, ready {
+            panel.alphaValue = 0
+            revealToken += 1; revealPending = true
+            let token = revealToken
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.reveal(token) }
+        }
         panel.setFrame(NotchGeometry.panelFrame(for: info), display: true)
+    }
+    private func reveal(_ token: Int) {
+        guard token == revealToken else { return }
+        panel.alphaValue = 1
     }
 
     func send(_ event: NotchEvent) {
@@ -638,6 +660,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         tookKeysForAsk = askTakesKeys
         guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
+        if revealPending { revealPending = false; web.evaluateJavaScript("window.perch && window.perch.painted(\(revealToken))", completionHandler: nil) }
     }
 
     /// Icons go once per page load. An app missing from them (installed later, or mid-update at launch) is looked for again each minute.
@@ -785,6 +808,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if let shape = body["shape"] as? String { Prefs.shape = shape }
             if let color = body["color"] as? String { Prefs.color = color }
         case "choose": if let i = body["index"] as? Int { send(.choose(i)) }
+        case "painted": if let t = body["token"] as? Int { reveal(t) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
         case "activity":

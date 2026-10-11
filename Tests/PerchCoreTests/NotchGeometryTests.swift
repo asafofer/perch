@@ -51,6 +51,23 @@ import CoreGraphics
         #expect(ScreenPicker.index(of: CGPoint(x: 10, y: 982), in: [laptop, upper]) == 1)
         #expect(ScreenPicker.index(of: CGPoint(x: 10, y: 982), in: [upper, laptop]) == 0)
     }
+    @Test func sweepingTheExternalTopEdgeNeverLandsOnTheLaptop() {
+        // Along the whole top row, both corners included, the panel stays on the external display.
+        for x in stride(from: external.minX, through: external.maxX, by: 0.25) {
+            #expect(ScreenPicker.index(of: CGPoint(x: x, y: external.maxY), in: [laptop, external]) == 1)
+            #expect(ScreenPicker.index(of: CGPoint(x: x, y: external.maxY), in: [external, laptop]) == 0)
+        }
+    }
+    @Test func theSideTheyShareSwitchesOnceWhicheverWayTheyAreListed() {
+        // Where the cursor crosses from one to the other, x == 0 is the laptop and anything left of it the external.
+        for order in [[laptop, external], [external, laptop]] {
+            let l = order.firstIndex(of: laptop), e = order.firstIndex(of: external)
+            for y in stride(from: external.minY, through: laptop.maxY, by: 7) {
+                #expect(ScreenPicker.index(of: CGPoint(x: 0, y: y), in: order) == l)
+                #expect(ScreenPicker.index(of: CGPoint(x: -0.015625, y: y), in: order) == e)
+            }
+        }
+    }
     @Test func offEveryScreenIsNil() {
         #expect(ScreenPicker.index(of: CGPoint(x: 5000, y: 5000), in: [laptop, external]) == nil)
     }

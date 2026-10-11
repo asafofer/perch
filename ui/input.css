@@ -40,6 +40,8 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
 .n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .notouch { transition: none !important; }
+/* moved to another display: everything takes its place there at once (app.js apply) */
+#scene[data-moved="1"], #scene[data-moved="1"] *, #scene[data-moved="1"] *::before, #scene[data-moved="1"] *::after { transition: none !important; }
 
 /* glow: light spilling up from the bottom edge, inside the card. Eased stops keep it from banding or going brown. */
 .glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .9s ease;
@@ -231,6 +233,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
+.act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
+.act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
 .act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
 .act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }

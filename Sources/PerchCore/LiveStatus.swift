@@ -37,6 +37,12 @@ public struct HookEvent: Equatable, Sendable {
         case "PostToolUse": kind = .toolRan(tool: o["tool_name"] as? String ?? "")
         case "PermissionRequest":
             kind = .asks(Ask(id: requestId, agent: agent, tool: o["tool_name"] as? String ?? "tool", input: o["tool_input"] as? [String: Any] ?? [:]))
+        case "PreToolUse":
+            // Only for a question: Bypass permissions mode sends no PermissionRequest for it, but this hook still runs.
+            guard agent == "claude", o["tool_name"] as? String == "AskUserQuestion" else { return nil }
+            var a = Ask(id: requestId, agent: agent, tool: "AskUserQuestion", input: o["tool_input"] as? [String: Any] ?? [:])
+            a.viaPreToolUse = true
+            kind = .asks(a)
         case "Stop": kind = .finished(message: o["last_assistant_message"] as? String)
         case "StopFailure": kind = .failed
         case "Interrupt": kind = .interrupted
@@ -63,6 +69,8 @@ public struct Ask: Equatable, Sendable {
     public let questions: [Question]
     /// Perch can answer this from the notch. Codex approvals are answered in the app, terminal ones in the terminal.
     public var answerable: Bool
+    /// It came from the PreToolUse hook, which blocks the agent's own prompt until Perch lets it go, so the reply has that hook's shape.
+    public var viaPreToolUse = false
     /// Set when only the transcript showed this request (no hook reported it): when it was asked. The card shows it, read-only.
     public var transcriptAt: Date?
 
@@ -165,7 +173,9 @@ public struct Ask: Equatable, Sendable {
     public func reply(answers: [String: String]) -> Data {
         var input = (try? JSONSerialization.jsonObject(with: inputJSON)) as? [String: Any] ?? [:]
         input["answers"] = answers
-        let out: [String: Any] = ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": ["behavior": "allow", "updatedInput": input]]]
+        let out: [String: Any] = viaPreToolUse
+            ? ["hookSpecificOutput": ["hookEventName": "PreToolUse", "permissionDecision": "allow", "updatedInput": input]]
+            : ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": ["behavior": "allow", "updatedInput": input]]]
         return (try? JSONSerialization.data(withJSONObject: out)) ?? Data()
     }
 
