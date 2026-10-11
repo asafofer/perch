@@ -972,18 +972,21 @@
     tbEl.hidden = !t;
   }
   /* A question that goes unanswered does not wait in the wings for ever: it said its piece (nine seconds in full, then a minute
-     as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. A command that needs your
-     OK still waits until answered: the agent is stopped on it. */
+     as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. The same for a session
+     Perch only guesses is waiting on you (its last message ends in a question, no request open): nothing is stopped on it, and an
+     hour-old guess would hang there as a ! for ever. A command that needs your OK, or a plan, still waits until answered: the agent
+     is stopped on it. */
   var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;   /* nine seconds in full, then the setting's seconds as wings (Swift sends it as questionSeconds) */
+  function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
-    if (!p.ask || p.ask.kind !== 'question') return false;
+    if (blocking(p)) return false;
     var k = actKey(p), t = actSeen[k] || (actSeen[k] = Date.now());
     return Date.now() - t > ACT_Q_MS;
   }
   function waiting(s) {
     var list = s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)] && !actExpired(p); });
     /* wake when the soonest question runs out, so the wings go without waiting for the next snapshot */
-    var left = list.filter(function (p) { return p.ask && p.ask.kind === 'question'; }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
+    var left = list.filter(function (p) { return !blocking(p); }).map(function (p) { return ACT_Q_MS - (Date.now() - actSeen[actKey(p)]); });
     clearTimeout(actExpTimer);
     if (left.length) actExpTimer = setTimeout(function () { if (act.mode === 'wings' && snap) actSettle(); }, Math.min.apply(null, left) + 50);
     return list;
@@ -1406,7 +1409,7 @@
   }
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
-  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false };
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '' };
   function scOf(sc) { return sc || SC0; }
   function scKeysHtml(sc) { return '<span class="inline-flex items-baseline gap-[3px]">' + scOf(sc).keys.map(function (k) { return Kbd(k); }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
@@ -1414,14 +1417,16 @@
   function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
   function shortcutStep(o) {
     var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
-      return '<button class="kcap' + (sc.tried ? ' ok' : '') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
+      return '<button class="kcap' + (sc.tried ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
     }).join('');
+    var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
     var shown = sc.recording ? SC_EMPTY : big, ask = 'Hold two modifier keys and let go, or press a key with one.',
       listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
       var note = sc.recording ? listening
+          : broken ? broken
           : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. This is your shortcut.</span>'
           : sc.saved ? 'Saved. Try it now.'
           : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Try it now.';
@@ -1431,6 +1436,7 @@
         ofoot(5, false, '', 'Done', 'next', (sc.recording ? '' : Button('ghost', 'Record again', Kbd('C'), 'o-sc" data-a="record')) + (sc.custom ? Button('ghost', 'Reset', '', 'o-scr') : ''));
     }
     var hint = sc.recording ? listening
+      : broken ? broken
       : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
       : sc.saved ? 'Saved. Try it now.'
       : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
@@ -1784,7 +1790,7 @@
     };
     var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
-    var sc = scOf(o.shortcut), scRow = srow(slabel('Open Perch'), '<span class="flex items-center gap-1.5"><button class="s-sc -my-0.5 cursor-pointer rounded-md px-1 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="Change">' + scKeysHtml(sc) + '</button>' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+    var sc = scOf(o.shortcut), scRow = srow(slabel('Open Perch', sc.works ? '' : '<span style="color:' + COLORS.attention + '">' + (sc.kind === 'tap' ? 'needs Accessibility' : 'taken by another app') + '</span>'), '<span class="flex items-center gap-1.5"><button class="s-sc -my-0.5 cursor-pointer rounded-md px-1 py-0.5 transition hover:bg-white/10 active:scale-95" style="box-shadow:0 0 0 1px ' + (sc.works ? 'rgba(140,207,164,.4)' : 'rgba(233,168,119,.6)') + '" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc) + '</button>' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
@@ -1945,12 +1951,20 @@
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   var devFrom = '', devSc = Object.assign({}, SC0);
   /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
+  /* what Swift sends for "does it work": a tap hears nothing without Accessibility, a combo can be held by another app */
+  function devScOut(ax) {
+    var c = JSON.parse(JSON.stringify(devSc));
+    if (c.taken) { c.works = false; c.why = 'Another app already uses this shortcut. Record a different one.'; }
+    else if (c.kind === 'tap' && ax === false) { c.works = false; c.why = 'A tap needs Accessibility. Allow it, or record a key combo.'; }
+    else { c.works = true; c.why = ''; }
+    return c;
+  }
   function devScSync(patch) {
     Object.assign(devSc, patch || {});
     if (!snap) return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (s.settings) s.settings.shortcut = JSON.parse(JSON.stringify(devSc));
-    if (s.onboarding) s.onboarding.shortcut = JSON.parse(JSON.stringify(devSc));
+    if (s.settings) s.settings.shortcut = devScOut(s.settings.accessibility);
+    if (s.onboarding) s.onboarding.shortcut = devScOut(s.onboarding.accessibility);
     s.timerToken++; apply(s);
   }
   function dev(m) {
@@ -1990,7 +2004,7 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: JSON.parse(JSON.stringify(devSc)) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
@@ -2054,7 +2068,7 @@
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: JSON.parse(JSON.stringify(devSc)) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
@@ -2064,7 +2078,7 @@
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 7, shortcut: JSON.parse(JSON.stringify(devSc)), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {

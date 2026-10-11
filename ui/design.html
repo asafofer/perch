@@ -306,6 +306,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Shortcut: recorder, saved', 'After recording: the keys spring, Saved, Try it now. Record again (C), Reset, Done.', function () { d.settings(); setTimeout(function () { document.querySelector('.set button.s-sc').click(); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, saved: true }); }, 700); }, 500); }],
       ['Shortcut: recorder, refused', 'A shortcut Perch cannot take says why and keeps listening.', function () { d.settings(); setTimeout(function () { document.querySelector('.set button.s-sc').click(); setTimeout(function () { d.shortcut({ error: '\u2303\u2325L is the project list' }); }, 700); }, 500); }],
       ['Shortcut: custom', 'A recorded shortcut; Reset puts back the Command+Option tap.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false } }); }],
+      ['Shortcut: not available', 'The Open Perch row in orange with why: it is a tap and Accessibility is off. Click the keys to record a combo instead.', function () { d.settings({ accessibility: false }); }],
+      ['Shortcut: taken', 'A combo another app holds.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false, saved: false, taken: true } }); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Onboarding', [
@@ -313,6 +315,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
       ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
       ['3. Your shortcut', 'How you use Perch. Tap both keys now (or click the keys): they turn green. Use another shortcut records a new one: hold modifiers and release for a tap, or modifiers and a key for a combo; Esc cancels.', function () { d.onboarding(3, true); }],
+      ['3. Your shortcut: works', 'Green edge: Perch can hear it. Here, with Accessibility allowed.', function () { d.onboarding(3, true); }],
+      ['3. Your shortcut: not available', 'Orange edge and why: a tap needs Accessibility, and it is not allowed yet. The fix is in the same line.', function () { d.onboarding(3, false); }],
+      ['3. Your shortcut: taken', 'A combo another app already holds: orange, and the reason says to record a different one.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true, taken: true }); }, 300); }],
       ['3. Your shortcut: tried', 'After the tap: the keys turn green and the line says so.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ tried: true }); }, 300); }],
       ['3. Your shortcut: custom', 'A recorded combo, shown the same way.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true }); }, 300); }],
       ['3. Your shortcut: recording', 'Waiting for the keys; the big keys dim and the button says Cancel.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ recording: true }); }, 300); }],

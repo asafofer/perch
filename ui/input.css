@@ -345,3 +345,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .kcap.ok.down, .kcap.ok:active { background: rgba(140,207,164,.3); }
 /* the recorder card's empty key while it listens */
 .kcap.rec { min-width: 196px; font-size: 13px; font-weight: 400; color: #a1a1aa; background: transparent; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.28); cursor: default; transform: none !important; }
+/* the shortcut works (green edge) or does not (orange edge, and the card says why) */
+.kcap.on { box-shadow: inset 0 0 0 1px rgba(140,207,164,.4), 0 2px 0 rgba(140,207,164,.12); }
+.kcap.off { color: #E9A877; box-shadow: inset 0 0 0 1px rgba(233,168,119,.5), 0 2px 0 rgba(233,168,119,.12); }
