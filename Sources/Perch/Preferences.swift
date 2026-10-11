@@ -46,6 +46,16 @@ enum Prefs {
         get { d.bool(forKey: "hoverExternal") }
         set { d.set(newValue, forKey: "hoverExternal") }
     }
+    /// Where the shortcut opens Perch and where it shows up by itself (Show Perch on): the screen with the mouse by default.
+    static var showOn: ShowOn {
+        get { ShowOn(raw: d.string(forKey: "showOn") ?? "") }
+        set { d.set(newValue.raw, forKey: "showOn") }
+    }
+    /// The chosen display's name, so Settings can still name it while it is not connected.
+    static var showOnName: String? {
+        get { d.string(forKey: "showOnName") }
+        set { if let v = newValue { d.set(v, forKey: "showOnName") } else { d.removeObject(forKey: "showOnName") } }
+    }
     /// The kinds of live activity switched off in Settings (Notify me about), as `NotifyKind` names. Empty by default: the notch announces everything.
     static var notifyOff: Set<String> {
         get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
