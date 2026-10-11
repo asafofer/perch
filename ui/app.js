@@ -1416,35 +1416,42 @@
     var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
       return '<button class="kcap' + (sc.tried ? ' ok' : '') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
     }).join('');
-    var hint = sc.recording ? scPrompt(sc)
-      : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
-      : sc.saved ? 'Saved. Try it now.'
-      : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
-      : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
+    /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
+    var shown = sc.recording ? SC_EMPTY : big, ask = 'Hold two modifier keys and let go, or press a key with one.',
+      listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
-      var shown = sc.recording
-        ? '<span class="kcap rec"><span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span></span>'
-        : big,
-        note = sc.recording ? (sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : 'Hold two modifier keys and let go, or press a key with one.')
+      var note = sc.recording ? listening
           : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. This is your shortcut.</span>'
           : sc.saved ? 'Saved. Try it now.'
           : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Try it now.';
       return otitle(o, 'Open Perch with', 'Press the shortcut you want. Esc goes back.') +
-        oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5">' + shown + '</div>') +
+        oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
         oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + note + '</p>') +
         ofoot(5, false, '', 'Done', 'next', (sc.recording ? '' : Button('ghost', 'Record again', Kbd('C'), 'o-sc" data-a="record')) + (sc.custom ? Button('ghost', 'Reset', '', 'o-scr') : ''));
     }
+    var hint = sc.recording ? listening
+      : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
+      : sc.saved ? 'Saved. Try it now.'
+      : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
+      : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
     return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
-      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5 transition-opacity ' + (sc.recording ? 'opacity-40' : '') + '">' + big + '</div>') +
+      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
       oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + hint + '</p>') +
       ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
   var scHeldNow = [], scWasTried = '';
+  var SC_EMPTY = '<span class="kcap rec">Press your shortcut\u2026</span>';
   function scHeldApply() {
-    document.querySelectorAll('.kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
-    document.querySelectorAll('.kcap.rec').forEach(function (c) { c.classList.toggle('held', scHeldNow.length > 0); });
+    document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
+      var sig = scHeldNow.join('');
+      if (b.dataset.held === sig) return;
+      var before = (b.dataset.held || '').length; b.dataset.held = sig;
+      b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : SC_EMPTY;
+      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
+    });
+    document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
     document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
   }
   function scAfter(o) {
