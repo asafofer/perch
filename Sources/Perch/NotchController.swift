@@ -145,7 +145,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         startRefreshing()
         startWatchingFocus()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { guard let self, self.machine.phase == .idle else { return }; self.place(on: ScreenChooser.current()); self.push() }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.machine.phase == .settings { self.push(); return }   // Show Perch on lists the displays now connected
+                guard self.machine.phase == .idle else { return }
+                self.place(on: ScreenChooser.rest()); self.push()
+            }
         }
     }
 
@@ -343,10 +348,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     // MARK: state
-    /// The card opens on the display the cursor is on, the same one whose notch or tab you hovered.
+    /// A hover opens the card on the display whose notch or tab you hovered; the shortcut and Perch on its own open it
+    /// where Show Perch on says.
     private func prepareToShow() {
         guard machine.phase == .idle else { return }
-        place(on: ScreenChooser.current())
+        place(on: openedByHover ? ScreenChooser.current() : ScreenChooser.target())
     }
 
     // MARK: keeping the project list fresh, off the main thread
@@ -571,6 +577,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     if Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
                     if FocusProbe.reads(bid), self?.hasSessions(in: bid) == true { self?.focus.poll(app: bid) }
                 }
+                // Following the active window, the resting notch goes where the app you switched to is.
+                if let self, self.machine.phase == .idle, Prefs.showOn == .window { let to = ScreenChooser.rest(); if to !== self.screen { self.place(on: to) } }
                 if self?.machine.phase == .idle { self?.push() }
             }
         }
@@ -698,7 +706,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
-                self.place(on: ScreenChooser.current())
+                self.place(on: ScreenChooser.rest())
                 if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
                 self.refreshProjects()
             }
@@ -775,12 +783,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "back": send(.back)
         case "onb": if let a = body["action"] as? String { onboardingAction(a) }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
-        case "settings": if machine.phase == .idle { place(on: ScreenChooser.current()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
+        case "settings": if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
         case "setting":
             if let key = body["key"] as? String {
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
                 if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
                 if key == "hoverExternal", let on = body["value"] as? Bool { Prefs.hoverExternal = on }
+                if key == "showOn", let raw = body["value"] as? String {
+                    let choice = ShowOn(raw: raw)
+                    Prefs.showOn = choice
+                    if case .display(let id) = choice { Prefs.showOnName = NSScreen.screens.first { $0.displayID == id }?.localizedName ?? Prefs.showOnName } else { Prefs.showOnName = nil }
+                }
                 if key == "login", let on = body["value"] as? Bool { setLaunchAtLogin(on) }
                 push()
             }
@@ -1090,8 +1103,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func settingsState() -> UISnapshot.Settings {
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
-                                   hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal, shortcut: shortcutState(),
+                                   hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
+                                   showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState(),
                                    back: machine.settingsFrom != nil)
+    }
+    /// The connected displays, then a chosen one that is not connected, under the name it had when chosen.
+    private func displaysState() -> [UISnapshot.Display] {
+        var all = NSScreen.screens.map { UISnapshot.Display(id: $0.displayID, name: $0.localizedName, connected: true) }
+        if case .display(let id) = Prefs.showOn, !all.contains(where: { $0.id == id }) {
+            all.append(UISnapshot.Display(id: id, name: Prefs.showOnName ?? "Display", connected: false))
+        }
+        return all
     }
 
     /// "on" when every enabled agent on this Mac has Perch's hook installed.
@@ -1125,7 +1147,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard machine.phase == .idle else { return }
         onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
-        place(on: ScreenChooser.current())
+        place(on: ScreenChooser.target())
         if step >= 4 { refreshProjects() }
         send(.openOnboarding)
     }
@@ -1528,11 +1550,23 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
-        let idle = NotchGeometry.idleSize(for: info)
-        let w = max(idle.width, 150, activityMode == "wings" ? activitySize.width : 0)
-        let left: CGFloat = 30, right: CGFloat = 8     // the character sits just left of the notch
-        // Extends above the screen edge so the very top pixel row of the cursor counts.
-        return CGRect(x: info.frame.midX - w / 2 - left, y: info.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
+        NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
+    }
+
+    /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
+    /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.
+    private var awayForHover = false
+    private func followHoverWhileFixed() {
+        let at = NSEvent.mouseLocation, screens = NSScreen.screens, frames = screens.map(\.frame)
+        if let i = ScreenPicker.index(of: at, in: frames), screens[i] !== screen, screens[i].notchSize != nil || Prefs.hoverExternal,
+           NotchGeometry.hovering(at, frames: frames, index: i, rect: NotchGeometry.hoverRect(for: screens[i].screenInfo)) {
+            awayForHover = true; place(on: screens[i]); push(); return
+        }
+        // Back home once, when the cursor has left the zone it came for (asking where home is reads the window list).
+        guard awayForHover, hoverTask == nil, !notchHoverRect().contains(at) else { return }
+        awayForHover = false
+        let home = ScreenChooser.rest()
+        if home !== screen { place(on: home); push() }
     }
 
     /// The cursor is over the notch of the screen it is on. The zone reaches above the screen edge, so a display stacked
@@ -1563,7 +1597,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func mouseMoved() {
         if machine.phase == .idle {
             // The tab (or notch) lives on whichever screen the cursor is on, so an external display gets one too.
-            if let under = ScreenChooser.under(), under !== screen { place(on: under); push() }
+            if Prefs.showOn == .mouse { if let under = ScreenChooser.under(), under !== screen { place(on: under); push() } }
+            else { followHoverWhileFixed() }
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
             let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
