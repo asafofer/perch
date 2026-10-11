@@ -498,6 +498,23 @@
     q('.o-acts').innerHTML = (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
       (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go'));
   }
+  /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
+     Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
+  function readQuestion(p, a) {
+    var n = a.questions.length, qn = a.questions[0];
+    status(Phrase({ t: n > 1 ? 'Question 1 of ' + n : 'Asked you something', c: COLORS.attention }));
+    var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
+    h.style.marginTop = '6px';
+    var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
+    q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
+      var rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
+      return '<div class="flex w-full items-center gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
+        '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
+        (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
+    }).join('') + '</div>';
+    q('.o-nx').style.display = 'none';
+    q('.o-acts').innerHTML = Flip() + Act('default', goLabel(p), ENTER, 'go');
+  }
   function askKey(k) {
     var a = asking.p && asking.p.ask; if (!a || !a.questions || !a.questions.length) return;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
@@ -556,6 +573,7 @@
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
+    if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
       h.textContent = a.kind === 'question' ? a.subject : a.title;
