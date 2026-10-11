@@ -16,7 +16,7 @@ Read this file first. `README.md` has install and usage.
 ```
 Sources/PerchCore   Pure logic, no UI, fully tested.
   NotchMachine        State machine: idle, open, switcher, restoring, onboarding, settings.
-  NotchGeometry       Panel and tab sizes, hover rects. Takes ScreenInfo so it is testable.
+  NotchGeometry       Panel and tab sizes, hover rects. Takes ScreenInfo so it is testable. ScreenPicker: which display the cursor is on, the top edge counted (a cursor aimed at a notch rests at y == maxY, which CGRect.contains leaves out).
   Agent               Each agent's names, resume command, whether Perch answers it from the notch, how to spot its process.
   Project, Transcript Session model, JSONL parsing (Claude Code and Codex), recap text, git parsing.
   OpenCode, Pi        OpenCode's SQLite database (read-only) and pi's session files, into the same SessionDigest.
@@ -102,6 +102,8 @@ Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello)
 - herdr's `pane run`, `send-text` and `send-keys` print nothing when they work: judge herdr actions by exit status (`Herdr.act`). A herdr server brings its last layout back when it starts.
 - macOS hides the environment of system binaries (`/bin/sleep`) from `KERN_PROCARGS2`; agents are not system binaries. node renames itself (pi's argv[0] is `pi`) and leaves empty strings where its arguments were.
 - Seeing the real panel: computer-use screenshots hide it. Use `screencapture -x -R 496,0,520,340 out.png` with keys sent by `osascript`, in the same command (a card that Perch opened by itself closes after 9 s).
+
+Displays. The notch lives on the screen the cursor is on (`ScreenChooser`). A display with no notch shows nothing at rest: Perch opens there with the hotkey and shows the live activity from the top edge; Settings has a Hover opens on external display switch (`Prefs.hoverExternal`, off by default, shown only while such a display is connected) that lets the top edge open it too. Hover only counts on the screen the cursor is on, because the hover zone reaches above its screen's edge (`overNotch`). The resting notch on a Mac with one is drawn a point inside the size the system reports, with smooth corners (app.js `notchPath`), so it hides behind the hardware; `PERCH_NOTCH_GUIDE=1` paints it magenta at the full reported size to see any overhang.
 
 ## Where things are headed
 
