@@ -10,6 +10,8 @@ struct UpdateInfo: Encodable, Equatable {
     var progress = 0.0
     var notes = ""
     var bullets: [String] = []
+    /// Counts up to say an offer again (Check for updates while one waits): the page treats it as new.
+    var nudge = 0
 }
 
 /// Keeps a released Perch up to date with Sparkle, with Perch's own face instead of Sparkle's windows: the notch says what is
@@ -62,7 +64,14 @@ final class Updater: NSObject, SPUUserDriver {
             }
             return
         }
-        guard let updater, info == nil || ["current", "failed", "updated"].contains(info?.phase ?? "") else { return }
+        guard let updater else { return }
+        // Already on it: say so rather than doing nothing.
+        switch info?.phase {
+        case "available": info?.nudge += 1; return   // the offer is still there: say it again
+        case "ready": restartNow(); return
+        case "downloading", "restarting", "checking": return
+        default: break
+        }
         clearTimer?.invalidate(); info = nil
         updater.checkForUpdates()
     }
