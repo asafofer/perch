@@ -275,6 +275,7 @@
     else if (a === 'qback') askKey('back');
     else if (a === 'qnext') askKey('next');
     else if (a === 'flip') post({ type: 'flip' });
+    else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
   var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), footers = [fMain, fSnz, fRep];
@@ -511,7 +512,7 @@
       return '<div class="flex w-full items-center gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
-    }).join('') + '</div>' + (a.why ? '<div class="mt-1 text-[11.5px] leading-[14px] text-muted-foreground">' + esc(a.why) + '</div>' : '');
+    }).join('') + '</div>' + (a.why ? '<div class="mt-1 text-[11.5px] leading-[14px] text-muted-foreground">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : '');
     q('.o-nx').style.display = 'none';
     q('.o-acts').innerHTML = Flip() + Act('default', goLabel(p), ENTER, 'go');
   }
@@ -1040,7 +1041,10 @@
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
-    if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
+    if (st === 'set') {
+      settingsApply(s.settings);
+      if (liveNext) { liveNext = false; setFocus = 2; paintFocus(); setTimeout(flashLive, 300); }
+    } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
     if (st !== 'open') orbFor('');
@@ -1736,7 +1740,12 @@
   }
   document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); });
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
-  var setFocus = 0, appsAt = 0;
+  var setFocus = 0, appsAt = 0, liveNext = false;
+  /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
+  function flashLive() {
+    var r = q('.set').querySelectorAll('.s-row')[2];
+    if (r && r.animate && !STILL) r.animate([{ backgroundColor: 'rgba(255,255,255,.2)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1800, easing: 'ease-out' });
+  }
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
