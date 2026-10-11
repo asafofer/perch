@@ -115,8 +115,8 @@ public enum HerdrStatus {
         case "working": q.agents = [AgentStatus(kind: .running, text: "\(a.name) is working", app: p.app)]
         case "done", "idle":
             // The transcript guessed it was still at work; herdr sees it ready for you.
-            guard p.status.kind == "running" || p.status.kind == "attention" && p.ask == nil else { return p }
-            q.agents = [AgentStatus(kind: .done, text: "\(a.short) finished", app: p.app)]; q.now = nil
+            guard p.status.kind == "running" || p.status.kind == "attention" && (p.ask == nil || p.ask?.transcriptAt != nil) else { return p }
+            q.agents = [AgentStatus(kind: .done, text: "\(a.short) finished", app: p.app)]; q.now = nil; q.ask = nil
         default: return p
         }
         return q

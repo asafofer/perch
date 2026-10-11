@@ -8,7 +8,9 @@ struct UISnapshot: Encodable {
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
     struct UIQuestion: Encodable { let text: String; let header: String; let multi: Bool; let options: [String]; let notes: [String] }
-    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let questions: [UIQuestion]; let answerable: Bool }
+    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let questions: [UIQuestion]; let answerable: Bool
+        /// Why a question with choices cannot be answered here, for the card to say under them.
+        let why: String? }
     struct UIProject: Encodable {
         let id, name: String
         let branch: String?
@@ -48,10 +50,19 @@ struct UISnapshot: Encodable {
     }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
-    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let login: Bool; let live: String
+    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
 
+    /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
+    static func why(_ a: Ask) -> String? {
+        guard a.kind == .question, !a.answerable, a.questions.contains(where: { !$0.options.isEmpty }) else { return nil }
+        let agent = Agent.of(a.agent)
+        return agent.answersFromNotch && !HookInstaller.isInstalled(a.agent) ? "Perch can't answer this one. Turn on Live status in Settings." : "Answer in \(agent.short)."
+    }
+
+    /// How long an unanswered question stays as wings in the notch, after its first nine seconds in full.
+    let questionSeconds = Prefs.questionSeconds
     let phase: String
     let settings: Settings?
     let character: Character
@@ -112,7 +123,7 @@ struct UISnapshot: Encodable {
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
                       ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
-                                                 answerable: $0.answerable) },
+                                                 answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host,
                       section: ListFilter.section(p, now: now).rawValue, said: p.said)
         }

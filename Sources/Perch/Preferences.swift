@@ -35,6 +35,11 @@ enum Prefs {
     static var seen: [String: Double] { get { d.dictionary(forKey: "seen") as? [String: Double] ?? [:] } set { d.set(newValue, forKey: "seen") } }
     /// Set once the sessions that existed before Perch was installed have been marked as seen.
     static var seenBaselined: Bool { get { d.bool(forKey: "seen.baselined") } set { d.set(newValue, forKey: "seen.baselined") } }
+    /// Seconds an unanswered question stays in the notch as wings, after its first nine in full. 60 by default.
+    static var questionSeconds: Int {
+        get { let v = d.integer(forKey: "questionSeconds"); return [30, 60, 300].contains(v) ? v : 60 }
+        set { d.set(newValue, forKey: "questionSeconds") }
+    }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
         get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
