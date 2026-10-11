@@ -287,6 +287,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .o-said-in { scrollbar-width: none; overscroll-behavior: contain; }
 .o-said-in::-webkit-scrollbar { display: none; }
 .o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
+/* a file dragged over the card (app.js dragOver): the reply field lights up as where it goes */
+.f-rep .r-in.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
+.f-rep .r-in.drop::placeholder { color: rgba(255, 255, 255, .62); }
 .o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
 /* a table in what the agent said (app.js mdTable): no lines. The header in grey, a faint band on every other row, even
    numerals. The cells' text lines up with the message's; a wide one scrolls sideways and fades at the side it goes on. */

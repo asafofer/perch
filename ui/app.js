@@ -313,6 +313,7 @@
   /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
   function addPaths(list) {
     if (lastSt !== 'open' || !list || !list.length) return;
+    if (dropping) dropped();
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
     var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
     var t = list.join(' ');
@@ -322,6 +323,32 @@
     rIn.dispatchEvent(new Event('input'));
     var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
   }
+  /* Files dragged over the card (n of them; 0 when the drag goes away). The reply opens for them if it was closed, and
+     closes again if they go elsewhere; its field lights up and says what a drop does; the character looks on wide-eyed,
+     its eyes on the file as it moves. Dropped, it squints happily and hops. */
+  var dropping = 0, dropOpened = false;
+  function dragOver(n) {
+    if (lastSt !== 'open' || n === dropping) return;
+    if (n && !dropping) {
+      if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
+      cr.dataset.m = 'alert'; lookAt(rIn, 60);
+    }
+    dropping = n;
+    rIn.classList.toggle('drop', !!n);
+    rIn.placeholder = n ? (n > 1 ? 'Drop to add their paths' : 'Drop to add its path') : replyHint();
+    if (!n) {
+      if (dropOpened) { dropOpened = false; replyMenu(false, true); }
+      if (snap) layout('open', snap);   /* its face goes back to the session's */
+    }
+  }
+  function dropped() {
+    dropping = 0; rIn.classList.remove('drop'); rIn.placeholder = replyHint();
+    /* the reply it opened for the drag is yours now: Swift hears it is open, so keys go to it */
+    if (dropOpened) { dropOpened = false; post({ type: 'replyMenu', open: true }); }
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
+  }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
   /* focus the field with the caret at i, the words scrolled so it shows */
   function caretAt(i) {
     rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
@@ -751,7 +778,7 @@
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -959,7 +986,8 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
-    if (p) rIn.placeholder = 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026';
+    if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop'); }
+    if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') settingsApply(s.settings); else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
@@ -1683,7 +1711,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */

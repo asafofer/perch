@@ -151,6 +151,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         at(4600, function () { now.textContent = 'Command+Option: back as you left it'; d.show('open', false, true); window.perch.replyMenu(true); });
         at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
       }],
+      ['A file dragged onto the card', 'A file from Finder comes over the card: the reply opens for it, its field lights up and says what a drop does, and the character looks on wide-eyed (in the app its eyes follow the file). The drag goes away and it all goes back; it comes again and drops: the path goes in and the character hops, pleased.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.project(1); d.show('open', false, true);
+        at(1000, function () { now.textContent = 'A file comes over the card'; window.perch.dragOver(1); });
+        at(2900, function () { now.textContent = 'It goes away: the card is as it was'; window.perch.dragOver(0); });
+        at(4000, function () { now.textContent = 'It comes back'; window.perch.dragOver(1); });
+        at(5600, function () { now.textContent = 'Dropped: its path goes in'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
+      }],
+      ['A file dragged onto a reply', 'While you write, a file over the card lights the field; dropped, its path goes in after your words.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        reply(true)();
+        at(1500, function () { now.textContent = 'A file comes over the card'; window.perch.dragOver(1); });
+        at(3300, function () { now.textContent = 'Dropped: its path goes in after your words'; window.perch.paths(['/Users/asaf/Desktop/invoices-sept.csv']); });
+      }],
       ['Reply: a table', 'The agent answered with a table. No lines: the header in grey, a faint band on every other row, even numerals, numbers on the right.', function () { d.project(3); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a long, wide table', 'Taller and wider than the message: the table scrolls in its own window, both ways, its header staying put, and fades at the sides it goes on. Up and Down in the reply scroll the message and, when the table is in the way, its rows first.', function () { d.variant(7, { said: WIDE }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
