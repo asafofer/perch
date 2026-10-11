@@ -1411,19 +1411,38 @@
   function scKeysHtml(sc) { return '<span class="inline-flex items-baseline gap-[3px]">' + scOf(sc).keys.map(function (k) { return Kbd(k); }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
   /* what the recorder asks for, or why it refused the last try (it keeps listening) */
-  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : 'Press your shortcut\u2026'; }
+  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
   function shortcutStep(o) {
     var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
-      return '<kbd class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 font-sans text-xl font-medium select-none transition-colors duration-300" style="' + (sc.tried ? 'background:rgba(140,207,164,.2);color:' + COLORS.done : 'background:rgba(255,255,255,.13);color:#f4f4f5') + ';box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)">' + k + '</kbd>';
+      return '<button class="kcap' + (sc.tried ? ' ok' : '') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
     }).join('');
     var hint = sc.recording ? scPrompt(sc)
       : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
       : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
       : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
     return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
-      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5 ' + (sc.recording ? 'opacity-40' : '') + '">' + big + '</div>') +
+      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5 transition-opacity ' + (sc.recording ? 'opacity-40' : '') + '">' + big + '</div>') +
       oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + hint + '</p>') +
-      ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', sc.recording ? Kbd('esc') : '', 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
+      ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
+  }
+  /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
+  var scHeldNow = [], scWasTried = false;
+  function scHeldApply() {
+    document.querySelectorAll('.kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
+    document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
+  }
+  function scAfter(o) {
+    var sc = scOf(o && o.shortcut);
+    if (sc.tried && !scWasTried) {
+      document.querySelectorAll('.o-sc-big .kcap').forEach(function (c, i) {
+        if (!c.animate || STILL) return;
+        c.animate([{ transform: 'translateY(2px) scale(.96)' }, { transform: 'translateY(-5px) scale(1.12)', offset: .45 }, { transform: 'translateY(0) scale(1)' }], { duration: 520, delay: i * 70, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+      });
+      var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+      setTimeout(function () { if (cr.dataset.m === 'happy' && onbStep === 3) cr.dataset.m = 'awake'; }, 1800);
+    }
+    scWasTried = sc.tried;
+    scHeldApply();
   }
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
@@ -1596,7 +1615,8 @@
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
     box.querySelectorAll('.o-sc').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: b.dataset.a }); }; });
-    box.querySelectorAll('.o-sc-big').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
+    box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
+    if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
@@ -1671,7 +1691,7 @@
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
     if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
-    var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
+    var animate = o.step !== onbStep; if (animate) scWasTried = false; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
@@ -1698,6 +1718,8 @@
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
     /* S skips a step that can be skipped; Left goes back, except on the character page where it changes the shape */
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
+    /* C changes the shortcut on its step */
+    if (k === 'change') { var ch = q('.o-sc'); if (ch && ch.dataset.a === 'record') ch.click(); return; }
     if (k === 'left' && onbStep !== 1) { var bk = q('.o-back'); if (bk) bk.click(); return; }
     if (onbStep !== 1) return;
     /* left and right change the shape, up and down the colour (up goes right along the swatches); both wrap */
@@ -1737,8 +1759,8 @@
     var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
     var sc = scOf(o.shortcut), scRow = sc.recording
-      ? srow(sc.error ? '<span class="min-w-0 flex-1 truncate" style="color:' + COLORS.attention + '">' + sc.error + '</span>' : slabel('Open Perch'), '<span class="flex items-center gap-1.5"><span class="inline-flex h-[22px] items-center rounded-md bg-white/[0.1] px-2 text-xs ring-1 ring-white/35">' + (sc.error ? 'Press another\u2026' : 'Press your shortcut\u2026') + '</span>' + Button('ghost', 'Cancel', '', 's-scc') + '</span>')
-      : srow(slabel('Open Perch'), '<span class="flex items-center gap-1.5">' + scKeysHtml(sc) + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+      ? srow(sc.error ? '<span class="min-w-0 flex-1 truncate" style="color:' + COLORS.attention + '">' + sc.error + '</span>' : slabel('Open Perch'), '<span class="flex items-center gap-1.5"><span class="inline-flex h-[22px] items-center rounded-md bg-white/[0.1] px-2 text-xs ring-1 ring-white/35">' + (sc.error ? 'Press another\u2026' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>') + '</span>' + Button('ghost', 'Cancel', '', 's-scc') + '</span>')
+      : srow(slabel('Open Perch'), '<span class="flex items-center gap-1.5"><button class="s-sc -my-0.5 cursor-pointer rounded-md px-1 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="Change">' + scKeysHtml(sc) + '</button>' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
@@ -1884,7 +1906,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
@@ -2099,6 +2121,7 @@
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', tried: false });
     };
     document.addEventListener('keydown', function (e) {
+      if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));
       if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding') || e.repeat) return;
       var isMod = /^(Control|Alt|Shift|Meta)$/.test(e.key), held = scHeld(e);
       if (isMod) { if (held.length >= scMods.length) scMods = held; scKey = false; if (devSc.recording) { e.preventDefault(); e.stopImmediatePropagation(); } return; }
@@ -2116,6 +2139,7 @@
     }, true);
     document.addEventListener('keyup', function (e) {
       if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding')) return;
+      window.perch.held(scHeld(e));
       if (scHeld(e).length) return;
       var mods = scMods, only = !scKey; scMods = []; scKey = false;
       if (!only || !mods.length) return;
@@ -2130,6 +2154,7 @@
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+      if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }
       if (ph === 'settings' && (arrows[e.key] || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); settingsKey(arrows[e.key] || 'enter'); return; }
       /* the same keys as the app when the card asks something: A allows, D denies; for questions a number, Return, Left and Right */

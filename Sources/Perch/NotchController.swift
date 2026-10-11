@@ -1166,6 +1166,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func shortcutAction(_ action: String) {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch shortcut action: \(action)") }
         switch action {
         case "record":
             guard recorder == nil else { return }
@@ -1189,12 +1190,20 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         finishRecording(recorder?.keyDown(keyCode: Int(e.keyCode), typed: e.charactersIgnoringModifiers, mods: ShortcutMods(e.modifierFlags)) ?? .none)
     }
 
+    /// The modifier keys held right now, for the shortcut step's big keys and the recorder to show as you press them.
+    private func pushHeld(_ e: NSEvent) {
+        guard machine.phase == .onboarding || machine.phase == .settings else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: ShortcutMods(e.modifierFlags).glyphs), let json = String(data: data, encoding: .utf8) else { return }
+        web.evaluateJavaScript("window.perch && window.perch.held(\(json))", completionHandler: nil)
+    }
+
     private func recordFlags(_ e: NSEvent) {
         guard recorder != nil else { return }
         finishRecording(recorder?.flagsChanged(mods: ShortcutMods(e.modifierFlags)) ?? .none)
     }
 
     private func finishRecording(_ outcome: ShortcutRecorder.Outcome) {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil, outcome != .none { NSLog("Perch shortcut: \(outcome)") }
         switch outcome {
         case .none: return
         case .cancel: stopRecording()
@@ -1209,11 +1218,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] e in
             guard let self, self.machine.phase != .idle else { return e }
-            if e.type == .flagsChanged { self.recordFlags(e); return e }
+            if e.type == .flagsChanged { self.recordFlags(e); self.pushHeld(e); return e }
             if self.recorder != nil { self.recordKey(e); return nil }
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
             if self.machine.phase == .onboarding {
-                if KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
+                let letter = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
+                if letter == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
+                if letter == "c", e.modifierFlags.intersection([.command, .control, .option]).isEmpty { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('change')", completionHandler: nil); return nil }
                 switch e.keyCode {
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
                 case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)

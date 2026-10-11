@@ -336,3 +336,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .tb span { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
 .n[data-hot="1"] .tb, .n:not([data-s=idle]) .tb, #scene[data-peek="1"] .tb { opacity: 1; }
 .tb[hidden] { display: none; }
+
+/* the shortcut step's big keys: real keycaps that press, light up while you hold the key, and turn green when you try it */
+.kcap { display: inline-flex; height: 38px; min-width: 38px; align-items: center; justify-content: center; border-radius: 9px; padding: 0 11px; font: 500 20px/1 Inter, system-ui, sans-serif; color: #f4f4f5; cursor: pointer; border: 0; background: rgba(255,255,255,.13); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 2px 0 rgba(255,255,255,.07); transition: transform .14s cubic-bezier(.3,1.5,.5,1), background-color .25s, box-shadow .14s, color .25s; }
+.kcap:hover, .kcap.hv { background: rgba(255,255,255,.2); transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 3px 0 rgba(255,255,255,.07); }
+.kcap:active, .kcap.down { transform: translateY(2px) scale(.97); background: rgba(255,255,255,.26); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 0 0 rgba(255,255,255,0); }
+.kcap.ok { background: rgba(140,207,164,.2); color: #8CCFA4; box-shadow: inset 0 0 0 1px rgba(140,207,164,.25), 0 2px 0 rgba(140,207,164,.12); }
+.kcap.ok.down, .kcap.ok:active { background: rgba(140,207,164,.3); }
