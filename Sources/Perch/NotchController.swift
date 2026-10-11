@@ -208,7 +208,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// is a maybe: it would rather stay quiet about one of them than nudge you about the one you are looking at.
     private func youAreIn() -> (sure: Set<String>, maybe: Set<String>) {
         guard let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return ([], []) }
-        if FocusProbe.reads(bid), focus.fresh(for: bid) == nil { focus.poll(app: bid) }
+        if FocusProbe.reads(bid), focus.fresh(for: bid) == nil, hasSessions(in: bid) { focus.poll(app: bid) }
         switch bid {
         case Restorer.claudeApp:
             var id: String?
@@ -234,6 +234,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
     private let focus = FocusProbe()
+    /// Whether there is anything in that app to tell apart: nothing is read for an app that has no session of ours.
+    private func hasSessions(in bid: String) -> Bool {
+        if bid == Restorer.claudeApp { return projects.contains { $0.desktopSessionId != nil } }
+        let app = bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid
+        return projects.contains { $0.terminal && $0.via == app && $0.spot != nil }
+    }
     private var traced = ""
     private func traceFocus(_ bid: String, _ r: (sure: Set<String>, maybe: Set<String>)) {
         guard ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil else { return }
@@ -246,8 +252,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 // Also while a card is up: a reading that went stale there would make every session in the app a maybe the moment it closes.
-                guard let self, let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, FocusProbe.reads(bid) else { return }
-                self.focus.poll(app: bid)
+                guard let self, let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, FocusProbe.reads(bid), self.hasSessions(in: bid) else { return }
+                self.focus.tick(app: bid)
             }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -547,7 +553,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Pick up opens a closed terminal session in the terminal you use.
                 if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier {
                     if Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
-                    if FocusProbe.reads(bid) { self?.focus.poll(app: bid) }
+                    if FocusProbe.reads(bid), self?.hasSessions(in: bid) == true { self?.focus.poll(app: bid) }
                 }
                 if self?.machine.phase == .idle { self?.push() }
             }

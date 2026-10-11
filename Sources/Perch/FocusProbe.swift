@@ -25,7 +25,9 @@ final class FocusProbe {
     nonisolated static func setKnown(_ v: (hits: [LiveSessions.Hit], viewers: [LiveSessions.Viewer])) { lock.lock(); known = v; lock.unlock() }
     private nonisolated static func getKnown() -> (hits: [LiveSessions.Hit], viewers: [LiveSessions.Viewer]) { lock.lock(); defer { lock.unlock() }; return known }
 
-    static let maxAge: TimeInterval = 3
+    /// A reading older than this is not trusted. While nothing changes it is read every 2 s, so it stays inside this.
+    static let maxAge: TimeInterval = 5
+    private var lastChange = Date.distantPast
     /// Apps this can read. Other terminals and editors cannot be told apart by tab.
     static func reads(_ bid: String) -> Bool {
         bid == Restorer.claudeApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly"].contains(bid)
@@ -35,6 +37,13 @@ final class FocusProbe {
     func fresh(for app: String) -> Reading? {
         guard let r = reading, r.app == app, Date().timeIntervalSince(r.at) <= Self.maxAge else { return nil }
         return r
+    }
+
+    /// The timer's call: reads every second after a change (or a switch of apps), every 2 s once things have been still for 10 s.
+    func tick(app: String) {
+        let still = Date().timeIntervalSince(lastChange) > 10, age = reading.map { Date().timeIntervalSince($0.at) } ?? .infinity
+        if still, reading?.app == app, age < 2 { return }
+        poll(app: app)
     }
 
     /// Reads `app` now in the background, unless a reading is on its way.
@@ -47,7 +56,7 @@ final class FocusProbe {
                 self.busy = false
                 let moved = self.reading.map { $0.app != r.app || $0.looking != r.looking || $0.claude != r.claude } ?? true
                 self.reading = r
-                if moved { self.changed?() }
+                if moved { self.lastChange = Date(); self.changed?() }
             }
         }
     }
