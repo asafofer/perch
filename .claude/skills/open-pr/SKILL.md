@@ -15,7 +15,7 @@ Every PR is read by the owner deciding whether to merge and by agents reviewing 
    No visible change (Swift logic, scripts): no demo, write "No visible change." in Demo.
 3. **Film it locally first.** `./scripts/pr-demo.sh [names...]` writes `build/pr-demo/`. Look at the stills (Read the
    PNGs) and check each shows what it claims: a still that caught a transition or an empty desk means a longer
-   `--hold` or a different scenario. Needs the screen unlocked; if it fails for that, say so and open the PR anyway.
+   `--hold` or a different scenario. It films headless; if it fails, say so and open the PR anyway.
 4. **Write the body** to a scratch file from the template, every section filled from the diff, not from memory:
    - What changes: what a user notices, in two or three sentences.
    - What's new, changed, removed: one line per behaviour, naming keys and settings.

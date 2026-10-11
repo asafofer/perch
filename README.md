@@ -150,7 +150,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | `./scripts/package.sh` | Builds a release and writes `build/Perch.zip` for sharing. |
 | `./scripts/release.sh` | Builds, signs the update with Perch's Sparkle key and writes the appcast; `--publish` pushes it to the releases repo. |
 | `./scripts/make-icon.sh` | Renders `docs/assets/icon.svg` into the app icon and `icon.png`. |
-| `./scripts/record.sh` | Films the design page's sample flow into `docs/assets/perch.gif`. Needs `ffmpeg` and an unlocked screen. |
+| `./scripts/record.sh` | Films the design page's sample flow into `docs/assets/perch.gif`. Needs `ffmpeg`; headless. |
 | `./scripts/agents-demo.sh` | herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux, for trying Perch live. |
 
 </details>
