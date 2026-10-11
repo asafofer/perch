@@ -1152,8 +1152,8 @@
     if (ph === 'current') return note(Ring('done'), 'You have the latest version', COLORS.done);
     if (ph === 'downloading') return note(updRing(u.progress || 0, 'size-4'), 'Downloading ' + esc(u.version), COLORS.running);
     if (ph === 'restarting') return note(Spinner('size-3.5', haze(COLORS.running)), 'Updating', COLORS.running);
-    if (ph === 'failed') return note(Ring('need'), 'Couldn\u2019t check', COLORS.attention) + Button('ghost', 'Try again', '', 's-chk" title="Look for a newer version of Perch');
-    return Button('ghost', 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
+    if (ph === 'failed') return note(Ring('need'), 'Couldn\u2019t check', COLORS.attention) + Button('ghost', 'Try again', '', 's-chk s-gr" title="Look for a newer version of Perch');
+    return Button('ghost', 'Check for updates', '', 's-chk s-gr" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
     var ph = s.update ? s.update.phase : '';
@@ -1927,10 +1927,10 @@
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
     var sc = scOf(o.shortcut),
       /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
-      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2"><span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2"><span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
       scRow,
-      srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
+      srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
@@ -1942,7 +1942,7 @@
       srow(slabel('Hover opens on external display'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
     ] : []).concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */

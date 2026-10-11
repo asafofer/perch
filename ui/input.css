@@ -364,3 +364,5 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .kcap.off { color: #E9A877; box-shadow: inset 0 0 0 1px rgba(233,168,119,.5), 0 2px 0 rgba(233,168,119,.12); }
 /* a refused shortcut: the keys you pressed, still there, in orange */
 .kcap.bad { color: #E9A877; background: rgba(233,168,119,.14); box-shadow: inset 0 0 0 1px rgba(233,168,119,.45), 0 2px 0 rgba(233,168,119,.12); }
+/* a text button at the right of a Settings row: its words end where a switch does, and its hover box reaches the row's edge */
+.s-gr { margin-right: -8px; }
