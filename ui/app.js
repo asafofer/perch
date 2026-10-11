@@ -2055,6 +2055,8 @@
        (the classes, so Tailwind builds them: h-[22px] h-[24px] h-[25px] h-[26px] h-[28px] h-[29px] h-[30px] h-[31px]) */
     var rh = rows.length > 10 ? 22 : rows.length > 9 ? 24 : rows.length > 8 ? 25 : rows.length > 7 ? 28 : 30;
     if (rows.length <= 9) rh += 1;   /* room for the icon tiles */
+    /* more room between the settings: the same height whatever rows show (the panel grows to hold them) */
+    if (!(window.perchDev && window.perchDev.rowsBefore)) rh = 30;
     rows = rows.map(function (r) { return r.replace('h-[30px]', 'h-[' + rh + 'px]'); });
     rows = rows.join('');
     var box = q('.set');
@@ -2213,9 +2215,9 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, !!(window.perchDev && window.perchDev.rowsBefore)]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate, !!(window.perchDev && window.perchDev.rowsBefore)]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });

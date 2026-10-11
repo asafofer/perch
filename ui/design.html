@@ -325,6 +325,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); }]
     ]],
     ['Settings', [
+      ['Settings: spacing, before', 'The Settings rows as they were: 26px apart with nine rows, tighter as more show (an external display, a missing permission), so the card changed height from one situation to the next.', function () { d.rowsBefore = true; d.settings(); }],
+      ['Settings: spacing, after', 'The same rows, a little more room: 30px apart whatever shows, so rows never change height. The card is taller to hold it: 348 pt with nine rows, 408 with all eleven, where it was 312 and 320. The panel would grow with it.', function () { d.settings(); }],
       ['Settings: Notify me about', 'Which moments the notch announces. The list and the cards still say all of them.', function () { d.settings(); }],
       ['Settings: Notify menu', 'A check for each moment. Up and Down move, Return switches one, Esc closes.', function () { d.settings(); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Settings: Finished off', 'Finished is switched off: its mark leaves the row and the menu shows it unchecked.', function () { d.settings({ notifyOff: ['done'] }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
@@ -410,7 +412,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.rowsBefore = false; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
