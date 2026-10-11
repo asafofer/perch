@@ -17,6 +17,13 @@ body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-se
 .n:not([data-s=idle]) { border-radius: 0 0 20px 20px;
   /* opening: it widens with a springy overshoot, then drops down and settles */
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .6s .05s cubic-bezier(.3,1.5,.45,1), border-radius .4s, box-shadow .6s, transform .35s cubic-bezier(.3,1.5,.5,1), --gcol .7s cubic-bezier(.3,.9,.4,1); }
+/* The resting notch on a Mac that has one is drawn by ::after as the hardware's own outline, a point inside the size the
+   system reports and with smooth corners (app.js notchPath), so it hides behind the notch instead of showing past it. It takes
+   over from the plain black box after a closing card has narrowed to it, and gives way the moment anything grows. */
+.n::after { content: ""; position: absolute; inset: 0; z-index: -1; background: #000; clip-path: var(--np, none); opacity: 0; pointer-events: none; transition: opacity 0s .4s; }
+.n[data-shape="1"] { background-color: transparent; transition-property: height, width, margin-left, border-radius, box-shadow, transform, opacity, --gcol, background-color; transition-delay: 0s, .07s, .07s, 0s, 0s, 0s, 0s, 0s, .4s; transition-duration: .26s, .32s, .32s, .3s, .3s, .35s, 0s, .7s, 0s; }
+.n[data-shape="1"]::after { opacity: 1; }
+html[data-guide="1"] .n[data-shape="1"]::after { clip-path: none; background: #f0f; }
 /* a screen without a notch draws nothing at rest; the box is still there to grow the live activity and the card from.
    It fades out last when closing (the fade waits for the narrowing) and in at once when something opens. */
 .n[data-hide="1"] { opacity: 0 !important; --fade: .2s; --fade-delay: .32s; }

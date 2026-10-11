@@ -779,6 +779,15 @@
     if (on) { void g.offsetWidth; g.style.transition = 'opacity 9s linear'; g.style.opacity = '.3'; }
     else g.style.transition = '';
   }
+  /* The resting notch's outline: the size the system reports, drawn a point inside it at the sides and bottom, so it can only
+     ever hide behind the hardware and never show past it. The bottom corners are smooth (a superellipse, not a plain circle). */
+  function notchPath(w, h) {
+    var i = 1, r = 12, e = 2 / 2.6, pts = [], k, t, x0 = w - i - r, y0 = h - i - r, N = 14;
+    pts.push([i, -2], [w - i, -2]);
+    for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([x0 + r * Math.pow(Math.cos(t), e), y0 + r * Math.pow(Math.sin(t), e)]); }
+    for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([i + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
+    return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
+  }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
@@ -789,6 +798,10 @@
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
     n.dataset.virt = virt ? '1' : '';
+    var shaped = st === 'idle' && !act.mode && !virt;
+    if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
+    n.dataset.shape = shaped ? '1' : '';
+    document.documentElement.dataset.guide = s.guide ? '1' : '';
     n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
     n.dataset.s = st;
     curH = h;
