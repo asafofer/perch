@@ -1351,7 +1351,11 @@
      Swift sends where the pointer is anyway (cursor, below). While no real moves arrive, what is under it is marked .hv,
      which every hover style also answers to, and mouseenter and mouseleave play as a real pointer would make them. */
   var hvEls = [], realMoveAt = 0;
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  /* Where the pointer is, and where it was at the last arrow key. A row that slides or is redrawn under a still pointer gets a
+     mouseenter too (here and from WebKit); that must not pull the keyboard's choice back to the pointer. Only a pointer that moved does. */
+  var ptrAt = [-1, -1], keyPtr = null;
+  function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1365,6 +1369,7 @@
   var handOn = false;
   function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
+    ptrAt = [x, y];
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -1995,7 +2000,7 @@
       /* the keys, like the list's: every setting can be changed without the mouse */
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
-    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
+    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
@@ -2040,7 +2045,7 @@
     if (trig) trig.onclick = function (e) { e.stopPropagation(); appsMenu(!appsOpen); };
     box.querySelectorAll('.s-app').forEach(function (b) {
       b.onclick = function (e) { e.stopPropagation(); post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { appsAt = +b.dataset.i; paintFocus(); };
+      b.onmouseenter = function () { if (ptrMoved()) { appsAt = +b.dataset.i; paintFocus(); } };
     });
   }
   /* opens or closes the menu in place; a click anywhere else on the card closes it */
@@ -2074,7 +2079,7 @@
     if (trig) trig.onclick = function (e) { e.stopPropagation(); notifyMenu(!notOpen); };
     box.querySelectorAll('.s-nitem').forEach(function (b) {
       b.onclick = function (e) { e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { notAt = +b.dataset.i; paintFocus(); };
+      b.onmouseenter = function () { if (ptrMoved()) { notAt = +b.dataset.i; paintFocus(); } };
     });
   }
   function notifyMenu(open) {
@@ -2106,6 +2111,7 @@
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
+    keyPtr = ptrAt.slice();
     var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
     if (appsOpen) {
