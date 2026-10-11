@@ -1153,7 +1153,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard let self, self.machine.phase != .idle else { return e }
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
             if self.machine.phase == .onboarding {
-                if e.charactersIgnoringModifiers?.lowercased() == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
+                if KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
                 switch e.keyCode {
                 case 36, 76: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('enter')", completionHandler: nil)
                 case 123: self.web.evaluateJavaScript("window.perch && window.perch.onbKey('left')", completionHandler: nil)
@@ -1178,7 +1178,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Perch has no Edit menu, so nothing turns Command+V and friends into actions: send them to the field ourselves.
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
-                if flags.subtracting(.shift) == .command, let action = edits[e.charactersIgnoringModifiers?.lowercased() ?? ""] {
+                if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
                     // A file copied in Finder pastes as its path, not its name.
                     if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
                         self.addPaths(urls.map(\.path)); return nil
@@ -1187,8 +1187,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return e
             }
-            // Letters by what they type, so N, R and the comma work on any keyboard layout. Digits also by position (AZERTY).
-            let ch = e.charactersIgnoringModifiers?.lowercased() ?? ""
+            // Letters by what they type, so N, R and the comma work on any Latin layout; on Hebrew and other layouts, by their place on a US keyboard.
+            // Digits also by position (AZERTY).
+            let ch = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
             if self.snoozeMenuOpen {
                 if ch == "1" || e.keyCode == 18 { self.snooze("30m") }
                 else if ch == "2" || e.keyCode == 19 { self.snooze("2h") }
