@@ -1562,8 +1562,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
-        NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
+        if onPill { return NotchGeometry.pillHoverRect(for: info) }
+        return NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
     }
+    /// A screen without a notch, at rest with nothing showing: only the pill with the character is there to aim at,
+    /// unless Hover opens on external displays makes the whole top edge count.
+    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty }
 
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
     /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.
@@ -1596,7 +1600,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func overNotch() -> Bool {
         let at = NSEvent.mouseLocation
         guard notchHoverRect().contains(at), ScreenChooser.under(at)?.frame == info.frame else { return false }
-        return info.notchSize != nil || Prefs.hoverExternal
+        return info.notchSize != nil || Prefs.hoverExternal || onPill
     }
 
     /// Resting the cursor on the notch for a moment opens the welcome card.

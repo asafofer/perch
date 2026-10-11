@@ -13,6 +13,17 @@ import CoreGraphics
         #expect(NotchGeometry.idleSize(for: plain).width == NotchGeometry.tabWidth)
         #expect(NotchGeometry.idleSize(for: ScreenInfo(frame: plain.frame, notchSize: nil, menuBarHeight: 40)).height == 28)
     }
+    @Test func pillHoverCoversThePillAndTheTopEdge() {
+        let r = NotchGeometry.pillHoverRect(for: plain)
+        #expect(r.midX == plain.frame.midX)
+        // the pill itself, 3 pt below the top edge
+        #expect(r.contains(CGPoint(x: 960, y: 1080 - 3 - 9)))
+        // the cursor parked on the top edge, aimed at it
+        #expect(r.contains(CGPoint(x: 960, y: 1080)))
+        // a little way off to the side is not the pill
+        #expect(!r.contains(CGPoint(x: 960 + 40, y: 1080 - 10)))
+        #expect(!r.contains(CGPoint(x: 960, y: 1080 - 40)))
+    }
     @Test func panelIsTopCentred() {
         let f = NotchGeometry.panelFrame(for: notched)
         #expect(f.midX == notched.frame.midX)

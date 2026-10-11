@@ -40,6 +40,18 @@ public enum NotchGeometry {
         return CGRect(x: screen.frame.midX - w / 2 - left, y: screen.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
     }
 
+    /// On a screen without a notch, a small black pill with your character rests at the top centre, this far below the
+    /// top edge (app.js layout draws it).
+    public static let pillSize = CGSize(width: 30, height: 18)
+    public static let pillInset: CGFloat = 3
+
+    /// Where resting the cursor on that pill opens Perch: the pill with a little slack round it, up past the top edge so
+    /// the cursor parked on it (y == maxY) counts.
+    public static func pillHoverRect(for screen: ScreenInfo) -> CGRect {
+        let slack: CGFloat = 6, w = pillSize.width + slack * 2, below = pillInset + pillSize.height + slack
+        return CGRect(x: screen.frame.midX - w / 2, y: screen.frame.maxY - below, width: w, height: below + 2)
+    }
+
     /// The cursor is in that screen's hover zone. The zone reaches above its screen's edge, so a display stacked above
     /// must not count: the cursor has to be on screen `i` itself.
     public static func hovering(_ p: CGPoint, frames: [CGRect], index i: Int, rect: CGRect) -> Bool {

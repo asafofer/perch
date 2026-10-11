@@ -819,12 +819,16 @@
     for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([ix + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
+  var PILL = [30, 18, 3];   /* the resting pill on a screen without a notch: width, height, gap below the top edge */
   function layout(st, s) {
-    /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
+    /* No hardware notch (an external display): at rest the box is a small black pill just under the top edge, your character in it
+       (NotchGeometry.pillSize, pillInset). The live activity and the card grow from the top centre and close back into it. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
+    var pill = virt && st === 'idle' && !act.mode;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
+    else if (pill) { w = PILL[0]; h = PILL[1]; }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
@@ -833,13 +837,13 @@
     if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
     n.dataset.shape = shaped ? '1' : '';
     document.documentElement.dataset.guide = s.guide || '';
-    n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
+    n.dataset.pill = pill ? '1' : '';
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
-      var d = 18; cr.style.width = cr.style.height = d + 'px';
-      /* beside the notch, or beside the live activity when it has widened the notch */
-      idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
+      var d = pill ? 13 : 18; cr.style.width = cr.style.height = d + 'px';
+      /* in the pill; otherwise beside the notch, or beside the live activity when it has widened the notch */
+      idleXf = pill ? 'translate(' + (-d / 2) + 'px,' + (PILL[2] + (PILL[1] - d) / 2) + 'px)' : 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
@@ -851,11 +855,11 @@
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
     var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
-    cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
+    cr.style.opacity = (st === 'idle' && !news && !hello && !pill) || choosing ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : pill ? 'awake' : 'sleep')
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -1319,7 +1323,7 @@
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
-       other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
+       other display's notch or pill. A card opening there grows from its notch. */
     var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
     if (screenKey && sk !== screenKey) {
       scene.dataset.moved = '1';
@@ -2464,8 +2468,6 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     window.perchDev = {
-      /* the character on its own, for mock-ups in the design page */
-      mini: function (size, mood, shape) { return crHtml('cr-mini', size, shapeOf(shape || charNow.shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
