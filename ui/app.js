@@ -958,7 +958,7 @@
   /* A question that goes unanswered does not wait in the wings for ever: it said its piece (nine seconds in full, then a minute
      as wings) and goes away. It stays in the list and on its card; only the notch stops pointing at it. A command that needs your
      OK still waits until answered: the agent is stopped on it. */
-  var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;
+  var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;   /* nine seconds in full, then the setting's seconds as wings (Swift sends it as questionSeconds) */
   function actExpired(p) {
     if (!p.ask || p.ask.kind !== 'question') return false;
     var k = actKey(p), t = actSeen[k] || (actSeen[k] = Date.now());
@@ -974,6 +974,7 @@
   }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
+    ACT_Q_MS = 9000 + 1000 * (s.questionSeconds || 60);
     var others = s.projects.filter(function (p) { return !inside(s, p.id); });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
@@ -1687,16 +1688,22 @@
   function settingsRender(o) {
     setLast = o;
     var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-    var seg = [10, 20, 60].map(function (m) {
-      return '<button class="s-idle h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o.idleMinutes === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-m="' + m + '">' + (m === 60 ? '1 hour' : m + ' min') + '</button>';
-    }).join('');
+    /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
+    var segOf = function (key, vals, name) {
+      return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + vals.map(function (m) {
+        return '<button class="s-seg h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o[key] === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-key="' + key + '" data-m="' + m + '">' + name(m) + '</button>';
+      }).join('') + '</span>';
+    };
+    var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
+    var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
     var rows = [
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
-      srow(slabel('Away from your Mac for'), '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + seg + '</span>') +
-        '<p class="mx-2 -mt-1 truncate px-2 pb-0.5 text-xs text-muted-foreground">Then Perch shows where you left off when you come back.</p>',
+      srow(slabel('Away from your Mac for'), awaySeg),
+      /* a question nobody answers leaves the notch after this long (it stays in the list) */
+      srow(slabel('Questions stay in the notch for'), questSeg),
       srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ].join('');
@@ -1716,7 +1723,7 @@
     bindApps(box);
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
-    box.querySelectorAll('.s-idle').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: 'idleMinutes', value: +b.dataset.m }); }; });
+    box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
@@ -1786,20 +1793,20 @@
     if (k === 'esc') { post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
-    var seg = row.querySelectorAll('.s-idle'), apps = row.querySelector('.s-apptrig');
+    var seg = row.querySelectorAll('.s-seg'), apps = row.querySelector('.s-apptrig');
     if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
       /* on a row that has no sideways choice, Left goes back to where Settings came from */
       if (!(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
       if (seg.length && setLast) {
-        var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast.idleMinutes));
-        post({ type: 'setting', key: 'idleMinutes', value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
+        var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast[seg[0].dataset.key]));
+        post({ type: 'setting', key: seg[0].dataset.key, value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
       }
       return;
     }
     /* Return or Space: flip the switch, step the segment, or press the row's button */
-    if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }); post({ type: 'setting', key: 'idleMinutes', value: v[(v.indexOf(setLast.idleMinutes) + 1) % v.length] }); return; }
+    if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }), sk = seg[0].dataset.key; post({ type: 'setting', key: sk, value: v[(v.indexOf(setLast[sk]) + 1) % v.length] }); return; }
     var c = row.querySelector('.s-sw, button'); if (c) c.click();
   }
   function settingsApply(o) {
@@ -1812,8 +1819,8 @@
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
-      box.querySelectorAll('.s-idle').forEach(function (b) {
-        var on = +b.dataset.m === o.idleMinutes;
+      box.querySelectorAll('.s-seg').forEach(function (b) {
+        var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
         ['text-muted-foreground', 'hover:text-foreground'].forEach(function (c) { b.classList.toggle(c, !on); });
       });
@@ -1863,8 +1870,8 @@
       if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
-    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(); return; }
@@ -1925,7 +1932,7 @@
       settings: function (o) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on' }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
