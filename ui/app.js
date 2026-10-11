@@ -171,7 +171,7 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button class="upd-chip rv absolute right-[76px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
+    '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
@@ -193,7 +193,7 @@
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button class="upd-chip rv absolute right-[76px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
+    '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
@@ -909,6 +909,7 @@
      fills on the other side. When it is ready and you are busy it waits there, the ring a green check (Settings has Restart to update).
      When it restarts, the row says Updating. Back on the new version the character pops out and says so, then the notch tells you
      the headline of what is new. All of it folds away by itself. */
+  function haze(c) { return glow(c); }   /* apply() has its own `glow` */
   var UPD_C = 59.7;   /* the ring's circumference, 2 pi r with r 9.5 */
   function updRing(frac, c) {
     c = c || 'size-4';
@@ -982,8 +983,10 @@
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
-    var w = Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw));   /* the panel is 480 wide */
-    if (!actEl.querySelector('.act-btns')) return [Math.min(460, Math.max(idleW + 2 * side, idleW + 150)), idleH];   /* an update restarting: just the row */
+    /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
+    var even = function (x) { return Math.ceil(x / 2) * 2; };
+    var w = even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw)));   /* the panel is 480 wide */
+    if (!actEl.querySelector('.act-btns')) return [even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150))), idleH];   /* an update restarting: just the row */
     var bd = actEl.querySelector('.act-body');
     return [w, idleH + (bd ? +bd.dataset.h || 24 : 0) + 44];
   }
@@ -1129,8 +1132,31 @@
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
-  /* While the list or a card is open the notch cannot say it, so the update waits at the top right: Update, a ring while it downloads,
-     Restart when it is ready. */
+  /* While the list or a card is open the notch cannot say it, so the update waits at the top left, beside the character (the right has the
+     hardware notch's neighbour, Settings and the close, with no room): Update, a ring while it downloads, Restart when it is ready. */
+  /* where the update stands, as one small thing for Settings' Updates row: Check for updates when there is nothing to say, then what is
+     happening, then the button for what comes next */
+  function updSub(s) {
+    var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
+    return { checking: 'looking for a new version', current: 'you have the latest', failed: 'could not check', available: v + ' is available', downloading: 'downloading ' + v, ready: v + ' is ready', restarting: 'updating to ' + v }[ph] || 'checked daily';
+  }
+  function updSlot(s) {
+    var u = s.update, ph = u ? u.phase : '';
+    var chipB = function (label, tip) { return '<button title="' + esc(tip) + '" class="s-upd h-[22px] cursor-pointer rounded-md px-2 text-[11.5px] font-medium tracking-[-0.005em] transition-colors">' + label + '</button>'; };
+    var mark = function (inner) { return '<span class="grid size-5 flex-none place-items-center">' + inner + '</span>'; };
+    if (ph === 'available') return chipB('Update', 'Perch ' + u.version + ' is available');
+    if (ph === 'ready') return chipB('Restart to update', 'Perch ' + u.version + ' is downloaded. It installs and restarts Perch');
+    if (ph === 'checking') return mark(Spinner('size-3.5', haze(COLORS.running)));
+    if (ph === 'current') return mark(Ring('done'));
+    if (ph === 'downloading') return mark(updRing(u.progress || 0, 'size-4'));
+    if (ph === 'restarting') return mark(Spinner('size-3.5', haze(COLORS.running)));
+    return Button('ghost', ph === 'failed' ? 'Try again' : 'Check for updates', '', 's-chk" title="Look for a newer version of Perch');
+  }
+  function bindUpdSlot(root, s) {
+    var ph = s.update ? s.update.phase : '';
+    var ub = root.querySelector('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
+    var cb = root.querySelector('.s-chk'); if (cb) cb.onclick = function () { post({ type: 'update', action: 'check' }); };
+  }
   var chipSig = '';
   function updChip(s, st) {
     var u = s.update, ph = u && u.phase, on = (st === 'open' || st === 'switch') && (ph === 'available' || ph === 'downloading' || ph === 'ready'), sig = on ? ph + Math.round((u.progress || 0) * 20) : '';
@@ -1147,12 +1173,9 @@
   var verSig = '';
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
-    var upReady = s.update && (s.update.phase === 'ready' || s.update.phase === 'available'), vs = (s.testBuild ? '' : (s.version || '')) + '|' + (upReady ? s.update.version + s.update.phase : '');
-    if (vs !== verSig) {
-      verSig = vs;
-      q('.s-ver').innerHTML = (upReady ? '<button title="Perch ' + esc(s.update.version) + (s.update.phase === 'ready' ? ' is downloaded. It installs and restarts Perch' : ' is available') + '" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] font-medium tracking-[-0.005em] transition-colors">' + (s.update.phase === 'ready' ? 'Restart to update' : 'Update to ' + esc(s.update.version)) + '</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
-      var ub = q('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update', action: s.update.phase === 'ready' ? 'restart' : 'install' }); };
-    }
+    /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
+    var head = s.testBuild ? '' : (s.version || '');
+    if (head !== verSig) { verSig = head; q('.s-ver').textContent = head; }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -1918,14 +1941,17 @@
       /* nothing to do when it is allowed, so the row only shows while it is not */
       o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).filter(Boolean);
+    ]).concat(snap && snap.canUpdate ? [
+      /* a build that can update says where it stands; a local test build has no updater and no row */
+      srow(slabel('Updates', updSub(snap)), '<span class="s-updslot flex items-center">' + updSlot(snap) + '</span>')
+    ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer */
-    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', 'h-[26px]'); }) : rows;
+    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[26px]' : 'h-[28px]'); }) : rows;
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-2 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
+      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { setFocus = i; paintFocus(); }); });
     paintFocus();
@@ -1935,7 +1961,7 @@
       if (b.dataset.k === 'login' || b.dataset.k === 'hoverExternal') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    bindApps(box);
+    bindApps(box); bindUpdSlot(box, snap);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2032,13 +2058,19 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
+      var us = box.querySelector('.s-updslot');
+      if (us && snap) {
+        var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
+        if (us._k !== key) { us.innerHTML = html; us._k = key; bindUpdSlot(us, snap); }
+        var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
+      }
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
@@ -2080,7 +2112,11 @@
     s.timerToken++; apply(s);
   }
   function dev(m) {
-    if (m.type === 'update') { if (m.action === 'install' || m.action === 'restart') window.perchDev.updRun(m.action === 'restart'); return; }
+    if (m.type === 'update') {
+      if (m.action === 'install' || m.action === 'restart') window.perchDev.updRun(m.action === 'restart');
+      if (m.action === 'check') { var D = window.perchDev, k = ++updTok; D.update('checking', { fresh: false, stay: true }); setTimeout(function () { if (k === updTok) D.update('current', { fresh: false, stay: true }); }, 1600); setTimeout(function () { if (k === updTok) D.update(null, { fresh: false, stay: true }); }, 5200); }
+      return;
+    }
     if (m.type === 'shortcut') {
       if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
@@ -2160,7 +2196,7 @@
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
-    var base = { selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
+    var base = { canUpdate: true, selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer, devQuery = '';
     function devShown() {
@@ -2230,7 +2266,7 @@
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */
-        if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }
+        if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open' || snap.phase === 'settings')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }
         apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: base.update }));
       },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */

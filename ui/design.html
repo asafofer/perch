@@ -38,6 +38,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
+/* the hardware notch: its pixels are not there, so whatever the card draws under it is gone. Painted over the card, with a thin pink edge to find it by. */
+.desk #hw{position:absolute;left:50%;top:0;width:185px;height:32px;margin-left:-92.5px;background:#000;border-radius:0 0 11px 11px;box-shadow:0 0 0 1px rgba(255,70,190,.6);z-index:5;pointer-events:none}
+.desk.ext #hw,.desk.noguide #hw{display:none}
 /* scenarios: one category at a time, picked with tabs like Display and Wallpaper */
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .tabs button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
@@ -77,9 +80,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   </header>
 
   <div class="deskwrap">
-    <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
+    <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div id="hw" title="The hardware notch"></div><div class="now" id="now">Welcome back</div></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
-      <span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
+      <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button><span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
   </div>
 
   <section>
@@ -339,6 +342,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Downloading', 'The character beside the camera and a ring with an arrow inside that fills. It gives way to a session that needs you.', function () { d.update('downloading', { progress: 0.45, fresh: true }); }],
       ['Restarting', 'The row widens: the character asleep, Updating, a spinner. A moment later Perch is gone and back.', function () { d.update('restarting', { fresh: true }); }],
       ['Updated', 'On the new version: a small row with a green check, then it folds away.', function () { d.update('updated', { fresh: true }); }],
+      ['Settings: check for updates', 'Settings says where the update stands, beside the version: Check for updates when there is nothing to say; press it and it reads Checking, then Up to date for a few seconds, then goes back. The same slot shows Update to 0.3.2, a ring while it downloads, or Restart to update. A local test build has no updater, so it shows nothing there.', function () { var me = ++charRun; d.update(null, { fresh: true }); d.settings(); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.s-chk'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); }],
       ['Settings: update available', 'While you are in Settings, an Update button sits beside the version.', function () { d.settings({ update: { version: '0.3.1', phase: 'available' } }); }],
       ['Settings: downloaded', 'Downloaded and waiting for a quiet moment: Restart to update does it now.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }]
     ]],
@@ -367,6 +371,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
   document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
   document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
