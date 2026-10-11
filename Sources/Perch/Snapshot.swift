@@ -51,6 +51,8 @@ struct UISnapshot: Encodable {
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
+        /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
+        let hasExternal: Bool; let hoverExternal: Bool
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
 
@@ -96,6 +98,9 @@ struct UISnapshot: Encodable {
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
     /// "branch @ commit" on a test build; the page says so beside the notch.
     var testBuild: String? = TestBuild.label
+    /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports; =2 paints the shape Perch really draws.
+    /// Either way any overhang past the hardware shows.
+    var guide: String? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"]
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }

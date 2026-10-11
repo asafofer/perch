@@ -292,8 +292,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       }]
     ]],
     ['External display', [
-      ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', true); }],
-      ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
+      ['Resting', 'A display without a notch shows nothing at rest. Switch Display to External. Perch opens there with the hotkey (Command+Option), and shows the live activity from the top edge.', function () { setDisplay(0); d.show('idle', true); }],
+      ['Live activity', 'An answer or a request grows out of the top edge, centred on the screen, the same as from a notch.', function () { setDisplay(0); d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
+      ['Opened by the hotkey', 'The card drops from the top edge.', function () { setDisplay(0); d.project(0); d.show('open'); }],
+      ['Settings: Hover opens', 'The row appears only while a display without a notch is connected. Off by default: resting the pointer on the top edge does nothing there. On, it opens Perch there like the notch does, with nothing drawn to aim at.', function () { setDisplay(0); d.settings(); }],
+      ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); }]
     ]],
     ['Settings', [
       ['Settings', 'The gear on the card or the list, or Command+comma. Away from your Mac for is how long a break must be before the card says where you left off.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],

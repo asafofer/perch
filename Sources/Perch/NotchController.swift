@@ -744,6 +744,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if let key = body["key"] as? String {
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
                 if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
+                if key == "hoverExternal", let on = body["value"] as? Bool { Prefs.hoverExternal = on }
                 if key == "login", let on = body["value"] as? Bool { setLaunchAtLogin(on) }
                 push()
             }
@@ -1044,6 +1045,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func settingsState() -> UISnapshot.Settings {
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
+                                   hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    back: machine.settingsFrom != nil)
     }
 
@@ -1280,7 +1282,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let at = NSEvent.mouseLocation
-                let top = NSScreen.screens.first { $0.frame.contains(at) }.map { $0.frame.maxY - at.y } ?? 0
+                let top = ScreenChooser.under(at).map { $0.frame.maxY - at.y } ?? 0
                 let fast = self.machine.phase != .idle || top < 160
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
@@ -1380,9 +1382,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return CGRect(x: info.frame.midX - w / 2 - left, y: info.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
     }
 
+    /// The cursor is over the notch of the screen it is on. The zone reaches above the screen edge, so a display stacked
+    /// above this one must not count: the cursor has to be on this screen itself.
+    private func overNotch() -> Bool {
+        let at = NSEvent.mouseLocation
+        guard notchHoverRect().contains(at), ScreenChooser.under(at)?.frame == info.frame else { return false }
+        return info.notchSize != nil || Prefs.hoverExternal
+    }
+
     /// Resting the cursor on the notch for a moment opens the welcome card.
     private func hoverIdle() {
-        let inside = notchHoverRect().contains(NSEvent.mouseLocation)
+        let inside = overNotch()
         if inside != tabHot { tabHot = inside; web.evaluateJavaScript("window.perch && window.perch.hot(\(inside))", completionHandler: nil) }
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
         // Not while a button is down (a drag in passing), unless it carries files: brought to the notch, they open the card to drop on.
@@ -1393,14 +1403,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             self.hoverTask = nil
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hover: dwell done") }
             // Not over a launcher that has the keyboard: the card would cover it. It opens once the launcher is gone.
-            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation), Quiet.launcherOpen() == nil { self.comeBack(byHover: true) }
+            if self.machine.phase == .idle, self.overNotch(), Quiet.launcherOpen() == nil { self.comeBack(byHover: true) }
         }
     }
 
     private func mouseMoved() {
         if machine.phase == .idle {
             // The tab (or notch) lives on whichever screen the cursor is on, so an external display gets one too.
-            if let under = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }), under !== screen { place(on: under); push() }
+            if let under = ScreenChooser.under(), under !== screen { place(on: under); push() }
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
             let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
