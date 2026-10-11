@@ -1665,15 +1665,16 @@
       ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
-  var scHeldNow = [], scWasTried = '';
+  var scHeldNow = [], scWasTried = '', scHeldShown = '';
   var scRest = '', scRef = 0;
   function scHeldApply() {
     document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
       var sig = scHeldNow.join('');
       if (b.dataset.held === sig) return;
-      var before = (b.dataset.held || '').length; b.dataset.held = sig;
+      /* what was held is remembered here, not on the row: the card redraws now and then and a fresh row must not replay the press */
+      var before = sig.indexOf(scHeldShown) === 0 ? scHeldShown.length : 0; b.dataset.held = sig; var same = scHeldShown === sig; scHeldShown = sig;
       b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
-      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
+      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && !same && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
     });
     document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
     document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
