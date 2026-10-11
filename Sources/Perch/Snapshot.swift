@@ -105,6 +105,8 @@ struct UISnapshot: Encodable {
     var quiet = false
     /// An update of Perch itself: checking, offered, downloading, restarting, updated.
     var update: UpdateInfo?
+    /// This build can look for updates, so Settings offers it.
+    var canUpdate = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
     /// "branch @ commit" on a test build; the page says so beside the notch.
     var testBuild: String? = TestBuild.label

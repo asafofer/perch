@@ -33,6 +33,9 @@ final class Updater: NSObject, SPUUserDriver {
 
     private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
 
+    /// This build can look for updates (a release; a test build cannot).
+    var canCheck: Bool { updater != nil || demoTask != nil }
+
     /// The menu's "Check for updates…", nil on a build that does not update.
     var checkItem: NSMenuItem? {
         guard updater != nil || demoTask != nil else { return nil }
@@ -49,7 +52,16 @@ final class Updater: NSObject, SPUUserDriver {
         announceUpdated()
     }
 
-    @objc private func check() {
+    @objc func check() {
+        // The demo has no Sparkle: a check just says you are up to date.
+        if updater == nil, demoTask != nil, info == nil || info?.phase == "current" {
+            info = UpdateInfo(version: shortVersion, phase: "checking")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+                guard self?.info?.phase == "checking" else { return }
+                self?.info = UpdateInfo(version: self?.shortVersion ?? "", phase: "current"); self?.clear(after: 5)
+            }
+            return
+        }
         guard let updater, info == nil || ["current", "failed", "updated"].contains(info?.phase ?? "") else { return }
         clearTimer?.invalidate(); info = nil
         updater.checkForUpdates()
@@ -61,6 +73,7 @@ final class Updater: NSObject, SPUUserDriver {
         case "install": if let offer { self.offer = nil; offer(.install) }
         case "later": if let offer { self.offer = nil; offer(.dismiss) }; if info?.phase == "available" { info = nil }
         case "restart": restartNow()
+        case "check": check()
         default: break
         }
     }

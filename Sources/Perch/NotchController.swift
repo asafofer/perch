@@ -49,6 +49,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// An update of Perch itself, as the page draws it (Updater).
     var updateInfo: UpdateInfo? { didSet { if updateInfo != oldValue { push() } } }
     var onUpdateAction: ((String) -> Void)?
+    var canUpdate = false
     /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
     var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
     /// What showed when the card or list was put away, for Command+Option to bring back (PutAway).
@@ -657,7 +658,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
         sent.drafts = drafts
-        sent.update = updateInfo
+        sent.update = updateInfo; sent.canUpdate = canUpdate
         sent.proactive = proactiveOpen
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }

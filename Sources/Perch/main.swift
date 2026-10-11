@@ -57,6 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updater.onChange = { [weak c] info in c?.updateInfo = info }
         c.onUpdateAction = { [weak self] action in self?.updater.handle(action) }
         if args.contains("--update-demo") { updater.demo() } else if !sample { updater.start() }
+        c.canUpdate = updater.canCheck
 
         hotkeys.register(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { c.comeBack() }
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
