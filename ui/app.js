@@ -880,11 +880,12 @@
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
     /* choices share one Command+Option, said once, so each keeps room for its words */
-    /* The short project sits beside the camera; the session's longer title has the row below, before the buttons. No cross:
-       a finish folds away by itself, a request folds to wings, and Command+Option+. still puts it away. A chat with no
-       project is named by its title alone, on top. */
+    /* The short project sits beside the camera; the session's longer title has the row below, before the buttons. A small
+       cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
+       alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
+    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>' +
+      (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */

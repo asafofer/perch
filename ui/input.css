@@ -229,6 +229,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
+.act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
+.act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
 .act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
 .act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }
