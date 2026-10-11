@@ -16,13 +16,21 @@ import CoreGraphics
     @Test func pillHoverCoversThePillAndTheTopEdge() {
         let r = NotchGeometry.pillHoverRect(for: plain)
         #expect(r.midX == plain.frame.midX)
-        // the pill itself, 3 pt below the top edge
-        #expect(r.contains(CGPoint(x: 960, y: 1080 - 3 - 9)))
+        // the pill itself
+        #expect(r.contains(CGPoint(x: 960, y: 1080 - 2 - 9)))
         // the cursor parked on the top edge, aimed at it
         #expect(r.contains(CGPoint(x: 960, y: 1080)))
         // a little way off to the side is not the pill
         #expect(!r.contains(CGPoint(x: 960 + 40, y: 1080 - 10)))
         #expect(!r.contains(CGPoint(x: 960, y: 1080 - 40)))
+    }
+    @Test func pillHasEqualWholePointGapsInTheMenuBar() {
+        // (reported menu bar height, pill top, pill height): the band is one point shorter than reported (the hairline)
+        for (bar, top, h) in [(30.0, 5.0, 19.0), (24.0, 2.0, 19.0), (25.0, 3.0, 18.0), (38.0, 9.0, 19.0)] as [(CGFloat, CGFloat, CGFloat)] {
+            let p = NotchGeometry.pill(for: ScreenInfo(frame: plain.frame, notchSize: nil, menuBarHeight: bar))
+            #expect(p.top == top && p.size.height == h)
+            #expect(p.top == bar - 1 - p.top - p.size.height)   // the same gap above and below
+        }
     }
     @Test func panelIsTopCentred() {
         let f = NotchGeometry.panelFrame(for: notched)

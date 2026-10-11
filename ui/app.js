@@ -819,16 +819,25 @@
     for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([ix + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
-  var PILL = [30, 18, 3];   /* the resting pill on a screen without a notch: width, height, gap below the top edge */
+  /* the centre of the character's drawn outline in its 24-unit box, per shape (its details only show from 22 px up, so the body alone) */
+  var bodyMids = {};
+  function bodyMid() {
+    var k = charNow.shape; if (bodyMids[k]) return bodyMids[k];
+    var p = cr.querySelector('.f path:not(.pl):not(.fd)'), b = null;
+    try { b = p.getBBox(); } catch (e) {}
+    if (!b || !b.width) return [12, 12];
+    return (bodyMids[k] = [b.x + b.width / 2, b.y + b.height / 2]);
+  }
   function layout(st, s) {
-    /* No hardware notch (an external display): at rest the box is a small black pill just under the top edge, your character in it
-       (NotchGeometry.pillSize, pillInset). The live activity and the card grow from the top centre and close back into it. */
+    /* No hardware notch (an external display): at rest the box is a small black pill in the menu bar, your character in it. Swift
+       sizes and places it (NotchGeometry.pill: the same whole-point gap above and below). The live activity and the card grow
+       from the top centre and close back into it. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var pill = virt && st === 'idle' && !act.mode;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
-    else if (pill) { w = PILL[0]; h = PILL[1]; }
+    else if (pill) { w = scr.pillW || 30; h = scr.pillH || 18; n.style.setProperty('--pt', (scr.pillTop || 3) + 'px'); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
@@ -841,12 +850,17 @@
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
-      var d = pill ? 13 : 18; cr.style.width = cr.style.height = d + 'px';
-      /* in the pill; otherwise beside the notch, or beside the live activity when it has widened the notch */
-      idleXf = pill ? 'translate(' + (-d / 2) + 'px,' + (PILL[2] + (PILL[1] - d) / 2) + 'px)' : 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
+      var d = pill ? 14 : 18; cr.style.width = cr.style.height = d + 'px';
+      /* in the pill, centred by its drawn outline rather than its box (an ear or a tentacle reaches further than a bun);
+         otherwise beside the notch, or beside the live activity when it has widened the notch */
+      if (pill) { var mid = bodyMid(), k = d / 24; idleXf = 'translate(' + (-d / 2 + (12 - mid[0]) * k) + 'px,' + ((scr.pillTop || 3) + h / 2 - d / 2 + (12 - mid[1]) * k) + 'px)'; }
+      else idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)';
+      idleD = d;
+      cr.dataset.pill = pill ? '1' : '';
       cr.style.transform = idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
+      cr.dataset.pill = '';
       cr.style.width = cr.style.height = '20px';
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
@@ -2470,7 +2484,7 @@
     window.perchDev = {
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
-        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
+        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 28, pillW: 30, pillH: 19, pillTop: 5 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },

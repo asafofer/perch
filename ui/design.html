@@ -37,7 +37,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .disp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
-.desk.ext .mb{height:24px}
+/* an external display's menu bar as macOS draws it on a 1x Dell: 29 pt of bar, then a hairline (30 reported) */
+.desk.ext .mb{height:30px;box-shadow:inset 0 -1px rgba(0,0,0,.45)}
 /* the hardware notch: its pixels are not there, so whatever the card draws under it is gone. Painted over the card, with a thin pink edge to find it by. */
 .desk #hw{position:absolute;left:50%;top:0;width:185px;height:32px;margin-left:-92.5px;background:#000;border-radius:0 0 11px 11px;box-shadow:0 0 0 1px rgba(255,70,190,.6);z-index:5;pointer-events:none}
 .desk.ext #hw,.desk.noguide #hw{display:none}
