@@ -29,6 +29,7 @@
     timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
     hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
     monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+    pointer: '<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>',
     access: '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
     login: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
@@ -1280,7 +1281,7 @@
     if (st === 'set') {
       settingsApply(s.settings);
       if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
+    } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; showOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
     if (st !== 'open') orbFor('');
@@ -2034,9 +2035,11 @@
       srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
       srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
+      /* where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen */
+      srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
     ].concat(o.hasExternal ? [
       /* a display without a notch shows nothing at rest; this lets the top edge of it open Perch (the hotkey always does) */
-      srow(slabel('Hover opens on external display', '', 'monitor'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
+      srow(slabel('Hover opens on external display', '', 'pointer'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
     ] : []).concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
       o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
@@ -2064,7 +2067,7 @@
       if (b.dataset.k === 'login' || b.dataset.k === 'hoverExternal') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    bindApps(box); bindNotify(box); bindUpdSlot(box, snap);
+    bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2107,6 +2110,7 @@
   /* opens or closes the menu in place; a click anywhere else on the card closes it */
   function appsMenu(open) {
     if (open && notOpen) notifyMenu(false);
+    if (open && showOpen) showMenu(false);
     appsOpen = open; if (open) appsAt = 0;
     var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
     if (!m) return;
@@ -2114,7 +2118,7 @@
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     paintFocus();
   }
-  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); });
+  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); if (showOpen && !e.target.closest('.s-show')) showMenu(false); });
   /* Notify me about: the marks of the moments the notch announces and a chevron; it opens a menu with a check for each, as Apps does */
   var notOpen = false, notAt = 0;
   function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
@@ -2140,8 +2144,50 @@
   }
   function notifyMenu(open) {
     if (open && appsOpen) appsMenu(false);
+    if (open && showOpen) showMenu(false);
     notOpen = open; if (open) notAt = 0;
     var box = q('.set'), m = box && box.querySelector('.s-notmenu'), t = box && box.querySelector('.s-notrig');
+    if (!m) return;
+    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
+    paintFocus();
+  }
+  /* Show Perch on: the screen it opens on now and a chevron; the menu has one check, the two ways of following you first,
+     then each display by name. It opens upward: the row sits low on the card. A display you chose that is not connected
+     stays listed, so the choice is still there to see; until it is back Perch follows the mouse. */
+  var showOpen = false, showAt = 0;
+  var DEV_DISPLAYS = [{ id: '1', name: 'Built-in Retina Display', connected: true }, { id: '2', name: 'LG UltraFine', connected: true }];
+  var SHOW_WAYS = [['mouse', 'Screen with mouse'], ['window', 'Screen with active window']];
+  function showChoices(o) {
+    return SHOW_WAYS.map(function (w) { return { id: w[0], name: w[1], on: true }; })
+      .concat((o.displays || []).map(function (x) { return { id: x.id, name: x.name, on: x.connected !== false, display: true }; }));
+  }
+  function showHtml(o) {
+    var all = showChoices(o), cur = o.showOn || 'mouse', now = all.filter(function (x) { return x.id === cur; })[0] || all[0];
+    var items = all.map(function (x, i) {
+      var y = x.id === now.id;
+      return (x.display && !all[i - 1].display ? '<span class="mx-2 my-1 block h-px"></span>' : '') +
+        '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.on ? 'text-foreground' : 'text-muted-foreground') + '">' +
+        '<span class="flex-1 truncate">' + x.name + '</span>' + (x.on ? '' : '<span class="text-xs text-muted-foreground">Not connected</span>') +
+        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
+    }).join('');
+    return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
+      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[248px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+  }
+  function bindShow(box) {
+    var trig = box.querySelector('.s-showtrig');
+    if (trig) trig.onclick = function (e) { e.stopPropagation(); showMenu(!showOpen); };
+    box.querySelectorAll('.s-sitem').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); showMenu(false); post({ type: 'setting', key: 'showOn', value: b.dataset.k }); };
+      b.onmouseenter = function () { if (ptrMoved()) { showAt = +b.dataset.i; paintFocus(); } };
+    });
+  }
+  function showMenu(open) {
+    if (open && appsOpen) appsMenu(false);
+    if (open && notOpen) notifyMenu(false);
+    showOpen = open;
+    var box = q('.set'), m = box && box.querySelector('.s-showmenu'), t = box && box.querySelector('.s-showtrig');
+    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
     if (!m) return;
     m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
@@ -2157,7 +2203,10 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen && !notOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen && !notOpen && !showOpen); });
+    var sitems = box.querySelectorAll('.s-sitem');
+    showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
+    sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
     var items = box.querySelectorAll('.s-app');
     appsAt = Math.max(0, Math.min(appsAt, items.length - 1));
     items.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', appsOpen && i === appsAt); });
@@ -2184,6 +2233,13 @@
       else if (k === 'esc' || k === 'left') notifyMenu(false);
       return;
     }
+    if (showOpen) {
+      var si = box.querySelectorAll('.s-sitem');
+      if (k === 'down' || k === 'up') { showAt = (showAt + (k === 'down' ? 1 : -1) + si.length) % si.length; paintFocus(); }
+      else if (k === 'enter' && si[showAt]) si[showAt].click();
+      else if (k === 'esc' || k === 'left') showMenu(false);
+      return;
+    }
     if (k === 'esc') { post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
@@ -2191,6 +2247,7 @@
     if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
     var nt = row.querySelector('.s-notrig');
     if (nt && (k === 'right' || k === 'enter')) { notifyMenu(true); return; }
+    if (row.querySelector('.s-showtrig') && (k === 'right' || k === 'enter')) { showMenu(true); return; }
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
       /* on a row that has no sideways choice, Left goes back to where Settings came from */
@@ -2215,6 +2272,7 @@
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
+      var sw2 = box.querySelector('.s-show'); if (sw2) { sw2.outerHTML = showHtml(o); bindShow(box); paintFocus(); }
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -2304,7 +2362,7 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
@@ -2370,7 +2428,7 @@
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
