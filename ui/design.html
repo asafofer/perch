@@ -21,6 +21,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
+.desk:has(.p-open[data-big="1"]){height:540px}.desk{transition:height .3s cubic-bezier(.2,.9,.3,1)}
 /* a file dragged across the desktop as macOS draws it (fileDrag): it stays put, a see-through copy follows the pointer */
 .fdrag{position:absolute;z-index:30;pointer-events:none}
 .desk #scene{z-index:2}.fdrag.file{z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:96px;margin:-27px 0 0 -48px}
@@ -252,6 +253,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
+      ['Reply: expanded', 'A small expand button (Command+E) beside Settings while you reply. The card grows wider and taller and shows the whole chat so far, not only the last turn: what you said as bubbles, what the agent said as written, and a grey line for what it did in between. It opens at the end, where the question is; Up and Down read it. The same reply field and Return. Esc folds it back to the reply, Esc again closes the reply.', function () { reply(false)(); setTimeout(function () { window.perch.bigView(true); }, 1500); }],
+      ['Reply: expanded, typed', 'Writing in the expanded chat. Fold it back with the button, Command+E or Esc: your words stay.', function () { reply(true)(); setTimeout(function () { window.perch.bigView(true); }, 1500); }],
       ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
       ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
         var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };

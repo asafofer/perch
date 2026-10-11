@@ -2,12 +2,14 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 400;
+  var CARD_W = 400, BIG_W = 560;   /* BIG_W: the reply opened out to read the whole chat (bigView) */
   var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
   /* ---- shadcn recipes ---- */
   var ICON = {
+    expand: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>',
+    shrink: '<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" x2="21" y1="10" y2="3"/><line x1="3" x2="10" y1="21" y2="14"/>',
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
@@ -183,7 +185,7 @@
   scene.innerHTML =
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
-    '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<div class="pane p-open">' + '<button aria-label="Expand the chat" title="Expand the chat (\u2318E)" class="x-exp rv absolute right-[82px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0"><span class="x-exp-i flex">' + svg('expand', 'size-3') + '</span>' + Kbd('\u2318E') + '</button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
@@ -323,6 +325,7 @@
   var replyFor = '';
   function replyMenu(open, quiet) {
     footer(open ? fRep : fMain);
+    if (!open) bigView(false, true);
     showSaid(open);
     var p = snap && snap.projects[snap.selected];
     /* the words you left in this session's reply are still there, the caret after them */
@@ -385,11 +388,37 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) paintSaid(p);
+    else if (big) bigView(false, true);
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
+  /* The message box: your last message and the agent's. Opened out (bigView) it is the whole chat, a turn after another:
+     what you said as bubbles, what the agent said as written, and a grey line for what it did between. */
+  function paintSaid(p) {
+    var box = q('.o-said-in'), turns = big && p.chat && p.chat.length ? p.chat : null;
+    box.innerHTML = turns ? turns.map(function (t) {
+      return t.you ? '<div dir="auto" class="o-you">' + esc(t.you) + '</div>'
+        : t.did ? '<div class="o-did">' + esc(t.did) + '</div>' : '<div class="o-turn">' + mdBlock(t.said) + '</div>';
+    }).join('') : (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said);
+    box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge);
+  }
+  /* The reply opened out: the card is wider and taller and shows the whole chat so far, not only the last turn. The same
+     reply field, the same keys. Esc folds it back to the reply, then Esc closes the reply as ever. */
+  var big = false;
+  function bigView(on, quiet) {
+    on = !!on && q('.p-open').dataset.rep === '1'; if (big === on) return;
+    big = on; CARD_W = on ? BIG_W : 400;
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected]; pane.dataset.big = on ? '1' : '';
+    q('.x-exp').title = on ? 'Fold the chat (\u2318E)' : 'Expand the chat (\u2318E)'; q('.x-exp').setAttribute('aria-label', on ? 'Fold the chat' : 'Expand the chat');
+    q('.x-exp-i').innerHTML = svg(on ? 'shrink' : 'expand', 'size-3');
+    if (p) paintSaid(p);
+    if (snap && lastSt === 'open') layout('open', snap);
+    if (!quiet) post({ type: 'bigView', open: on });
+    rIn.focus({ preventScroll: true });
+  }
+  q('.x-exp').onclick = function () { bigView(!big); };
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
      three) so its header shows too; the rows it gave up are a scroll away in the table. */
   function fitLastTable(box) {
@@ -476,10 +505,11 @@
   }
   rIn.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
-    else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
+    else if (e.key === 'Escape') { e.preventDefault(); if (big) bigView(false); else replyMenu(false); }
+    else if (e.metaKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); bigView(!big); }
     /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
-      e.preventDefault(); saidScroll((e.key === 'ArrowDown' ? 1 : -1) * 57);
+      e.preventDefault(); saidScroll((e.key === 'ArrowDown' ? 1 : -1) * (big ? 120 : 57));
     }
     e.stopPropagation();
   });
@@ -2330,7 +2360,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, bigView: function (o) { bigView(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
@@ -2427,6 +2457,16 @@
     var P = [
       { id: 'onboarding', name: 'Onboarding flow', branch: 'main', away: '4m', at: '11:32 AM', headline: 'You were fixing the permissions screen.', context: 'Swapped the sheet for a popover because it clipped on small windows.', next: '', topic: 'Permissions screen', app: 'claude', attention: true, fresh: true, line: 'Waiting on you for 4m', status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } },
       { id: 'website', name: 'Website', branch: 'feature/hero', away: '48m', at: '10:44 AM', headline: 'You were tightening the hero spacing.', context: 'The hero now fits at phone width. The full-bleed video is gone because it slowed the page.', next: 'Check the hero on a real phone',
+        chat: [
+          { you: 'The hero looks cramped on my phone. Can you take a look?' },
+          { said: 'It is the padding: 96px on every side leaves about 190px for the headline at 390px wide. I can bring it down under 640px and let the headline wrap properly. Want me to go ahead?' },
+          { you: 'Yes, and check what is making the page slow while you are in there.' },
+          { did: 'Read Hero.tsx, hero.css and 2 more files, ran Lighthouse on mobile' },
+          { said: 'The full-bleed background video is the slow part: 4.2 MB, and it blocks the first paint on 4G (LCP 3.1s). The hero itself is fine once the padding is fixed.' },
+          { you: 'Make the hero fit at phone width, the video is too heavy there.' },
+          { did: 'Edited Hero.tsx and hero.css, ran 3 commands' },
+          { said: 'Done. The hero now fits at phone width:\n\n- Padding drops from 96px to 48px under 640px\n- The headline wraps at 18ch instead of overflowing\n- The full-bleed video is gone; it cost 1.8s on 4G\n\nI left the poster image in its place so the fold still has something to look at.\n\nWant me to bring the video back for desktop only, behind `prefers-reduced-motion`?' }
+        ],
         asked: 'Make the hero fit at phone width, the video is too heavy there.', said: 'Done. The hero now fits at phone width:\n\n- Padding drops from 96px to 48px under 640px\n- The headline wraps at 18ch instead of overflowing\n- The full-bleed video is gone; it cost 1.8s on 4G\n\nI left the poster image in its place so the fold still has something to look at.\n\nWant me to bring the video back for desktop only, behind `prefers-reduced-motion`?', topic: 'Hero spacing', app: 'claude', attention: false, fresh: true, line: 'Finished 12m after you left', status: { kind: 'done', text: 'Claude finished', app: 'claude' } },
       { id: 'docs', name: 'Docs', branch: 'main', away: '1m', at: '11:58 AM', headline: 'Rewriting the install guide.', context: 'Moving the setup steps above troubleshooting, then cutting the duplicate FAQ.', now: 'Editing install.md', next: '', topic: 'Install guide', app: 'codex', attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: 'Codex is working', app: 'codex' } },
       { id: 'finance', name: 'Finance', branch: '', away: '3d', at: 'Mon 3:40 PM', headline: 'You were reconciling September invoices.', context: 'Matched 41 of 43 invoices by vendor and amount; two are still open.', next: '', topic: 'September invoices',
@@ -2640,7 +2680,7 @@
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
-      if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
+      if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') { if (big) bigView(false); else replyMenu(false); } else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }

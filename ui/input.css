@@ -380,3 +380,14 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .kcap.bad { color: #E9A877; background: rgba(233,168,119,.14); box-shadow: inset 0 0 0 1px rgba(233,168,119,.45), 0 2px 0 rgba(233,168,119,.12); }
 /* a text button at the right of a Settings row: its words end where a switch does, and its hover box reaches the row's edge */
 .s-gr { margin-right: -8px; }
+
+/* the reply opened out (app.js bigView): wider and taller, the whole chat in the message box */
+.p-open:not([data-rep="1"]) .x-exp { display: none; }
+.p-open[data-big="1"] { width: 560px; }
+.p-open[data-big="1"] .o-said-in { max-height: 330px; }
+.p-open[data-big="1"] .o-you { max-width: 78%; margin-top: 14px; }
+.p-open[data-big="1"] .o-said-in > :first-child { margin-top: 0; }
+.p-open[data-big="1"] .md-tbl { max-height: 200px; }
+.o-turn { margin-top: 10px; }
+.o-did { margin-top: 10px; font-size: 12px; line-height: 16px; color: hsl(var(--muted-foreground) / .85); }
+.o-you + .o-turn, .o-you + .o-did { margin-top: 12px; }
