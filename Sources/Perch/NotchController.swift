@@ -260,6 +260,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Command+Option tapped: close whatever is showing, or bring back what you put away a moment ago, else open the list.
     func chordTap() {
+        // Recording a shortcut: the old one does nothing. On the shortcut step of setup, it is the thing to try.
+        if recorder != nil { return }
+        if machine.phase == .onboarding, onbStep == 3, !onbOnly { shortcutTried = true; push(); return }
         guard machine.phase == .idle else { send(.dismiss); return }
         if !reopen() { toggleSwitcher() }
     }
@@ -648,6 +651,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
+        if old != new { stopRecording(); shortcutTried = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
@@ -739,6 +743,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "back": send(.back)
         case "onb": if let a = body["action"] as? String { onboardingAction(a) }
+        case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
         case "settings": if machine.phase == .idle { place(on: ScreenChooser.current()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
         case "setting":
             if let key = body["key"] as? String {
@@ -1045,7 +1050,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func settingsState() -> UISnapshot.Settings {
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
-                                   hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
+                                   hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal, shortcut: shortcutState(),
                                    back: machine.settingsFrom != nil)
     }
 
@@ -1067,8 +1072,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The page drew your character for the menu bar.
     var onMenuIcon: ((NSImage) -> Void)?
     private var onbStep = 0
-    /// Hello, then five setup steps: look, Accessibility, apps, live status, all set.
-    private let onbTotal = 6
+    /// Hello, then six setup steps: look, Accessibility, your shortcut, apps, live status, all set.
+    private let onbTotal = 7
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu bar), not the whole setup.
@@ -1081,14 +1086,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
         place(on: ScreenChooser.current())
-        if step >= 3 { refreshProjects() }
+        if step >= 4 { refreshProjects() }
         send(.openOnboarding)
     }
 
     private func onboardingState() -> UISnapshot.Onboarding {
         // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
         // (and start a scan) every half second while an agent works.
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState)
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
@@ -1101,8 +1106,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "next":
             if onbOnly { finishCharacter(); return }
             onbStep = min(onbStep + 1, onbTotal - 1)
-            if onbStep == 3 { refreshProjects() }   // the apps step shows what the scan found
-        case "back": onbStep = max(onbStep - 1, 0)
+            if onbStep == 4 { refreshProjects() }   // the apps step shows what the scan found
+            stopRecording(); shortcutTried = false
+        case "back": onbStep = max(onbStep - 1, 0); stopRecording(); shortcutTried = false
         case "finish": send(.dismiss); return
         case "accessibility":
             // A switch that is on but not working belongs to an older build of Perch (another signature). Clear Perch's own
@@ -1146,11 +1152,65 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    // MARK: the shortcut that opens Perch
+    /// Called with true while a new shortcut is being recorded (the old one is paused) and false after (it is applied again).
+    var onShortcutRecording: ((Bool) -> Void)?
+    private var recorder: ShortcutRecorder?
+    private var shortcutError = ""
+    /// Setup's shortcut step: you tapped it, and it turned green.
+    private var shortcutTried = false
+
+    private func shortcutState() -> UISnapshot.ShortcutState {
+        let s = Prefs.openShortcut
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried)
+    }
+
+    private func shortcutAction(_ action: String) {
+        switch action {
+        case "record":
+            guard recorder == nil else { return }
+            recorder = ShortcutRecorder(); shortcutError = ""; shortcutTried = false
+            onShortcutRecording?(true)
+        case "cancel": stopRecording()
+        case "reset": Prefs.openShortcut = .standard; shortcutTried = false; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+        default: break
+        }
+        push()
+    }
+
+    private func stopRecording() {
+        guard recorder != nil else { return }
+        recorder = nil; shortcutError = ""
+        onShortcutRecording?(false)
+    }
+
+    private func recordKey(_ e: NSEvent) {
+        guard !e.isARepeat else { return }
+        finishRecording(recorder?.keyDown(keyCode: Int(e.keyCode), typed: e.charactersIgnoringModifiers, mods: ShortcutMods(e.modifierFlags)) ?? .none)
+    }
+
+    private func recordFlags(_ e: NSEvent) {
+        guard recorder != nil else { return }
+        finishRecording(recorder?.flagsChanged(mods: ShortcutMods(e.modifierFlags)) ?? .none)
+    }
+
+    private func finishRecording(_ outcome: ShortcutRecorder.Outcome) {
+        switch outcome {
+        case .none: return
+        case .cancel: stopRecording()
+        case .refused(let why): shortcutError = why
+        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+        }
+        push()
+    }
+
     // MARK: keys
     private func startKeys() {
         guard keyMonitor == nil else { return }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] e in
             guard let self, self.machine.phase != .idle else { return e }
+            if e.type == .flagsChanged { self.recordFlags(e); return e }
+            if self.recorder != nil { self.recordKey(e); return nil }
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
             if self.machine.phase == .onboarding {
                 if KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }

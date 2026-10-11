@@ -47,12 +47,16 @@ struct UISnapshot: Encodable {
         let only: Bool
         /// Perch's hook is in every enabled app: "on" or "off".
         let live: String
+        let shortcut: ShortcutState
     }
+    /// The shortcut that opens Perch, as the page draws it: the key caps, and where recording stands.
+    struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
         let hasExternal: Bool; let hoverExternal: Bool
+        let shortcut: ShortcutState
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
 

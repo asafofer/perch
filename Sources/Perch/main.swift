@@ -65,6 +65,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
         }
         hotkeys.onChordTap = { c.chordTap() }
+        hotkeys.apply(Prefs.openShortcut)
+        c.onShortcutRecording = { [hotkeys] recording in if recording { hotkeys.pauseOpen() } else { hotkeys.apply(Prefs.openShortcut) } }
         c.onAccessibilityGranted = { [hotkeys] in hotkeys.restartChordMonitor() }
         hotkeys.startChordMonitor()
 
@@ -159,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showWelcome() { controller?.comeBack() }
     @objc private func showSwitcher() { controller?.toggleSwitcher() }
     @objc private func customize() { controller?.startOnboarding(step: 1, characterOnly: true) }
-    @objc private func chooseApps() { controller?.startOnboarding(step: 3) }
+    @objc private func chooseApps() { controller?.startOnboarding(step: 4) }
     @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }

@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import PerchCore
 
 /// Global shortcuts. Carbon hotkeys need no permission; the bare Cmd+Option tap needs Accessibility.
 @MainActor
@@ -11,6 +12,23 @@ final class HotkeyService {
     private var chordDirty = false
     var onChordTap: (() -> Void)?
     private var localMonitor: Any?
+    /// The modifiers whose tap opens Perch; empty when the shortcut is a key combo (or while one is being recorded).
+    private var tapFlags: NSEvent.ModifierFlags = [.command, .option]
+    private static let openId: UInt32 = 4
+
+    /// Makes `s` the shortcut that opens Perch: a tap watches the modifiers, a combo is a Carbon hotkey. Both call `onChordTap`.
+    func apply(_ s: Shortcut) {
+        unregister(id: Self.openId)
+        chordStart = nil
+        switch s.kind {
+        case .tap: tapFlags = s.mods.eventFlags
+        case .combo:
+            tapFlags = []
+            if let code = s.keyCode { register(keyCode: code, modifiers: s.mods.carbonFlags, id: Self.openId) { [weak self] in self?.onChordTap?() } }
+        }
+    }
+    /// While a new shortcut is being recorded, the old one must not fire.
+    func pauseOpen() { unregister(id: Self.openId); tapFlags = []; chordStart = nil }
 
     func register(keyCode: Int, modifiers: Int, id: UInt32, action: @escaping () -> Void) {
         installHandlerIfNeeded()
@@ -68,14 +86,37 @@ final class HotkeyService {
 
     private func handle(_ event: NSEvent) {
         if event.type == .keyDown { chordDirty = true; return }
+        guard !tapFlags.isEmpty else { return }
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        if flags == [.command, .option] {
+        if flags == tapFlags {
             if chordStart == nil { chordStart = Date(); chordDirty = false }
         } else if flags.isEmpty {
             if let start = chordStart, !chordDirty, Date().timeIntervalSince(start) < 0.6 { onChordTap?() }
             chordStart = nil
-        } else if flags != [.command] && flags != [.option] {
+        } else if !flags.isSubset(of: tapFlags) {
             chordDirty = true
         }
+    }
+}
+
+extension ShortcutMods {
+    init(_ flags: NSEvent.ModifierFlags) {
+        var m: ShortcutMods = []
+        if flags.contains(.control) { m.insert(.control) }
+        if flags.contains(.option) { m.insert(.option) }
+        if flags.contains(.shift) { m.insert(.shift) }
+        if flags.contains(.command) { m.insert(.command) }
+        self = m
+    }
+    var eventFlags: NSEvent.ModifierFlags {
+        var f: NSEvent.ModifierFlags = []
+        if contains(.control) { f.insert(.control) }
+        if contains(.option) { f.insert(.option) }
+        if contains(.shift) { f.insert(.shift) }
+        if contains(.command) { f.insert(.command) }
+        return f
+    }
+    var carbonFlags: Int {
+        (contains(.control) ? controlKey : 0) | (contains(.option) ? optionKey : 0) | (contains(.shift) ? shiftKey : 0) | (contains(.command) ? cmdKey : 0)
     }
 }

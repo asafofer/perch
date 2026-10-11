@@ -46,6 +46,11 @@ enum Prefs {
         get { d.bool(forKey: "hoverExternal") }
         set { d.set(newValue, forKey: "hoverExternal") }
     }
+    /// What opens and closes Perch: a tap of Command and Option unless you recorded your own.
+    static var openShortcut: Shortcut {
+        get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }
+        set { if newValue.isStandard { d.removeObject(forKey: "shortcut.open") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.open") } }
+    }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
         get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
