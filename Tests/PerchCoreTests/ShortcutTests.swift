@@ -51,7 +51,7 @@ import Testing
         #expect(r.flagsChanged(mods: [.option]) == .none)
         #expect(r.flagsChanged(mods: [.option, .shift]) == .none)
         #expect(r.flagsChanged(mods: [.shift]) == .none)
-        #expect(r.flagsChanged(mods: []) == .record(.tap([.option, .shift])))
+        #expect(r.flagsChanged(mods: []) == .chosen(.tap([.option, .shift])))
     }
 
     @Test func oneModifierAloneIsRefused() {
@@ -63,7 +63,7 @@ import Testing
     @Test func aKeyWithModifiersRecordsACombo() {
         var r = ShortcutRecorder()
         _ = r.flagsChanged(mods: [.control])
-        #expect(r.keyDown(keyCode: 49, typed: " ", mods: [.control]) == .record(.combo([.control], keyCode: 49, name: "Space")))
+        #expect(r.keyDown(keyCode: 49, typed: " ", mods: [.control]) == .chosen(.combo([.control], keyCode: 49, name: "Space")))
         // Letting go of the modifier afterwards is not also a tap.
         #expect(r.flagsChanged(mods: []) == .none)
     }
@@ -72,7 +72,26 @@ import Testing
         var r = ShortcutRecorder()
         #expect(r.keyDown(keyCode: 0, typed: "a", mods: []) == .refused("Hold \u{2318}, \u{2325} or \u{2303} too", keys: ["A"]))
         #expect(r.flagsChanged(mods: [.command, .option]) == .none)
-        #expect(r.flagsChanged(mods: []) == .record(.standard))
+        #expect(r.flagsChanged(mods: []) == .chosen(.standard))
+    }
+
+    @Test func aChoiceIsOnlySavedByReturnAndPressingAgainReplacesIt() {
+        var r = ShortcutRecorder()
+        _ = r.flagsChanged(mods: [.command, .option])
+        #expect(r.flagsChanged(mods: []) == .chosen(.standard))
+        // Another try replaces it; nothing is saved yet.
+        #expect(r.keyDown(keyCode: 49, typed: " ", mods: [.control]) == .chosen(.combo([.control], keyCode: 49, name: "Space")))
+        _ = r.flagsChanged(mods: [])
+        #expect(r.keyDown(keyCode: 36, typed: "\r", mods: []) == .record(.combo([.control], keyCode: 49, name: "Space")))
+    }
+
+    @Test func aRefusedTryKeepsTheChoiceAndReturnWithNothingChosenIsRefused() {
+        var r = ShortcutRecorder()
+        #expect(r.keyDown(keyCode: 36, typed: "\r", mods: []) != .none)
+        if case .record = r.keyDown(keyCode: 36, typed: "\r", mods: []) { Issue.record("saved nothing") }
+        _ = r.flagsChanged(mods: [.command, .option]); _ = r.flagsChanged(mods: [])
+        if case .refused = r.keyDown(keyCode: 12, typed: "q", mods: [.command]) {} else { Issue.record("expected a refusal") }
+        #expect(r.keyDown(keyCode: 36, typed: "\r", mods: []) == .record(.standard))
     }
 
     @Test func escapeCancels() {
