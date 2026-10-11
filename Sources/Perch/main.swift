@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(0)
         }
         if args.contains("--dump") {
+            for s in NSScreen.screens { print("screen: \(s.localizedName) | \(s.displayID) | notch: \(s.notchSize != nil ? "yes" : "no")") }
+            print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
             for p in RealSessionProvider().parkedProjects() {
                 let opens = p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
