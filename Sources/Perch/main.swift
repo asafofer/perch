@@ -136,6 +136,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         image.isTemplate = true
         item.button?.image = image
         let menu = NSMenu()
+        if let test = TestBuild.label {
+            // A test build says so where you cannot miss it: next to the icon, and as the menu's first line.
+            item.length = NSStatusItem.variableLength
+            item.button?.imagePosition = .imageLeading
+            item.button?.title = " TEST"
+            item.button?.toolTip = "Test build: \(test)"
+            let line = menu.addItem(withTitle: "Test build: \(test)", action: nil, keyEquivalent: ""); line.isEnabled = false
+            menu.addItem(.separator())
+        }
         menu.addItem(withTitle: "Where was I", action: #selector(showWelcome), keyEquivalent: "").target = self
         menu.addItem(withTitle: "All sessions", action: #selector(showSwitcher), keyEquivalent: "").target = self
         menu.addItem(.separator())

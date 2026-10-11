@@ -182,14 +182,15 @@ enum Terminals {
     /// Runs AppleScript and returns its result, or nil when it fails (not installed, permission refused).
     /// It blocks while macOS asks for Automation permission, so call it off the main thread.
     @discardableResult
-    static func run(_ source: String) -> String? {
+    static func run(_ source: String, quiet: Bool = false) -> String? {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript"); p.arguments = ["-e", source]
         let out = Pipe(), err = Pipe(); p.standardOutput = out; p.standardError = err
         do { try p.run() } catch { return nil }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         guard p.terminationStatus == 0 else {
-            NSLog("Perch: AppleScript failed: \(String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")"); return nil
+            if !quiet { NSLog("Perch: AppleScript failed: \(String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")") }
+            return nil
         }
         return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -239,6 +240,12 @@ enum Herdr {
         guard let r = cli(["pane", "get", pane], socket: socket, bin: bin)?["result"] as? [String: Any],
               let tab = (r["pane"] as? [String: Any])?["tab_id"] as? String else { return false }
         return act(["tab", "focus", tab], socket: socket, bin: bin)
+    }
+
+    /// The pane that has focus on that server, or nil when it cannot be read. With several clients attached it is only one
+    /// of the places someone may be looking.
+    static func focusedPane(socket: String, bin: String?) -> String? {
+        ((cli(["api", "snapshot"], socket: socket, bin: bin)?["result"] as? [String: Any])?["snapshot"] as? [String: Any])?["focused_pane_id"] as? String
     }
 
     /// Types a line into the pane and presses Return: as a prompt to the agent there, else as raw text.

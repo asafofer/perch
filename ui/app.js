@@ -921,22 +921,37 @@
     if (!next) actHeld = false;
     if (!quiet && snap) layout(lastSt, snap);
   }
+  /* the session you are in, or one of the sessions that may be it when Swift cannot tell which one of an app's is in front */
+  function inside(s, id) { return s.activeId === id || (s.activeIds || []).indexOf(id) >= 0; }
   /* a session that stopped on an error has nothing to answer: it says so once, and does not stay as wings */
   function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
-  function waiting(s) { return s.projects.filter(function (p) { return p.id !== s.activeId && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
+  /* a build that is not a release says so: a narrow black tab hangs under the notch (or the card) with TEST BUILD, the branch and
+     the commit. Only while the notch is hovered or open or the character peeks out (input.css decides); the rest of the time it is away. */
+  n.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"><b>TEST BUILD</b><span></span></div>');   /* inside the notch: it grows and shrinks with it */
+  var tbEl = q('.tb'), tbText = '';
+  function testTag(s) {
+    var t = s.testBuild || '';
+    if (t !== tbText) { tbText = t; tbEl.children[1].textContent = t.replace(/^claude\//, ''); }
+    tbEl.hidden = !t;
+  }
+  function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
-    var others = s.projects.filter(function (p) { return p.id !== s.activeId; });
+    var others = s.projects.filter(function (p) { return !inside(s, p.id); });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
-    var now = { need: heard.map(actKey), done: done.map(function (p) { return p.id; }) };
+    /* What is remembered does not depend on which sessions you are in: that guess can flicker (a reading goes stale while a card is
+       up), and a finish that dropped out of the list for a moment would land again. Only what is said is left out for the ones you are in. */
+    var everyDone = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
+    var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
+    var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
-    if (full && act.p.id === s.activeId) {
+    if (full && inside(s, act.p.id)) {
       clearTimeout(actTimer); if (act.kind === 'done') post({ type: 'activitySeen', id: act.p.id });
       setAct(need.length ? 'wings' : '', need[0], true); return;
     }
@@ -973,7 +988,7 @@
   var actDemoOn = false, actDemoLast = null;
   function actDemo(tries) {
     if (actDemoOn) return;
-    var s0 = snap, ps = s0 ? s0.projects.filter(function (p) { return p.id !== s0.activeId; }) : [];
+    var s0 = snap, ps = s0 ? s0.projects.filter(function (p) { return !inside(s0, p.id); }) : [];
     /* right after launch the first scan may not be in yet */
     if (!ps.length || s0.phase !== 'idle') { if ((tries || 0) < 40) setTimeout(function () { actDemo((tries || 0) + 1); }, 500); return; }
     post({ type: 'log', text: 'activity demo over ' + ps.length + ' sessions' });
@@ -1015,6 +1030,7 @@
     cardId = st === 'open' && p ? p.id : null;
     moments(s, st);
     activity(s, st);
+    testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
@@ -1280,32 +1296,32 @@
       if (text && (tries || 0) < 6) setTimeout(function () { pop(mood, ms, text, (tries || 0) + 1); }, 600);
       return;
     }
-    hello = true;
+    hello = true; scene.dataset.peek = '1';
     var ci = cr.querySelector('.cr-in'), say = cr.querySelector('.say');
     say.textContent = text || ''; cr.dataset.say = text ? '1' : '';
     cr.style.transform = idleXf; cr.style.opacity = 1; cr.dataset.m = 'awake';
     ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
     setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = mood; }, 420);
-    setTimeout(function () { runHome(function () { hello = false; if (snap) layout(lastSt, snap); }); }, ms);
+    setTimeout(function () { runHome(function () { hello = false; scene.dataset.peek = ''; if (snap) layout(lastSt, snap); }); }, ms);
   }
   /* While you are at the Mac, rare and small: a session you are not in finished, or the last thing waiting on you was answered. */
   var known = null;
   function moments(s, st) {
     if (st !== 'idle') return;
-    var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && p.id !== s.activeId; }).map(function (p) { return p.id; });
-    var need = s.projects.filter(function (p) { return p.attention && p.id !== s.activeId; }).length;
+    var done = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !inside(s, p.id); }).map(function (p) { return p.id; });
+    var need = s.projects.filter(function (p) { return p.attention && !inside(s, p.id); }).length;
     /* a finish, or the last thing waiting on you being answered, is the live activity's to say; the character stays in */
     known = { done: done, need: need };
   }
   /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
   function sayHello() {
-    hello = true;
+    hello = true; scene.dataset.peek = '1';
     var ci = cr.querySelector('.cr-in');
     cr.style.opacity = 1; cr.dataset.m = 'awake';
     ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
     setTimeout(function () { ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); cr.dataset.m = 'happy'; }, 700);
     setTimeout(function () { cr.dataset.m = 'awake'; blinkEl(cr); }, 1500);
-    setTimeout(function () { runHome(function () { hello = false; if (snap) layout(lastSt, snap); }); }, 2500);
+    setTimeout(function () { runHome(function () { hello = false; scene.dataset.peek = ''; if (snap) layout(lastSt, snap); }); }, 2500);
   }
   /* It lives behind the notch: a little wind-up, leaning back with its eyes on the notch, then a dash in under the notch's edge. */
   function runHome(done) {

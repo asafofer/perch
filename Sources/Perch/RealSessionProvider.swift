@@ -43,6 +43,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     /// is inside herdr, and what herdr sees on screen. Where each one runs is remembered, so it can reopen there.
     static func placeTerminalSessions(_ projects: inout [Project]) {
         let (live, viewers) = LiveSessions.scan(), preferred = Terminals.preferred
+        FocusProbe.setKnown((live, viewers))
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
         for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.herdrBin) } }
@@ -66,7 +67,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         for i in projects.indices where projects[i].terminal {
             let id = projects[i].sessionId ?? projects[i].id
             if let h = running[i].map({ live[$0] }) {
-                projects[i].pid = h.pid
+                projects[i].pid = h.pid; projects[i].spot = Spot.key(h.place, tty: h.tty)
                 switch h.place {
                 case .herdr(_, let socket, let session):
                     projects[i].host = "herdr"; projects[i].via = h.app ?? preferred

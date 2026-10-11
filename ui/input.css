@@ -320,3 +320,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes glowrise { 0%, 100% { scale: 1 .8; } 50% { scale: 1 1.25; } }
 @keyframes glowline { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .n[data-run="1"] .glow, .n[data-run="1"] .glow::after { animation: none; } }
+
+/* a test build: a narrow black tab under the notch (or the card), centred, with TEST BUILD, its branch and its commit. It is a child of the
+   notch, so it moves with it; it shows while the notch is hovered or open or the character peeks. */
+.tb { opacity: 0; transition: opacity .12s; position: absolute; top: calc(100% - 1px); left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: baseline; padding: 2px 11px 4px; background: #000; border-radius: 0 0 10px 10px; font-size: 9.5px; line-height: 11px; color: #f2a65a; pointer-events: none; white-space: nowrap; max-width: 330px; }
+.tb b { font-weight: 650; letter-spacing: .06em; }
+.tb span { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+.n[data-hot="1"] .tb, .n:not([data-s=idle]) .tb, #scene[data-peek="1"] .tb { opacity: 1; }
+.tb[hidden] { display: none; }

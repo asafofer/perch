@@ -71,6 +71,21 @@ enum ClaudeComposer {
 
     private static func fail(_ why: String, _ shown: String?) -> Result { Result(sent: false, shown: shown).logged(why) }
 
+    /// What the Claude app's window shows now, for telling the session you are in. Runs off the main thread.
+    enum Showing: Equatable { case session(String), none, unreadable }
+    static func showingNow() -> Showing {
+        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: Restorer.claudeApp).first else { return .unreadable }
+        // Walking Claude's window is the costly part, so the page it found is kept and only its address is read again.
+        if let (pid, page) = cachedPage, pid == app.processIdentifier, url(page) != nil { return showing(page).map { .session($0) } ?? .none }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        guard let page = page(in: ax) else { cachedPage = nil; return .unreadable }
+        cachedPage = (app.processIdentifier, page)
+        return showing(page).map { .session($0) } ?? .none
+    }
+    nonisolated(unsafe) private static var cachedPage: (pid: pid_t, page: AXUIElement)?
+
     // MARK: the page
 
     /// Claude's Code page: the web area whose address is on claude.ai/epitaxy.
