@@ -29,6 +29,9 @@ final class CardWebView: WKWebView {
     var takesFiles: () -> Bool = { false }
     /// The dropped files' paths. False when they had nowhere to go.
     var onFiles: ([String]) -> Bool = { _ in false }
+    /// Files over the card: how many, and where the pointer is in the page (top left origin). 0 when they go away.
+    var onDrag: (Int, CGPoint) -> Void = { _, _ in }
+    private var dragSent: (Int, CGPoint)?
 
     /// A card without the keyboard (hovered open, or opened by Perch) answers the first click. WebKit would spend it taking
     /// the keyboard, so Reply or Pick up needed a second click.
@@ -39,15 +42,34 @@ final class CardWebView: WKWebView {
         return urls.map(\.path)
     }
     override func draggingEntered(_ info: NSDraggingInfo) -> NSDragOperation {
-        files(info) == nil ? super.draggingEntered(info) : takesFiles() ? .copy : []
+        guard let paths = files(info) else { return super.draggingEntered(info) }
+        return over(info, paths.count)
     }
     override func draggingUpdated(_ info: NSDraggingInfo) -> NSDragOperation {
-        files(info) == nil ? super.draggingUpdated(info) : takesFiles() ? .copy : []
+        guard let paths = files(info) else { return super.draggingUpdated(info) }
+        return over(info, paths.count)
     }
-    override func draggingExited(_ info: NSDraggingInfo?) { if files(info) == nil { super.draggingExited(info) } }
+    override func draggingExited(_ info: NSDraggingInfo?) {
+        guard files(info) != nil else { super.draggingExited(info); return }
+        tell(0, .zero)
+    }
+    /// Files over the card: the page lights the reply up for them, and takes them where the pointer is.
+    private func over(_ info: NSDraggingInfo, _ count: Int) -> NSDragOperation {
+        guard takesFiles() else { tell(0, .zero); return [] }
+        let p = convert(info.draggingLocation, from: nil)
+        tell(count, CGPoint(x: p.x, y: isFlipped ? p.y : bounds.height - p.y))
+        return .copy
+    }
+    /// Only what changed: a drag sends updates many times a second, moving or not.
+    private func tell(_ count: Int, _ at: CGPoint) {
+        if count == 0 { guard dragSent != nil else { return }; dragSent = nil; onDrag(0, .zero); return }
+        if let s = dragSent, s.0 == count, s.1 == at { return }
+        dragSent = (count, at); onDrag(count, at)
+    }
     override func prepareForDragOperation(_ info: NSDraggingInfo) -> Bool { files(info) == nil ? super.prepareForDragOperation(info) : takesFiles() }
     override func performDragOperation(_ info: NSDraggingInfo) -> Bool {
         guard let paths = files(info) else { return super.performDragOperation(info) }
+        dragSent = nil
         return onFiles(paths)
     }
     override func concludeDragOperation(_ info: NSDraggingInfo?) { if files(info) == nil { super.concludeDragOperation(info) } }

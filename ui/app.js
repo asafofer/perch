@@ -323,7 +323,7 @@
     rIn.dispatchEvent(new Event('input'));
     var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
   }
-  /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y. The reply opens for them if
+  /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
      it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
      the file right on it; the character looks on wide-eyed, its eyes on the file as it moves. Dropped, it squints happily
      and hops. */
@@ -335,8 +335,8 @@
       cr.dataset.m = 'alert'; lookAt(rIn, 60);
     }
     var was = dropping; dropping = n;
-    var r = rIn.getBoundingClientRect(), sr = scene.getBoundingClientRect(), px = x + sr.left, py = y + sr.top;
-    var on = !!n && x != null && px >= r.left - 8 && px <= r.right + 8 && py >= r.top - 8 && py <= r.bottom + 8;
+    var r = rIn.getBoundingClientRect();
+    var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
     rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
     rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
     if (!n && was) {

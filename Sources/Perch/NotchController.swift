@@ -100,7 +100,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         config.userContentController = controller
         web = CardWebView(frame: .zero, configuration: config)
         super.init()
-        web.takesFiles = { [weak self] in self?.machine.phase == .open }
+        // A card that offers Reply: one asking you something has no field to drop into.
+        web.takesFiles = { [weak self] in
+            guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }
+            return self.projects[self.machine.selected].ask == nil
+        }
+        web.onDrag = { [weak self] n, at in
+            self?.web.evaluateJavaScript("window.perch && window.perch.dragOver(\(n), \(at.x), \(at.y))", completionHandler: nil)
+        }
         web.onFiles = { [weak self] paths in
             guard let self, self.machine.phase == .open else { return false }
             // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.

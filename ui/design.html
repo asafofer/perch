@@ -149,7 +149,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       var c = card(), on = !!c && at[0] > c.l && at[0] < c.r && at[1] > c.t && at[1] < c.b;
       var sc = document.getElementById('scene').getBoundingClientRect(), dr = desk.getBoundingClientRect(), x = at[0] + dr.left - sc.left, y = at[1] + dr.top - sc.top;
       if (on !== over) { over = on; cur.classList.toggle('copy', on); }
-      if (on || was) window.perch.dragOver(on ? 1 : 0, x, y);
+      if (on || was) window.perch.dragOver(on ? 1 : 0, at[0] + dr.left, at[1] + dr.top);
       was = on;
       window.perch.cursor(x, y);
     };
