@@ -99,3 +99,74 @@ import Testing
         #expect(r.keyDown(keyCode: 53, typed: nil, mods: []) == .cancel)
     }
 }
+
+@Suite struct ModifierTapTests {
+    let t0 = Date(timeIntervalSince1970: 1000)
+    func at(_ s: Double) -> Date { t0.addingTimeInterval(s) }
+
+    @Test func aQuickTapCounts() {
+        var t = ModifierTap([.command, .option])
+        #expect(t.flagsChanged([.command], keyDowns: 5, at: at(0)) == false)
+        #expect(t.flagsChanged([.command, .option], keyDowns: 5, at: at(0.05)) == false)
+        #expect(t.flagsChanged([], keyDowns: 5, at: at(0.2)) == true)
+    }
+
+    @Test func aSlowTapDoesNot() {
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.command, .option], keyDowns: 0, at: at(0))
+        #expect(t.flagsChanged([], keyDowns: 0, at: at(0.7)) == false)
+    }
+
+    @Test func anotherAppsShortcutWithAnExtraModifierIsNotATap() {
+        // Command+Option+Shift+L for another app, Shift let go before Command and Option.
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.command], keyDowns: 9, at: at(0))
+        _ = t.flagsChanged([.command, .option], keyDowns: 9, at: at(0.02))
+        _ = t.flagsChanged([.command, .option, .shift], keyDowns: 9, at: at(0.04))
+        _ = t.flagsChanged([.command, .option], keyDowns: 10, at: at(0.15))   // L went to the other app
+        #expect(t.flagsChanged([], keyDowns: 10, at: at(0.2)) == false)
+    }
+
+    @Test func shiftPressedFirstAndLetGoFirstIsNotATap() {
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.shift], keyDowns: 0, at: at(0))
+        _ = t.flagsChanged([.shift, .command, .option], keyDowns: 0, at: at(0.05))
+        _ = t.flagsChanged([.command, .option], keyDowns: 1, at: at(0.1))
+        #expect(t.flagsChanged([], keyDowns: 1, at: at(0.15)) == false)
+    }
+
+    @Test func aKeyAnotherAppTookIsNotATap() {
+        // Command+Option+L held by another app's hotkey: Perch never sees the L, only the count going up.
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.command, .option], keyDowns: 3, at: at(0))
+        #expect(t.flagsChanged([], keyDowns: 4, at: at(0.2)) == false)
+    }
+
+    @Test func aKeySeenDuringThePressIsNotATap() {
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.command, .option], keyDowns: 3, at: at(0))
+        t.keyDown()
+        #expect(t.flagsChanged([], keyDowns: 3, at: at(0.2)) == false)
+    }
+
+    @Test func typingBeforeThePressDoesNotSpoilIt() {
+        var t = ModifierTap([.command, .option])
+        t.keyDown()
+        _ = t.flagsChanged([.command, .option], keyDowns: 8, at: at(0))
+        #expect(t.flagsChanged([], keyDowns: 8, at: at(0.2)) == true)
+    }
+
+    @Test func theNextCleanTapCountsAfterADirtyOne() {
+        var t = ModifierTap([.command, .option])
+        _ = t.flagsChanged([.command, .option, .shift], keyDowns: 0, at: at(0))
+        _ = t.flagsChanged([], keyDowns: 1, at: at(0.1))
+        _ = t.flagsChanged([.command, .option], keyDowns: 1, at: at(1))
+        #expect(t.flagsChanged([], keyDowns: 1, at: at(1.2)) == true)
+    }
+
+    @Test func noModifiersMeansNoTap() {
+        var t = ModifierTap([])
+        _ = t.flagsChanged([.command, .option], keyDowns: 0, at: at(0))
+        #expect(t.flagsChanged([], keyDowns: 0, at: at(0.1)) == false)
+    }
+}

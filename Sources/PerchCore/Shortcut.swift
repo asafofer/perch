@@ -1,3 +1,6 @@
+import Foundation
+
+
 /// The shortcut that opens and closes Perch: a tap of two or more modifier keys (the default, Command+Option), or a key
 /// with modifiers. Pure data and rules, no AppKit: the app turns key events into `ShortcutRecorder` calls.
 public struct ShortcutMods: OptionSet, Equatable, Hashable, Sendable, Codable {
@@ -121,4 +124,39 @@ public struct ShortcutRecorder: Sendable {
         pending = s
         return .chosen(s)
     }
+}
+
+/// Watches the modifiers for a tap of the open shortcut. A tap is the shortcut's modifiers pressed from nothing and let go
+/// within 0.6 s, with no other modifier and no key at any point in that press. Another app's shortcut that shares the
+/// modifiers (Command+Option+Shift+L) is not a tap: letting go of Shift and L first leaves Command+Option held, and a key
+/// another app's hotkey takes never reaches Perch as an event, so the system's count of key presses (`keyDowns`) is
+/// compared instead.
+public struct ModifierTap: Sendable {
+    public var mods: ShortcutMods
+    private var held: ShortcutMods = []
+    private var start: Date?
+    private var startKeyDowns = 0
+    private var dirty = false
+    public init(_ mods: ShortcutMods) { self.mods = mods }
+
+    /// A key went down while Perch could see it (or one of Perch's own hotkeys fired).
+    public mutating func keyDown() { if !held.isEmpty { dirty = true } }
+
+    /// The modifiers held changed. True when that was a tap.
+    public mutating func flagsChanged(_ now: ShortcutMods, keyDowns: Int, at time: Date = Date()) -> Bool {
+        defer { held = now }
+        guard !mods.isEmpty else { start = nil; return false }
+        if held.isEmpty { start = nil; dirty = false }   // a fresh press
+        if now.isEmpty {
+            defer { start = nil; dirty = false }
+            guard let start, !dirty, keyDowns == startKeyDowns else { return false }
+            return time.timeIntervalSince(start) < 0.6
+        }
+        if !now.isSubset(of: mods) { dirty = true; return false }
+        if now == mods, start == nil, !dirty { start = time; startKeyDowns = keyDowns }
+        return false
+    }
+
+    /// Forget the press under way (the shortcut changed or recording began).
+    public mutating func reset() { start = nil; dirty = true }
 }
