@@ -16,6 +16,8 @@
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
+    restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'
   };
@@ -169,6 +171,7 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<button class="upd-chip rv absolute right-[84px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] text-foreground transition-colors hover:bg-white/10" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
@@ -190,6 +193,7 @@
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<button class="upd-chip rv absolute right-[84px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] text-foreground transition-colors hover:bg-white/10" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
@@ -906,28 +910,30 @@
      When it restarts, the row says Updating. Back on the new version the character pops out and says so, then the notch tells you
      the headline of what is new. All of it folds away by itself. */
   var UPD_C = 59.7;   /* the ring's circumference, 2 pi r with r 9.5 */
-  function updRing(frac) {
-    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="' + glow(COLORS.running) + '"><circle cx="12" cy="12" r="9.5" stroke="rgba(255,255,255,.14)"/>' +
-      '<circle class="upd-arc" cx="12" cy="12" r="9.5" stroke="' + COLORS.running + '" stroke-dasharray="' + UPD_C + '" stroke-dashoffset="' + UPD_C * (1 - frac) + '" transform="rotate(-90 12 12)"/></svg>';
+  function updRing(frac, c) {
+    c = c || 'size-4';
+    return '<svg class="' + c + ' flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="' + glow(COLORS.running) + '"><circle cx="12" cy="12" r="9.5" stroke="rgba(255,255,255,.14)"/>' +
+      '<circle class="upd-arc" cx="12" cy="12" r="9.5" stroke="' + COLORS.running + '" stroke-dasharray="' + UPD_C + '" stroke-dashoffset="' + UPD_C * (1 - frac) + '" transform="rotate(-90 12 12)"/>' +
+      '<path d="M12 7.8v6.6M9.2 11.8l2.8 2.8 2.8-2.8" stroke="' + COLORS.running + '"/></svg>';
   }
   function renderUpd(u) {
     var ph = u.phase, notes = !!u.notesOpen, bullets = u.bullets || [];
-    var words = { checking: 'Checking', available: 'Available', downloading: 'Downloading', ready: 'Ready to restart', restarting: 'Updating', updated: 'Updated' }[ph];
-    var mark = ph === 'restarting' || ph === 'checking' ? Spinner('size-4', glow(COLORS.running)) : ph === 'downloading' ? updRing(u.progress || 0) : ph === 'available' ? Ring('down') : Ring('done');
+    var words = { checking: 'Checking', available: 'Available', downloading: 'Downloading', ready: 'Ready to restart', restarting: 'Updating', updated: 'Updated', current: 'Up to date', failed: 'Couldn\u2019t check' }[ph];
+    var mark = ph === 'restarting' || ph === 'checking' ? Spinner('size-4', glow(COLORS.running)) : ph === 'downloading' ? updRing(u.progress || 0) : ph === 'available' ? Ring('down') : ph === 'failed' ? Ring('need') : Ring('done');
     /* the headline of what is new; What's new opens the few lines behind it, right here in the notch */
     var body = '';
-    if ((ph === 'available' || ph === 'updated') && (u.notes || bullets.length)) {
+    if (ph === 'available' && (u.notes || bullets.length)) {
       body = notes && bullets.length
         ? '<div class="act-body tall" data-h="' + (bullets.length * 19 + 8) + '" style="height:' + (bullets.length * 19 + 8) + 'px">' + bullets.map(function (b) { return '<span dir="auto" class="act-li"><i></i>' + esc(b) + '</span>'; }).join('') + '</div>'
         : '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>';
     }
-    var kb = function (k) { return '<kbd>' + CMDOPT + k + '</kbd>'; }, btn = function (a, label, k, main) { return '<button class="act-b' + (main ? ' go' : '') + '" data-a="' + a + '"><span class="act-bl">' + label + '</span>' + kb(k) + '</button>'; };
+    /* buttons are for the mouse: the notch never takes the keyboard when it opens by itself, so no keys to learn */
+    var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' px-2.5" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
-    if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '<span class="act-gap"></span>' : btn('notes', 'What\u2019s new', 'W') + '<span class="act-gap"></span>') + btn('gone', 'Later', '.') + btn('install', 'Update', 'U', true); }
-    if (ph === 'updated') { keys = ['gone', 'notes']; btns = '<span class="act-gap"></span>' + (notes ? btn('gone', 'Done', '.', true) : btn('notes', 'What\u2019s new', 'W', true)); }
+    if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
     act.keys = keys;
     var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s ' + (ph === 'ready' || ph === 'updated' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+      '<span class="act-r"><span class="act-s ' + (ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
     var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
     if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
     var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
@@ -1029,7 +1035,7 @@
     return list;
   }
   var updTok = 0;
-  var updSaid = '', updNotes = false;   /* what the character has already said; What's new open */
+  var updNotes = false;   /* What's new open */
   function updP(u) { return { id: 'perch-update', name: 'Perch', topic: 'Perch ' + u.version, app: 'perch', update: Object.assign({}, u, { notesOpen: updNotes }), status: { kind: 'idle', text: 'Perch ' + u.version, app: 'perch' } }; }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
@@ -1049,23 +1055,14 @@
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
     if (up && !s.quiet && !actGone[ukey]) {
       var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase;
-      if ((u.phase === 'downloading' || u.phase === 'ready') && !need.length) { setAct('wings', up, true); return; }
+      /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */
+      if (u.phase === 'downloading' && !need.length) { setAct('wings', up, true); return; }
       if (u.phase === 'restarting' || u.phase === 'checking') { clearTimeout(actTimer); setAct('full', up, true); return; }
       if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
-      if (u.phase === 'updated') {
-        if (showing) { setAct('full', up, true); return; }
-        if (updSaid !== ukey) {
-          updSaid = ukey; if (act.p && act.p.update) setAct('', null, true);
-          pop('happy', 2300, 'Updated');
-          setTimeout(function () { if (snap && snap.update && snap.update.phase === 'updated' && !actGone[ukey]) { setAct('full', updP(snap.update)); actLater(10000); } }, 3200);
-        }
-        return;
-      }
-      /* a check you asked for, with nothing to say or no way to say it: the character says so, once */
-      if (u.phase === 'current' || u.phase === 'failed') { if (act.p && act.p.update) setAct('', null, true); }
-      if ((u.phase === 'current' || u.phase === 'failed') && updSaid !== ukey) { updSaid = ukey; pop(u.phase === 'current' ? 'happy' : 'awake', 2400, u.phase === 'current' ? 'Up to date' : 'Couldn\u2019t check'); return; }
-    } else if (act.p && act.p.update && !(up && !actGone[ukey])) { setAct('', null, true); }
-    if (!u) updSaid = '';
+      /* a small row that says it and goes: updated, up to date, could not check */
+      if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? 4500 : 3500); return; }
+    }
+    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
@@ -1130,6 +1127,21 @@
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
+  /* While the list or a card is open the notch cannot say it, so the update waits at the top right: Update, a ring while it downloads,
+     Restart when it is ready. */
+  var chipSig = '';
+  function updChip(s, st) {
+    var u = s.update, ph = u && u.phase, on = (st === 'open' || st === 'switch') && (ph === 'available' || ph === 'downloading' || ph === 'ready'), sig = on ? ph + Math.round((u.progress || 0) * 20) : '';
+    if (sig === chipSig) return; chipSig = sig;
+    document.querySelectorAll('.upd-chip').forEach(function (b) {
+      b.classList.toggle('hidden', !on); b.classList.toggle('flex', on);
+      if (!on) return;
+      b.dataset.p = ph; b.title = ph === 'available' ? 'Perch ' + u.version + ' is available. Update now' : ph === 'ready' ? 'Perch ' + u.version + ' is downloaded. Restart to install it' : 'Downloading Perch ' + u.version;
+      b.innerHTML = ph === 'downloading' ? updRing(u.progress || 0, 'size-[15px]') : (ph === 'available' ? svg('down', 'size-3') + 'Update' : svg('restart', 'size-3') + 'Restart to update');
+      b.style.cursor = ph === 'downloading' ? 'default' : '';
+      b.onclick = function () { if (ph !== 'downloading') post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
+    });
+  }
   var verSig = '';
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
@@ -1143,6 +1155,7 @@
     snap = s;
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
+    updChip(s, st);
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
@@ -2209,16 +2222,19 @@
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
         o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        if (o.fresh !== false && (!snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (!phase) updSaid = ''; if (o.fresh) updNotes = false; }
+        if (o.fresh !== false && (!snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(),
-          update: phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch',
-            bullets: ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null }));
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch',
+          bullets: ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
+        if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
+        /* in the list or on a card: the same snapshot with the update changed, the view stays */
+        if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }
+        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: base.update }));
       },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
         var me = ++updTok, at = function (ms, f) { setTimeout(function () { if (me === updTok) f(); }, ms); }, sc = document.getElementById('scene'), D = window.perchDev, t = 0;
-        if (!ready) { D.update('downloading', { progress: 0.04, fresh: false }); [0.18, 0.33, 0.52, 0.7, 0.86, 1].forEach(function (f, i) { at(800 + i * 700, function () { D.update('downloading', { progress: f, fresh: false }); }); }); t = 5200; at(t, function () { D.update('ready', { fresh: false }); }); t += 1800; }
+        if (!ready) { D.update('downloading', { progress: 0.03, fresh: false, stay: true }); for (var k = 1; k <= 12; k++) (function (k) { at(k * 800, function () { D.update('downloading', { progress: Math.min(1, k / 12), fresh: false, stay: true }); }); })(k); t = 10200; at(t, function () { D.update('ready', { fresh: false, stay: true }); }); t += 900; }
         at(t, function () { D.update('restarting', { fresh: false }); });
         at(t + 2300, function () { sc.style.transition = 'opacity .25s'; sc.style.opacity = '0'; });
         at(t + 3700, function () { D.update(null); sc.style.opacity = '1'; });
