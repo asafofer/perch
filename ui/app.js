@@ -1940,17 +1940,16 @@
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
-  /* with row icons on, each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance */
-  var rowIcons = false;
-  function stile(ic) { return ic && rowIcons ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
+  /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance */
+  function stile(ic) { return ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
   function slabel(t, sub, ic) {
     var txt = t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '');
-    return rowIcons && ic ? '<span class="flex min-w-0 flex-1 items-center gap-2">' + stile(ic) + '<span class="min-w-0 truncate">' + txt + '</span></span>' : '<span class="min-w-0 flex-1 truncate">' + txt + '</span>';
+    return ic ? '<span class="flex min-w-0 flex-1 items-center gap-2">' + stile(ic) + '<span class="min-w-0 truncate">' + txt + '</span></span>' : '<span class="min-w-0 flex-1 truncate">' + txt + '</span>';
   }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
-    setLast = o; rowIcons = !!o.icons;
+    setLast = o;
     var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
     /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
     var segOf = function (key, vals, name) {
@@ -1985,10 +1984,10 @@
       /* a build that can update says where it stands; a local test build has no updater and no row */
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
-    /* the card has to fit its panel: past seven rows they sit a little closer; with row icons, a pixel more room while it fits
+    /* the card has to fit its panel: past seven rows they sit a little closer; a pixel more room while it fits
        (the classes, so Tailwind builds them: h-[22px] h-[24px] h-[25px] h-[26px] h-[28px] h-[29px] h-[30px] h-[31px]) */
     var rh = rows.length > 10 ? 22 : rows.length > 9 ? 24 : rows.length > 8 ? 25 : rows.length > 7 ? 28 : 30;
-    if (rowIcons && rows.length <= 9) rh += 1;
+    if (rows.length <= 9) rh += 1;   /* room for the icon tiles */
     rows = rows.map(function (r) { return r.replace('h-[30px]', 'h-[' + rh + 'px]'); });
     rows = rows.join('');
     var box = q('.set');
@@ -2148,7 +2147,7 @@
     if (!o) return;
     var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([!!o.icons, o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });

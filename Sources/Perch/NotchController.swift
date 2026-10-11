@@ -810,6 +810,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 Prefs.enabledSources = set
                 refreshProjects(); push()
             }
+        case "notify":
+            if let kind = body["kind"] as? String, let on = body["enabled"] as? Bool {
+                Prefs.notifyOff = NotifyKinds.toggled(Prefs.notifyOff, kind: kind, enabled: on)
+                push()
+            }
         case "character":
             if let shape = body["shape"] as? String { Prefs.shape = shape }
             if let color = body["color"] as? String { Prefs.color = color }

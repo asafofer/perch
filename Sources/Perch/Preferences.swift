@@ -46,6 +46,11 @@ enum Prefs {
         get { d.bool(forKey: "hoverExternal") }
         set { d.set(newValue, forKey: "hoverExternal") }
     }
+    /// The kinds of live activity switched off in Settings (Notify me about), as `NotifyKind` names. Empty by default: the notch announces everything.
+    static var notifyOff: Set<String> {
+        get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
+        set { d.set(newValue.sorted(), forKey: "notifyOff") }
+    }
     /// What opens and closes Perch: a tap of Command and Option unless you recorded your own.
     static var openShortcut: Shortcut {
         get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }
