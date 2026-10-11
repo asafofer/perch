@@ -1063,7 +1063,7 @@
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } });
 
   function apply(s) {
-    q('.s-ver').textContent = s.version || '';   /* Settings says which build this is, small, beside its close */
+    q('.s-ver').textContent = s.testBuild ? '' : (s.version || '');   /* Settings says which build this is, small, beside its close; a test build says so under the notch instead */
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;

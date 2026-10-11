@@ -108,8 +108,7 @@ struct UISnapshot: Encodable {
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
-        let v = (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
-        return TestBuild.label.map { "\(v) test \($0)" } ?? v
+        return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
     }()
 
     init(machine: NotchMachine, projects: [Project], screen: ScreenInfo, timerToken: Int, icons: [String: String]? = nil, allowAutoCollapse: Bool = true, activeId: String? = nil, activeIds: [String] = [], scanning: Bool = false, canSend: Bool = true, fresh: Set<String> = [], lines: [String: String] = [:], onboarding: Onboarding? = nil, settings: Settings? = nil) {
