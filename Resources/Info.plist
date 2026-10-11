@@ -22,6 +22,14 @@
 	<string>26.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/asafofer/perch-releases/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ye80gO0XS2JbmC75mZkMY9SD3XLmc1FFvyZH15In7zw=</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Perch brings a terminal session back to the front, in its own tab, when you pick it up.</string>
 	<key>NSHighResolutionCapable</key>

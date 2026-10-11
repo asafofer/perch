@@ -66,11 +66,16 @@ cd ui && npm install && cd ..       # once
 ./scripts/run.sh --idle 15          # welcome card after 15 s idle (testing). Relaunch without it afterwards.
 swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
+./scripts/release.sh [--publish]    # a release that installed copies update to (Sparkle), see Updates
 ./scripts/make-icon.sh              # Resources/AppIcon.icns and docs/assets/icon.png from docs/assets/icon.svg (WebKit draws the coat)
 ./scripts/agents-demo.sh [folder]   # herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux
 ```
 
 Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
+
+## Updates
+
+Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`), with no Apple notarization. `SUFeedURL` in `Resources/Info.plist` points at `appcast.xml` in the public repo `asafofer/perch-releases` (the source repo is private); the zips are that repo's release assets. Each update is signed with an EdDSA key (public half `SUPublicEDKey` in the plist, private half in the owner's login keychain, made by Sparkle's `generate_keys`: lose it and installed copies can never update, so keep a backup). It checks daily, downloads and installs in the background, and a downloaded update restarts Perch only when `NotchController.isQuiet` (nothing open, no draft). A test build (`PerchTestBuild`) and any `--fake`, `--demo` or `--snapshot` run never update. Sparkle's version compare uses the build number, the commit count, so a release must be cut from a commit newer than the last. `release.sh` builds, signs and writes the appcast; `--publish` makes the GitHub release and pushes `appcast.xml`. Every release must be signed with the same "Perch Dev" certificate, otherwise macOS asks for Accessibility again after the update. To test an update without publishing, build two copies with different `CFBundleVersion` and a `SUFeedURL` on localhost, serve a folder with `generate_appcast` output, and launch the older copy outside /Applications.
 
 ## Design rules (the owner is firm about these)
 

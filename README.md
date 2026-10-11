@@ -56,7 +56,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 | Agents | The Claude app, the Codex app, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.zip` from the [latest release](https://github.com/asafofer/perch/releases/latest), unzip it and move Perch to Applications. Builds are not notarized yet, so the first time, right-click Perch and choose **Open**.
+**Download.** Get `Perch.zip` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), unzip it and move Perch to Applications. Builds are not notarized yet, so the first time, right-click Perch and choose **Open**. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 
@@ -148,6 +148,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | Script | What it does |
 |---|---|
 | `./scripts/package.sh` | Builds a release and writes `build/Perch.zip` for sharing. |
+| `./scripts/release.sh` | Builds, signs the update with Perch's Sparkle key and writes the appcast; `--publish` pushes it to the releases repo. |
 | `./scripts/make-icon.sh` | Renders `docs/assets/icon.svg` into the app icon and `icon.png`. |
 | `./scripts/record.sh` | Films the design page's sample flow into `docs/assets/perch.gif`. Needs `ffmpeg` and an unlocked screen. |
 | `./scripts/agents-demo.sh` | herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux, for trying Perch live. |

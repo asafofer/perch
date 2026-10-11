@@ -46,6 +46,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
     /// the card (a click in Finder to copy a path) keeps it, and the reply field opens with it again.
     private var drafts: [String: String] = [:]
+    /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
+    var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
     /// What showed when the card or list was put away, for Command+Option to bring back (PutAway).
     private var putAway: PutAway?
     /// The card takes the keyboard when the pointer comes onto it, or when a hovered card gets something to answer:
