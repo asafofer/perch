@@ -1411,7 +1411,7 @@
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
   var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '' };
   function scOf(sc) { return sc || SC0; }
-  function scKeysHtml(sc) { return '<span class="inline-flex items-baseline gap-[3px]">' + scOf(sc).keys.map(function (k) { return Kbd(k); }).join('') + '</span>'; }
+  function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
   /* what the recorder asks for, or why it refused the last try (it keeps listening) */
   function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
@@ -1790,7 +1790,9 @@
     };
     var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
-    var sc = scOf(o.shortcut), scRow = srow(slabel('Open Perch', sc.works ? '' : '<span style="color:' + COLORS.attention + '">' + (sc.kind === 'tap' ? 'needs Accessibility' : 'taken by another app') + '</span>'), '<span class="flex items-center gap-1.5"><button class="s-sc -my-0.5 cursor-pointer rounded-md px-1 py-0.5 transition hover:bg-white/10 active:scale-95" style="box-shadow:0 0 0 1px ' + (sc.works ? 'rgba(140,207,164,.4)' : 'rgba(233,168,119,.6)') + '" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc) + '</button>' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+    var sc = scOf(o.shortcut),
+      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
+      scRow = srow(slabel('Open Perch'), '<span class="flex items-center gap-1"><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention, 'gap-px') + '</button>' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
