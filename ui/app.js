@@ -1985,8 +1985,11 @@
       /* a build that can update says where it stands; a local test build has no updater and no row */
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
-    /* the card has to fit its panel: past seven rows they sit a little closer */
-    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 10 ? 'h-[22px]' : rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[25px]' : 'h-[28px]'); }) : rows;
+    /* the card has to fit its panel: past seven rows they sit a little closer; with row icons, a pixel more room while it fits
+       (the classes, so Tailwind builds them: h-[22px] h-[24px] h-[25px] h-[26px] h-[28px] h-[29px] h-[30px] h-[31px]) */
+    var rh = rows.length > 10 ? 22 : rows.length > 9 ? 24 : rows.length > 8 ? 25 : rows.length > 7 ? 28 : 30;
+    if (rowIcons && rows.length <= 9) rh += 1;
+    rows = rows.map(function (r) { return r.replace('h-[30px]', 'h-[' + rh + 'px]'); });
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
