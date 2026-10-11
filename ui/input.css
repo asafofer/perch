@@ -6,7 +6,7 @@
 
 html, body { margin: 0; background: transparent; overflow: hidden; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; cursor: default; }
 body { font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; }
-#scene { position: relative; top: 10px; width: 480px; height: 320px; }
+#scene { position: relative; top: 10px; width: 480px; height: 410px; }
 .perch { --background: 0 0% 0%; --foreground: 0 0% 98%; --muted: 240 3.7% 15.9%; --muted-foreground: 240 5% 64.9%; --accent: 240 3.7% 11%; --accent-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%; --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%; --ring: 240 4.9% 83.9%; color: hsl(var(--foreground)); letter-spacing: -.011em; }
 
