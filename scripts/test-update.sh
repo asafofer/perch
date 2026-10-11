@@ -43,7 +43,7 @@ A test update to try the update flow
 N
 ditto -c -k --norsrc --keepParent "$DIR/new/Perch.app" "$DIR/feed/Perch-$VERSION-test.zip"
 .build/artifacts/sparkle/Sparkle/bin/generate_appcast --embed-release-notes --download-url-prefix "http://localhost:$PORT/" "$DIR/feed" >/dev/null
-( cd "$DIR/feed" && nohup python3 -m http.server $PORT >/dev/null 2>&1 & )
+( cd "$DIR/feed" && nohup python3 -m http.server $PORT >"../feed.log" 2>&1 & )
 pkill -x Perch 2>/dev/null || true; sleep 1
 defaults write $DOMAIN lastRunBuild 1
 if [ "${1:-}" = "--manual" ]; then defaults write $DOMAIN SUEnableAutomaticChecks -bool false; else defaults delete $DOMAIN SUEnableAutomaticChecks 2>/dev/null || true; fi

@@ -24,4 +24,10 @@ gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" --repo "$REPO" 
 # appcast.xml goes to the repo's main branch through the contents API: the feed is read from there.
 SHA=$(gh api "repos/$REPO/contents/appcast.xml" -q .sha 2>/dev/null || true)
 gh api -X PUT "repos/$REPO/contents/appcast.xml" -f message="Perch $VERSION" -f content="$(base64 < build/appcast/appcast.xml)" ${SHA:+-f sha="$SHA"} >/dev/null
-echo "Published Perch $VERSION. Copies of Perch check once a day."
+# GitHub serves the feed from a cache that lasts up to five minutes. Perch asks with a different address each time (Updater.feedParameters), so it sees a release at once; this looks the same way.
+echo "Published. Checking the public feed shows $VERSION..."
+for _ in $(seq 40); do
+  curl -fsS "https://raw.githubusercontent.com/$REPO/main/appcast.xml?t=$(date +%s)" 2>/dev/null | grep -q "<sparkle:shortVersionString>$VERSION<" && { echo "Live: Perch $VERSION is in the feed. Copies of Perch check once a day, or at once with Check for updates."; exit 0; }
+  sleep 10
+done
+echo "Published, but the feed still shows the old version after a while: check https://raw.githubusercontent.com/$REPO/main/appcast.xml"
