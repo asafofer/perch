@@ -323,26 +323,29 @@
     rIn.dispatchEvent(new Event('input'));
     var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
   }
-  /* Files dragged over the card (n of them; 0 when the drag goes away). The reply opens for them if it was closed, and
-     closes again if they go elsewhere; its field lights up and says what a drop does; the character looks on wide-eyed,
-     its eyes on the file as it moves. Dropped, it squints happily and hops. */
+  /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y. The reply opens for them if
+     it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
+     the file right on it; the character looks on wide-eyed, its eyes on the file as it moves. Dropped, it squints happily
+     and hops. */
   var dropping = 0, dropOpened = false;
-  function dragOver(n) {
-    if (lastSt !== 'open' || n === dropping) return;
+  function dragOver(n, x, y) {
+    if (lastSt !== 'open') return;
     if (n && !dropping) {
       if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
       cr.dataset.m = 'alert'; lookAt(rIn, 60);
     }
-    dropping = n;
-    rIn.classList.toggle('drop', !!n);
-    rIn.placeholder = n ? (n > 1 ? 'Drop to add their paths' : 'Drop to add its path') : replyHint();
-    if (!n) {
+    var was = dropping; dropping = n;
+    var r = rIn.getBoundingClientRect(), sr = scene.getBoundingClientRect(), px = x + sr.left, py = y + sr.top;
+    var on = !!n && x != null && px >= r.left - 8 && px <= r.right + 8 && py >= r.top - 8 && py <= r.bottom + 8;
+    rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    if (!n && was) {
       if (dropOpened) { dropOpened = false; replyMenu(false, true); }
       if (snap) layout('open', snap);   /* its face goes back to the session's */
     }
   }
   function dropped() {
-    dropping = 0; rIn.classList.remove('drop'); rIn.placeholder = replyHint();
+    dropping = 0; rIn.classList.remove('drop', 'on'); rIn.placeholder = replyHint();
     /* the reply it opened for the drag is yours now: Swift hears it is open, so keys go to it */
     if (dropOpened) { dropOpened = false; post({ type: 'replyMenu', open: true }); }
     var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
@@ -986,7 +989,7 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
-    if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop'); }
+    if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
