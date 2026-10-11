@@ -483,7 +483,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice))
         if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
         markSeen(p)
-        send(.dismiss); putAway = nil
+        let onCard = machine.phase != .idle
+        send(.dismiss)
+        if onCard || putAway?.session == p.id { putAway = nil }   // answered: nothing to bring back
         redecorate()
     }
 
@@ -541,7 +543,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let old = machine.phase
         machine.send(.dismiss)
         phaseChanged(old, machine.phase)
-        putAway = nil   // you went there: nothing to bring back
+        // You went there: nothing to bring back. From the live activity, only if it was the card you put away.
+        if old != .idle || putAway?.session == projects[index].id { putAway = nil }
         push()
     }
 
