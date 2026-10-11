@@ -925,13 +925,16 @@
   function inside(s, id) { return s.activeId === id || (s.activeIds || []).indexOf(id) >= 0; }
   /* a session that stopped on an error has nothing to answer: it says so once, and does not stay as wings */
   function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
-  /* a build that is not a release says so beside the notch while it rests: which branch and commit this running copy is */
-  scene.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"></div>');
+  /* a build that is not a release says so: a narrow black tab hangs under the notch with TEST BUILD, the branch and the commit.
+     It rests there with the notch and with the wings; a card or the full activity covers it. */
+  scene.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"><b>TEST BUILD</b><span></span></div>');
   var tbEl = q('.tb'), tbText = '';
   function testTag(s, st) {
     var t = s.testBuild || '';
-    if (t !== tbText) { tbText = t; var at = t.split(' @ '); tbEl.innerHTML = t ? '<b>TEST BUILD</b><span></span><span></span>' : ''; if (t) { tbEl.children[1].textContent = at[0].replace(/^claude\//, ''); tbEl.children[2].textContent = at[1] || ''; } }
-    tbEl.style.display = t && st === 'idle' && !act.mode ? '' : 'none';
+    if (t !== tbText) { tbText = t; tbEl.children[1].textContent = t.replace(/^claude\//, ''); }
+    var scr = s.screen, idleH = !scr.hasNotch ? Math.min(scr.notchH || 24, 28) : scr.notchH;
+    tbEl.style.top = (idleH - 1) + 'px';
+    tbEl.style.display = t && st === 'idle' && act.mode !== 'full' ? '' : 'none';
   }
   function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }

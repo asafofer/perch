@@ -321,7 +321,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes glowline { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .n[data-run="1"] .glow, .n[data-run="1"] .glow::after { animation: none; } }
 
-/* a test build, beside the notch at rest: TEST BUILD, its branch, its commit */
-.tb { position: absolute; top: 1px; right: calc(50% + 92.5px + 9px); display: flex; flex-direction: column; align-items: flex-end; font-size: 9px; line-height: 10px; letter-spacing: .01em; color: #f2a65a; pointer-events: none; white-space: nowrap; max-width: 150px; overflow: hidden; }
+/* a test build: a narrow black tab under the notch, centred, with TEST BUILD, its branch and its commit */
+.tb { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: baseline; padding: 2px 11px 4px; background: #000; border-radius: 0 0 10px 10px; font-size: 9.5px; line-height: 11px; color: #f2a65a; pointer-events: none; white-space: nowrap; max-width: 330px; }
 .tb b { font-weight: 650; letter-spacing: .06em; }
-.tb span { opacity: .75; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tb span { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
