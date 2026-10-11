@@ -507,8 +507,10 @@
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
+    /* four choices with their notes and the reason would not fit the panel: past three, the labels alone */
+    var terse = qn.options.length > 3;
     q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
-      var rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
+      var rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = terse ? '' : qn.notes[i] || '';
       return '<div class="flex w-full items-center gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
