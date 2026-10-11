@@ -1113,6 +1113,16 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
+       other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
+    var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
+    if (screenKey && sk !== screenKey) {
+      scene.dataset.moved = '1';
+      layout(was === 'idle' ? 'idle' : st, s);
+      void n.offsetWidth; getComputedStyle(n, '::after').opacity;
+      scene.dataset.moved = '';
+    }
+    screenKey = sk;
     layout(st, s);
     if (was !== st) drill(was, st, s);
     if (s.phase === 'open' && s.autoCollapse) { if (last.token !== s.timerToken || last.phase !== 'open' || !last.running) bar(true); last.running = true; }
@@ -1323,7 +1333,7 @@
   /* ---- onboarding: six short steps inside the notch ---- */
 
   /* ---- moments: the party at the end of onboarding, and the first hello beside the notch ---- */
-  var celebrating = false, hello = false, helloNext = false, curH = 232, idleXf = '', idleD = 18, lastSt = 'idle';
+  var celebrating = false, hello = false, helloNext = false, curH = 232, idleXf = '', idleD = 18, lastSt = 'idle', screenKey = '';
   function celebrate() {
     var box = q('.onb'), reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce) return;
@@ -1953,7 +1963,9 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); } };
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+    /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
+    painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
