@@ -3,45 +3,67 @@
 <title>Perch disk image</title>
 <!-- The picture behind the icons in the Perch.dmg window (660 x 400 points). Finder puts the Perch icon on the left and the
      Applications folder on the right (scripts/make-dmg.sh places them at 175,180 and 485,180); this draws everything else:
-     the words, the arrow, and the characters, the real ones (app.js draws them, coat and eyes), peeking up from the bottom edge.
+     the words, the light behind both icons, an arrow that arcs from one to the other with a small character hopping along it, and the
+     crowd of characters, the real ones (app.js draws them, coat and eyes), peeking up from the bottom edge.
      The design page shows it in a Finder window; scripts/render-dmg-background.mjs renders it to Resources/dmg/background.png and @2x. -->
 <link rel="stylesheet" href="../dist/ui.css">
 <style>
 @font-face { font-family: Inter; font-weight: 100 900; src: url(../dist/fonts/inter-latin-wght-normal.woff2) format('woff2'); }
 html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
 body { position: relative; font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; color: #EDF1EE; }
-#bg { position: absolute; inset: 0; background: radial-gradient(ellipse 340px 170px at 50% 30%, #17201C 0%, rgba(23,32,28,0) 100%), linear-gradient(#0C100E, #060908); }
+/* the night, and the light in it: a pool of each icon's colour, a trail of both between them, a warm horizon under the crowd */
+#bg { position: absolute; inset: 0; background:
+  radial-gradient(ellipse 95px 85px at 175px 182px, rgba(255,196,80,.34), rgba(255,196,80,0) 100%),
+  radial-gradient(ellipse 230px 190px at 175px 182px, rgba(245,170,50,.15), rgba(245,170,50,0) 100%),
+  radial-gradient(ellipse 95px 85px at 485px 182px, rgba(90,184,255,.34), rgba(90,184,255,0) 100%),
+  radial-gradient(ellipse 230px 190px at 485px 182px, rgba(90,160,255,.15), rgba(90,160,255,0) 100%),
+  radial-gradient(ellipse 130px 70px at 330px 150px, rgba(185,162,245,.18), rgba(185,162,245,0) 100%),
+  radial-gradient(ellipse 420px 90px at 50% 100%, rgba(255,158,122,.16), rgba(255,158,122,0) 100%),
+  linear-gradient(#0B0F0E, #060908); }
 #scene { display: none; }
 h1 { position: absolute; left: 0; right: 0; top: 38px; margin: 0; text-align: center; font-size: 21px; font-weight: 600; letter-spacing: -.022em; line-height: 28px; }
 p { position: absolute; left: 0; right: 0; margin: 0; text-align: center; color: #8C9690; letter-spacing: -.005em; }
 .sub { top: 70px; font-size: 13.5px; line-height: 20px; }
-.note { top: 270px; font-size: 12px; line-height: 18px; color: #6B7570; }
+.note { top: 272px; font-size: 12px; line-height: 18px; color: #6B7570; }
 .note b { font-weight: 600; color: #8C9690; }
-svg.arrow { position: absolute; left: 0; top: 0; }
-/* the characters: each one in its colour, on a pool of its own light, the lower part below the window's edge */
-.pal { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; }
+svg.fx { position: absolute; left: 0; top: 0; overflow: visible; }
+.pal { position: absolute; width: 170px; height: 170px; margin: -85px 0 0 -85px; border-radius: 50%; }
 .cr-slot { position: absolute; }
 .cr-slot .cr { --lx: var(--gx, 0px); --ly: var(--gy, 0px); }
 </style>
 <div id="bg"></div>
 <div id="scene"></div>
+<svg class="fx" width="660" height="400" viewBox="0 0 660 400" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="trail" x1="258" x2="404" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F5B83D" stop-opacity=".15"/><stop offset=".5" stop-color="#B9A2F5" stop-opacity=".85"/><stop offset="1" stop-color="#7DC4F5"/></linearGradient>
+    <filter id="blur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <g id="sparks" fill="#EDF1EE"></g>
+  <g stroke="url(#trail)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <g filter="url(#blur)" stroke-width="7" opacity=".85"><path d="M262 176Q330 112 396 170"/></g>
+    <path d="M262 176Q330 112 396 170"/><path d="M383 169.3L396 170L393.5 157.2"/>
+  </g>
+</svg>
 <h1>Drag Perch to Applications</h1>
 <p class="sub">Then open it from there.</p>
-<svg class="arrow" width="660" height="400" viewBox="0 0 660 400" fill="none" aria-hidden="true">
-  <defs><linearGradient id="a" x1="262" x2="398" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#EDF1EE" stop-opacity=".08"/><stop offset="1" stop-color="#EDF1EE" stop-opacity=".75"/></linearGradient></defs>
-  <g stroke="url(#a)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M268 180H392"/><path d="M380 168l12 12-12 12"/></g>
-</svg>
 <p class="note">First time only: right-click Perch, then choose <b>Open</b>.</p>
 <div id="crew"></div>
 <script src="../orbs.js"></script>
 <script src="../app.js"></script>
 <script>
-/* shape, colour, centre x, top y (the bottom runs off the window), size, mood, which way the eyes look */
-var CREW = [['ears', '#F5B83D', 96, 306, 104, 'awake', [6, -3]], ['octo', '#B9A2F5', 213, 298, 110, 'happy', [4, -4]], ['bun', '#FF9E7A', 330, 318, 104, 'awake', [0, -4]],
-            ['tile', '#7DC4F5', 447, 300, 106, 'happy', [-4, -4]], ['peak', '#7FD9A8', 564, 310, 100, 'awake', [-6, -3]]];
+/* shape, colour, centre x, top y (the bottom runs off the window), size, mood, which way the eyes look, tilt in degrees */
+var CREW = [['ears', '#F5B83D', 84, 308, 108, 'awake', [6, -3], -3], ['octo', '#B9A2F5', 203, 292, 112, 'happy', [4, -4], 2], ['bun', '#FF9E7A', 330, 330, 100, 'awake', [0, -4], 0],
+            ['tile', '#7DC4F5', 457, 298, 108, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 580, 314, 102, 'awake', [-6, -3], 3],
+            /* the small one hopping along the arrow, on its way to Applications */
+            ['ears', '#F5B83D', 330, 98, 46, 'happy', [4, 0], 6]];
 document.getElementById('crew').innerHTML = CREW.map(function (c) {
   var x = c[2], y = c[3], z = c[4];
-  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .5) + 'px;background:radial-gradient(circle,' + c[1] + '2e 0%,' + c[1] + '00 68%)"></div>' +
-    '<div class="cr-slot" style="left:' + (x - z / 2) + 'px;top:' + y + 'px;--cr:' + c[1] + ';--gx:' + c[6][0] + 'px;--gy:' + c[6][1] + 'px">' + window.perchDev.character(c[0], z, c[5]) + '</div>';
+  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + (z > 60 ? '33' : '55') + ' 0%,' + c[1] + '00 66%)"></div>' +
+    '<div class="cr-slot" style="left:' + (x - z / 2) + 'px;top:' + y + 'px;--cr:' + c[1] + ';--gx:' + c[6][0] + 'px;--gy:' + c[6][1] + 'px;transform:rotate(' + c[7] + 'deg)">' + window.perchDev.character(c[0], z, c[5]) + '</div>';
 }).join('');
+/* a few specks of light, always the same ones */
+var k = 7, sp = '';
+for (var i = 0; i < 22; i++) { k = (k * 9301 + 49297) % 233280; var a = k / 233280; k = (k * 9301 + 49297) % 233280; var b = k / 233280; k = (k * 9301 + 49297) % 233280;
+  if (!(b < .3 && a > .28 && a < .72)) sp += '<circle cx="' + (a * 660).toFixed(0) + '" cy="' + (b * 250 + 10).toFixed(0) + '" r="' + (.6 + (k / 233280) * 1.1).toFixed(1) + '" opacity="' + (.1 + (k / 233280) * .3).toFixed(2) + '"/>'; }
+document.getElementById('sparks').innerHTML = sp;
 </script>

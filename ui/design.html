@@ -489,10 +489,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     now.textContent = 'The disk image window';
     at(900, function () { put(cur, [P[0] + 20, P[1] + 16], 1000); });
     at(2100, function () { now.textContent = 'Pick Perch up'; ghost.style.display = ''; put(ghost, P); icP.classList.add('lift'); });
-    at(2300, function () { now.textContent = 'Drag it across the arrow, onto Applications'; put(cur, [A[0] + 20, A[1] + 16], 1500); put(ghost, A, 1500); });
-    at(3500, function () { icA.classList.add('hl'); });
-    at(4300, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
-    at(5200, function () { now.textContent = 'Perch is in Applications: open it from there'; });
+    at(2300, function () { now.textContent = 'Drag it along the arrow, onto Applications'; put(cur, [330 + 20, 150 + 16], 800, 'cubic-bezier(.3,.6,.5,1)'); put(ghost, [330, 150], 800, 'cubic-bezier(.3,.6,.5,1)'); });
+    at(3100, function () { put(cur, [A[0] + 20, A[1] + 16], 800, 'cubic-bezier(.5,0,.6,1)'); put(ghost, A, 800, 'cubic-bezier(.5,0,.6,1)'); });
+    at(3800, function () { icA.classList.add('hl'); });
+    at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
+    at(5500, function () { now.textContent = 'Perch is in Applications: open it from there'; });
   }
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
