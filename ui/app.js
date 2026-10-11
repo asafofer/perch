@@ -1665,13 +1665,15 @@
       ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
-  var scHeldNow = [], scWasTried = '', scHeldShown = '', scPendingNow = [], scPendSeen = '', scFresh = false;
+  var scHeldNow = [], scWasTried = '', scHeldShown = '', scPendingNow = [], scPendSeen = '', scFresh = false, scPeak = [];
   var scRest = '', scRef = 0;
   function scHeldApply() {
     document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
       /* a key pressed on top of held modifiers shows at once, as a pressed key beside them, until you let go */
       if (!scHeldNow.length) scFresh = false;
-      var fresh = scFresh && scPendingNow.length ? scPendingNow : null, keys = fresh || scHeldNow, sig = keys.join('') + (fresh ? '+' : '');
+      /* letting go one key at a time must not show fewer keys for a moment: the row keeps the most that was held until all are up */
+      if (!scHeldNow.length) scPeak = []; else if (scHeldNow.length >= scPeak.length) scPeak = scHeldNow.slice();
+      var fresh = scFresh && scPendingNow.length ? scPendingNow : null, keys = fresh || scPeak, sig = keys.join('') + (fresh ? '+' : '');
       if (b.dataset.held === sig) return;
       /* what was held is remembered here, not on the row: the card redraws now and then and a fresh row must not replay the press */
       var before = sig.indexOf(scHeldShown) === 0 ? scHeldShown.length : 0; b.dataset.held = sig; var same = scHeldShown === sig; scHeldShown = sig;
