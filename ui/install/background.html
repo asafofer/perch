@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Perch disk image</title>
+<!-- The picture behind the icons in the Perch.dmg window (660 x 400 points). Finder puts the Perch icon on the left and the
+     Applications folder on the right (scripts/make-dmg.sh places them at 175,205 and 485,205); this draws everything else.
+     The design page shows it in a Finder window; scripts/render-dmg-background.mjs renders it to Resources/dmg/background.png and @2x. -->
+<style>
+@font-face { font-family: Inter; font-weight: 100 900; src: url(../dist/fonts/inter-latin-wght-normal.woff2) format('woff2'); }
+html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
+body { position: relative; font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; color: #141816;
+  background: radial-gradient(ellipse 420px 260px at 50% 46%, #FBFBFA 0%, rgba(251,251,250,0) 100%), linear-gradient(#F1F3F1, #E6EAE7); }
+h1 { position: absolute; left: 0; right: 0; top: 52px; margin: 0; text-align: center; font-size: 21px; font-weight: 600; letter-spacing: -.022em; line-height: 28px; }
+p { position: absolute; left: 0; right: 0; margin: 0; text-align: center; color: #5E6762; letter-spacing: -.005em; }
+.sub { top: 84px; font-size: 13.5px; line-height: 20px; }
+.note { top: 352px; font-size: 12px; line-height: 18px; color: #7A847E; }
+.note b { font-weight: 600; color: #5E6762; }
+svg { position: absolute; left: 0; top: 0; }
+</style>
+<h1>Drag Perch to Applications</h1>
+<p class="sub">Then open it from there.</p>
+<svg width="660" height="400" viewBox="0 0 660 400" fill="none" aria-hidden="true">
+  <defs><linearGradient id="a" x1="262" x2="398" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#141816" stop-opacity=".1"/><stop offset="1" stop-color="#141816" stop-opacity=".7"/></linearGradient></defs>
+  <g stroke="url(#a)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M268 205H392"/><path d="M380 193l12 12-12 12"/></g>
+</svg>
+<p class="note">First time only: right-click Perch, then choose <b>Open</b>.</p>
