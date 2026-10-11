@@ -1490,15 +1490,28 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// A card without the keyboard (the welcome card, a hovered one) never hears it go, so while a card is up Perch looks
     /// a few times a second for a launcher that has it. Twice in a row counts, so an app switch in flight does not.
     private var launcherCheck = (tick: 0, hits: 0)
+    private var launcherAsking = false
+    /// The question goes to another app through Accessibility, and an app that has not been asked before (Claude's) can take
+    /// a second or more to answer, so it is asked off the main thread: the keys and the card go on meanwhile.
     private func watchLaunchers() {
         guard machine.phase != .idle else { launcherCheck = (0, 0); return }
         launcherCheck.tick += 1
-        guard launcherCheck.tick % 8 == 0 else { return }
-        let launcher = Quiet.launcherOpen()
-        launcherCheck.hits = launcher == nil ? 0 : launcherCheck.hits + 1
-        if launcherCheck.hits >= 2 {
-            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \(launcher ?? "") has the keyboard, the card makes way") }
-            launcherCheck.hits = 0; makeWay()
+        guard launcherCheck.tick % 8 == 0, !launcherAsking else { return }
+        launcherAsking = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let launcher = Quiet.launcherOpen()
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.launcherAsking = false
+                    guard self.machine.phase != .idle else { self.launcherCheck = (0, 0); return }
+                    self.launcherCheck.hits = launcher == nil ? 0 : self.launcherCheck.hits + 1
+                    if self.launcherCheck.hits >= 2 {
+                        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \(launcher ?? "") has the keyboard, the card makes way") }
+                        self.launcherCheck.hits = 0; self.makeWay()
+                    }
+                }
+            }
         }
     }
 
