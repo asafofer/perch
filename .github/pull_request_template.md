@@ -36,7 +36,7 @@ scenario with what it shows. No visible change: replace the markers with "No vis
 ## Risk and what was not checked
 
 <!-- Anything that touches: hooks or other apps' config (HookInstaller), Accessibility or the keyboard (cardTakesKeys,
-makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards at or under 300 pt), updates (Sparkle).
+makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards fit its 410 pt), updates (Sparkle).
 Say plainly what you did not try. -->
 
 ## Checks
@@ -44,6 +44,6 @@ Say plainly what you did not try. -->
 - [ ] `swift test` passes (count: )
 - [ ] Looked at every changed state in the design page
 - [ ] `ui/app.js` is ASCII only, CSS rebuilt (`cd ui && npm run build`)
-- [ ] Settings and onboarding cards at or under 300 pt (if a row was added)
+- [ ] Settings and onboarding cards fit the 410 pt panel (if a row was added)
 - [ ] AGENTS.md updated where behaviour or structure changed
 - [ ] Release notes and version (only for a release)

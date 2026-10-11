@@ -66,7 +66,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
-.group[hidden]{display:none}
+.group[hidden],.sc[hidden],.dd[hidden]{display:none}
+.dd2{margin-left:8px}.dd2>button{min-width:150px}
 .sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
 .sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -208,6 +209,19 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onField() { var w = document.querySelector('.r-in').getBoundingClientRect().width; return deskPoint(document.querySelector('.r-in'), w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
+    /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
+    var UPD_ERR = [
+      ['Offline', { during: 'check', short: 'no connection', problem: 'No internet connection. Try again in a moment.' }],
+      ['Feed unreadable', { during: 'check', short: 'couldn\u2019t check', problem: 'Perch couldn\u2019t read the list of versions. Try again later.' }],
+      ['In Downloads', { during: 'update', fix: 'move', short: 'move Perch to Applications', problem: 'Move Perch to Applications, then open it again.' }],
+      ['Download stopped', { during: 'update', short: 'couldn\u2019t download', problem: 'The download didn\u2019t finish. Try again.' }],
+      ['Failed the safety check', { during: 'update', short: 'couldn\u2019t verify', problem: 'The update didn\u2019t pass its safety check, so Perch left it alone.' }],
+      ['Can\u2019t write here', { during: 'update', fix: 'move', short: 'can\u2019t update here', problem: 'Perch can\u2019t replace itself in this folder. Move it to Applications.' }],
+      ['Could not install', { during: 'update', short: 'couldn\u2019t install', problem: 'The update could not be installed. Try again.' }],
+      ['Could not quit', { during: 'update', short: 'couldn\u2019t quit', problem: 'Perch couldn\u2019t quit to finish updating. Try again.' }],
+      ['Could not reopen', { during: 'update', fix: 'none', short: 'open Perch again', problem: 'Perch updated but couldn\u2019t reopen. Open it again.' }],
+      ['Mac too old', { during: 'check', fix: 'none', short: 'needs macOS 26', problem: 'This version needs an Apple silicon Mac on macOS 26.' }]
+    ];
   var GROUPS = [
     ['Coming back', [
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
@@ -337,6 +351,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         ks.forEach(function (k, i) { setTimeout(function () { if (me === charRun && document.querySelector('.set')) window.perch.setKey(k); }, 500 + i * 280); }); }]
     ]],
     ['Settings', [
+      ['Settings: row spacing', 'The Settings rows 30px apart whatever shows, so rows never change height. The card is taller to hold it: 348 pt with nine rows, 408 with all eleven, where it was 312 and 320; the panel is 410 pt.', function () { d.settings(); }],
       ['Settings: Notify me about', 'Which moments the notch announces. The list and the cards still say all of them.', function () { d.settings(); }],
       ['Settings: Notify menu', 'A check for each moment. Up and Down move, Return switches one, Esc closes.', function () { d.settings(); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Settings: Finished off', 'Finished is switched off: its mark leaves the row and the menu shows it unchecked.', function () { d.settings({ notifyOff: ['done'] }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
@@ -370,7 +385,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['On a card: update available', 'The same spot on a session\u2019s card.', function () { d.update('available', { fresh: true, view: 'open' }); }],
       ['Check for updates: found one', 'Check for updates\u2026 in the menu bar. The notch says Checking for a moment, then the update is offered.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('available', { fresh: true }); }, 1800); }],
       ['Check for updates: up to date', 'Nothing newer: a small row says so and goes.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('current', { fresh: true }); }, 1800); }],
-      ['Check for updates: could not check', 'No connection, or the feed is down: a small row says so and goes. No dialog.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('failed', { fresh: true }); }, 1800); }],
       ['Updates itself, start to finish', 'The usual way, with nobody pressing anything. Perch finds a new version and downloads it in the background (the character beside the camera and a ring with an arrow, filling slowly), says Updating when it restarts at a quiet moment, and comes back with a small row that says Updated.', function () {
         var me = ++charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
         d.update(null, { fresh: true });
@@ -384,7 +398,34 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Updated', 'On the new version: a small row with a green check, then it folds away.', function () { d.update('updated', { fresh: true }); }],
       ['Settings: check for updates', 'Settings says where the update stands, beside the version: Check for updates when there is nothing to say; press it and it reads Checking, then Up to date for a few seconds, then goes back. The same slot shows Update to 0.3.2, a ring while it downloads, or Restart to update. A local test build has no updater, so it shows nothing there.', function () { var me = ++charRun; d.update(null, { fresh: true }); d.settings(); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.s-chk'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); }],
       ['Settings: update available', 'While you are in Settings, an Update button sits beside the version.', function () { d.settings({ update: { version: '0.3.1', phase: 'available' } }); }],
-      ['Settings: downloaded', 'Downloaded and waiting for a quiet moment: Restart to update does it now.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }]
+      ['Settings: downloaded', 'Downloaded and waiting for a quiet moment: Restart to update does it now.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }],
+      ['Settings: you press Update', 'Update in Settings: the button becomes the ring with an arrow and says Downloading, then Restart to update, then Updating as Perch goes. The row keeps its height the whole way, so nothing below it moves.', function () { var me = ++charRun; d.updStop(); d.settings({ update: { version: '0.3.1', phase: 'available' } }); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.s-upd'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); }],
+    ]],
+    ['Update errors', [
+      ['Each one', 'Every way an update can fail, one after another in the notch, three seconds each: what Perch says, and the buttons that fit it. Pick one below to hold it.', function () { var me = ++charRun, n = 0; (function next() { if (me !== charRun) return; var e = UPD_ERR[n % UPD_ERR.length]; d.update('failed', Object.assign({ fresh: true }, e[1])); n++; setTimeout(next, 3000); })(); }],
+      ['Settings: each one', 'Settings\u2019 Updates row for every failure, three seconds each: the reason beside Updates in orange, and the button that fits (Try again, Show in Finder, or none).', function () { var me = ++charRun, n = 0; (function next() { if (me !== charRun) return; var e = UPD_ERR[n % UPD_ERR.length]; d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, e[1]) }, true); n++; setTimeout(next, 3000); })(); }],
+      ['Check for updates: offline', 'You choose Check for updates and there is no connection: Checking, then the row says so and offers Try again. No dialog.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('failed', Object.assign({ fresh: true }, UPD_ERR[0][1])); }, 1800); }],
+      ['Settings: Update, then it fails', 'The same, and the download or the install fails: the row says couldn\u2019t install beside Updates, in orange, and offers Try again. It stays until you press it or leave Settings.', function () { var me = ++charRun; d.updStop(); d.settings({ update: { version: '0.3.1', phase: 'available' } }); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.s-upd'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); setTimeout(function () { if (me === charRun) { d.updStop(); d.update('failed', { fresh: false, stay: true, during: 'update', short: 'couldn\u2019t install', problem: 'The update could not be installed. Try again.' }); } }, 5200); }],
+      ['Offline', 'In the notch, the notch row says there is no internet and offers Try again.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[0][1])); }],
+      ['Feed unreadable', 'In the notch, the notch row says the list of versions could not be read.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[1][1])); }],
+      ['In Downloads', 'In the notch, Perch is running from Downloads: the row says to move it to Applications and offers Show in Finder.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[2][1])); }],
+      ['Download stopped', 'In the notch, the download stopped before it finished.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[3][1])); }],
+      ['Failed the safety check', 'In the notch, the update failed its signature check and Perch left it alone.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[4][1])); }],
+      ['Can\u2019t write here', 'In the notch, Perch cannot replace itself in this folder: move it to Applications.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[5][1])); }],
+      ['Could not install', 'In the notch, the update came down but would not go in.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[6][1])); }],
+      ['Could not quit', 'In the notch, Perch could not quit to finish updating.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[7][1])); }],
+      ['Could not reopen', 'In the notch, Perch updated but could not reopen: nothing to press, just Okay.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[8][1])); }],
+      ['Mac too old', 'In the notch, this Mac cannot run the newest version: Apple silicon on macOS 26 is needed.', function () { d.update('failed', Object.assign({ fresh: true }, UPD_ERR[9][1])); }],
+      ['Settings: offline', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[0][1]) }); }],
+      ['Settings: feed unreadable', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[1][1]) }); }],
+      ['Settings: in Downloads', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[2][1]) }); }],
+      ['Settings: download stopped', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[3][1]) }); }],
+      ['Settings: failed the safety check', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[4][1]) }); }],
+      ['Settings: can\u2019t write here', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[5][1]) }); }],
+      ['Settings: could not install', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[6][1]) }); }],
+      ['Settings: could not quit', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[7][1]) }); }],
+      ['Settings: could not reopen', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[8][1]) }); }],
+      ['Settings: mac too old', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[9][1]) }); }],
     ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
@@ -430,6 +471,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
     'External display': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
@@ -449,7 +491,35 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
   });
   var boxes = [];
+  /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
+  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
+  var dd2 = document.createElement('div'); dd2.className = 'dd dd2'; dd2.hidden = true; dd.parentNode.insertBefore(dd2, dd.nextSibling);
+  var ddb2 = document.createElement('button'); ddb2.setAttribute('aria-haspopup', 'listbox'); dd2.appendChild(ddb2);
+  var menu2 = document.createElement('div'); menu2.className = 'menu'; menu2.setAttribute('role', 'listbox'); dd2.appendChild(menu2);
+  var curGroup = 0;
+  function tagOf(s) { return /^Settings/.test(s[0]) ? 'settings' : 'notch'; }
+  function setFilter(i, tag) {
+    var f = FILTERS[GROUPS[i][0]]; if (!f) return;
+    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s) !== tag; });
+    menu2.querySelectorAll('button').forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tag === tag)); });
+    var label = f.filter(function (x) { return x[1] === tag; })[0];
+    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s) === tag; }).length + '</span>' + CHEV;
+  }
+  function filterMenu(i) {
+    var f = FILTERS[GROUPS[i][0]]; dd2.hidden = !f; menu2.innerHTML = '';
+    if (!f) return;
+    f.forEach(function (x) {
+      var t = document.createElement('button'); t.setAttribute('role', 'option'); t.dataset.tag = x[1];
+      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s) === x[1]; }).length + '</span>';
+      t.onclick = function () { setFilter(i, x[1]); dd2.classList.remove('open'); };
+      menu2.appendChild(t);
+    });
+    setFilter(i, '');
+  }
+  ddb2.onclick = function (e) { e.stopPropagation(); dd2.classList.toggle('open'); ddOpen(false); };
+  document.addEventListener('click', function () { dd2.classList.remove('open'); });
   function showTab(i) {
+    curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
     tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;

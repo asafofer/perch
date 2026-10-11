@@ -18,6 +18,10 @@ import CoreGraphics
         #expect(f.midX == notched.frame.midX)
         #expect(f.maxY == notched.frame.maxY + NotchGeometry.overscan)
     }
+    @Test func panelHoldsTheTallestSettingsCard() {
+        // eleven rows (an external display, no Accessibility) at 30 pt, plus the header and footer: 408 pt
+        #expect(NotchGeometry.panelSize.height >= 408)
+    }
     @Test func panelIsWiderThanTheCard() {
         #expect(NotchGeometry.panelSize.width > NotchGeometry.cardWidth)
     }

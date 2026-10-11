@@ -956,7 +956,7 @@
   }
   function renderUpd(u) {
     var ph = u.phase, notes = !!u.notesOpen, bullets = u.bullets || [];
-    var words = { checking: 'Checking', available: 'Available', downloading: 'Downloading', ready: 'Ready to restart', restarting: 'Updating', updated: 'Updated', current: 'Up to date', failed: 'Couldn\u2019t check' }[ph];
+    var words = { checking: 'Checking', available: 'Available', downloading: 'Downloading', ready: 'Ready to restart', restarting: 'Updating', updated: 'Updated', current: 'Up to date', failed: u.during === 'update' ? 'Couldn\u2019t update' : 'Couldn\u2019t check' }[ph];
     var mark = ph === 'restarting' || ph === 'checking' ? Spinner('size-4', glow(COLORS.running)) : ph === 'downloading' ? updRing(u.progress || 0) : ph === 'available' ? Ring('down') : ph === 'failed' ? Ring('need') : Ring('done');
     /* the headline of what is new; What's new opens the few lines behind it, right here in the notch */
     var body = '';
@@ -965,10 +965,13 @@
         ? '<div class="act-body tall" data-h="' + (Math.min(bullets.length, 6) * 19 + 8) + '" style="height:' + (Math.min(bullets.length, 6) * 19 + 8) + 'px">' + bullets.map(function (b) { return '<span dir="auto" class="act-li"><i></i>' + esc(b) + '</span>'; }).join('') + '</div>'
         : '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>';
     }
+    /* it could not: one line on why and what to do, and the way to do it */
+    if (ph === 'failed' && u.problem) body = '<div class="act-body fail" data-h="32"><span dir="auto" class="act-t">' + esc(u.problem) + '</span></div>';
     /* buttons are for the mouse: the notch never takes the keyboard when it opens by itself, so no keys to learn */
     var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
+    if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', 'Show in Finder', true) : btn('retry', 'Try again', true))); }
     act.keys = keys;
     var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s ' + (ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
@@ -1129,13 +1132,13 @@
     /* the timer of the phase before (the offer folding away) must not fold this one */
     if (u && act.p && act.p.update && act.p.update.phase !== u.phase) clearTimeout(actTimer);
     if (up && !s.quiet && !actGone[ukey]) {
-      var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase;
+      var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase && (u.phase !== 'failed' || act.p.update.problem === u.problem);   /* a failure that says something else is a new one */
       /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */
       if (u.phase === 'downloading' && !need.length) { setAct('wings', up, true); return; }
       if (u.phase === 'restarting' || u.phase === 'checking') { clearTimeout(actTimer); setAct('full', up, true); return; }
       if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
       /* a small row that says it and goes: updated, up to date, could not check */
-      if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? 4500 : 3500); return; }
+      if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? (u.problem ? 9000 : 4500) : 3500); return; }
     }
     if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
@@ -1168,6 +1171,7 @@
       actSettle(); return;
     }
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
+    if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     if (a === 'allow' || a === 'deny') post({ type: 'activityAnswer', id: p.id, choice: a });
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; post({ type: 'activityAnswer', id: p.id, answers: ans }); }
@@ -1225,7 +1229,7 @@
   /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph ? '' : 'checked daily';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked daily';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
@@ -1238,13 +1242,16 @@
     if (ph === 'current') return note(Ring('done'), 'You have the latest version', COLORS.done);
     if (ph === 'downloading') return note(updRing(u.progress || 0, 'size-4'), 'Downloading ' + esc(u.version), COLORS.running);
     if (ph === 'restarting') return note(Spinner('size-3.5', haze(COLORS.running)), 'Updating', COLORS.running);
-    if (ph === 'failed') return note(Ring('need'), 'Couldn\u2019t check', COLORS.attention) + Button('ghost', 'Try again', '', 's-chk s-gr" title="Look for a newer version of Perch');
+    /* the reason is said on the left (updSub): here only what to do about it */
+    if (ph === 'failed' && u.fix === 'none') return '';
+    if (ph === 'failed') return u.fix === 'move' ? Button('ghost', 'Show in Finder', '', 's-rev s-gr') : Button('ghost', 'Try again', '', 's-chk s-gr');
     return Button('ghost', 'Check for updates', '', 's-chk s-gr" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
     var ph = s.update ? s.update.phase : '';
     var ub = root.querySelector('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
     var cb = root.querySelector('.s-chk'); if (cb) cb.onclick = function () { post({ type: 'update', action: 'check' }); };
+    var rb = root.querySelector('.s-rev'); if (rb) rb.onclick = function () { post({ type: 'update', action: 'reveal' }); };
   }
   var chipSig = '';
   function updChip(s, st) {
@@ -2053,13 +2060,9 @@
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex items-center gap-1.5">' + updSlot(snap) + '</span>')
+      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
-    /* the card has to fit its panel: past seven rows they sit a little closer; a pixel more room while it fits
-       (the classes, so Tailwind builds them: h-[22px] h-[24px] h-[25px] h-[26px] h-[28px] h-[29px] h-[30px] h-[31px]) */
-    var rh = rows.length > 10 ? 22 : rows.length > 9 ? 24 : rows.length > 8 ? 25 : rows.length > 7 ? 28 : 30;
-    if (rows.length <= 9) rh += 1;   /* room for the icon tiles */
-    rows = rows.map(function (r) { return r.replace('h-[30px]', 'h-[' + rh + 'px]'); });
+    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt) */
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
@@ -2514,9 +2517,9 @@
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
         o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        if (o.fresh !== false && (!snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
+        if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch',
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */

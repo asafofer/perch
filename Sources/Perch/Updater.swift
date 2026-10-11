@@ -12,6 +12,12 @@ struct UpdateInfo: Encodable, Equatable {
     var bullets: [String] = []
     /// Counts up to say an offer again (Check for updates while one waits): the page treats it as new.
     var nudge = 0
+    /// A failed update (phase "failed"): one line for the notch, a few words for Settings, what you can do (retry, move, none), and
+    /// whether it was looking ("check") or getting one in ("update").
+    var problem = ""
+    var short = ""
+    var fix = ""
+    var during = ""
 }
 
 /// Keeps a released Perch up to date with Sparkle, with Perch's own face instead of Sparkle's windows: the notch says what is
@@ -24,7 +30,8 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     private var offer: ((SPUUserUpdateChoice) -> Void)?      // an update you can take or leave
     private var relaunch: ((SPUUserUpdateChoice) -> Void)?   // downloaded, waiting for a quiet moment to restart
     private var expected: UInt64 = 0, received: UInt64 = 0
-    private var quietTimer: Timer?, clearTimer: Timer?
+    private var quietTimer: Timer?, clearTimer: Timer?, quitTimer: Timer?
+    private var retryQuit: (() -> Void)?                     // Sparkle's way to ask Perch to quit again
     private var demoTask: Task<Void, Never>?
 
     /// The state for the page, nil when there is nothing to say.
@@ -80,7 +87,9 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     func handle(_ action: String) {
         switch action {
         case "install": if let offer { self.offer = nil; offer(.install) }
-        case "later": if let offer { self.offer = nil; offer(.dismiss) }; if info?.phase == "available" { info = nil }
+        case "later": if let offer { self.offer = nil; offer(.dismiss) }; if ["available", "failed"].contains(info?.phase ?? "") { clearTimer?.invalidate(); info = nil }
+        case "retry": retry()
+        case "reveal": revealApp()
         case "restart": if relaunch == nil, updater == nil, demoTask != nil { demoRestart() } else { restartNow() }
         case "check": check()
         default: break
@@ -121,6 +130,49 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         info?.phase = "restarting"
         // The notch says Updating for a moment before Perch goes.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { go(.install) }
+        // Perch goes within a moment. Still here after this long: something is holding it back from quitting.
+        quitTimer?.invalidate()
+        quitTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { if self?.info?.phase == "restarting" { self?.fail(.couldNotQuit) } }
+        }
+    }
+
+    /// Say what went wrong: the row in the notch, the words in Settings. It stays a while, then goes.
+    private func fail(_ p: UpdateProblem) {
+        offer = nil; relaunch = nil; quietTimer?.invalidate(); quitTimer?.invalidate()
+        let v = info?.version.isEmpty == false ? info!.version : shortVersion
+        info = UpdateInfo(version: v, phase: "failed", problem: p.line, short: p.short, fix: p.fix.rawValue, during: p.during)
+        clear(after: 120)
+    }
+
+    /// Try again: ask Perch to quit once more when that is what failed, else look for the update again.
+    private func retry() {
+        if let retryQuit, info?.short == UpdateProblem.couldNotQuit.short {
+            self.retryQuit = nil
+            clearTimer?.invalidate(); info = UpdateInfo(version: info?.version ?? shortVersion, phase: "restarting")
+            quitTimer?.invalidate()
+            quitTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated { if self?.info?.phase == "restarting" { self?.fail(.couldNotQuit) } }
+            }
+            retryQuit()
+        } else { check() }
+    }
+
+    /// Show Perch.app in Finder, where it was unzipped: macOS runs a downloaded app from a read-only copy, and the original is what moves.
+    private func revealApp() {
+        var url = Bundle.main.bundleURL
+        if url.path.contains("/AppTranslocation/"), let original = Self.originalURL(of: url) { url = original }
+        if FileManager.default.fileExists(atPath: url.path) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        else { NSWorkspace.shared.open(FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]) }
+    }
+
+    /// Security's own answer to where a translocated app came from (the call is not in a header, so it is looked up).
+    private static func originalURL(of url: URL) -> URL? {
+        guard let h = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY),
+              let sym = dlsym(h, "SecTranslocateCreateOriginalPathForURL") else { return nil }
+        typealias Fn = @convention(c) (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+        let f = unsafeBitCast(sym, to: Fn.self)
+        return f(url as CFURL, nil)?.takeRetainedValue() as URL?
     }
 
     // MARK: SPUUpdaterDelegate
@@ -157,15 +209,27 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     func showUpdateReleaseNotesFailedToDownloadWithError(_ error: any Error) {}
 
     func showUpdateNotFoundWithError(_ error: any Error, acknowledgement: @escaping () -> Void) {
-        if info?.phase == "checking" { info = UpdateInfo(version: shortVersion, phase: "current"); clear(after: 5) }
+        if info?.phase == "checking" {
+            // "Up to date" is only true when it is: an Intel Mac, or a macOS too old, is told the newer version is not for it.
+            let ns = error as NSError
+            let reason = (ns.userInfo[SPUNoUpdateFoundReasonKey] as? NSNumber)?.intValue ?? 0
+            let item = ns.userInfo[SPULatestAppcastItemFoundKey] as? SUAppcastItem
+            if let p = UpdateProblem.noUpdate(reason: reason, minimumOS: item?.minimumSystemVersion) { fail(p) }
+            else { info = UpdateInfo(version: shortVersion, phase: "current"); clear(after: 5) }
+        }
         acknowledgement()
     }
 
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
         NSLog("Perch updates: \(error.localizedDescription)")
-        // Only a check you asked for says it could not: a failed one on a schedule (offline at night) is none of your business.
-        if info?.phase == "checking" { info = UpdateInfo(version: shortVersion, phase: "failed"); clear(after: 6) }
-        else if info?.phase == "downloading" { info = nil }
+        // A check you asked for, or an update you were told about, says why it did not go through. A failed check on a schedule
+        // (offline at night) is none of your business.
+        let phase = info?.phase ?? ""
+        if phase == "checking" || ["available", "downloading", "ready", "restarting"].contains(phase) {
+            var chain: [UpdateProblem.ErrorRef] = [], e: NSError? = error as NSError
+            while let x = e, chain.count < 6 { chain.append(.init(domain: x.domain, code: x.code)); e = x.userInfo[NSUnderlyingErrorKey] as? NSError }
+            fail(UpdateProblem.classify(chain, updating: phase != "checking"))
+        }
         acknowledgement()
     }
 
@@ -195,6 +259,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     }
 
     func showInstallingUpdate(withApplicationTerminated applicationTerminated: Bool, retryTerminatingApplication: @escaping () -> Void) {
+        retryQuit = retryTerminatingApplication
         info?.phase = "restarting"
     }
 
