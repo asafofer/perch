@@ -11,7 +11,7 @@ public enum KeyLayout {
     /// otherwise its US-position character.
     public static func shortcut(typed: String?, keyCode: UInt16) -> String {
         let t = (typed ?? "").lowercased()
-        if t.unicodeScalars.count == 1, let s = t.unicodeScalars.first, s.isASCII, s.value > 0x20, s.value < 0x7F { return t }   // not a control code: Control+Q types U+0011
+        if t.unicodeScalars.count == 1, let s = t.unicodeScalars.first, s.isASCII { return t }
         return usPosition[keyCode] ?? t
     }
 }
