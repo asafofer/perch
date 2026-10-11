@@ -2047,10 +2047,7 @@
       srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
       /* where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen */
       srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
-    ].concat(o.hasExternal ? [
-      /* a display without a notch shows nothing at rest; this lets the top edge of it open Perch (the hotkey always does) */
-      srow(slabel('Hover opens on external display', '', 'pointer'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
-    ] : []).concat([
+    ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
       o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
@@ -2074,10 +2071,11 @@
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
       setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
-      if (b.dataset.k === 'login' || b.dataset.k === 'hoverExternal') post({ type: 'setting', key: b.dataset.k, value: on });
+      if (b.dataset.k === 'login') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
     bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
+    var sb0 = box.querySelector('.s-show'); if (sb0) sb0._k = showKey(showHtml(o));
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2164,7 +2162,9 @@
   }
   /* Show Perch on: the screen it opens on now and a chevron; the menu has one check, the two ways of following you first,
      then each display by name. It opens upward: the row sits low on the card. A display you chose that is not connected
-     stays listed, so the choice is still there to see; until it is back Perch follows the mouse. */
+     stays listed, so the choice is still there to see; until it is back Perch follows the mouse. While a display without a
+     notch is connected, the menu ends with Hover opens on external displays: a display without a notch shows nothing at
+     rest, and this lets its top edge open Perch (the shortcut always does). It switches in place and the menu stays open. */
   var showOpen = false, showAt = 0;
   var DEV_DISPLAYS = [{ id: '1', name: 'Built-in Retina Display', connected: true }, { id: '2', name: 'LG UltraFine', connected: true }];
   var SHOW_WAYS = [['mouse', 'Screen with mouse'], ['window', 'Screen with active window']];
@@ -2180,15 +2180,27 @@
         '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.on ? 'text-foreground' : 'text-muted-foreground') + '">' +
         '<span class="flex-1 truncate">' + x.name + '</span>' + (x.on ? '' : '<span class="text-xs text-muted-foreground">Not connected</span>') +
         '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('');
+    }).join('') + (o.hasExternal ? '<span class="mx-2 my-1 block h-px"></span>' +
+      '<button role="menuitemcheckbox" aria-checked="' + !!o.hoverExternal + '" data-k="hover" data-i="' + all.length + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
+      '<span class="flex-1 truncate">Hover opens on external displays</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
     return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
-      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[248px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
   }
+  /* the menu as drawn, minus the hover switch's state */
+  function showKey(h) { return h.replace(/aria-checked="(true|false)"(?=[^>]*data-k="hover")/, '').replace(/s-hovsw sw" aria-checked="(true|false)"/, ''); }
   function bindShow(box) {
     var trig = box.querySelector('.s-showtrig');
     if (trig) trig.onclick = function (e) { e.stopPropagation(); showMenu(!showOpen); };
     box.querySelectorAll('.s-sitem').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); showMenu(false); post({ type: 'setting', key: 'showOn', value: b.dataset.k }); };
+      b.onclick = function (e) {
+        e.stopPropagation();
+        if (b.dataset.k === 'hover') {
+          var on = b.getAttribute('aria-checked') !== 'true';
+          b.setAttribute('aria-checked', String(on)); setSw(b.querySelector('.s-hovsw'), on);   /* slide now; the app confirms a moment later */
+          post({ type: 'setting', key: 'hoverExternal', value: on }); return;
+        }
+        showMenu(false); post({ type: 'setting', key: 'showOn', value: b.dataset.k });
+      };
       b.onmouseenter = function () { if (ptrMoved()) { showAt = +b.dataset.i; paintFocus(); } };
     });
   }
@@ -2197,10 +2209,14 @@
     if (open && notOpen) notifyMenu(false);
     showOpen = open;
     var box = q('.set'), m = box && box.querySelector('.s-showmenu'), t = box && box.querySelector('.s-showtrig');
-    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
+    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem[role=menuitemradio]')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
     if (!m) return;
     m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
+    /* it opens upward but never under the notch: when it would, it slides down over its own row */
+    m.style.transform = '';
+    var pane = open && m.closest('.pane');
+    if (pane) { var over = pane.getBoundingClientRect().top + 38 - m.getBoundingClientRect().top; if (over > 0) m.style.transform = 'translateY(' + Math.ceil(over) + 'px)'; }
     paintFocus();
   }
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
@@ -2279,10 +2295,12 @@
     var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
-      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
+      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
-      var sw2 = box.querySelector('.s-show'); if (sw2) { sw2.outerHTML = showHtml(o); bindShow(box); paintFocus(); }
+      /* only the hover switch changed: it already slid when clicked, so the menu is left as it is */
+      var sw2 = box.querySelector('.s-show'), shtml = showHtml(o), skey = showKey(shtml);
+      if (sw2 && sw2._k !== skey) { sw2.outerHTML = shtml; sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); paintFocus(); }
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
