@@ -103,7 +103,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         web.takesFiles = { [weak self] in self?.machine.phase == .open }
         web.onFiles = { [weak self] paths in
             guard let self, self.machine.phase == .open else { return false }
-            self.addPaths(paths); return true
+            // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.
+            self.addPaths(paths); self.panel.makeKey(); return true
         }
         controller.add(WeakHandler(self), name: "perch")
         web.setValue(false, forKey: "drawsBackground")
@@ -1246,11 +1247,29 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         _ = unsafeBitCast(set, to: SetProperty.self)(me, me, "SetsCursorInBackground" as CFString, kCFBooleanTrue)
     }
 
-    /// A click anywhere outside the card closes it. Not during onboarding: you click into System Settings in the middle of it.
-    private func clickedElsewhere() {
+    /// A click anywhere outside the card closes it, as the button comes up. A press that turns into a drag is decided by
+    /// where it ends: on the card (a file from Finder for the reply) the card stays, anywhere else it closes. Not during
+    /// onboarding: you click into System Settings in the middle of it.
+    private var pressedOutside = false
+    /// The drag pasteboard's count when the button went down: it moves on when a drag starts.
+    private var dragBase = 0
+    private var cardRect: CGRect { NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info) }
+    private var draggedSincePress: Bool { NSPasteboard(name: .drag).changeCount != dragBase }
+    /// The button is down and files are on their way somewhere, dragged since it went down.
+    private var draggingFiles: Bool {
+        NSEvent.pressedMouseButtons & 1 != 0 && draggedSincePress
+            && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+    }
+    private func pressedElsewhere() {
+        dragBase = NSPasteboard(name: .drag).changeCount
+        pressedOutside = machine.phase != .idle && !cardRect.contains(NSEvent.mouseLocation)
+    }
+    private func releasedElsewhere() {
+        guard pressedOutside else { return }
+        pressedOutside = false
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
-        let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
-        if !rect.contains(NSEvent.mouseLocation) { send(.dismiss) }
+        if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
+        send(.dismiss)
     }
 
     /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
@@ -1258,6 +1277,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way.
     private func makeWay() {
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        // A press in another app took it: the release decides, so a file dragged from there can still land on the card.
+        if NSEvent.pressedMouseButtons != 0 { return }
         send(.dismiss)
     }
 
@@ -1281,7 +1302,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.makeWay() }
         }
-        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.clickedElsewhere() } }) { mouseMonitors.append(g) }
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.pressedElsewhere() } }) { mouseMonitors.append(g) }
+        if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp], handler: { [weak self] _ in MainActor.assumeIsolated { self?.releasedElsewhere() } }) { mouseMonitors.append(g) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
@@ -1300,7 +1322,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let inside = notchHoverRect().contains(NSEvent.mouseLocation)
         if inside != tabHot { tabHot = inside; web.evaluateJavaScript("window.perch && window.perch.hot(\(inside))", completionHandler: nil) }
         if !inside { hoverLatched = false; hoverTask?.cancel(); hoverTask = nil; return }
-        if hoverLatched || hoverTask != nil || NSEvent.pressedMouseButtons != 0 { return }
+        // Not while a button is down (a drag in passing), unless it carries files: brought to the notch, they open the card to drop on.
+        if hoverLatched || hoverTask != nil || (NSEvent.pressedMouseButtons != 0 && !draggingFiles) { return }
         hoverTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard let self, !Task.isCancelled else { return }
