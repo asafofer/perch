@@ -167,8 +167,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
       ['2. Accessibility', 'Open System Settings. Detects the grant live.', function () { d.onboarding(2, false); }],
       ['3. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(3, true); }],
-      ['4. Live status', 'The hook, with consent.', function () { d.onboarding(4, true); }],
-      ['4. Live status: on', 'Ticked.', function () { d.onboarding(4, true, false, 'on'); }],
+      ['3. Choose your apps: first scan', 'Opened before the first scan is in: one quiet line, Scanning, and the tiles keep their size. Each line then fades to what it found, once; the app goes on sending snapshots every half second and nothing moves.', function () { d.onboarding(3, true, false, null, true, true); }],
+      ['4. Live status', 'The hook, with consent: Turn on, or Skip. The switch does the same.', function () { d.onboarding(4, true); }],
+      ['4. Live status: on', 'The switch is on and turns it off again, removing the hooks; the buttons follow it.', function () { d.onboarding(4, true, false, 'on'); }],
       ['5. All set', 'The three ways to reach Perch.', function () { d.onboarding(5, true); }]
     ]]
   ];

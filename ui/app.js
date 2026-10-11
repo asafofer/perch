@@ -1180,10 +1180,16 @@
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
   /* `left` sits where Back would be: the keyboard hints on the character step */
-  function ofoot(i, back, mid, label, action, left) {
-    return oi(i, '<div class="mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
-      Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>');
+  function ofoot(i, back, mid, label, action, left) { return oi(i, ofootIn(back, mid, label, action, left)); }
+  function ofootIn(back, mid, label, action, left) {
+    return '<div class="o-foot mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
+      Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>';
   }
+  /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
+  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
+  function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
+  /* off: Turn on, or Skip; on: Next */
+  function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
@@ -1284,9 +1290,8 @@
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       var rows = o.sources.map(function (x) {
-        var sub = o.scanning ? 'Scanning\u2026' : (x.count ? esc(x.names.slice(0, 2).join(', ')) + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet');
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
-        return '<div class="flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3"><span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block text-[13px] font-medium leading-4">' + x.name + '</span><span class="block truncate text-xs leading-4 text-muted-foreground">' + sub + '</span></span>' + (o.scanning ? Spinner('size-3.5') : '') + sw + '</div>';
+        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
       }).join('');
       h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
         /* more than two agents sit two to a row, so the card keeps its height */
@@ -1296,9 +1301,10 @@
     } else if (st === 4) {
       var live = o.live === 'on';
       h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
-        oi(3, '<div class="mt-3 px-4">' + orow(tick(live), 'Live status', live ? 'On' : '') + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">' + (live ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.') + '</p>') +
-        ofoot(5, true, live ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), live ? 'Next' : 'Turn on', live ? 'next' : 'hooks');
+        oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
+          '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
+        oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + liveNote(live) + '</p>') +
+        oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -1308,11 +1314,15 @@
     box.innerHTML = h;
     introToken++; introGlow = '';
     if (st === 0) introduce(animate);
+    onbBind(box);
+  }
+  function onbBind(box) {
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
@@ -1372,19 +1382,39 @@
   }
   function onb(o) {
     if (!o) return;
-    var sig = [o.step, o.only, o.accessibility, o.scanning, o.live, o.sources.map(function (x) { return x.id + x.enabled + x.count; }).join(',')].join('|');
-    if (sig === onbSig) return;
-    /* the introduction uses none of this data: a scan finishing must not cut it short */
-    if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
-    /* only a switch changed: slide it in place */
-    var same = function (s) { return s.split('|').slice(0, 5).join('|'); };
-    if (onbSig && o.step === onbStep && same(sig) === same(onbSig) && onbLast && onbLast.sources.map(function (x) { return x.id + x.count; }).join() === o.sources.map(function (x) { return x.id + x.count; }).join()) {
-      onbSig = sig; onbLast = o;
-      q('.onb').querySelectorAll('.o-sw').forEach(function (b) { o.sources.forEach(function (x) { if (x.id === b.dataset.id) setSw(b, x.enabled); }); });
+    /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
+       status arrive every half second or so: drawing the step again for them took the element under the pointer away
+       mid-click and restarted the tiles. */
+    var sig = [o.step, o.only, o.step === 2 ? o.accessibility : '', o.step === 3 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    if (sig === onbSig) {
+      var was = onbLast; onbLast = o;
+      if (o.step === 3) onbSources(o);
+      if (o.step === 4 && (!was || was.live !== o.live)) onbLive(o);
       return;
     }
+    /* the introduction uses none of this data: a scan finishing must not cut it short */
+    if (o.step === 0 && onbStep === 0 && onbSig && o.only === (onbLast && onbLast.only)) { onbSig = sig; onbLast = o; return; }
     var animate = o.step !== onbStep; onbStep = o.step; onbSig = sig; onbRender(o, animate);
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
+  }
+  /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
+  function onbSources(o) {
+    q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
+      var x = o.sources.filter(function (y) { return y.id === t.dataset.id; })[0], b = t.querySelector('.o-sw'), sub = t.querySelector('.o-line'), line;
+      if (!x) return;
+      if (b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); t.querySelector('.o-ic').classList.toggle('opacity-50', !x.enabled); }
+      line = srcLine(o, x);
+      if (sub.textContent === line) return;
+      sub.textContent = line; sub.classList.toggle('opacity-60', !!o.scanning);
+      if (!STILL) sub.animate([{ opacity: 0 }, { opacity: o.scanning ? .6 : 1 }], { duration: 280, easing: 'ease-out' });
+    });
+  }
+  /* live status turned on or off: the switch slides, the note and the buttons follow */
+  function onbLive(o) {
+    var on = o.live === 'on', box = q('.onb'), b = box.querySelector('.o-live'), note = box.querySelector('.o-note'), foot = box.querySelector('.o-foot');
+    if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
+    if (note) note.textContent = liveNote(on);
+    if (foot) { foot.parentNode.innerHTML = liveFoot(on); onbBind(box); }
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
@@ -1650,12 +1680,22 @@
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, login: false, live: 'on' }, o || {}) }));
       },
-      onboarding: function (step, accessibility, only, live, all) {
+      /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
+         snapshot every half second, as it does while sessions are written */
+      onboarding: function (step, accessibility, only, live, all, scan) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
-        apply(Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: false, sources: sources, only: !!only, live: live || 'off' } }));
+        var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
+          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+        apply(s0);
+        if (!scan) return;
+        var k = 0, again = function () {
+          if (!snap || snap.phase !== 'onboarding' || snap.onboarding.step !== step) return;
+          var s1 = JSON.parse(JSON.stringify(snap)); s1.onboarding.scanning = false; s1.timerToken = Math.random(); apply(s1);
+          if (++k < 12) autoTimer = setTimeout(again, 500);
+        };
+        autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
