@@ -241,9 +241,9 @@
      and an indented line under an item carries on that item. */
   function mdLines(lines) {
     var out = '', text = [], items = [], stack = [];
-    var flushText = function () { if (text.length) out += '<p dir="auto" class="my-1">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
+    var flushText = function () { if (text.length) out += '<p dir="auto" class="my-2">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
     var flushItems = function () {
-      if (items.length) out += '<ul class="my-1 flex flex-col gap-0.5">' + items.map(function (it) {
+      if (items.length) out += '<ul class="my-2 flex flex-col gap-0.5">' + items.map(function (it) {
         return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
       }).join('') + '</ul>';
       items = []; stack = [];
@@ -255,7 +255,7 @@
         var ind = m[1].length; while (stack.length && ind < stack[stack.length - 1]) stack.pop();
         if (!stack.length || ind > stack[stack.length - 1]) stack.push(ind);
         items.push({ lvl: stack.length - 1, num: /\d/.test(m[2]), mark: /\d/.test(m[2]) ? m[2].replace(')', '.') : '\u2022', text: m[3] });
-      } else if (/^\s*#{1,6}\s/.test(l)) { flushItems(); flushText(); out += '<p dir="auto" class="my-1 font-semibold text-foreground">' + md(l) + '</p>'; }
+      } else if (/^\s*#{1,6}\s/.test(l)) { flushItems(); flushText(); out += '<p dir="auto" class="my-2 font-semibold text-foreground">' + md(l) + '</p>'; }
       else if (items.length && /^\s/.test(l)) items[items.length - 1].text += '\n' + l.trim();
       else { flushItems(); text.push(l); }
     });
