@@ -50,6 +50,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var host: String?
     /// The process running it in a terminal, when the last scan found one. Pick up goes to exactly that one.
     public var pid: Int32?
+    /// Where that process lives (`Spot.key`): compared with what is in front of you to tell the session you are in.
+    public var spot: String?
     /// When the session began: which of several agents in one folder is running it depends on it.
     public var startedAt: Date?
     /// The agent's own last message, as it wrote it (its end, when it is long). The card shows it while you reply.
