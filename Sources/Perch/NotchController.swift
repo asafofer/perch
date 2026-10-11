@@ -389,11 +389,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         fsStream = stream
     }
 
-    /// A busy session writes many times a second, so refreshes are spaced at least half a second apart.
+    /// A busy session writes many times a second, so refreshes are spaced apart: half a second while a card or the list is up (you
+    /// watch it change), three while the notch rests (a scan walks every session folder, and with several agents writing it would
+    /// run all the time; live status arrives by hooks, not by this).
     private func sessionFilesChanged() {
         guard !fsPending else { return }
         fsPending = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + (machine.phase == .idle ? 3.0 : 0.5)) { [weak self] in
             MainActor.assumeIsolated { self?.fsPending = false; self?.refreshProjects() }
         }
     }
