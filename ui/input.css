@@ -288,6 +288,26 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .o-said-in::-webkit-scrollbar { display: none; }
 .o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
 .o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
+/* a table in what the agent said (app.js mdTable): no lines. The header in grey, a faint band on every other row, even
+   numerals. The cells' text lines up with the message's; a wide one scrolls sideways and fades at the side it goes on. */
+.md-tbl { max-height: 138px; overflow: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.md-tbl::-webkit-scrollbar { display: none; }
+/* a table taller than the message's window scrolls in its own, as tall as that window, its header staying put */
+.md-tbl[data-f] { --l: 0px; --r: 0px; --b: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
+  -webkit-mask-composite: source-in; mask-composite: intersect; }
+.md-tbl[data-f~="l"] { --l: 24px; } .md-tbl[data-f~="r"] { --r: 24px; } .md-tbl[data-f~="b"] { --b: 16px; }
+.md-tbl table { border-collapse: separate; border-spacing: 0; font-size: 12px; line-height: 17px; font-variant-numeric: tabular-nums; }
+.md-tbl th, .md-tbl td { padding: 2px 8px; text-align: left; vertical-align: top; white-space: nowrap; }
+/* the message's own colour (white at 5% on the card's black), so rows pass under it */
+.md-tbl th { position: sticky; top: 0; z-index: 1; padding-bottom: 3px; background: rgb(13, 13, 13); font-weight: 500; color: hsl(var(--muted-foreground)); }
+.md-tbl [data-w] { white-space: normal; min-width: 180px; }
+.md-tbl [data-a="r"] { text-align: right; }
+.md-tbl [data-a="c"] { text-align: center; }
+.md-tbl tbody tr:nth-child(odd) td { background: rgba(255, 255, 255, .045); }
+.md-tbl tbody td:first-child { border-radius: 5px 0 0 5px; }
+.md-tbl tbody td:last-child { border-radius: 0 5px 5px 0; }
 /* working: the blue light breathes up from the bottom edge and settles back, slow and soft */
 .n[data-run="1"] .glow { transform-origin: 50% 100%; animation: glowrise 3.4s ease-in-out infinite; }
 .n[data-run="1"] .glow::after { animation: glowline 3.4s ease-in-out infinite; }

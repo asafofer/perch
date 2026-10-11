@@ -86,7 +86,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 (function () {
   var d = window.perchDev; if (!d) return;
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
-  function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
+  function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
@@ -100,6 +100,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       Q('What should the floor do?', 'Floor', [['Subtle reflection (Recommended)', 'A satin floor that reflects the shelter faintly'], ['Matte with shadow', 'A plain matte floor with a soft contact shadow'], ['Measured grid', 'A matte floor with a fine metric grid']]),
       Q('Which extras should it show?', 'Extras', [['Dimensions', 'Width, depth and height labels'], ['Door swing', 'The arc each door sweeps'], ['North arrow', 'Which way the shelter faces']], true)
     ] } };
+  /* a load test, twelve runs in nine columns: taller and wider than the message, so the table scrolls in its own window */
+  var WIDE = 'Ran the load test against the new limiter, twelve runs. Every run held its limit:\n\n| Run | Requests | Allowed | Rejected (429) | p50 | p95 | p99 | Error rate | Notes |\n|---|---|---|---|---|---|---|---|---|\n' +
+    '| 121 | 20,000 | 100% | 0 | 12 ms | 27 ms | 41 ms | 0.00% | cold start |\n' +
+    '| 122 | 20,000 | 100% | 0 | 13 ms | 28 ms | 43 ms | 0.00% | warm cache |\n' +
+    '| 123 | 20,000 | 97% | 612 | 14 ms | 30 ms | 52 ms | 0.01% | burst of 20 |\n' +
+    '| 124 | 20,000 | 100% | 0 | 13 ms | 29 ms | 44 ms | 0.00% | after the fix |\n' +
+    '| 125 | 20,000 | 88% | 2,410 | 16 ms | 38 ms | 70 ms | 0.04% | burst of 40 |\n' +
+    '| 126 | 20,000 | 100% | 0 | 12 ms | 27 ms | 40 ms | 0.00% | partner keys |\n' +
+    '| 127 | 20,000 | 99% | 204 | 14 ms | 31 ms | 49 ms | 0.00% | two regions |\n' +
+    '| 128 | 20,000 | 100% | 0 | 14 ms | 31 ms | 48 ms | 0.00% | warm cache |\n' +
+    '| 129 | 20,000 | 94% | 1,188 | 15 ms | 34 ms | 58 ms | 0.02% | burst of 30 |\n' +
+    '| 130 | 20,000 | 100% | 0 | 13 ms | 28 ms | 42 ms | 0.00% | new pool |\n' +
+    '| 131 | 20,000 | 92% | 1,604 | 15 ms | 35 ms | 61 ms | 0.02% | burst of 20 |\n' +
+    '| 132 | 20,000 | 100% | 0 | 13 ms | 29 ms | 44 ms | 0.00% | after the fix |\n' +
+    '\nShould I raise the burst to 40 for the partner keys?';
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
   var GROUPS = [
     ['Coming back', [
@@ -127,7 +142,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]],
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
-      ['Reply: typed', 'Return sends. Esc goes back.', reply(true)],
+      ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
+      ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.project(1); d.show('open', false, true);
+        at(700, function () { window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Bring it back for desktop only, and keep this poster for phones:'; r.dispatchEvent(new Event('input')); });
+        at(2800, function () { now.textContent = 'A click in Finder: the card makes way, your words are kept'; d.show('idle'); });
+        at(4600, function () { now.textContent = 'Command+Option: back as you left it'; d.show('open', false, true); window.perch.replyMenu(true); });
+        at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
+      }],
+      ['Reply: a table', 'The agent answered with a table. No lines: the header in grey, a faint band on every other row, even numerals, numbers on the right.', function () { d.project(3); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
+      ['Reply: a long, wide table', 'Taller and wider than the message: the table scrolls in its own window, both ways, its header staying put, and fades at the sides it goes on. Up and Down in the reply scroll the message and, when the table is in the way, its rows first.', function () { d.variant(7, { said: WIDE }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
       ['Reply: no Accessibility', 'Perch cannot type for you yet, so Send reads Allow and send. Return or a click asks for Accessibility, as Settings does, and keeps your words.', function () { d.noAccess(); reply(true)(); }],
       ['Reply: waiting for access', 'System Settings is open on Accessibility. Your words stay in the field and go out the moment Perch is on. Esc goes back to the card and drops the wait. If it never comes on, they are copied and the session opens, as before.', function () { d.noAccess(true); reply(true)(); }],
@@ -191,7 +216,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); charRun++; fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.clearDrafts(); charRun++; fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };
