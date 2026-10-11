@@ -1205,6 +1205,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var shortcutSaved = false
     private var shortcutAttempt: [String] = []
     private var shortcutPending: [String] = []
+    private var shortcutPicks = 0
     private var shortcutRefusals = 0
 
     private func shortcutState() -> UISnapshot.ShortcutState {
@@ -1212,7 +1213,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         var works = true, why = ""
         if s.kind == .tap, !AXIsProcessTrusted() { works = false; why = "A tap needs Accessibility. Allow it, or record a key combo." }
         else if s.kind == .combo, openComboWorks?() == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending)
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks)
     }
 
     private func shortcutAction(_ action: String) {
@@ -1261,7 +1262,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             stopRecording()
             if machine.phase == .onboarding, onbOnly { finishCharacter(); return }
         case .refused(let why, let keys): shortcutError = why; shortcutAttempt = keys; shortcutRefusals += 1
-        case .chosen(let s): shortcutPending = s.keys; shortcutError = ""; shortcutAttempt = []
+        case .chosen(let s): shortcutPending = s.keys; shortcutPicks += 1; shortcutError = ""; shortcutAttempt = []
         case .record(let s): Prefs.openShortcut = s; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; shortcutAttempt = []; shortcutPending = []; onShortcutRecording?(false)
         }
         push()

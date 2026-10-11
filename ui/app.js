@@ -1622,7 +1622,7 @@
   }
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
-  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0, pending: [] };
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0, pending: [], picks: 0 };
   function scOf(sc) { return sc || SC0; }
   function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
@@ -1685,7 +1685,8 @@
     var sc = scOf(o && o.shortcut);
     var pend = sc.recording && sc.pending && sc.pending.length ? sc.pending.join('') : '';
     scPendingNow = pend ? sc.pending : [];
-    if (pend !== scPendSeen) { scPendSeen = pend; scFresh = !!pend && scHeldNow.length > 0; }
+    var pick = pend ? pend + '#' + (sc.picks || 0) : '';
+    if (pick !== scPendSeen) { scPendSeen = pick; scFresh = !!pend && scHeldNow.length > 0; }
     var mark = sc.tried ? 'tried' : sc.saved ? 'saved' : '';
     if (mark && mark !== scWasTried) {
       document.querySelectorAll('.o-sc-big .kcap').forEach(function (c, i) {
@@ -2490,7 +2491,7 @@
     var scHeld = function (e) { return SC_GLYPH.filter(function (g) { return e[g[0]]; }).map(function (g) { return g[1]; }); };
     var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
     /* what you press is only a choice; Return alone saves it, another try replaces it */
-    var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [] }); };
+    var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [], picks: (devSc.picks || 0) + 1 }); };
     var scSave = function () {
       var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
