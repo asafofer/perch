@@ -9,7 +9,7 @@
 #   --hold <s>   seconds each (default 4)    --base <ref>   what "changed" is measured against (default origin/main)
 #   --publish    push the media and update this branch's PR
 #
-# Needs ffmpeg and the screen unlocked (a corner panel shows while it records, never takes the keyboard).
+# Needs ffmpeg. Headless: nothing shows on screen and the keyboard is never taken.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HOLD=4 BASE=origin/main PUBLISH=0 LIST=0 NAMES=()
@@ -56,7 +56,7 @@ echo "Filming ${#NAMES[@]} scenario(s), ${HOLD}s each:"; cut -f1 "$OUT/.what" | 
 
 PLAY=$(cut -f1 "$OUT/.what" | python3 -I -c 'import sys, urllib.parse; print(urllib.parse.quote("|".join(sys.stdin.read().split("\n")[:-1]), safe=""))')
 ( cd ui && npm run build --silent )
-PORT=8767
+PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')   # a fixed one may be another worktree's
 python3 -m http.server $PORT --directory ui >/dev/null 2>&1 & SERVER=$!
 trap 'kill $SERVER 2>/dev/null || true' EXIT
 sleep 0.6

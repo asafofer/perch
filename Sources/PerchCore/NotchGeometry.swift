@@ -31,6 +31,21 @@ public enum NotchGeometry {
                width: panelSize.width, height: panelSize.height + overscan)
     }
 
+    /// Where resting the cursor opens Perch: the notch plus a little room for the character beside it (wider while the
+    /// wings show). Extends above the screen edge so the very top pixel row of the cursor counts.
+    public static func hoverRect(for screen: ScreenInfo, wingsWidth: CGFloat = 0) -> CGRect {
+        let idle = idleSize(for: screen)
+        let w = max(idle.width, 150, wingsWidth)
+        let left: CGFloat = 30, right: CGFloat = 8     // the character sits just left of the notch
+        return CGRect(x: screen.frame.midX - w / 2 - left, y: screen.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
+    }
+
+    /// The cursor is in that screen's hover zone. The zone reaches above its screen's edge, so a display stacked above
+    /// must not count: the cursor has to be on screen `i` itself.
+    public static func hovering(_ p: CGPoint, frames: [CGRect], index i: Int, rect: CGRect) -> Bool {
+        rect.contains(p) && ScreenPicker.index(of: p, in: frames) == i
+    }
+
     /// Screen-space rect of the visible card, used for hover and click-through. `height` comes from the UI.
     public static func contentRect(width: CGFloat, height: CGFloat, screen: ScreenInfo) -> CGRect {
         CGRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)

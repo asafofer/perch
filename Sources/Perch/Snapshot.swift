@@ -38,6 +38,7 @@ struct UISnapshot: Encodable {
     }
 
     struct Character: Encodable { let shape: String; let color: String }
+    struct Display: Encodable { let id: String; let name: String; let connected: Bool }
     struct Source: Encodable { let id: String; let name: String; let count: Int; let names: [String]; let enabled: Bool }
     struct Onboarding: Encodable {
         let step: Int
@@ -66,6 +67,9 @@ struct UISnapshot: Encodable {
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
         let hasExternal: Bool; let hoverExternal: Bool
+        /// Show Perch on: "mouse", "window" or a display's id, and the displays to choose from (a chosen one that is not
+        /// connected stays listed, greyed).
+        let showOn: String; let displays: [Display]
         let shortcut: ShortcutState
         /// It came from the card or the list, so Esc goes back there.
         var back = false }

@@ -1,6 +1,6 @@
 // Films a page (the design page's ?record mode) as numbered PNG frames, for scripts/record.sh.
-// A borderless panel in the corner of the screen that never takes the keyboard: WebKit only draws a page it can show,
-// so it has to be on screen (and the screen unlocked) while it records.
+// Headless: a borderless panel placed beyond every screen, so nothing shows and the keyboard is never taken. WebKit stops
+// drawing a window it thinks is hidden, so occlusion detection is turned off (WebKit SPI); without it frames freeze.
 // Usage: swift scripts/record-design.swift <url> <frames dir> <seconds> <width> <height>
 import AppKit
 import WebKit
@@ -18,11 +18,15 @@ final class Recorder: NSObject, WKNavigationDelegate {
 
     init(size: NSSize, dir: String, seconds: Double) {
         self.dir = dir; self.seconds = seconds
-        let screen = NSScreen.main?.visibleFrame ?? .zero
-        panel = NSPanel(contentRect: NSRect(x: screen.maxX - size.width - 16, y: screen.minY + 16, width: size.width, height: size.height),
+        let all = NSScreen.screens.map(\.frame).reduce(NSRect.zero) { $0.union($1) }
+        panel = NSPanel(contentRect: NSRect(x: all.maxX + 1000, y: all.maxY + 1000, width: size.width, height: size.height),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         web = WKWebView(frame: NSRect(origin: .zero, size: size))
+        let occlusion = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
+        guard web.responds(to: occlusion) else { FileHandle.standardError.write("WebKit can no longer film off screen\n".data(using: .utf8)!); exit(1) }
+        typealias SetBool = @convention(c) (AnyObject, Selector, Bool) -> Void
+        unsafeBitCast(web.method(for: occlusion), to: SetBool.self)(web, occlusion, false)
         super.init()
         web.navigationDelegate = self
         panel.contentView = web
