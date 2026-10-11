@@ -744,11 +744,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                   query: listQuery, replying: replyOpen, at: Date())
             }
             hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
-            // The card shrinks away where it was; the task below takes the panel home once that has played.
-            closedAt = Date(); awayForHover = false
+            // The card shrinks away where it was; the task below takes the panel home once that has played. A hover's
+            // visit lasts until then, so on a display Perch only visited the card shrinks to nothing, not into a pill
+            // that would vanish the moment the panel leaves.
+            closedAt = Date()
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
+                self.awayForHover = false
                 self.place(on: ScreenChooser.rest())
                 if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
                 self.refreshProjects()
