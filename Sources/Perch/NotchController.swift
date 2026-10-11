@@ -728,17 +728,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
 
-    /// An automatic close says why, in the system log (`log show --last 10m --predicate 'process == "Perch"' | grep closes`),
-    /// so a card that vanishes under the pointer can be explained afterwards.
-    private func noteClose(_ why: String) { NSLog("Perch closes the card: \(why)") }
-
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
         // Only a card Perch opened on its own counts down. One you asked for stays until you are done with it.
         guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
-            if !Task.isCancelled { self?.noteClose("the nine seconds ran out"); self?.send(.timeout) }
+            if !Task.isCancelled { self?.send(.timeout) }
         }
     }
 
@@ -1464,7 +1460,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pressedOutside = false
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
         if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
-        noteClose("click outside the card at \(NSEvent.mouseLocation) (card \(cardRect))")
         send(.dismiss)
     }
 
@@ -1475,7 +1470,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
         // A press in another app took it: the release decides, so a file dragged from there can still land on the card.
         if NSEvent.pressedMouseButtons != 0 { return }
-        noteClose("another app took the keyboard (front: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"), pointer \(NSEvent.mouseLocation), card \(cardRect))")
         send(.dismiss)
     }
 
@@ -1562,7 +1556,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if openedByHover, !replyOpen, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
-            else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; noteClose("pointer left the card at \(NSEvent.mouseLocation) (card \(rect))"); send(.dismiss); return } }
+            else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }
             else { leftCardAt = Date() }
         }
         if inside != machine.hovering {
