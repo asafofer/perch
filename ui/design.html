@@ -46,13 +46,31 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .tabs button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .tabs button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .tabs button i{font-style:normal;color:var(--pg-muted);margin-left:5px;font-variant-numeric:tabular-nums}
-.group{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px 6px}
+.tabs button{display:inline-flex;align-items:center;gap:6px}
+.tabs button svg{width:14px;height:14px;flex:none;color:var(--pg-muted)}
+.tabs button[aria-selected="true"] svg{color:var(--pg-fg)}
+/* the scenarios are just their names; the line under them says what the pressed one shows */
+/* the category is a drop-down; its scenarios are a uniform grid of equal cells */
+.dd{position:relative;display:inline-block;margin:0 0 12px}
+.dd>button{display:inline-flex;align-items:center;gap:8px;min-width:230px;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:var(--pg-card);border:0;border-radius:9px;padding:8px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.dd>button:hover,.dd.open>button{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.dd svg{width:15px;height:15px;flex:none;color:var(--pg-muted)}
+.dd .cnt{margin-left:auto;font-weight:400;font-size:12px;color:var(--pg-muted);font-variant-numeric:tabular-nums}
+.dd>button .chev{margin-left:6px;width:13px;height:13px}
+.dd .menu{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:40;min-width:100%;padding:4px;background:var(--pg-card);border-radius:11px;box-shadow:0 0 0 1px var(--pg-line),0 14px 34px rgba(0,0,0,.45)}
+.dd.open .menu{display:block}
+.dd .menu{padding:5px}.dd .menu button+button{margin-top:2px}
+.dd .menu button{display:flex;align-items:center;gap:9px;width:100%;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer;text-align:left}
+.dd .menu button:hover,.dd .menu button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
+.dd .menu button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 12%,transparent)}
+.dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
+.group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden]{display:none}
-.sc{display:flex;flex-direction:column;gap:1px;width:100%;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:9px;padding:7px 9px;cursor:pointer;transition:background .15s}
+.sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
-.sc b{font:500 13px Inter,sans-serif}.sc span{font-size:12px;line-height:1.4;color:var(--pg-muted)}
-.sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 22%,transparent)}
-.play{display:inline-flex;align-items:center;gap:8px;font:500 13px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border:0;border-radius:9px;padding:8px 13px;cursor:pointer;align-self:flex-start}
+.sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 
 /* avatar matrix */
 .matrix{background:var(--pg-card);border-radius:14px;box-shadow:0 0 0 1px var(--pg-line);overflow:hidden}
@@ -76,7 +94,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 <main class="wrap">
   <header>
     <h1>Perch</h1>
-    <p class="sub">The real interface, the same code that runs in the app, with sample projects. Pick a scenario to see it on the desktop below. You can also use Tab, Return, N, R and Esc on the card.</p>
+    <p class="sub">The real interface, the same code that runs in the app, with sample projects. Pick a scenario to see it on the desktop below.</p>
   </header>
 
   <div class="deskwrap">
@@ -87,8 +105,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
   <section>
     <h2>Scenarios</h2>
-    <p class="note" style="margin-bottom:10px">Each one is the live card in that state.</p>
     <div class="groups" id="groups"></div>
+    <p class="what" id="what"></p>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -214,7 +232,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
       ['Settings: four agents', 'Apps shows the agents Perch reads as their icons, with a chevron for the menu.', function () { d.settings({ sources: FOUR }); }],
-      ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
+      ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
     ['Acting on it', [
@@ -302,6 +320,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); }]
     ]],
     ['Settings', [
+      ['Settings: Notify me about', 'Which moments the notch announces. The list and the cards still say all of them.', function () { d.settings(); }],
+      ['Settings: Notify menu', 'A check for each moment. Up and Down move, Return switches one, Esc closes.', function () { d.settings(); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
+      ['Settings: Finished off', 'Finished is switched off: its mark leaves the row and the menu shows it unchecked.', function () { d.settings({ notifyOff: ['done'] }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
+      ['Notify: finished stays quiet', 'Finished is off, so a finish stays quiet; then a command needing your OK still speaks. Plays for 6 s.', function () { var me = ++charRun; d.arrive(2, { status: { kind: 'done', text: 'Codex finished', app: 'codex' }, fresh: true }, ['done']); setTimeout(function () { if (me === charRun) d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }, ['done']); }, 5000); }],
       ['Settings', 'The gear on the card or the list, or Command+comma. Away from your Mac for is how long a break must be before the card says where you left off.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off' }); }],
       ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, true); }],
@@ -379,31 +401,57 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }; });
   function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
   var wrap = document.getElementById('groups');
-  var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
-  play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };
-  wrap.parentNode.insertBefore(play, wrap); play.style.marginBottom = '10px';
-  var tabs = document.createElement('div'); tabs.className = 'tabs'; tabs.setAttribute('role', 'tablist'); wrap.parentNode.insertBefore(tabs, wrap);
+  var what = document.getElementById('what');
+  /* Lucide (lucide.dev, ISC), one small mark for each category */
+  var TABICON = {
+    'Coming back': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    'More agents': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+    'Acting on it': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
+    'Moving between sessions': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
+    'While you work': '<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>',
+    'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
+    'External display': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+    'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
+  };
+  function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
+  var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
+  var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
+  var tabs = document.createElement('div'); tabs.className = 'menu'; tabs.setAttribute('role', 'listbox'); dd.appendChild(tabs);
+  var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function ddOpen(o) { dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o)); }
+  ddb.onclick = function (e) { e.stopPropagation(); ddOpen(!dd.classList.contains('open')); };
+  document.addEventListener('click', function () { ddOpen(false); });
+  document.addEventListener('keydown', function (e) {
+    if (!dd.classList.contains('open')) return;
+    if (e.key === 'Escape') { ddOpen(false); return; }
+    var items = [].slice.call(tabs.children), at = items.findIndex(function (t) { return t.classList.contains('at'); });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].classList.add('at'); }
+    else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
+  });
   var boxes = [];
-  /* which category you had open is remembered here only, for the next reload */
   function showTab(i) {
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
     tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
-    try { localStorage.setItem('perch-design-tab', String(i)); } catch (e) {}
+    ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
   GROUPS.forEach(function (g, gi) {
-    var t = document.createElement('button'); t.setAttribute('role', 'tab'); t.innerHTML = g[0] + '<i>' + g[1].length + '</i>'; t.onclick = function () { showTab(gi); }; tabs.appendChild(t);
+    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.appendChild(t);
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
-      b.innerHTML = '<b>' + s[0] + '</b><span>' + s[1] + '</span>';
-      b.onclick = function () { run(b, g[0] + ': ' + s[0], s[2]); };
+      b.innerHTML = '<b>' + s[0] + '</b>';
+      /* a scenario says what it shows in its first sentence; the rest was detail */
+      var says = s[1].split(/(?<=[.!?])\s/)[0];
+      b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; };
       btns.push(b); box.appendChild(b);
     });
     wrap.appendChild(box);
   });
-  var saved = 0; try { saved = +localStorage.getItem('perch-design-tab') || 0; } catch (e) {}
-  showTab(saved < boxes.length ? saved : 0);
-  btns[0].setAttribute('aria-pressed', 'true'); now.textContent = 'Coming back: Needs your OK';
+  /* it opens on what changed last, the Settings; the first scenario there is the newest */
+  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
+  showTab(first); boxes[first].querySelector('.sc').click();
 
 })();
 </script>

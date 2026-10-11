@@ -73,6 +73,8 @@ struct UISnapshot: Encodable {
 
     /// How long an unanswered question stays as wings in the notch, after its first nine seconds in full.
     let questionSeconds = Prefs.questionSeconds
+    /// The kinds of live activity the notch does not announce (Settings, Notify me about); the page filters its live activity by them.
+    let notifyOff = Prefs.notifyOff.sorted()
     let phase: String
     let settings: Settings?
     let character: Character
