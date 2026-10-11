@@ -168,13 +168,13 @@
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5">' +
-      /* the chat's title is the heading; its status, in words, ends the line */
-      /* the app's icon at full size, like a notification, beside two lines: the title with its status, and in grey the
-         project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
+      /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
+      /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
+         the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
+         to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-        /* the status can sit on this grey line instead (.p-open[data-stpos], compared on the design page): at its right, or after the project */
-        '<div class="o-l2 flex min-w-0 items-baseline gap-1.5"><p dir="auto" class="o-sub min-w-0 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-sep flex-none text-[13px] leading-[18px] text-muted-foreground">\u00b7</span><span class="o-st2 flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -536,9 +536,9 @@
     });
   }
 
-  /* the card's status, in both places it can sit; drawn again only when it changes, so its spinner keeps turning */
+  /* the card's status; drawn again only when it changes, so its spinner keeps turning */
   function status(html, title) {
-    [q('.o-st'), q('.o-st2')].forEach(function (st) { if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || ''; });
+    var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
   }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
@@ -551,7 +551,7 @@
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
-    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none'; q('.o-sep').style.display = proj ? '' : 'none';
+    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
@@ -567,7 +567,7 @@
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
-      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; q('.o-sep').style.display = ''; }
+      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
       if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
       else h.innerHTML = said ? '' : md(p.headline);
       c.innerHTML = ''; box.innerHTML = '';
