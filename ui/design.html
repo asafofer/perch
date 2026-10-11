@@ -50,12 +50,25 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .tabs button svg{width:14px;height:14px;flex:none;color:var(--pg-muted)}
 .tabs button[aria-selected="true"] svg{color:var(--pg-fg)}
 /* the scenarios are just their names; the line under them says what the pressed one shows */
-.group{display:flex;flex-wrap:wrap;gap:6px}
+/* the category is a drop-down; its scenarios are a uniform grid of equal cells */
+.dd{position:relative;display:inline-block;margin:0 0 12px}
+.dd>button{display:inline-flex;align-items:center;gap:8px;min-width:230px;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:var(--pg-card);border:0;border-radius:9px;padding:8px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.dd>button:hover,.dd.open>button{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.dd svg{width:15px;height:15px;flex:none;color:var(--pg-muted)}
+.dd .cnt{margin-left:auto;font-weight:400;font-size:12px;color:var(--pg-muted);font-variant-numeric:tabular-nums}
+.dd>button .chev{margin-left:6px;width:13px;height:13px}
+.dd .menu{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:40;min-width:100%;padding:4px;background:var(--pg-card);border-radius:11px;box-shadow:0 0 0 1px var(--pg-line),0 14px 34px rgba(0,0,0,.45)}
+.dd.open .menu{display:block}
+.dd .menu button{display:flex;align-items:center;gap:9px;width:100%;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:7px 9px;cursor:pointer;text-align:left}
+.dd .menu button:hover,.dd .menu button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
+.dd .menu button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 12%,transparent)}
+.dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
+.group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden]{display:none}
-.sc{display:inline-flex;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
-.sc b{font:500 12.5px Inter,sans-serif}
+.sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 
 /* avatar matrix */
@@ -403,14 +416,28 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
-  var tabs = document.createElement('div'); tabs.className = 'tabs'; tabs.setAttribute('role', 'tablist'); wrap.parentNode.insertBefore(tabs, wrap);
+  var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
+  var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
+  var tabs = document.createElement('div'); tabs.className = 'menu'; tabs.setAttribute('role', 'listbox'); dd.appendChild(tabs);
+  var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function ddOpen(o) { dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o)); }
+  ddb.onclick = function (e) { e.stopPropagation(); ddOpen(!dd.classList.contains('open')); };
+  document.addEventListener('click', function () { ddOpen(false); });
+  document.addEventListener('keydown', function (e) {
+    if (!dd.classList.contains('open')) return;
+    if (e.key === 'Escape') { ddOpen(false); return; }
+    var items = [].slice.call(tabs.children), at = items.findIndex(function (t) { return t.classList.contains('at'); });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].classList.add('at'); }
+    else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
+  });
   var boxes = [];
   function showTab(i) {
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
     tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
+    ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
   GROUPS.forEach(function (g, gi) {
-    var t = document.createElement('button'); t.setAttribute('role', 'tab'); t.innerHTML = tabIcon(g[0]) + g[0] + '<i>' + g[1].length + '</i>'; t.onclick = function () { showTab(gi); }; tabs.appendChild(t);
+    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.appendChild(t);
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
