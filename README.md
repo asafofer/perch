@@ -81,7 +81,7 @@ On first launch, a short setup walks you through your character, Accessibility, 
 | Answer a question | <kbd>1</kbd> to <kbd>4</kbd> |
 | Reply | <kbd>R</kbd> |
 | Not now (30 minutes, 2 hours, tomorrow) | <kbd>N</kbd> |
-| Settings | <kbd>S</kbd> |
+| Settings | <kbd>⌘</kbd> <kbd>,</kbd> |
 | Close | <kbd>Esc</kbd> |
 
 While the notch shows something that finished or asks for you, its buttons answer to keys too, and only then: <kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>Return</kbd> switches to it, <kbd>⌘</kbd> <kbd>R</kbd> replies, <kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>Y</kbd> or <kbd>N</kbd> allows or denies, <kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>1</kbd> to <kbd>3</kbd> answers, and <kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>.</kbd> puts it away.

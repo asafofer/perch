@@ -165,7 +165,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
     ]],
     ['Settings', [
-      ['Settings', 'The gear on the card, or S.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
+      ['Settings', 'The gear on the card or the list, or Command+comma. Away from your Mac for is how long a break must be before the card says where you left off.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Live status off', 'The hook is not installed.', function () { d.settings({ live: 'off' }); }],
       ['Change character', 'From Settings: only the character, Done goes back.', function () { d.onboarding(1, true, true); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
