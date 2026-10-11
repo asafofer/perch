@@ -849,10 +849,11 @@
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
   function actKind(p) {
+    if (p.update) return 'update';
     if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
     return p.status.kind === 'attention' ? 'need' : 'done';
   }
-  function actKey(p) { return p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
+  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
   /* what you can do from here, as [action, label, key]; the first one is the main one */
   function actButtons(p, k) {
     var a = p.ask;
@@ -871,6 +872,7 @@
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
     var p = act.p, k = act.kind, a = p.ask, body = '';
+    if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
     else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
@@ -896,6 +898,28 @@
       (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    actGlide();
+  }
+  /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
+     fills on the other side. When it is ready and you are busy it waits there, the ring a green check (Settings has Restart to update).
+     When it restarts, the row says Updating. Back on the new version the character pops out and says so, then the notch tells you
+     the headline of what is new. All of it folds away by itself. */
+  var UPD_C = 59.7;   /* the ring's circumference, 2 pi r with r 9.5 */
+  function updRing(frac) {
+    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="' + glow(COLORS.running) + '"><circle cx="12" cy="12" r="9.5" stroke="rgba(255,255,255,.14)"/>' +
+      '<circle class="upd-arc" cx="12" cy="12" r="9.5" stroke="' + COLORS.running + '" stroke-dasharray="' + UPD_C + '" stroke-dashoffset="' + UPD_C * (1 - frac) + '" transform="rotate(-90 12 12)"/></svg>';
+  }
+  function renderUpd(u) {
+    var ph = u.phase, words = { downloading: 'Downloading', ready: 'Ready to restart', restarting: 'Updating', updated: 'Updated' }[ph];
+    var mark = ph === 'restarting' ? Spinner('size-4', glow(COLORS.running)) : ph === 'downloading' ? updRing(u.progress || 0) : Ring('done');
+    var body = ph === 'updated' && u.notes ? '<div class="act-body"><span dir="auto" class="act-t">' + esc(u.notes) + '</span></div>' : '';
+    act.keys = ph === 'updated' ? ['gone', 'notes'] : ['gone'];
+    var btns = ph === 'updated' ? '<span class="act-gap"></span><button class="act-b go" data-a="notes" title="What\u2019s new"><span class="act-bl">What\u2019s new</span><kbd>' + CMDOPT + '\u21a9</kbd></button>' : '';
+    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
+      '<span class="act-r"><span class="act-s ' + (ph === 'ready' || ph === 'updated' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
+    if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
+    var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
     actGlide();
   }
   /* A name that does not fit, beside the camera or on the row below, reads itself out as a list row does: after a moment it
@@ -940,8 +964,9 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
-    bb.style.width = 'max-content'; var bw = bb.offsetWidth + 28; bb.style.width = '';
+    var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     var w = Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw));   /* the panel is 480 wide */
+    if (!actEl.querySelector('.act-btns')) return [Math.min(460, Math.max(idleW + 2 * side, idleW + 150)), idleH];   /* an update restarting: just the row */
     return [w, idleH + (actEl.querySelector('.act-body') ? 24 : 0) + 44];
   }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
@@ -991,6 +1016,8 @@
     if (left.length) actExpTimer = setTimeout(function () { if (act.mode === 'wings' && snap) actSettle(); }, Math.min.apply(null, left) + 50);
     return list;
   }
+  var updHi = false;
+  function updP(u) { return { id: 'perch-update', name: 'Perch', topic: 'Perch ' + u.version, app: 'perch', update: u, status: { kind: 'idle', text: 'Perch ' + u.version, app: 'perch' } }; }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
     ACT_Q_MS = 9000 + 1000 * (s.questionSeconds || 60);
@@ -1004,6 +1031,20 @@
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
+    /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
+       and arriving say their piece in the row */
+    var u = s.update, up = u && updP(u);
+    if (up && !s.quiet && !actGone[actKey(up)]) {
+      if ((u.phase === 'downloading' || u.phase === 'ready') && !need.length) { setAct('wings', up, true); return; }
+      if (u.phase === 'restarting') { clearTimeout(actTimer); setAct('full', up, true); return; }
+      if (u.phase === 'updated') {
+        if (act.mode === 'full' && act.p && act.p.update && act.p.update.phase === 'updated') { setAct('full', up, true); return; }
+        if (act.p && act.p.update) setAct('', null, true);
+        if (!updHi) { updHi = true; pop('happy', 2300, 'Updated'); setTimeout(function () { if (snap && snap.update && snap.update.phase === 'updated') { setAct('full', updP(snap.update)); actLater(10000); } }, 3200); }
+        return;
+      }
+    } else if (act.p && act.p.update && !(up && !actGone[actKey(up)])) { setAct('', null, true); }
+    if (!u || u.phase !== 'updated') updHi = false;
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     var full = act.mode === 'full' && act.p;
@@ -1032,6 +1073,7 @@
       if (act.kind === 'done') post({ type: 'activitySeen', id: p.id });
       actSettle(); return;
     }
+    if (a === 'notes') { post({ type: 'update', action: 'notes' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); actSettle(); return; }
     if (a === 'allow' || a === 'deny') post({ type: 'activityAnswer', id: p.id, choice: a });
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; post({ type: 'activityAnswer', id: p.id, answers: ans }); }
     else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
@@ -1068,11 +1110,11 @@
   var verSig = '';
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
-    var vs = (s.testBuild ? '' : (s.version || '')) + '|' + (s.update ? s.update.version : '');
+    var upReady = s.update && s.update.phase === 'ready', vs = (s.testBuild ? '' : (s.version || '')) + '|' + (upReady ? s.update.version : '');
     if (vs !== verSig) {
       verSig = vs;
-      q('.s-ver').innerHTML = (s.update ? '<button title="Perch ' + esc(s.update.version) + ' is downloaded. It installs and restarts Perch" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] tracking-[-0.005em] text-foreground transition-colors hover:bg-white/10">Restart to update</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
-      var ub = q('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update' }); };
+      q('.s-ver').innerHTML = (upReady ? '<button title="Perch ' + esc(s.update.version) + ' is downloaded. It installs and restarts Perch" class="s-upd -my-px mr-2 h-[18px] cursor-pointer rounded-md px-1.5 text-[11px] tracking-[-0.005em] text-foreground transition-colors hover:bg-white/10">Restart to update</button>' : '') + esc(s.testBuild ? '' : (s.version || ''));
+      var ub = q('.s-upd'); if (ub) ub.onclick = function () { post({ type: 'update', action: 'restart' }); };
     }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
@@ -2033,7 +2075,7 @@
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
-    if (m.type === 'update') s.update = null;   /* the real one installs and relaunches */
+    if (m.type === 'update' && m.action === 'restart') window.perchDev.update('restarting');   /* the real one installs and relaunches */
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -2129,6 +2171,13 @@
       clear: function () { d0(); apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'idle', timerToken: Math.random() }));
         setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); }), phase: 'idle', timerToken: Math.random() })); }, 1600); },
       say: function (t) { window.perch.say(t); },
+      /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
+      update: function (phase, o) {
+        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
+        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(),
+          update: phase ? { version: '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch' } : null }));
+      },
       /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
       trick: function (name) {
         window.perchDev.onboarding(1);

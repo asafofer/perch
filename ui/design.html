@@ -308,8 +308,26 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Shortcut: custom', 'A recorded shortcut; Reset puts back the Command+Option tap.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false } }); }],
       ['Shortcut: not available', 'The Open Perch row in orange with why: it is a tap and Accessibility is off. Click the keys to record a combo instead.', function () { d.settings({ accessibility: false }); }],
       ['Shortcut: taken', 'A combo another app holds.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false, saved: false, taken: true } }); }],
-      ['Update ready', 'Perch updates itself: it checks daily and downloads in the background. Once a new version is ready, a small Restart to update sits beside the version in Settings. It never interrupts: Perch restarts by itself at a quiet moment (nothing open, no reply half written), and this is for doing it now. The menu bar has Check for updates.', function () { d.settings({ update: { version: '0.3.1' } }); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
+    ]],
+    ['Updates', [
+      ['Update, start to finish', 'Perch updates itself and it shows. It downloads in the background: only the character beside the camera and a ring that fills on the other side. When the download is done the ring turns into a green check, then the notch says Updating while Perch restarts. Back on the new version, the character pops out and says Updated, and the notch gives you the headline of what is new. Everything folds away by itself.', function () {
+        var me = ++charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); }, sc = document.getElementById('scene');
+        d.update(null);
+        at(900, function () { now.textContent = 'A new version is found: it downloads quietly'; d.update('downloading', { progress: 0.04 }); });
+        [0.18, 0.33, 0.52, 0.7, 0.86, 1].forEach(function (f, i) { at(1700 + i * 700, function () { d.update('downloading', { progress: f }); }); });
+        at(6300, function () { now.textContent = 'Downloaded: ready to restart'; d.update('ready'); });
+        at(8300, function () { now.textContent = 'Nothing is open, so Perch restarts'; d.update('restarting'); });
+        at(10600, function () { now.textContent = 'Perch quits and opens again'; sc.style.transition = 'opacity .25s'; sc.style.opacity = '0'; });
+        at(12000, function () { now.textContent = 'Back, on the new version'; d.update(null); sc.style.opacity = '1'; });
+        at(12700, function () { d.update('updated'); });
+        at(13600, function () { now.textContent = 'The character says so, then the notch shows what is new'; });
+      }],
+      ['Downloading', 'Only the character beside the camera and a ring that fills, easing as it goes. It gives way to a session that needs you.', function () { d.update('downloading', { progress: 0.45 }); }],
+      ['Ready, waiting', 'Downloaded while you are busy (a card or the list is open): a green check on the same wings. It waits for a quiet moment, or Restart to update in Settings does it now.', function () { d.update('ready'); }],
+      ['Restarting', 'The row widens: the character asleep, Updating, a spinner. A moment later Perch is gone and back.', function () { d.update('restarting'); }],
+      ['Updated', 'On the new version: the character pops out and says Updated, tucks back in, and the notch shows the headline of what is new. What\u2019s new opens the release notes, or it folds away after ten seconds.', function () { d.update('updated'); }],
+      ['Update ready, in Settings', 'While the card or the list is open Perch does not restart. Settings shows Restart to update beside the version.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }]
     ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
