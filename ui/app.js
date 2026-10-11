@@ -719,12 +719,12 @@
         (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span></div>';
     }).join('');
     if (html !== listSig) {
-      listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html;
+      listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
         r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
         r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
-        r.onmouseenter = function () { hovered = r; marquee(r); };
+        r.onmouseenter = function () { hovered = r; marquee(r); if (ptrMoved() && +r.dataset.i !== lastSel) post({ type: 'pick', index: +r.dataset.i }); };
         r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
       });
     }
@@ -745,6 +745,7 @@
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
     if (sel && s.selected !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[s.selected], row); }, 0); }
+    if (s.selected !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
     if (s.selected !== lastSel || !hovered) { lastSel = s.selected; marquee(sel); }
   }
   /* the design page's sample data has no section from Swift: worked out the same way */
@@ -1975,7 +1976,7 @@
       srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
       srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
-      srow(slabel('Away from your Mac for', '', 'timer'), awaySeg),
+      srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
       srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
     ].concat(o.hasExternal ? [
@@ -2257,6 +2258,7 @@
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
+    if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;

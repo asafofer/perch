@@ -10,6 +10,12 @@ import Testing
         m.send(.openSwitcher); m.send(.show(7))
         #expect(m.phase == .switcher)   // out of range: stays on the list
     }
+    @Test func thePointerOnARowChoosesItWithoutLeavingTheList() {
+        var m = NotchMachine(projectCount: 3)
+        m.send(.openSwitcher); m.send(.select(2))
+        #expect(m.phase == .switcher); #expect(m.selected == 2)
+        m.send(.select(9)); #expect(m.selected == 2)   // out of range: unchanged
+    }
     private func machine(_ n: Int = 3) -> NotchMachine { NotchMachine(projectCount: n) }
 
     @Test func settingsGoesBackWhereItCameFrom() {
