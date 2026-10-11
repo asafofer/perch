@@ -52,7 +52,7 @@ Status, two sources. With live status on, hooks say exactly what happened (`Live
 
 While you work, an answer or a request in a session you are not in shows as a live activity: the notch grows with the project beside the camera and what happened, and below, the session's title and a row of buttons on Command+Option keys registered only while it shows (no cross: Command+Option+. puts it away) (app.js `activity`; `./scripts/run.sh --activity` plays it). A finish folds away; a request folds to wings until answered.
 
-When the welcome card speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped) and since your last break or within the last day (`WhileAway.newsSince`; older is history, and a guessed "needs you" from then reads as idle, `Project.settled`), never during a call, camera or presentation (`Quiet`), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in. The Claude app's own `lastFocusedAt` counts too: a session you had in front there since it changed is not news, and the one it focused last is the session you are in.
+When the welcome card speaks up: only on return from a break, only if a session changed since you last saw it (finished, asked, stopped) and since your last break or within the last day (`WhileAway.newsSince`; older is history, and a guessed "needs you" from then reads as idle, `Project.settled`), never during a call, camera or presentation, nor while a launcher such as Raycast has the keyboard (`Quiet`; it shows once that is over), and never during a "Not now". "Seen" is per session, in UserDefaults: a second on the welcome card, a Pick up, or being the session you are in. The Claude app's own `lastFocusedAt` counts too: a session you had in front there since it changed is not news, and the one it focused last is the session you are in.
 
 ## Running and building
 
@@ -77,7 +77,7 @@ Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello)
 - Glow is internal, soft, and tinted by status: orange needs you, green done, otherwise the character's colour. Dithering was tried and rejected.
 - Never suggest committing, pushing or merging as the "next step". Hide the Next row when there is nothing real to say.
 - Pick up closes the card at once. No success screen.
-- Perch must never take the keyboard when it opens by itself, and never nudges about the session you are already in. A card you hover open takes it only when it shows something to answer (`cardTakesKeys`): otherwise a number or Esc lands in the agent's own prompt behind it, and Esc there dismisses the question.
+- Perch must never take the keyboard when it opens by itself, and never nudges about the session you are already in. A card you hover open takes it only when it shows something to answer (`cardTakesKeys`): otherwise a number or Esc lands in the agent's own prompt behind it, and Esc there dismisses the question. A card takes the keyboard once (on opening, or as the pointer comes onto it) and leaves it with whoever takes it next: Raycast closes the instant it loses focus. When another app takes the keyboard, or a launcher has it (`Quiet.launcherOpen`, an app other than the one in front, read through Accessibility), the card makes way (`makeWay`), except during onboarding or a reply.
 - Motion should feel alive but rare. Respect `prefers-reduced-motion`.
 
 ## Things that will bite you
