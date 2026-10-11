@@ -1622,7 +1622,7 @@
   }
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
-  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0 };
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0, pending: [], picks: 0 };
   function scOf(sc) { return sc || SC0; }
   function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
@@ -1635,10 +1635,11 @@
     var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
     /* no separate recording look: while it listens the card shows the shortcut you have now, plain grey, and says it is listening */
-    var current = sc.keys.map(function (k) { return '<span class="kcap" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
+    var chosen = sc.recording && sc.pending && sc.pending.length;
+    var current = (chosen ? sc.pending : sc.keys).map(function (k) { return '<span class="kcap' + (chosen ? ' ok' : '') + '" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
     var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : current;
     scRest = tried;
-    var shown = sc.recording ? tried : big, ask = 'Listening for your new shortcut\u2026',
+    var shown = sc.recording ? tried : big, ask = sc.pending && sc.pending.length ? 'Press Return to save it, or press another shortcut.' : 'Listening for your new shortcut\u2026',
       listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
@@ -1664,21 +1665,30 @@
       ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', Kbd(sc.recording ? 'esc' : 'C'), 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
   }
   /* the big keys: they press like keys, light up while you hold the real ones, and when you try it they spring and the character cheers */
-  var scHeldNow = [], scWasTried = '';
+  var scHeldNow = [], scWasTried = '', scHeldShown = '', scPendingNow = [], scPendSeen = '', scFresh = false, scPeak = [];
   var scRest = '', scRef = 0;
   function scHeldApply() {
     document.querySelectorAll('.o-sc-big[data-rec]').forEach(function (b) {
-      var sig = scHeldNow.join('');
+      /* a key pressed on top of held modifiers shows at once, as a pressed key beside them, until you let go */
+      if (!scHeldNow.length) scFresh = false;
+      /* letting go one key at a time must not show fewer keys for a moment: the row keeps the most that was held until all are up */
+      if (!scHeldNow.length) scPeak = []; else if (scHeldNow.length >= scPeak.length) scPeak = scHeldNow.slice();
+      var fresh = scFresh && scPendingNow.length ? scPendingNow : null, keys = fresh || scPeak, sig = keys.join('') + (fresh ? '+' : '');
       if (b.dataset.held === sig) return;
-      var before = (b.dataset.held || '').length; b.dataset.held = sig;
-      b.innerHTML = scHeldNow.length ? scHeldNow.map(function (k) { return '<span class="kcap down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
-      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && i >= before && scHeldNow.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
+      /* what was held is remembered here, not on the row: the card redraws now and then and a fresh row must not replay the press */
+      var before = sig.indexOf(scHeldShown) === 0 ? scHeldShown.length : 0; b.dataset.held = sig; var same = scHeldShown === sig; scHeldShown = sig;
+      b.innerHTML = keys.length ? keys.map(function (k) { return '<span class="kcap' + (fresh ? ' ok' : '') + ' down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
+      if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && !same && i >= before && keys.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
     });
     document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
     document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
   }
   function scAfter(o) {
     var sc = scOf(o && o.shortcut);
+    var pend = sc.recording && sc.pending && sc.pending.length ? sc.pending.join('') : '';
+    scPendingNow = pend ? sc.pending : [];
+    var pick = pend ? pend + '#' + (sc.picks || 0) : '';
+    if (pick !== scPendSeen) { scPendSeen = pick; scFresh = !!pend && scHeldNow.length > 0; }
     var mark = sc.tried ? 'tried' : sc.saved ? 'saved' : '';
     if (mark && mark !== scWasTried) {
       document.querySelectorAll('.o-sc-big .kcap').forEach(function (c, i) {
@@ -1690,7 +1700,7 @@
     }
     scWasTried = mark;
     /* the bottom of the card glows orange for a refusal and green once it is saved, and a refusal shakes the keys */
-    var bad = sc.recording && !!sc.error, good = !sc.recording && (sc.saved || sc.tried);
+    var bad = sc.recording && !!sc.error, good = sc.recording ? !sc.error && !!(sc.pending && sc.pending.length) : (sc.saved || sc.tried);
     introGlow = bad ? COLORS.attention : good ? COLORS.done : ''; n.style.setProperty('--gcol', introGlow || charNow.color);
     if (bad && sc.refusals !== scRef && !STILL) {
       var row = document.querySelector('.o-sc-big');
@@ -2263,14 +2273,18 @@
     s.timerToken++; apply(s);
   }
   function dev(m) {
+    /* Done with a choice waiting: it saves (the keys spring, the card glows green), then goes back to Settings */
+    if (m.type === 'onb' && m.action === 'next' && snap && snap.onboarding && snap.onboarding.only && devSc.recording && devSc.pending && devSc.pending.length) {
+      window.perchDev.saveChoice(); setTimeout(function () { if (snap && snap.phase === 'onboarding') dev(m); }, 900); return;
+    }
     if (m.type === 'update') {
       if (m.action === 'install' || m.action === 'restart') window.perchDev.updRun(m.action === 'restart');
       if (m.action === 'check') { var D = window.perchDev, k = ++updTok; D.update('checking', { fresh: false, stay: true }); setTimeout(function () { if (k === updTok) D.update('current', { fresh: false, stay: true }); }, 1600); setTimeout(function () { if (k === updTok) D.update(null, { fresh: false, stay: true }); }, 5200); }
       return;
     }
     if (m.type === 'shortcut') {
-      if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], saved: false, tried: false });
-      else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
+      if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], pending: [], saved: false, tried: false });
+      else if (m.action === 'cancel') devScSync({ recording: false, error: '', pending: [] });
       else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
       else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
       return;
@@ -2295,6 +2309,8 @@
     }
     if (m.type === 'hooks') { if (s.settings) s.settings.live = m.on ? 'on' : 'off'; if (s.onboarding) s.onboarding.live = m.on ? 'on' : 'off'; }
     if (m.type === 'character') { s.character = { shape: m.shape, color: m.color }; }
+    /* a page opened from Settings: Done goes back there, whatever step it is */
+    if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
     if (m.type === 'onb' && s.onboarding) {
       var o = s.onboarding;
       if (m.action === 'next') o.step = Math.min(o.step + 1, o.total - 1);
@@ -2482,10 +2498,13 @@
     var scMods = [], scKey = false, SC_GLYPH = [['ctrlKey', '\u2303'], ['altKey', '\u2325'], ['shiftKey', '\u21E7'], ['metaKey', '\u2318']];
     var scHeld = function (e) { return SC_GLYPH.filter(function (g) { return e[g[0]]; }).map(function (g) { return g[1]; }); };
     var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
-    var scDone = function (keys, kind) {
-      var same = keys.join('') === SC0.keys.join('') && kind === 'tap';
-      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], tried: false, saved: true });
+    /* what you press is only a choice; Return alone saves it, another try replaces it */
+    var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [], picks: (devSc.picks || 0) + 1 }); };
+    var scSave = function () {
+      var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
     };
+    window.perchDev.saveChoice = scSave;
     document.addEventListener('keydown', function (e) {
       if (snap && (snap.phase === 'settings' || snap.phase === 'onboarding')) window.perch.held(scHeld(e));
       if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding') || e.repeat) return;
@@ -2496,8 +2515,9 @@
         scKey = true; return;
       }
       e.preventDefault(); e.stopImmediatePropagation(); scKey = true;
-      if (e.key === 'Escape') { devScSync({ recording: false, error: '' }); if (snap.onboarding && snap.onboarding.only) dev({ type: 'onb', action: 'next' }); return; }
+      if (e.key === 'Escape') { devScSync({ recording: false, error: '', pending: [] }); if (snap.onboarding && snap.onboarding.only) dev({ type: 'onb', action: 'next' }); return; }
       var name = { ' ': 'Space', ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192', Enter: '\u21A9', Tab: '\u21E5' }[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
+      if (e.key === 'Enter' && !held.length && devSc.pending && devSc.pending.length) { scSave(); return; }
       if (!held.length) { devScSync({ error: 'Hold \u2318, \u2325, \u2303 or \u21E7 too', attempt: [name], refusals: (devSc.refusals || 0) + 1 }); return; }
       var combo = held.join('') + name;
       if (scTaken[combo]) { devScSync({ error: combo + ' is ' + scTaken[combo], attempt: held.concat([name]), refusals: (devSc.refusals || 0) + 1 }); return; }

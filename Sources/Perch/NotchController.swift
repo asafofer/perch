@@ -1144,7 +1144,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingAction(_ action: String) {
         switch action {
         case "next":
-            if onbOnly { finishCharacter(); return }
+            if onbOnly {
+                // Done with a shortcut chosen saves it: the keys spring and the card glows green, then back to where it came from.
+                if let chosen = recorder?.pending {
+                    finishRecording(.record(chosen))
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                        guard let self, self.machine.phase == .onboarding, self.onbOnly, self.shortcutSaved else { return }
+                        self.finishCharacter()
+                    }
+                    return
+                }
+                finishCharacter(); return
+            }
             onbStep = min(onbStep + 1, onbTotal - 1)
             if onbStep == 4 { refreshProjects() }   // the apps step shows what the scan found
             stopRecording(); shortcutTried = false; shortcutSaved = false
@@ -1204,6 +1215,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// You just recorded it: the page says so and springs the keys, so a new shortcut never lands without a word.
     private var shortcutSaved = false
     private var shortcutAttempt: [String] = []
+    private var shortcutPending: [String] = []
+    private var shortcutPicks = 0
     private var shortcutRefusals = 0
 
     private func shortcutState() -> UISnapshot.ShortcutState {
@@ -1211,7 +1224,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         var works = true, why = ""
         if s.kind == .tap, !AXIsProcessTrusted() { works = false; why = "A tap needs Accessibility. Allow it, or record a key combo." }
         else if s.kind == .combo, openComboWorks?() == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals)
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks)
     }
 
     private func shortcutAction(_ action: String) {
@@ -1219,7 +1232,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         switch action {
         case "record":
             guard recorder == nil else { return }
-            recorder = ShortcutRecorder(); shortcutError = ""; shortcutAttempt = []; shortcutTried = false; shortcutSaved = false
+            recorder = ShortcutRecorder(); shortcutError = ""; shortcutAttempt = []; shortcutPending = []; shortcutTried = false; shortcutSaved = false
             onShortcutRecording?(true)
         case "cancel": stopRecording()
         case "reset": Prefs.openShortcut = .standard; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
@@ -1230,7 +1243,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func stopRecording() {
         guard recorder != nil else { return }
-        recorder = nil; shortcutError = ""; shortcutAttempt = []
+        recorder = nil; shortcutError = ""; shortcutAttempt = []; shortcutPending = []
         onShortcutRecording?(false)
     }
 
@@ -1260,7 +1273,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             stopRecording()
             if machine.phase == .onboarding, onbOnly { finishCharacter(); return }
         case .refused(let why, let keys): shortcutError = why; shortcutAttempt = keys; shortcutRefusals += 1
-        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; shortcutAttempt = []; onShortcutRecording?(false)
+        case .chosen(let s): shortcutPending = s.keys; shortcutPicks += 1; shortcutError = ""; shortcutAttempt = []
+        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; shortcutAttempt = []; shortcutPending = []; onShortcutRecording?(false)
         }
         push()
     }
@@ -1476,15 +1490,28 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// A card without the keyboard (the welcome card, a hovered one) never hears it go, so while a card is up Perch looks
     /// a few times a second for a launcher that has it. Twice in a row counts, so an app switch in flight does not.
     private var launcherCheck = (tick: 0, hits: 0)
+    private var launcherAsking = false
+    /// The question goes to another app through Accessibility, and an app that has not been asked before (Claude's) can take
+    /// a second or more to answer, so it is asked off the main thread: the keys and the card go on meanwhile.
     private func watchLaunchers() {
         guard machine.phase != .idle else { launcherCheck = (0, 0); return }
         launcherCheck.tick += 1
-        guard launcherCheck.tick % 8 == 0 else { return }
-        let launcher = Quiet.launcherOpen()
-        launcherCheck.hits = launcher == nil ? 0 : launcherCheck.hits + 1
-        if launcherCheck.hits >= 2 {
-            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \(launcher ?? "") has the keyboard, the card makes way") }
-            launcherCheck.hits = 0; makeWay()
+        guard launcherCheck.tick % 8 == 0, !launcherAsking else { return }
+        launcherAsking = true
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let launcher = Quiet.launcherOpen()
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.launcherAsking = false
+                    guard self.machine.phase != .idle else { self.launcherCheck = (0, 0); return }
+                    self.launcherCheck.hits = launcher == nil ? 0 : self.launcherCheck.hits + 1
+                    if self.launcherCheck.hits >= 2 {
+                        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \(launcher ?? "") has the keyboard, the card makes way") }
+                        self.launcherCheck.hits = 0; self.makeWay()
+                    }
+                }
+            }
         }
     }
 
