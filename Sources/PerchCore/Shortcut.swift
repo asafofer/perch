@@ -79,24 +79,32 @@ public struct Shortcut: Equatable, Sendable, Codable {
 }
 
 /// Listens for the next shortcut while you press it: hold modifiers and let go (a tap), or press modifiers and a key (a
-/// combo). Esc stops. Anything Perch cannot use says why and the recorder keeps listening.
+/// combo). What you press is only a choice: pressing again replaces it, and Return alone saves it. Esc stops. Anything Perch
+/// cannot use says why and the recorder keeps listening.
 public struct ShortcutRecorder: Sendable {
-    public enum Outcome: Equatable, Sendable { case none, cancel, record(Shortcut)
+    public enum Outcome: Equatable, Sendable { case none, cancel
+        /// A usable shortcut was pressed. It is not saved yet: the recorder keeps listening and Return saves it.
+        case chosen(Shortcut)
+        /// Return saved the chosen shortcut.
+        case record(Shortcut)
         /// Why it cannot be used, and the keys that were pressed, so the card can still show what you did.
         case refused(String, keys: [String]) }
 
     private var peak: ShortcutMods = []
     private var keyPressed = false
+    /// The last usable shortcut pressed, waiting for Return.
+    public private(set) var pending: Shortcut?
     public init() {}
 
     /// A key went down with these modifiers held.
     public mutating func keyDown(keyCode: Int, typed: String?, mods: ShortcutMods) -> Outcome {
         keyPressed = true
         if keyCode == 53 { return .cancel }
+        if [36, 76].contains(keyCode), mods.isEmpty, let chosen = pending { return .record(chosen) }
         let s = Shortcut.combo(mods, keyCode: keyCode, name: Shortcut.name(keyCode: keyCode, typed: typed))
         if let why = Shortcut.problem(s) { return .refused(why, keys: s.keys) }
-        peak = []
-        return .record(s)
+        peak = []; pending = s
+        return .chosen(s)
     }
 
     /// The modifiers held changed. A tap is recorded when they are all let go with no key pressed in between.
@@ -110,6 +118,7 @@ public struct ShortcutRecorder: Sendable {
         guard !keyPressed, !peak.isEmpty else { return .none }
         let s = Shortcut.tap(peak)
         if let why = Shortcut.problem(s) { return .refused(why, keys: s.keys) }
-        return .record(s)
+        pending = s
+        return .chosen(s)
     }
 }

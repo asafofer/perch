@@ -56,7 +56,11 @@ struct UISnapshot: Encodable {
         /// Whether Perch can hear it: a tap needs Accessibility, a combo must not be held by another app. `why` says so in a sentence.
         let works: Bool; let why: String
         /// The keys of the last shortcut that was refused (the card keeps showing them) and how many refusals so far (each shakes them).
-        let attempt: [String]; let refusals: Int }
+        let attempt: [String]; let refusals: Int
+        /// Recording: the shortcut pressed so far. It saves only on Return; pressing another replaces it.
+        let pending: [String]
+        /// How many shortcuts were chosen in this recording, so choosing the same one again still counts as new.
+        let picks: Int }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
