@@ -15,7 +15,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.0</string>
+	<string>0.3.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
@@ -26,5 +26,11 @@
 	<string>Perch brings a terminal session back to the front, in its own tab, when you pick it up.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/asafofer/perch-releases/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ye80gO0XS2JbmC75mZkMY9SD3XLmc1FFvyZH15In7zw=</string>
 </dict>
 </plist>

@@ -221,7 +221,14 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .act-s { font-size: 12px; color: #E9A877; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .act-s.ok { color: #8CCFA4; }
+.act-s.mu { color: #a1a1aa; }
+.upd-chip, .s-upd { background: rgba(141,200,232,.16); color: #8DC8E8; }
+.upd-chip:hover, .upd-chip.hv, .s-upd:hover, .s-upd.hv { background: rgba(141,200,232,.28); }
+.upd-arc { transition: stroke-dashoffset .5s linear; }
 .act-body { left: 13px; right: 13px; top: calc(var(--ah) + 1px); height: 22px; display: flex; align-items: center; transform: translateY(-4px); }
+.act-body.tall { flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 4px; }
+.act-li { display: flex; align-items: center; gap: 8px; height: 19px; max-width: 100%; min-width: 0; color: #e4e4e7; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.act-li i { flex: none; width: 3px; height: 3px; border-radius: 50%; background: #71717a; }
 .act-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #e4e4e7; }
 .act-cmd { min-width: 0; max-width: 100%; font: 500 11.5px/20px ui-monospace, SFMono-Regular, Menlo, monospace; color: #e4e4e7; background: rgba(255,255,255,.08); border-radius: 5px; padding: 0 6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -230,6 +237,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-p { flex: 1; min-width: 0; padding: 0 8px 0 4px; font: 400 12.5px/24px Inter, sans-serif; color: hsl(var(--foreground) / .88); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
+.act-b.nk { padding: 0 10px; justify-content: center; }   /* a button with no key beside its words */
 .act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
 .act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }

@@ -46,6 +46,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
     /// the card (a click in Finder to copy a path) keeps it, and the reply field opens with it again.
     private var drafts: [String: String] = [:]
+    /// An update of Perch itself, as the page draws it (Updater).
+    var updateInfo: UpdateInfo? { didSet { if updateInfo != oldValue { push() } } }
+    var onUpdateAction: ((String) -> Void)?
+    /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
+    var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
     /// What showed when the card or list was put away, for Command+Option to bring back (PutAway).
     private var putAway: PutAway?
     /// The card takes the keyboard when the pointer comes onto it, or when a hovered card gets something to answer:
@@ -652,6 +657,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
         sent.drafts = drafts
+        sent.update = updateInfo
         sent.proactive = proactiveOpen
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
@@ -789,6 +795,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.startOnboarding(step: step) }
             }
         case "quit": NSApp.terminate(nil)
+        case "update": if let a = body["action"] as? String { onUpdateAction?(a) }
         case "menuIcon":
             if let s = body["png"] as? String, let comma = s.firstIndex(of: ","), let data = Data(base64Encoded: String(s[s.index(after: comma)...])),
                let image = NSImage(data: data) {

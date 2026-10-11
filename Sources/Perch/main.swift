@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activity: ActivityMonitor?
     private var statusItem: NSStatusItem?
     private let hotkeys = HotkeyService()
+    private let updater = Updater()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
@@ -52,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let provider: SessionProviding = sample ? FakeSessionProvider() : RealSessionProvider()
         let c = NotchController(provider: provider)
         controller = c
+        updater.isQuiet = { [weak c] in c?.isQuiet ?? true }
+        updater.onChange = { [weak c] info in c?.updateInfo = info }
+        c.onUpdateAction = { [weak self] action in self?.updater.handle(action) }
+        if args.contains("--update-demo") { updater.demo() } else if !sample { updater.start() }
 
         hotkeys.register(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { c.comeBack() }
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
@@ -155,6 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Customize your character…", action: #selector(customize), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Choose apps…", action: #selector(chooseApps), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Set up Perch…", action: #selector(showOnboarding), keyEquivalent: "").target = self
+        if let check = updater.checkItem { menu.addItem(check) }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Perch", action: #selector(quit), keyEquivalent: "q").target = self
         item.menu = menu

@@ -310,6 +310,37 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Shortcut: taken', 'A combo another app holds.', function () { d.settings({ shortcut: { keys: ['\u2303', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false, saved: false, taken: true } }); }],
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
+    ['Updates', [
+      ['Update available', 'Perch found a new version, on its own or when you chose Check for updates. The notch grows: the character, the version, a blue download mark, and the headline of what is new. Buttons are for the mouse, with no keys to learn: the notch never takes the keyboard when it opens by itself, so a key would only fight what you are typing. It folds away by itself after nine seconds.', function () { d.update('available', { fresh: true }); }],
+      ['Update available: what\u2019s new', 'What\u2019s new opens right in the notch: the few things that changed, one line each. Nothing leaves Perch. Later closes it, Update goes ahead.', function () { d.update('available', { fresh: true }); setTimeout(function () { var b = document.querySelector('.act [data-a=notes]'); if (b) b.click(); }, 900); }],
+      ['You press Update', 'About twenty seconds. The ring beside the camera, with an arrow inside, fills slowly while it downloads. Then the row says Updating, Perch is gone for a second and comes back on the new version, with a small row that says Updated and folds away. No character peeking, nothing stays behind.', function () {
+        var me = ++charRun; d.update('available', { fresh: true });
+        setTimeout(function () { if (me === charRun) { var b = document.querySelector('.act [data-a=install]'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 2200);
+      }],
+      ['In the list: update available', 'The list while a new version is out: Update waits at the top right, left of Settings. Nothing in the way, and it does not come and go: it is there for as long as you have not updated.', function () { d.update('available', { fresh: true, view: 'switcher' }); }],
+      ['In the list: you press Update', 'Update becomes the same ring with an arrow, filling slowly while you go on using the list. When it is downloaded it says Restart to update; Perch also restarts by itself at the next quiet moment.', function () {
+        var me = ++charRun; d.update('available', { fresh: true, view: 'switcher' });
+        setTimeout(function () { if (me === charRun) { var b = document.querySelector('.p-switch .upd-chip'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 2000);
+      }],
+      ['In the list: downloaded', 'Downloaded and waiting: Restart to update, in the same place. The notch says nothing: this is it.', function () { d.update('ready', { fresh: true, view: 'switcher' }); }],
+      ['On a card: update available', 'The same spot on a session\u2019s card.', function () { d.update('available', { fresh: true, view: 'open' }); }],
+      ['Check for updates: found one', 'Check for updates\u2026 in the menu bar. The notch says Checking for a moment, then the update is offered.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('available', { fresh: true }); }, 1800); }],
+      ['Check for updates: up to date', 'Nothing newer: a small row says so and goes.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('current', { fresh: true }); }, 1800); }],
+      ['Check for updates: could not check', 'No connection, or the feed is down: a small row says so and goes. No dialog.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('failed', { fresh: true }); }, 1800); }],
+      ['Updates itself, start to finish', 'The usual way, with nobody pressing anything. Perch finds a new version and downloads it in the background (the character beside the camera and a ring with an arrow, filling slowly), says Updating when it restarts at a quiet moment, and comes back with a small row that says Updated.', function () {
+        var me = ++charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.update(null, { fresh: true });
+        at(900, function () { now.textContent = 'A new version is found: it downloads quietly'; d.updRun(false); });
+        at(11500, function () { now.textContent = 'Nothing is open, so Perch restarts'; });
+        at(14500, function () { now.textContent = 'Perch quits and opens again'; });
+        at(16500, function () { now.textContent = 'Back on the new version'; });
+      }],
+      ['Downloading', 'The character beside the camera and a ring with an arrow inside that fills. It gives way to a session that needs you.', function () { d.update('downloading', { progress: 0.45, fresh: true }); }],
+      ['Restarting', 'The row widens: the character asleep, Updating, a spinner. A moment later Perch is gone and back.', function () { d.update('restarting', { fresh: true }); }],
+      ['Updated', 'On the new version: a small row with a green check, then it folds away.', function () { d.update('updated', { fresh: true }); }],
+      ['Settings: update available', 'While you are in Settings, an Update button sits beside the version.', function () { d.settings({ update: { version: '0.3.1', phase: 'available' } }); }],
+      ['Settings: downloaded', 'Downloaded and waiting for a quiet moment: Restart to update does it now.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }]
+    ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
@@ -340,7 +371,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };

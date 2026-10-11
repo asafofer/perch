@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build Perch (web UI + Swift), wrap it in a signed .app bundle, and launch it.
-# Flags: --simulate plays "away, then back" with your real projects. --show opens the card right away with your real sessions. --demo plays the flow once. --idle <seconds> shows it after that much idle time (default 1200). --snapshot <dir> writes PNGs of each state and quits.
+# Flags: --update-demo plays an update over the real notch (nothing is downloaded). --simulate plays "away, then back" with your real projects. --show opens the card right away with your real sessions. --demo plays the flow once. --idle <seconds> shows it after that much idle time (default 1200). --snapshot <dir> writes PNGs of each state and quits.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CONFIG=${CONFIG:-debug}
@@ -19,15 +19,20 @@ if [ "$CONFIG" != "release" ]; then
   /usr/libexec/PlistBuddy -c "Add :PerchTestBuild string $LABEL" "$APP/Contents/Info.plist"
 fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Sparkle (the updater) travels inside the app. Its sandbox helpers are not needed by an app that is not sandboxed.
+mkdir -p "$APP/Contents/Frameworks"
+ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices"
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Perch"
 cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
 # Sign with the stable local "Perch Dev" certificate when it exists, so macOS remembers privacy permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
-if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then
-  codesign --force --sign "Perch Dev" "$APP" >/dev/null 2>&1 || codesign --force --sign - "$APP" >/dev/null 2>&1
-else
-  codesign --force --sign - "$APP" >/dev/null 2>&1
-fi
+if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then SIGN="Perch Dev"; else SIGN=-; fi
+# Inside out: Sparkle's helpers, then its framework, then the app. If the certificate refuses, fall back to ad hoc.
+sign() { codesign --force --sign "$SIGN" "$@" >/dev/null 2>&1 || codesign --force --sign - "$@" >/dev/null 2>&1; }
+SPK="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign "$SPK/Autoupdate"; sign "$SPK/Updater.app"; sign "$APP/Contents/Frameworks/Sparkle.framework"; sign "$APP"
 if [ "${1:-}" = "--package-only" ]; then exit 0; fi
 # The design page's real app icons, from this Mac. Leaves a running Perch alone.
 if [ "${1:-}" = "--design-icons" ]; then "$APP/Contents/MacOS/Perch" --design-icons ui/icons.local.json; exit 0; fi
@@ -41,6 +46,7 @@ case "${1:-}" in
   --onboarding) open -n "$APP" --args --onboarding ;;
   --hello) open -n "$APP" --args --hello ;;
   --activity) open -n "$APP" --args --activity ;;
+  --update-demo) open -n "$APP" --args --update-demo ;;
   --idle) open -n "$APP" --args --idle "${2:-15}" ;;
   --snapshot) PERCH_CHARACTER="${PERCH_CHARACTER:-octo,#B9A2F5}" "$APP/Contents/MacOS/Perch" --snapshot "${2:-build/snapshots}" "${@:3}" ;;
   *) open "$APP" ;;
