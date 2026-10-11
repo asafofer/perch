@@ -20,8 +20,9 @@ import Testing
         #expect(n.headline == "Faster")
         #expect(n.bullets == ["One & two", "Three"])
     }
-    @Test func atMostFourBullets() {
-        #expect(UpdateNotes.parse("Head\n- 1\n- 2\n- 3\n- 4\n- 5").bullets.count == 4)
+    @Test func aLongListKeepsEveryLine() {
+        let list = (1...30).map { "- Line \($0)" }.joined(separator: "\n")
+        #expect(UpdateNotes.parse("Head\n" + list).bullets.count == 30)
     }
     @Test func nothingGivesNothing() {
         #expect(UpdateNotes.parse(nil) == UpdateNotes(headline: "", bullets: []))
