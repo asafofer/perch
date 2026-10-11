@@ -871,7 +871,7 @@
      question). A finish folds away after a few seconds; a request folds to small wings, the app and a mark, that stay
      until you answer. Resting the pointer on it holds it open. During a call or a presentation it skips straight to the
      wings. When you come back from a break, the welcome card says all this instead. */
-  var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = false;
+  var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
@@ -895,22 +895,26 @@
   function actWords(p, k) {
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
+  /* Hovering a cut-short question, or a choice, says the rest below everything else: only what is under the pointer, and nothing that
+     is already there moves (the pointer would lose it). */
+  function actExtra(p, k) {
+    if (!actMore || act.mode !== 'full' || k !== 'ask') return '';
+    var qs = p.ask && p.ask.questions && p.ask.questions[0]; if (!qs) return '';
+    if (actMore.c != null) {
+      var o = qs.options[actMore.c]; if (o == null) return '';
+      return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + '</b> ' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
+    }
+    return '<div class="act-ex">' + esc(qs.text) + '</div>';
+  }
   function renderAct() {
     actEl.dataset.mode = act.mode;
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
-    var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '', bodyAttr = '';
-    if (act.mode !== 'full' || k !== 'ask') actMore = false;
+    var p = act.p, k = act.kind, a = p.ask, body = '';
+    if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') {
-      /* Hovering the question grows the notch downwards: the line stays where it is and says its whole self, with each choice's note under it. */
-      var q0 = a.questions && a.questions[0], full = (q0 && q0.text) || a.subject || 'Asked you something';
-      var notes = q0 && q0.options ? q0.options.map(function (o, i) { return [o.replace(/\s*\(recommended\)\s*$/i, ''), (q0.notes && q0.notes[i]) || '']; }).filter(function (x) { return x[1]; }) : [];
-      if (actMore && act.mode === 'full') { bodyCls = ' tall more'; bodyAttr = ' data-h="60" style="height:60px"'; body = '<span dir="auto" class="act-q">' + esc(full) + '</span>' +
-        notes.map(function (x) { return '<span dir="auto" class="act-nt"><b>' + esc(x[0]) + '</b> ' + esc(x[1]) + '</span>'; }).join(''); }
-      else body = '<span dir="auto" class="act-t">' + esc(full) + '</span>';
-    }
+    else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
     act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
@@ -931,8 +935,8 @@
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
-      (body ? '<div class="act-body' + bodyCls + '"' + bodyAttr + '>' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
+      (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
     actGlide();
@@ -1019,14 +1023,17 @@
     var even = function (x) { return Math.ceil(x / 2) * 2; };
     var w = even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw)));   /* the panel is 480 wide */
     if (!actEl.querySelector('.act-btns')) return [even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150))), idleH];   /* an update restarting: just the row */
-    var bd = actEl.querySelector('.act-body');
-    if (bd && bd.classList.contains('more')) {
-      /* as tall as its words are at this width, up to a point; past that it scrolls */
-      var m = bd.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;height:auto;width:' + (w - 26) + 'px;transform:none;overflow:visible';
-      actEl.appendChild(m); var mh = Math.min(132, m.scrollHeight + 4); actEl.removeChild(m);
-      bd.dataset.h = String(mh); bd.style.height = mh + 'px';
+    var bd = actEl.querySelector('.act-body'), base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
+    /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
+    bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
+    if (ex) {
+      /* as tall as its words are at this width, up to a point */
+      var m = ex.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:' + (w - 26) + 'px';
+      actEl.appendChild(m); var eh = Math.min(96, m.offsetHeight); actEl.removeChild(m);
+      ex.style.top = (base - 3) + 'px'; ex.style.maxHeight = eh + 'px';
+      return [w, base + eh + 6];
     }
-    return [w, idleH + (bd ? +bd.dataset.h || 24 : 0) + 44];
+    return [w, base];
   }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
@@ -1185,16 +1192,25 @@
   }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
-  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(false); });
-  /* the question, hovered, says all of it (the pointer's moves reach here from WebKit, or from the page's own replay of them) */
-  actEl.addEventListener('mousemove', function (e) { var bd = act.mode === 'full' && act.kind === 'ask' && e.target.closest && e.target.closest('.act-body'); if (!bd) return;
-    /* only when something is hidden: the line is cut short, or its choices have notes */
-    var t = bd.querySelector('.act-t'), qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0];
-    if ((t && t.scrollWidth > t.clientWidth + 1) || (qs && (qs.notes || []).some(Boolean))) actMoreSet(true);
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); });
+  /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
+  actEl.addEventListener('mousemove', function (e) {
+    if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
+    var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch'), bd = e.target.closest('.act-body');
+    if (ch && qs) {
+      var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
+      if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
+    } else if (bd) {
+      var t = bd.querySelector('.act-t');
+      if (t && t.scrollWidth > t.clientWidth + 1) actMoreSet({ q: 1 }); else actMoreSet(null);
+    } else actMoreSet(null);
   });
-  function actMoreSet(on) {
-    if (actMore === on || (on && (act.mode !== 'full' || act.kind !== 'ask'))) return;
-    actMore = on; renderAct(); if (snap) layout(lastSt, snap);
+  /* it goes away a moment after the pointer leaves what it speaks for, so crossing from one choice to the next does not flicker */
+  function actMoreSet(v) {
+    clearTimeout(actMoreT);
+    if (!v) { if (actMore) actMoreT = setTimeout(function () { actMore = null; renderAct(); if (snap) layout(lastSt, snap); }, 160); return; }
+    if (actMore && JSON.stringify(actMore) === JSON.stringify(v)) return;
+    actMore = v; renderAct(); if (snap) layout(lastSt, snap);
   }
 
   /* While the list or a card is open the notch cannot say it, so the update waits at the top left, beside the character (the right has the
