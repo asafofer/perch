@@ -2075,7 +2075,7 @@
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
     bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
-    var sb0 = box.querySelector('.s-show'); if (sb0) sb0._k = showKey(showHtml(o));
+    var sb0 = box.querySelector('.s-show'); if (sb0) { sb0._k = showKey(o); showClamp(sb0.querySelector('.s-showmenu')); }
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2186,8 +2186,16 @@
     return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
       '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
   }
-  /* the menu as drawn, minus the hover switch's state */
-  function showKey(h) { return h.replace(/aria-checked="(true|false)"(?=[^>]*data-k="hover")/, '').replace(/s-hovsw sw" aria-checked="(true|false)"/, ''); }
+  /* what the menu shows, so it is drawn again only when that changes: not for opening or closing it (Swift sends
+     Settings every half second while sessions are written, and a redraw would drop it back under the notch) and not
+     for the hover switch, which slides in place */
+  function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal]); }
+  /* it opens upward but never under the notch: when it would, it slides down over its own row */
+  function showClamp(m) {
+    m.style.transform = '';
+    var pane = showOpen && m.closest('.pane');
+    if (pane) { var over = pane.getBoundingClientRect().top + 38 - m.getBoundingClientRect().top; if (over > 0) m.style.transform = 'translateY(' + Math.ceil(over) + 'px)'; }
+  }
   function bindShow(box) {
     var trig = box.querySelector('.s-showtrig');
     if (trig) trig.onclick = function (e) { e.stopPropagation(); showMenu(!showOpen); };
@@ -2213,10 +2221,7 @@
     if (!m) return;
     m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    /* it opens upward but never under the notch: when it would, it slides down over its own row */
-    m.style.transform = '';
-    var pane = open && m.closest('.pane');
-    if (pane) { var over = pane.getBoundingClientRect().top + 38 - m.getBoundingClientRect().top; if (over > 0) m.style.transform = 'translateY(' + Math.ceil(over) + 'px)'; }
+    showClamp(m);
     paintFocus();
   }
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
@@ -2298,9 +2303,13 @@
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
-      /* only the hover switch changed: it already slid when clicked, so the menu is left as it is */
-      var sw2 = box.querySelector('.s-show'), shtml = showHtml(o), skey = showKey(shtml);
-      if (sw2 && sw2._k !== skey) { sw2.outerHTML = shtml; sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); paintFocus(); }
+      var sw2 = box.querySelector('.s-show'), skey = showKey(o);
+      if (sw2 && sw2._k !== skey) { sw2.outerHTML = showHtml(o); sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); showClamp(sw2.querySelector('.s-showmenu')); paintFocus(); }
+      else if (sw2) {
+        /* the same menu: only the hover switch may have moved, and it slides */
+        var hv = sw2.querySelector('.s-sitem[data-k=hover]');
+        if (hv && hv.getAttribute('aria-checked') !== String(!!o.hoverExternal)) { hv.setAttribute('aria-checked', String(!!o.hoverExternal)); setSw(hv.querySelector('.s-hovsw'), !!o.hoverExternal); }
+      }
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
