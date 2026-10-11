@@ -6,7 +6,7 @@ Read this file first. `README.md` has install and usage.
 
 ## How the work is done here
 
-1. **Show it in the design page first.** New UI or a visible change goes into `ui/design.html` (the real UI with sample data) and gets looked at before it is built into the app. The owner will say "build it" when approved. Small fixes and bugs can go straight in.
+1. **Show it in the design page first.** New UI or a visible change goes into `ui/design.html` (the real UI with sample data) and gets looked at before it is built into the app. Whenever you build or change a design there, open the design page for the owner yourself (the browser pane, on the scenario that shows it) and say where to find it; do not only describe it or draw a mock-up in chat. Serve it from this checkout's own `ui/` on a free port (`lsof -iTCP:8765` first: another worktree may already hold it and would show its old files). The owner will say "build it" when approved. Small fixes and bugs can go straight in.
 2. **Look at it before you say it is done.** Render the design page in a browser (`cd ui && python3 -m http.server 8765`, open `/design.html`) and check each state. Say plainly what you checked and what you did not. Mock-ups sit on Raycast wallpapers (`ui/wallpapers/`, from raycast.com/wallpapers). The README's GIF is filmed from the design page (`design.html?record` plays a set flow): `./scripts/record.sh` (needs ffmpeg and an unlocked screen; a corner panel shows for about 22 s and never takes the keyboard).
 3. **Commits:** one-line messages, no mention of AI or co-authors. Commit after every working step.
 4. **Tests must stay green:** `swift test`.
