@@ -11,7 +11,7 @@
 @font-face { font-family: Inter; font-weight: 100 900; src: url(../dist/fonts/inter-latin-wght-normal.woff2) format('woff2'); }
 html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
 body { position: relative; font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; color: #EDF1EE; }
-/* the night: a soft light from the top left and a faint warm horizon under the crowd */
+/* the night: a soft light from the top left, a faint warm horizon under the crowd (and a soft glow behind each character, below) */
 #bg { position: absolute; inset: 0; background:
   radial-gradient(ellipse 560px 420px at 50% 46%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),
   radial-gradient(ellipse 420px 300px at 0% 0%, rgba(255,255,255,.055), rgba(255,255,255,0) 100%),
@@ -25,7 +25,7 @@ p { position: absolute; left: 0; right: 0; margin: 0; text-align: center; color:
 .note { top: 276px; font-size: 11.5px; line-height: 18px; color: #66706B; }
 .note b { font-weight: 600; color: #8C9690; }
 svg.fx { position: absolute; left: 0; top: 0; overflow: visible; }
-.pal { position: absolute; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; }
+.pal { position: absolute; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; }
 .cr-slot { position: absolute; }
 .cr-slot .cr { --lx: var(--gx, 0px); --ly: var(--gy, 0px); }
 </style>
@@ -52,7 +52,7 @@ var CREW = [['ears', '#F5B83D', 88, 318, 84, 'awake', [5, -3], -3], ['octo', '#B
             ['tile', '#7DC4F5', 452, 306, 90, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 572, 318, 84, 'awake', [-5, -3], 3]];
 document.getElementById('crew').innerHTML = CREW.map(function (c) {
   var x = c[2], y = c[3], z = c[4];
-  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + '0F' + ' 0%,' + c[1] + '00 66%)"></div>' +
+  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + '30 0%,' + c[1] + '22 14%,' + c[1] + '14 30%,' + c[1] + '08 48%,' + c[1] + '02 68%,' + c[1] + '00 100%)"></div>' +
     '<div class="cr-slot" style="left:' + (x - z / 2) + 'px;top:' + y + 'px;--cr:' + c[1] + ';--gx:' + c[6][0] + 'px;--gy:' + c[6][1] + 'px;transform:rotate(' + c[7] + 'deg)">' + window.perchDev.character(c[0], z, c[5]) + '</div>';
 }).join('');
 /* a few specks of light, always the same ones */
