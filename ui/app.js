@@ -888,7 +888,7 @@
     if (k === 'done') return [['pick', goLabel(p), '\u21a9'], ['reply', 'Reply', 'R']];
     if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'Y'], ['deny', 'Deny', 'N']];
     var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
-    if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
+    if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o), o + (qn.notes && qn.notes[i] ? '\n' + qn.notes[i] : '')]; });
     if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
     return [['pick', goLabel(p), '\u21a9']];
   }
@@ -902,7 +902,12 @@
     var p = act.p, k = act.kind, a = p.ask, body = '';
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
+    else if (k === 'ask') {
+      /* the line is cut short: hovering it says the whole question, and each choice with its note */
+      var q0 = a.questions && a.questions[0], full = (q0 && q0.text) || a.subject || 'Asked you something';
+      var tip = full + (q0 && q0.options && q0.options.length ? '\n\n' + q0.options.map(function (o, i) { return '\u2022 ' + o + (q0.notes && q0.notes[i] ? ': ' + q0.notes[i] : ''); }).join('\n') : '');
+      body = '<span dir="auto" class="act-t" title="' + esc(tip) + '">' + esc(full) + '</span>';
+    }
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
     act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
@@ -920,7 +925,7 @@
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
-        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
+        return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[4] || b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
