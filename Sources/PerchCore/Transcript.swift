@@ -125,14 +125,30 @@ public struct PendingTool: Equatable, Sendable {
     public let question: String?
     /// A Bash call's own timeout, so a long build is not mistaken for a wait.
     public let timeout: TimeInterval?
-    public init(name: String, question: String? = nil, timeout: TimeInterval? = nil) { self.name = name; self.question = question; self.timeout = timeout }
+    /// A question tool's whole input as JSON (every question and its choices), so the card can show them.
+    public let questionInput: Data?
+    /// When the call was written, when the file says.
+    public var at: Date?
+    public init(name: String, question: String? = nil, timeout: TimeInterval? = nil, questionInput: Data? = nil) {
+        self.name = name; self.question = question; self.timeout = timeout; self.questionInput = questionInput
+    }
+
+    /// Tools that wait on you by design: Claude's AskUserQuestion, OpenCode's question.
+    public static let questionTools: Set<String> = ["AskUserQuestion", "question"]
+    public var isQuestion: Bool { Self.questionTools.contains(name) }
 
     init(block b: [String: Any]) {
+        let name = b["name"] as? String ?? "tool"
         let input = b["input"] as? [String: Any]
         let qs = input?["questions"] as? [[String: Any]]
-        self.init(name: b["name"] as? String ?? "tool",
-                  question: (qs?.first?["question"] as? String) ?? (input?["question"] as? String),
-                  timeout: (input?["timeout"] as? Double).map { $0 / 1000 })
+        var json: Data?
+        if Self.questionTools.contains(name) {
+            // An older shape carries one bare `question`: the same card, with no choices.
+            let whole: [String: Any]? = qs != nil ? input : (input?["question"] as? String).map { ["questions": [["question": $0]]] }
+            json = whole.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
+        }
+        self.init(name: name, question: (qs?.first?["question"] as? String) ?? (input?["question"] as? String),
+                  timeout: (input?["timeout"] as? Double).map { $0 / 1000 }, questionInput: json)
     }
 }
 
@@ -161,7 +177,9 @@ public enum TranscriptParser {
                 let done: Set<String> = ["end_turn", "stop_sequence", "max_tokens", "refusal"]
                 d.turnOpen = !done.contains(message?["stop_reason"] as? String ?? "")
                 for b in blocks where b["type"] as? String == "tool_use" {
-                    open.append((b["id"] as? String ?? "", PendingTool(block: b))); d.didWork = true
+                    var tool = PendingTool(block: b)
+                    tool.at = (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }
+                    open.append((b["id"] as? String ?? "", tool)); d.didWork = true
                     if let step = Activity.step(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:]) { d.step = step }
                     d.work.note(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:])
                 }
@@ -291,6 +309,8 @@ public enum Recap {
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent.name) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
+        // A question the transcript shows still open: the card shows it and its choices even when no hook said so.
+        if d.turnOpen, let t = d.pendingTool, var q = Ask(pending: t, agent: agent.id) { q.transcriptAt = t.at ?? last; p.ask = q }
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil
         p.now = working ? d.step : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
@@ -437,9 +457,8 @@ public enum Recap {
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.
-            if ["AskUserQuestion", "question"].contains(t.name) {
-                return ((.needsYou, "\(short) asked you something"), t.question.map { "Answer: “\(clip($0, 100))”" } ?? "")
-            }
+            // The card shows the question itself and its choices, so there is no Next row to point at it.
+            if t.isQuestion { return ((.needsYou, "\(short) asked you something"), "") }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
             let expected: TimeInterval = ["Bash", "bash"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
@@ -550,9 +569,10 @@ extension WhileAway {
 }
 
 extension Project {
-    /// The same project with a "needs you" from before `since` read as history. A request still open (`ask`) always counts.
+    /// The same project with a "needs you" from before `since` read as history. A request the hooks reported still open (`ask`)
+    /// always counts; a question only the transcript shows grows old like any guess.
     public func settled(since: Date) -> Project {
-        guard needsAttention, ask == nil, let t = lastActive, t < since else { return self }
+        guard needsAttention, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
         var p = self
         p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         p.ask = nil

@@ -1225,7 +1225,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             case (125, _): self.send(.next)
             case (126, _): self.send(.previous)
             case (_, ","): if list, e.modifierFlags.contains(.command) { self.send(.openSettings) } else { return e }   // Command+comma, on the card and in the list (where letters filter)
-            case (_, "r"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
+            case (_, "r"):
+                // A card with a request on it offers no Reply: a message sent while a question is open dismisses the question.
+                let asking = self.projects.indices.contains(self.machine.selected) && self.projects[self.machine.selected].ask != nil
+                if self.machine.phase == .open, !asking { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             case (_, "a"), (_, "d"):
                 // A permission on the card: A allows, D denies.

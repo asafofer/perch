@@ -139,4 +139,31 @@ import Foundation
         #expect(HookEvent.parse(agent: "claude", event: "Stop", body: Data(#"{"session_id":"s"}"#.utf8), requestId: "r", pid: 77)?.pid == 77)
         #expect(HookEvent.parse(agent: "claude", event: "Stop", body: Data(#"{"session_id":"s"}"#.utf8), requestId: "r")?.pid == nil)
     }
+
+    // MARK: a question the hooks never reported (Bypass permissions, or no hooks installed)
+    func questionProject(at asked: Date) -> Project {
+        let lines = [#"{"type":"user","sessionId":"s2","cwd":"/Users/a/app","timestamp":"2026-10-07T09:00:00.000Z","message":{"content":"plan it"}}"#,
+                     #"{"type":"assistant","timestamp":"2026-10-07T09:00:05.000Z","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"q","name":"AskUserQuestion","input":{"questions":[{"question":"Pick one?","options":[{"label":"A"},{"label":"B"}]}]}}]}}"#]
+        var p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: asked, quietFor: 1)!
+        p.ask?.transcriptAt = asked
+        return p
+    }
+    @Test func aHookThatCameBeforeTheTranscriptsOpenQuestionDoesNotHideIt() {
+        let asked = Date(), p = questionProject(at: asked)
+        let before = LiveStatus(kind: .working, at: asked.addingTimeInterval(-4))   // the last tool's PostToolUse
+        let shown = p.applying(before)
+        #expect(shown.ask?.questions.first?.options == ["A", "B"]); #expect(shown.status.text == "Claude asked you something")
+    }
+    @Test func aHookThatCameAfterTheQuestionMovesOn() {
+        let asked = Date(), p = questionProject(at: asked)
+        let after = LiveStatus(kind: .working, at: asked.addingTimeInterval(20))   // answered: its PostToolUse
+        #expect(p.applying(after).ask == nil); #expect(p.applying(after).status.kind == "running")
+    }
+    @Test func aRequestTheHooksDidReportIsTheOneThatCanBeAnswered() {
+        let asked = Date(), p = questionProject(at: asked)
+        var live = LiveStatus(kind: .asking, at: asked.addingTimeInterval(1))
+        guard case .asks(let a)? = HookEvent.parse(agent: "claude", event: "PermissionRequest", body: Data(#"{"session_id":"s2","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Pick one?","options":[{"label":"A"},{"label":"B"}]}]}}"#.utf8), requestId: "r9")?.kind else { Issue.record("not an ask"); return }
+        live.asks = [a]
+        #expect(p.applying(live).ask?.answerable == true)
+    }
 }

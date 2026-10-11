@@ -63,6 +63,8 @@ public struct Ask: Equatable, Sendable {
     public let questions: [Question]
     /// Perch can answer this from the notch. Codex approvals are answered in the app, terminal ones in the terminal.
     public var answerable: Bool
+    /// Set when only the transcript showed this request (no hook reported it): when it was asked. The card shows it, read-only.
+    public var transcriptAt: Date?
 
     /// One question, its choices by label, and what each choice means as the agent described it.
     public struct Question: Equatable, Sendable {
@@ -84,7 +86,7 @@ public struct Ask: Equatable, Sendable {
             let qs = (input["questions"] as? [[String: Any]] ?? []).map { q -> Question in
                 let opts = (q["options"] as? [[String: Any]] ?? []).filter { $0["label"] is String }
                 return Question(text: q["question"] as? String ?? "A question for you", header: q["header"] as? String ?? "",
-                                multiSelect: q["multiSelect"] as? Bool ?? false,
+                                multiSelect: q["multiSelect"] as? Bool ?? q["multiple"] as? Bool ?? false,
                                 options: opts.compactMap { $0["label"] as? String }, notes: opts.map { $0["description"] as? String ?? "" })
             }
             kind = .question; title = "\(who) asked you something"; subject = Recap.clip(qs.first?.text ?? "A question for you", 140)
@@ -106,6 +108,14 @@ public struct Ask: Equatable, Sendable {
             title = "\(who) wants to \(verb)"; subject = what
             answerable = Agent.of(agent).answersFromNotch
         }
+    }
+
+    /// A question a transcript shows still open, for a session whose hooks never said so (not installed, or no permission
+    /// request in Bypass permissions mode). Perch cannot answer it from here: the card shows it and its choices.
+    public init?(pending t: PendingTool, agent: String) {
+        guard t.isQuestion, let data = t.questionInput, let input = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        self.init(id: "transcript:\(agent)", agent: agent, tool: "AskUserQuestion", input: input)
+        answerable = false
     }
 
     /// The plan's first real line, without its markdown heading marks.
@@ -222,6 +232,9 @@ extension LiveStatus {
 extension Project {
     /// The same project with what its hooks said in place of what the transcript suggested.
     public func applying(_ live: LiveStatus) -> Project {
+        // A question the transcript shows open that the hooks never reported, and that came after their last word (a hook that
+        // did not fire in Bypass permissions mode): it stands. The tool's own result, a hook after it, is what ends it.
+        if live.kind != .asking, let q = ask, let at = q.transcriptAt, live.at <= at { return self }
         let who = Agent.of(app).short
         let status: AgentStatus
         var next = self.next, context = self.context

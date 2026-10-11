@@ -264,8 +264,32 @@ import Foundation
     @Test func aQuestionAskedThroughTheToolNeedsYouAtOnce() {
         let ask = toolCall("AskUserQuestion", #"{"questions":[{"question":"Which database should we use?"}]}"#)
         let s = status([prompt, ask], quiet: 1)
-        #expect(s.kind == "attention"); #expect(s.next == "Answer: “Which database should we use?”")
+        #expect(s.kind == "attention"); #expect(s.text == "Claude asked you something"); #expect(s.next == "")   // the question is the card, not a Next row
         #expect(status([prompt, toolCall("ExitPlanMode")], quiet: 1).text == "Claude has a plan for you")
+    }
+    static let twoQuestions = #"{"questions":[{"question":"What should an external screen show at rest?","header":"External","multiSelect":false,"options":[{"label":"Nothing at rest (Recommended)","description":"No virtual notch."},{"label":"Built-in screen only","description":"Never on external screens."}]},{"question":"How should hovering the top edge behave?","header":"Hover","multiSelect":false,"options":[{"label":"No hover open","description":"Hotkey only."},{"label":"Hover opens"}]}]}"#
+    @Test func aQuestionOpenInTheTranscriptIsAQuestionWithItsChoicesAndNeverAnswerable() throws {
+        let p = Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("AskUserQuestion", Self.twoQuestions)]), git: nil, now: Date(), quietFor: 1)!
+        let a = try #require(p.ask)
+        #expect(a.kind == .question); #expect(a.title == "Claude asked you something"); #expect(!a.answerable)
+        #expect(a.questions.map(\.text) == ["What should an external screen show at rest?", "How should hovering the top edge behave?"])
+        #expect(a.questions[0].options == ["Nothing at rest (Recommended)", "Built-in screen only"]); #expect(a.questions[0].notes == ["No virtual notch.", "Never on external screens."])
+        #expect(a.questions[1].notes == ["Hotkey only.", ""])
+        #expect(a.subject == "What should an external screen show at rest?"); #expect(a.transcriptAt != nil)
+        #expect(p.next == ""); #expect(p.status.text == "Claude asked you something")
+    }
+    @Test func aQuestionTheToolHasAlreadyHadAnAnswerToIsNotOpen() {
+        let p = Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("AskUserQuestion", Self.twoQuestions), result()]), git: nil, now: Date(), quietFor: 1)!
+        #expect(p.ask == nil)
+    }
+    @Test func aQuestionAsFreeTextInTheReplyIsNotAnAsk() {
+        let d = TranscriptParser.digest(lines: [prompt, #"{"type":"assistant","timestamp":"2026-10-07T09:00:05.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"Which database should we use?"}]}}"#])
+        #expect(Recap.project(digest: d, git: nil, now: Date(), quietFor: 400)!.ask == nil)
+    }
+    @Test func aQuestionFromTheTranscriptGrowsOldAndIsHistory() {
+        let p = Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("AskUserQuestion", Self.twoQuestions)]), git: nil, now: Date(), quietFor: 1)!
+        let settled = p.settled(since: Date())
+        #expect(settled.ask == nil); #expect(!settled.needsAttention)
     }
     @Test func stoppingTheAgentIsNotYourTurn() {
         let stop = #"{"type":"user","message":{"content":[{"type":"text","text":"[Request interrupted by user]"}]}}"#
