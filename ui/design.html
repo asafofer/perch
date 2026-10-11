@@ -446,7 +446,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ]],
     ['Installing', [
       ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, and the characters peeking up from the bottom edge.', function () { d.show('idle'); disk(false); }],
-      ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken across the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
+      ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken along the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
     ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
@@ -489,7 +489,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     now.textContent = 'The disk image window';
     at(900, function () { put(cur, [P[0] + 20, P[1] + 16], 1000); });
     at(2100, function () { now.textContent = 'Pick Perch up'; ghost.style.display = ''; put(ghost, P); icP.classList.add('lift'); });
-    at(2300, function () { now.textContent = 'Drag it along the arrow, onto Applications'; put(cur, [330 + 20, 150 + 16], 800, 'cubic-bezier(.3,.6,.5,1)'); put(ghost, [330, 150], 800, 'cubic-bezier(.3,.6,.5,1)'); });
+    at(2300, function () { now.textContent = 'Drag it along the arrow, onto Applications'; put(cur, [330 + 20, 180 + 16], 800, 'cubic-bezier(.3,.6,.5,1)'); put(ghost, [330, 180], 800, 'cubic-bezier(.3,.6,.5,1)'); });
     at(3100, function () { put(cur, [A[0] + 20, A[1] + 16], 800, 'cubic-bezier(.5,0,.6,1)'); put(ghost, A, 800, 'cubic-bezier(.5,0,.6,1)'); });
     at(3800, function () { icA.classList.add('hl'); });
     at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });

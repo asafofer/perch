@@ -42,11 +42,19 @@ tell application "Finder"
     set position of item "Perch.app" of container window to {175, 180}
     set position of item "Applications" of container window to {485, 180}
     update without registering applications
+    delay 3
+    close
+    open
     delay 2
     close
   end tell
 end tell
 OSA
+# Finder writes the window's layout to .DS_Store a moment after it closes; an image detached before that opens as a plain
+# Finder window that then rearranges itself. Wait for the file to be there, and quiet.
+for i in $(seq 1 20); do [ -f "$VOL/.DS_Store" ] && break; sleep 1; done
+[ -f "$VOL/.DS_Store" ] || echo "Finder wrote no .DS_Store: the window will open plain. Run it again."
+sleep 3
 sync
 for i in 1 2 3 4 5; do hdiutil detach "$DEV" -quiet && break; sleep 2; done
 rm -f "$OUT"

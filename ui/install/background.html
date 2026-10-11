@@ -3,7 +3,7 @@
 <title>Perch disk image</title>
 <!-- The picture behind the icons in the Perch.dmg window (660 x 400 points). Finder puts the Perch icon on the left and the
      Applications folder on the right (scripts/make-dmg.sh places them at 175,180 and 485,180); this draws everything else:
-     the words, the light behind both icons, an arrow that arcs from one to the other, and the
+     the words, the light behind both icons, a thin line with a head between them, and the
      crowd of characters, the real ones (app.js draws them, coat and eyes), peeking up from the bottom edge.
      The design page shows it in a Finder window; scripts/render-dmg-background.mjs renders it to Resources/dmg/background.png and @2x. -->
 <link rel="stylesheet" href="../dist/ui.css">
@@ -11,15 +11,10 @@
 @font-face { font-family: Inter; font-weight: 100 900; src: url(../dist/fonts/inter-latin-wght-normal.woff2) format('woff2'); }
 html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
 body { position: relative; font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; color: #EDF1EE; }
-/* the night, and the light in it: a pool of each icon's colour, a trail of both between them, a warm horizon under the crowd */
+/* the night: a soft light from the top left and a faint warm horizon under the crowd */
 #bg { position: absolute; inset: 0; background:
   radial-gradient(ellipse 560px 420px at 50% 46%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),
   radial-gradient(ellipse 420px 300px at 0% 0%, rgba(255,255,255,.055), rgba(255,255,255,0) 100%),
-  radial-gradient(ellipse 90px 80px at 175px 182px, rgba(255,198,90,.30), rgba(255,198,90,0) 100%),
-  radial-gradient(ellipse 240px 200px at 175px 182px, rgba(245,170,50,.13), rgba(245,170,50,0) 100%),
-  radial-gradient(ellipse 90px 80px at 485px 182px, rgba(96,186,255,.30), rgba(96,186,255,0) 100%),
-  radial-gradient(ellipse 240px 200px at 485px 182px, rgba(90,160,255,.13), rgba(90,160,255,0) 100%),
-  radial-gradient(ellipse 140px 60px at 330px 158px, rgba(185,162,245,.16), rgba(185,162,245,0) 100%),
   radial-gradient(ellipse 360px 80px at 50% 100%, rgba(255,170,130,.14), rgba(255,170,130,0) 100%),
   linear-gradient(#0C1110, #060908); }
 #scene { display: none; }
@@ -38,13 +33,11 @@ svg.fx { position: absolute; left: 0; top: 0; overflow: visible; }
 <div id="scene"></div>
 <svg class="fx" width="660" height="400" viewBox="0 0 660 400" fill="none" aria-hidden="true">
   <defs>
-    <linearGradient id="trail" x1="258" x2="404" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F5B83D" stop-opacity=".15"/><stop offset=".5" stop-color="#B9A2F5" stop-opacity=".85"/><stop offset="1" stop-color="#7DC4F5"/></linearGradient>
-    <filter id="blur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="5"/></filter>
+    <linearGradient id="trail" x1="262" x2="398" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#EDF1EE" stop-opacity="0"/><stop offset=".55" stop-color="#EDF1EE" stop-opacity=".5"/><stop offset="1" stop-color="#EDF1EE" stop-opacity=".78"/></linearGradient>
   </defs>
   <g id="sparks" fill="#EDF1EE"></g>
-  <g stroke="url(#trail)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <g filter="url(#blur)" stroke-width="6" opacity=".7"><path d="M262 176Q330 112 396 170"/></g>
-    <path d="M262 176Q330 112 396 170"/><path d="M383 169.3L396 170L393.5 157.2"/>
+  <g stroke="url(#trail)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M262 180H398"/><path d="M390 172.5L398 180L390 187.5"/>
   </g>
 </svg>
 <h1>Drag Perch to Applications</h1>
@@ -59,7 +52,7 @@ var CREW = [['ears', '#F5B83D', 88, 318, 84, 'awake', [5, -3], -3], ['octo', '#B
             ['tile', '#7DC4F5', 452, 306, 90, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 572, 318, 84, 'awake', [-5, -3], 3]];
 document.getElementById('crew').innerHTML = CREW.map(function (c) {
   var x = c[2], y = c[3], z = c[4];
-  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + '28' + ' 0%,' + c[1] + '00 66%)"></div>' +
+  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + '0F' + ' 0%,' + c[1] + '00 66%)"></div>' +
     '<div class="cr-slot" style="left:' + (x - z / 2) + 'px;top:' + y + 'px;--cr:' + c[1] + ';--gx:' + c[6][0] + 'px;--gy:' + c[6][1] + 'px;transform:rotate(' + c[7] + 'deg)">' + window.perchDev.character(c[0], z, c[5]) + '</div>';
 }).join('');
 /* a few specks of light, always the same ones */
