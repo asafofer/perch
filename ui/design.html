@@ -321,6 +321,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Resting', 'A display without a notch shows nothing at rest. Switch Display to External. Perch opens there with the hotkey (Command+Option), and shows the live activity from the top edge.', function () { setDisplay(0); d.show('idle', true); }],
       ['Live activity', 'An answer or a request grows out of the top edge, centred on the screen, the same as from a notch.', function () { setDisplay(0); d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
       ['Opened by the hotkey', 'The card drops from the top edge.', function () { setDisplay(0); d.project(0); d.show('open'); }],
+      ['Closing', 'With no notch to narrow into, the card leaves whole: it rises into the top edge as it fades, the character with it. Opens and closes on a loop; switch Display to MacBook to compare with the notch.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.project(0); d.show('open', false, true); setTimeout(function () { if (me !== charRun) return; d.show('idle', true); setTimeout(loop, 1400); }, 1800); })(); }],
+      ['Live activity closing', 'Put away (the cross, or by itself after six seconds), the live activity leaves the same way: whole, rising into the top edge as it fades. Plays on a loop.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); setTimeout(function () { if (me !== charRun) return; var x = document.querySelector('.act [data-a=gone]'); if (x) x.click(); setTimeout(loop, 1400); }, 3200); })(); }],
       ['Settings: Hover opens', 'The row appears only while a display without a notch is connected. Off by default: resting the pointer on the top edge does nothing there. On, it opens Perch there like the notch does, with nothing drawn to aim at.', function () { setDisplay(0); d.settings(); }],
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); }]
     ]],
@@ -392,12 +394,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['6. All set', 'The ways to reach Perch, starting with your shortcut.', function () { d.onboarding(6, true); }]
     ]]
   ];
-  var now = document.getElementById('now'), btns = [], lastRun = null;
+  var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
     document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
-  document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); dispPicked = true; if (lastRun) lastRun(); dispPicked = false; }; });
   var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
   document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {

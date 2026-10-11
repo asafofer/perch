@@ -833,13 +833,15 @@
     n.dataset.shape = shaped ? '1' : '';
     document.documentElement.dataset.guide = s.guide || '';
     n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
+    var was = n.dataset.s, wasH = curH;
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
       /* beside the notch, or beside the live activity when it has widened the notch */
       idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)'; idleD = d;
-      cr.style.transform = idleXf;
+      /* no notch: the character leaves with the card, rising from its corner as it fades, instead of crossing to a notch that is not there */
+      cr.style.transform = virt && was !== 'idle' && !hello ? 'translate(' + (-CARD_W / 2 + 17) + 'px,' + ((idleH - 18) / 2 - 0.28 * wasH) + 'px)' : idleXf;
       if (helloNext) { helloNext = false; sayHello(); }
     } else if (!celebrating) {
       cr.style.width = cr.style.height = '20px';
