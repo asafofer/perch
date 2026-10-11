@@ -10,6 +10,7 @@ Read this file first. `README.md` has install and usage.
 2. **Look at it before you say it is done.** Render the design page in a browser (`cd ui && python3 -m http.server 8765`, open `/design.html`) and check each state. Say plainly what you checked and what you did not. Mock-ups sit on Raycast wallpapers (`ui/wallpapers/`, from raycast.com/wallpapers). The README's GIF is filmed from the design page (`design.html?record` plays a set flow): `./scripts/record.sh` (needs ffmpeg and an unlocked screen; a corner panel shows for about 22 s and never takes the keyboard).
 3. **Commits:** one-line messages, no mention of AI or co-authors. Commit after every working step.
 4. **Tests must stay green:** `swift test`.
+5. **Opening a PR:** the body follows `.github/pull_request_template.md` and carries a demo filmed from the design page. Agents use the `open-pr` skill (`.claude/skills/open-pr`): fill every section from the diff, `gh pr create --body-file`, then `./scripts/pr-demo.sh --publish`, which films the scenarios the branch added or changed in `ui/design.html` (or the ones named), one after another with a caption, and writes a GIF, an MP4 and a still of each into the PR's Demo section. The media lives on the `pr-media` branch, never main. A hook (`.claude/hooks/pr-body-check.py`) refuses `gh pr create` without the template. No visible change: Demo says so.
 
 ## Architecture
 
@@ -69,6 +70,7 @@ swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
 ./scripts/release.sh [--publish]    # a release that installed copies update to (Sparkle), see Updates
 ./scripts/make-icon.sh              # Resources/AppIcon.icns and docs/assets/icon.png from docs/assets/icon.svg (WebKit draws the coat)
+./scripts/pr-demo.sh [scenario...] [--publish]   # a PR's demo from the design page (see Opening a PR)
 ./scripts/agents-demo.sh [folder]   # herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux
 ```
 

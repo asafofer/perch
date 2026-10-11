@@ -88,6 +88,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
+.rec.play .now{display:block}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -321,6 +322,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Resting', 'A display without a notch shows nothing at rest. Switch Display to External. Perch opens there with the hotkey (Command+Option), and shows the live activity from the top edge.', function () { setDisplay(0); d.show('idle', true); }],
       ['Live activity', 'An answer or a request grows out of the top edge, centred on the screen, the same as from a notch.', function () { setDisplay(0); d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
       ['Opened by the hotkey', 'The card drops from the top edge.', function () { setDisplay(0); d.project(0); d.show('open'); }],
+      ['Closing', 'The same shrink as into a notch, but with no notch there it goes on shrinking to nothing at the top centre: no pill left behind, no fade. Opens and closes on a loop; switch Display to MacBook to compare with the notch.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.project(0); d.show('open', false, true); setTimeout(function () { if (me !== charRun) return; d.show('idle', true); setTimeout(loop, 1400); }, 1800); })(); }],
+      ['Live activity closing', 'Put away (the cross, or by itself after six seconds), the live activity shrinks the same way, to nothing at the top centre. Plays on a loop.', function () { var me = ++charRun; if (!dispPicked) setDisplay(0); (function loop() { if (me !== charRun) return; d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); setTimeout(function () { if (me !== charRun) return; var x = document.querySelector('.act [data-a=gone]'); if (x) x.click(); setTimeout(loop, 1400); }, 3200); })(); }],
       ['Settings: Hover opens', 'At the end of the Show Perch on menu, only while a display without a notch is connected. Off by default: resting the pointer on the top edge does nothing there. On, it opens Perch there like the notch does, with nothing drawn to aim at. It switches in place and the menu stays open.', function () { setDisplay(0); d.settings(); setTimeout(function () { var t = document.querySelector('.set .s-showtrig'); if (t) t.click(); }, 400); }],
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); setTimeout(function () { var t = document.querySelector('.set .s-showtrig'); if (t) t.click(); }, 400); }]
     ]],
@@ -402,12 +405,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['6. All set', 'The ways to reach Perch, starting with your shortcut.', function () { d.onboarding(6, true); }]
     ]]
   ];
-  var now = document.getElementById('now'), btns = [], lastRun = null;
+  var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
     document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
-  document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); if (lastRun) lastRun(); }; });
+  document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); dispPicked = true; if (lastRun) lastRun(); dispPicked = false; }; });
   var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
   document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
@@ -468,6 +471,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
+  /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
+     the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
+  var pm = /[?&]play=([^&]*)/.exec(location.search); if (!pm) return;
+  var hold = +((/[?&]hold=([\d.]+)/.exec(location.search) || [])[1] || 4) * 1000;
+  var all = []; GROUPS.forEach(function (g, gi) { g[1].forEach(function (s, si) { all.push({ g: g[0], s: s, b: boxes[gi].children[si] }); }); });
+  var list = decodeURIComponent(pm[1].replace(/\+/g, ' ')).split('|').map(function (n) {
+    var at = n.indexOf('/'), g = at > 0 ? n.slice(0, at) : null, name = at > 0 ? n.slice(at + 1) : n;
+    var hit = all.filter(function (x) { return x.s[0] === name && (!g || x.g === g); })[0];
+    if (!hit) console.warn('pr-demo: no scenario ' + n);
+    return hit;
+  }).filter(Boolean);
+  document.documentElement.classList.add('play');
+  list.forEach(function (x, i) { setTimeout(function () {
+    setDisplay(1); showTab(GROUPS.findIndex(function (g) { return g[0] === x.g; }));
+    run(x.b, x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0], x.s[2]);
+  }, 300 + i * hold); });
+
 })();
 </script>
 <script>
@@ -477,6 +497,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   if (!/[?&]record\b/.test(location.search) || !window.perchDev) return;
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
+  if (/[?&]play=/.test(location.search)) return;   /* pr-demo.sh: the scenarios script plays them */
   function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
   [[600, function () { d.project(0); d.show('open', false, true); }],
    [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],

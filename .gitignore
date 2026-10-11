@@ -9,3 +9,6 @@ ui/icons.local.json
 
 # design explorations: kept locally, not in the repo
 ui/explore-*.html
+
+# Claude Code worktrees
+.claude/worktrees/
