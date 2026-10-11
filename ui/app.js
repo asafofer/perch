@@ -770,7 +770,6 @@
     n.dataset.virt = virt ? '1' : '';
     n.dataset.s = st;
     curH = h;
-    tbEl.style.top = (h - 1) + 'px';   /* the test build's tag hangs from whatever the notch has become */
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
       /* beside the notch, or beside the live activity when it has widened the notch */
@@ -928,7 +927,7 @@
   function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
   /* a build that is not a release says so: a narrow black tab hangs under the notch (or the card) with TEST BUILD, the branch and
      the commit. Only while the notch is hovered or open or the character peeks out (input.css decides); the rest of the time it is away. */
-  scene.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"><b>TEST BUILD</b><span></span></div>');
+  n.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"><b>TEST BUILD</b><span></span></div>');   /* inside the notch: it grows and shrinks with it */
   var tbEl = q('.tb'), tbText = '';
   function testTag(s) {
     var t = s.testBuild || '';
@@ -941,7 +940,11 @@
     var others = s.projects.filter(function (p) { return !inside(s, p.id); });
     var need = waiting(s), done = others.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)]; }), heard = need.concat(errs);
-    var now = { need: heard.map(actKey), done: done.map(function (p) { return p.id; }) };
+    /* What is remembered does not depend on which sessions you are in: that guess can flicker (a reading goes stale while a card is
+       up), and a finish that dropped out of the list for a moment would land again. Only what is said is left out for the ones you are in. */
+    var everyDone = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
+    var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
+    var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];

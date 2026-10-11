@@ -245,7 +245,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         focus.changed = { [weak self] in if self?.machine.phase == .idle { self?.push() } }
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.machine.phase == .idle, let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, FocusProbe.reads(bid) else { return }
+                // Also while a card is up: a reading that went stale there would make every session in the app a maybe the moment it closes.
+                guard let self, let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, FocusProbe.reads(bid) else { return }
                 self.focus.poll(app: bid)
             }
         }
@@ -1391,7 +1392,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
             let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
-            if onActivity { hoverTask?.cancel(); hoverTask = nil; hoverLatched = true; return }
+            if onActivity {
+                hoverTask?.cancel(); hoverTask = nil; hoverLatched = true
+                if !tabHot { tabHot = true; web.evaluateJavaScript("window.perch && window.perch.hot(true)", completionHandler: nil) }
+                return
+            }
             hoverIdle(); return
         }
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
