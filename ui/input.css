@@ -383,10 +383,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 
 /* the reply opened out (app.js bigView): wider and taller, the whole chat in the message box */
 .p-open[data-big="1"] { width: 560px; }
-.p-open[data-big="1"] .o-said-in { max-height: 330px; }
+.p-open[data-big="1"] .o-said-in { max-height: 190px; }
 .p-open[data-big="1"] .o-you { max-width: 78%; margin-top: 14px; }
 .p-open[data-big="1"] .o-said-in > :first-child { margin-top: 0; }
 .p-open[data-big="1"] .md-tbl { max-height: 200px; }
 .o-turn { margin-top: 10px; }
 .o-did { margin-top: 10px; font-size: 12px; line-height: 16px; color: hsl(var(--muted-foreground) / .85); }
 .o-you + .o-turn, .o-you + .o-did { margin-top: 12px; }
+/* while you reply, the expand button takes Settings' place in the top bar */
+.p-open[data-rep="1"] .x-gear, .p-open:not([data-rep="1"]) .x-exp { display: none; }
