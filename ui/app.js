@@ -1078,7 +1078,7 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') {
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 2; paintFocus(); setTimeout(flashLive, 300); }
+      if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
     } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -1405,6 +1405,26 @@
     }, 1000);
   }
 
+  /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
+  var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false };
+  function scOf(sc) { return sc || SC0; }
+  function scKeysHtml(sc) { return '<span class="inline-flex items-baseline gap-[3px]">' + scOf(sc).keys.map(function (k) { return Kbd(k); }).join('') + '</span>'; }
+  function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
+  /* what the recorder asks for, or why it refused the last try (it keeps listening) */
+  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : 'Press your shortcut\u2026'; }
+  function shortcutStep(o) {
+    var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
+      return '<kbd class="inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 font-sans text-xl font-medium select-none transition-colors duration-300" style="' + (sc.tried ? 'background:rgba(140,207,164,.2);color:' + COLORS.done : 'background:rgba(255,255,255,.13);color:#f4f4f5') + ';box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)">' + k + '</kbd>';
+    }).join('');
+    var hint = sc.recording ? scPrompt(sc)
+      : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. You\u2019ll tap this a lot.</span>'
+      : needsAx ? 'A tap needs Accessibility. Go back to allow it, or record a key combo.'
+      : sc.kind === 'tap' ? 'Try it now. Tap both keys together.' : 'Try it now. Press it.';
+    return otitle(o, 'This is how you use Perch', 'Open and close it any time with this.') +
+      oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5 ' + (sc.recording ? 'opacity-40' : '') + '">' + big + '</div>') +
+      oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + hint + '</p>') +
+      ofoot(5, true, Button('ghost', sc.recording ? 'Cancel' : 'Use another shortcut', sc.recording ? Kbd('esc') : '', 'o-sc" data-a="' + (sc.recording ? 'cancel' : 'record')), 'Next', 'next');
+  }
   var onbStep = -1, onbSig = '', onbLast = null;
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
@@ -1426,7 +1446,7 @@
   function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
-  function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-14 flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
+  function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-[4.5rem] flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
     if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
@@ -1537,11 +1557,13 @@
         ofoot(4, false, '', o.only ? 'Done' : 'Next', 'next',
           '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2190', '\u2192') + 'Shape</span><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Colour</span></span>');
     } else if (st === 2) {
-      h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and opens with \u2318\u2325. macOS asks you to allow it once.') +
+      h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and listens for its shortcut. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
         oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
+      h = shortcutStep(o);
+    } else if (st === 4) {
       var rows = o.sources.map(function (x) {
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
         return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
@@ -1551,7 +1573,7 @@
         oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
-    } else if (st === 4) {
+    } else if (st === 5) {
       var live = o.live === 'on';
       h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
         oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
@@ -1560,7 +1582,7 @@
         oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(Kbd('\u2318\u2325'), 'Tap both to open or close Perch') + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
     }
     box.className = 'onb' + (animate ? ' go' : '');
@@ -1573,6 +1595,8 @@
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
     box.querySelectorAll('.o-skip').forEach(function (b) { b.onclick = function () { onbDo('next'); }; });
     box.querySelectorAll('.o-back').forEach(function (b) { b.onclick = function () { onbDo('back'); }; });
+    box.querySelectorAll('.o-sc').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: b.dataset.a }); }; });
+    box.querySelectorAll('.o-sc-big').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
@@ -1638,11 +1662,11 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 ? o.accessibility : '', o.step === 3 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
-      if (o.step === 3) onbSources(o);
-      if (o.step === 4 && (!was || was.live !== o.live)) onbLive(o);
+      if (o.step === 4) onbSources(o);
+      if (o.step === 5 && (!was || was.live !== o.live)) onbLive(o);
       return;
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
@@ -1712,7 +1736,11 @@
     };
     var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
+    var sc = scOf(o.shortcut), scRow = sc.recording
+      ? srow(sc.error ? '<span class="min-w-0 flex-1 truncate" style="color:' + COLORS.attention + '">' + sc.error + '</span>' : slabel('Open Perch'), '<span class="flex items-center gap-1.5"><span class="inline-flex h-[22px] items-center rounded-md bg-white/[0.1] px-2 text-xs ring-1 ring-white/35">' + (sc.error ? 'Press another\u2026' : 'Press your shortcut\u2026') + '</span>' + Button('ghost', 'Cancel', '', 's-scc') + '</span>')
+      : srow(slabel('Open Perch'), '<span class="flex items-center gap-1.5">' + scKeysHtml(sc) + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
+      scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName), Button('ghost', 'Change', '', 's-change')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       srow(slabel('Live status', '<span class="s-live">' + (o.live === 'on' ? 'on' : 'off') + '</span>'), swHtml(o.live === 'on', 'live', 'Live status')),
@@ -1724,10 +1752,13 @@
       /* a display without a notch shows nothing at rest; this lets the top edge of it open Perch (the hotkey always does) */
       srow(slabel('Hover opens on external display'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
     ] : []).concat([
-      /* nothing to do when it is allowed, so with the hover row beside it the card stays within the panel it fits in */
-      o.accessibility && o.hasExternal ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      /* nothing to do when it is allowed, so the row only shows while it is not */
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).join('');
+    ]).filter(Boolean);
+    /* the card has to fit its panel: past seven rows they sit a little closer */
+    rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', 'h-[26px]'); }) : rows;
+    rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
@@ -1746,6 +1777,9 @@
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
+    on('.s-sc', function () { post({ type: 'shortcut', action: 'record' }); });
+    on('.s-scc', function () { post({ type: 'shortcut', action: 'cancel' }); });
+    on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -1789,7 +1823,7 @@
   var setFocus = 0, appsAt = 0, liveNext = false;
   /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
   function flashLive() {
-    var r = q('.set').querySelectorAll('.s-row')[2];
+    var r = q('.set').querySelectorAll('.s-row')[3];
     if (r && r.animate && !STILL) r.animate([{ backgroundColor: 'rgba(255,255,255,.2)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1800, easing: 'ease-out' });
   }
   function paintFocus() {
@@ -1834,7 +1868,7 @@
     if (!o) return;
     var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
@@ -1860,8 +1894,24 @@
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
-  var devFrom = '';
+  var devFrom = '', devSc = Object.assign({}, SC0);
+  /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
+  function devScSync(patch) {
+    Object.assign(devSc, patch || {});
+    if (!snap) return;
+    var s = JSON.parse(JSON.stringify(snap));
+    if (s.settings) s.settings.shortcut = JSON.parse(JSON.stringify(devSc));
+    if (s.onboarding) s.onboarding.shortcut = JSON.parse(JSON.stringify(devSc));
+    s.timerToken++; apply(s);
+  }
   function dev(m) {
+    if (m.type === 'shortcut') {
+      if (m.action === 'record') devScSync({ recording: true, error: '' });
+      else if (m.action === 'cancel') devScSync({ recording: false, error: '' });
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0));
+      else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true });
+      return;
+    }
     /* the drafts Swift keeps, kept here instead */
     if (m.type === 'draft') { base.drafts = base.drafts || {}; if (m.text) base.drafts[m.id] = m.text; else delete base.drafts[m.id]; if (snap) snap.drafts = base.drafts; return; }
     if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
@@ -1888,10 +1938,10 @@
       else if (m.action === 'back') o.step = Math.max(o.step - 1, 0);
       else if (m.action === 'finish') s.phase = 'idle';
       else if (m.action === 'accessibility') o.accessibility = true;
-      if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
+      if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, shortcut: JSON.parse(JSON.stringify(devSc)) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
@@ -1950,19 +2000,22 @@
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
+      shortcut: function (patch) { devScSync(patch); },
       settings: function (o) {
+        devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, shortcut: JSON.parse(JSON.stringify(devSc)) }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
       onboarding: function (step, accessibility, only, live, all, scan) {
+        devSc = Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 6, accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: 7, shortcut: JSON.parse(JSON.stringify(devSc)), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {
@@ -2037,6 +2090,43 @@
         apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
       }
     };
+    /* recording and trying the shortcut with the browser's own keys (capture phase, before anything else sees them) */
+    var scMods = [], scKey = false, SC_GLYPH = [['ctrlKey', '\u2303'], ['altKey', '\u2325'], ['shiftKey', '\u21E7'], ['metaKey', '\u2318']];
+    var scHeld = function (e) { return SC_GLYPH.filter(function (g) { return e[g[0]]; }).map(function (g) { return g[1]; }); };
+    var scTaken = { '\u2303\u2325P': 'the welcome card', '\u2303\u2325L': 'the project list', '\u2303\u2325Q': 'Quit Perch', '\u2318Q': 'Quit in every app', '\u2318W': 'Close in every app', '\u2318C': 'Copy', '\u2318V': 'Paste', '\u2318Space': 'Spotlight' };
+    var scDone = function (keys, kind) {
+      var same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', tried: false });
+    };
+    document.addEventListener('keydown', function (e) {
+      if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding') || e.repeat) return;
+      var isMod = /^(Control|Alt|Shift|Meta)$/.test(e.key), held = scHeld(e);
+      if (isMod) { if (held.length >= scMods.length) scMods = held; scKey = false; if (devSc.recording) { e.preventDefault(); e.stopImmediatePropagation(); } return; }
+      if (!devSc.recording) {
+        if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'combo' && held.concat([e.key === ' ' ? 'Space' : e.key.toUpperCase()]).join('') === devSc.keys.join('')) { e.preventDefault(); devScSync({ tried: true }); }
+        scKey = true; return;
+      }
+      e.preventDefault(); e.stopImmediatePropagation(); scKey = true;
+      if (e.key === 'Escape') { devScSync({ recording: false, error: '' }); return; }
+      var name = { ' ': 'Space', ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192', Enter: '\u21A9', Tab: '\u21E5' }[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
+      if (!held.length) { devScSync({ error: 'Hold \u2318, \u2325, \u2303 or \u21E7 too' }); return; }
+      var combo = held.join('') + name;
+      if (scTaken[combo]) { devScSync({ error: combo + ' is ' + scTaken[combo] }); return; }
+      scDone(held.concat([name]), 'combo');
+    }, true);
+    document.addEventListener('keyup', function (e) {
+      if (!snap || !(snap.phase === 'settings' || snap.phase === 'onboarding')) return;
+      if (scHeld(e).length) return;
+      var mods = scMods, only = !scKey; scMods = []; scKey = false;
+      if (!only || !mods.length) return;
+      if (devSc.recording) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys' }); return; }
+        var tap = mods.join('');
+        if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap] }); return; }
+        scDone(mods.slice().sort(function (a, b) { return '\u2303\u2325\u21E7\u2318'.indexOf(a) - '\u2303\u2325\u21E7\u2318'.indexOf(b); }), 'tap');
+      } else if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'tap' && mods.slice().sort().join('') === devSc.keys.slice().sort().join('')) devScSync({ tried: true });
+    }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
