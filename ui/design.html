@@ -34,7 +34,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
 
 /* display switch */
-.disp{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
+.disp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
@@ -79,7 +79,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   <div class="deskwrap">
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div class="now" id="now">Welcome back</div></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
-      <span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
+      <span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span>
+      <span style="margin-left:14px">Status</span><span id="stpos" style="display:contents"><button data-p="" aria-pressed="true">Beside the title</button><button data-p="right" aria-pressed="false">Under it, right</button><button data-p="after" aria-pressed="false">After the project</button></span></div>
   </div>
 
   <section>
@@ -195,7 +196,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Finished', 'Finished while you were away: what it did, and what is next.', function () { d.project(1); d.show('open'); }],
       ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: '48m ago' }); }],
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
-      ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }]
+      ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }],
+      ['Working, a long title', 'A title that runs long. Beside the title, the status takes room from it; under it, the title gets the whole line. Compare with Status above.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
     ['More agents', [
       ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
@@ -315,6 +317,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+  }; });
+  /* where the card's status sits, to compare: beside the title (as built), or on the grey line under it */
+  document.querySelectorAll('#stpos button').forEach(function (b) { b.onclick = function () {
+    var pane = document.querySelector('.p-open'); if (b.dataset.p) pane.dataset.stpos = b.dataset.p; else delete pane.dataset.stpos;
+    document.querySelectorAll('#stpos button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    if (lastRun) lastRun();
   }; });
   function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
   var wrap = document.getElementById('groups');

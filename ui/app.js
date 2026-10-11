@@ -173,7 +173,8 @@
          project and what you were doing. Then, apart, what happened; then Next. Read top to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
         '<div class="flex items-baseline gap-2"><span dir="auto" class="o-name min-w-0 flex-1 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span><span class="o-st flex flex-none items-center gap-1.5 text-xs"></span></div>' +
-        '<p dir="auto" class="o-sub truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p></div></div>' +
+        /* the status can sit on this grey line instead (.p-open[data-stpos], compared on the design page): at its right, or after the project */
+        '<div class="o-l2 flex min-w-0 items-baseline gap-1.5"><p dir="auto" class="o-sub min-w-0 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-sep flex-none text-[13px] leading-[18px] text-muted-foreground">\u00b7</span><span class="o-st2 flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -478,7 +479,7 @@
     if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    q('.o-st').dataset.h = ''; q('.o-st').innerHTML = Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
+    status(Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention }));
     var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
@@ -535,6 +536,10 @@
     });
   }
 
+  /* the card's status, in both places it can sit; drawn again only when it changes, so its spinner keeps turning */
+  function status(html, title) {
+    [q('.o-st'), q('.o-st2')].forEach(function (st) { if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || ''; });
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -542,11 +547,11 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    var st = q('.o-st'), sh = Phrase(ph); if (st.dataset.h !== sh) { st.innerHTML = sh; st.dataset.h = sh; } st.title = p.status.text;   /* drawn again only when it changes, so its spinner keeps turning */
+    status(Phrase(ph), p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
-    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none'; q('.o-sep').style.display = proj ? '' : 'none';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
@@ -562,7 +567,7 @@
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
-      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
+      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; q('.o-sep').style.display = ''; }
       if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
       else h.innerHTML = said ? '' : md(p.headline);
       c.innerHTML = ''; box.innerHTML = '';

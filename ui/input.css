@@ -281,6 +281,15 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
 @media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
 /* replying (app.js showSaid): the agent's message takes the summary's place */
+/* where the card's status sits (app.js status; the design page compares): beside the title, or on the grey line under it,
+   at its right ("right") or after the project ("after"). The title gets the whole line then. */
+.o-st2, .o-sep { display: none !important; }
+.p-open[data-stpos] .o-st { display: none; }
+.p-open[data-stpos] .o-st2 { display: flex !important; }
+.p-open[data-stpos="right"] .o-sub { flex: 1 1 auto; }
+.p-open[data-stpos="right"] .o-st2 { margin-left: auto; }
+.p-open:not([data-stpos]) .o-l2:has(.o-sub[style*="none"]) { display: none; }
+.p-open[data-stpos="after"] .o-sep:not([style*="none"]) { display: inline !important; }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
 .p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
