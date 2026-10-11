@@ -85,6 +85,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 <script>
 (function () {
   var d = window.perchDev; if (!d) return;
+  var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) document.querySelector('.r-in').value = 'Match by vendor first, then by amount.'; }, 700); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
@@ -152,6 +153,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Something needs you', 'Already waiting when you look: just the wings.', function () { d.show('idle'); }],
       ['All clear', 'The last thing waiting on you was answered: the wings fold away. The character stays in.', function () { d.clear(); }]
     ]],
+    ['Character', [
+      ['The jump', 'One of the tricks the preview plays while you choose, here every few seconds: it crouches with its eyes down, pushes off stretched, rises and slows at the top, falls faster, lands in a squash and settles. The flip is gone.', function () { d.trick('jump'); }],
+      ['Switching shapes', 'Right three times at an easy pace, then four quick presses, then Up and Down through the colours. The whole character squashes and pops, eyes and all; the new shape and its face arrive together at the low point; a quick press carries on from where it is.', function () {
+        d.onboarding(1); var me = ++charRun, keys = [['right', 900], ['right', 1700], ['right', 2500], ['right', 3600], ['right', 3800], ['right', 4000], ['right', 4200], ['up', 5400], ['up', 6100], ['down', 6800]];
+        keys.forEach(function (k) { setTimeout(function () { if (me === charRun && document.querySelector('.cr-pv')) window.perch.onbKey(k[0]); }, k[1]); });
+      }]
+    ]],
     ['External display', [
       ['Resting tab', 'Switch Display to External. A small black tab marks where to aim.', function () { setDisplay(0); d.show('idle', true); }],
       ['Opened from the tab', 'The card drops from the tab like it does from the notch.', function () { setDisplay(0); d.project(0); d.show('open'); }]
@@ -183,7 +191,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); charRun++; fn(); }
   var wrap = document.getElementById('groups');
   var play = document.createElement('button'); play.className = 'play'; play.textContent = 'Play the whole flow';
   play.onclick = function () { btns.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); now.textContent = 'Resting, then welcome back'; d.play(); };
