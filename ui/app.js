@@ -895,7 +895,7 @@
   function actWords(p, k) {
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
-  /* Hovering a cut-short question, or a choice, says the rest below everything else: only what is under the pointer, and nothing that
+  /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
      is already there moves (the pointer would lose it). */
   function actExtra(p, k) {
     if (!actMore || act.mode !== 'full' || k !== 'ask') return '';
@@ -904,17 +904,17 @@
       var o = qs.options[actMore.c]; if (o == null) return '';
       return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
     }
-    return '<div class="act-ex">' + esc(qs.text) + '</div>';
+    return '';
   }
   function renderAct() {
     actEl.dataset.mode = act.mode;
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
-    var p = act.p, k = act.kind, a = p.ask, body = '';
+    var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') body = '<span dir="auto" class="act-t">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>';
+    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
     act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
@@ -936,7 +936,7 @@
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
-      (body ? '<div class="act-body">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
+      (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
     actGlide();
@@ -1023,7 +1023,14 @@
     var even = function (x) { return Math.ceil(x / 2) * 2; };
     var w = even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw)));   /* the panel is 480 wide */
     if (!actEl.querySelector('.act-btns')) return [even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150))), idleH];   /* an update restarting: just the row */
-    var bd = actEl.querySelector('.act-body'), base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
+    var bd = actEl.querySelector('.act-body');
+    if (bd && bd.classList.contains('askq')) {
+      /* as tall as the question is at this width (a line is 18px), up to five lines; past that it scrolls */
+      var mq = bd.cloneNode(true); mq.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;height:auto;transform:none;width:' + (w - 26) + 'px';
+      actEl.appendChild(mq); var qh = Math.min(96, Math.max(24, mq.offsetHeight + 4)); actEl.removeChild(mq);
+      bd.dataset.h = String(qh); bd.style.height = (qh - 2) + 'px';
+    }
+    var base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
     /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
     bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
     if (ex) {
@@ -1196,13 +1203,10 @@
   /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
   actEl.addEventListener('mousemove', function (e) {
     if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
-    var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch'), bd = e.target.closest('.act-body');
+    var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch');
     if (ch && qs) {
       var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
       if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
-    } else if (bd) {
-      var t = bd.querySelector('.act-t');
-      if (t && t.scrollWidth > t.clientWidth + 1) actMoreSet({ q: 1 }); else actMoreSet(null);
     } else actMoreSet(null);
   });
   /* it goes away a moment after the pointer leaves what it speaks for, so crossing from one choice to the next does not flicker */

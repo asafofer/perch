@@ -229,6 +229,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .upd-arc { transition: stroke-dashoffset .5s linear; }
 .act-body { left: 13px; right: 13px; top: calc(var(--ah) + 1px); height: 22px; display: flex; align-items: center; transform: translateY(-4px); }
 .act-body.tall { flex-direction: column; align-items: stretch; justify-content: flex-start; padding-top: 4px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }   /* a long list scrolls, six lines show */
+.act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
+.act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
 .act-ex b { display: block; font-weight: 500; color: #e4e4e7; }
 .act-li { display: flex; align-items: flex-start; gap: 8px; flex: none; min-height: 19px; padding: 2px 0; max-width: 100%; min-width: 0; color: #e4e4e7; font-size: 12.5px; line-height: 15px; white-space: normal; }
