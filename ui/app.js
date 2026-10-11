@@ -1228,7 +1228,7 @@
   /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' && u.fix === 'move' ? 'move Perch to Applications' : ph ? '' : 'checked daily';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked daily';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
@@ -1241,10 +1241,8 @@
     if (ph === 'current') return note(Ring('done'), 'You have the latest version', COLORS.done);
     if (ph === 'downloading') return note(updRing(u.progress || 0, 'size-4'), 'Downloading ' + esc(u.version), COLORS.running);
     if (ph === 'restarting') return note(Spinner('size-3.5', haze(COLORS.running)), 'Updating', COLORS.running);
-    if (ph === 'failed') {
-      var no = note(Ring('need'), u.during === 'update' ? 'Couldn\u2019t update' : 'Couldn\u2019t check', COLORS.attention);
-      return u.fix === 'move' ? Button('ghost', 'Show in Finder', '', 's-rev s-gr" title="' + esc(u.problem || '')) : no + Button('ghost', 'Try again', '', 's-chk s-gr" title="' + esc(u.problem || 'Look for a newer version of Perch'));
-    }
+    /* the reason is said on the left (updSub): here only what to do about it */
+    if (ph === 'failed') return u.fix === 'move' ? Button('ghost', 'Show in Finder', '', 's-rev s-gr') : Button('ghost', 'Try again', '', 's-chk s-gr');
     return Button('ghost', 'Check for updates', '', 's-chk s-gr" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
@@ -2423,7 +2421,7 @@
         o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         if (o.fresh !== false && (!snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '',
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */
