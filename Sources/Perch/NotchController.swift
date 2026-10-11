@@ -743,6 +743,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "setting":
             if let key = body["key"] as? String {
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
+                if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
                 if key == "login", let on = body["value"] as? Bool { setLaunchAtLogin(on) }
                 push()
             }
@@ -1042,7 +1043,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func settingsState() -> UISnapshot.Settings {
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
-                                   idleMinutes: Prefs.idleMinutes, login: SMAppService.mainApp.status == .enabled, live: liveState,
+                                   idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    back: machine.settingsFrom != nil)
     }
 

@@ -50,7 +50,7 @@ struct UISnapshot: Encodable {
     }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
-    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let login: Bool; let live: String
+    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
 
@@ -61,6 +61,8 @@ struct UISnapshot: Encodable {
         return agent.answersFromNotch && !HookInstaller.isInstalled(a.agent) ? "Perch can't answer this one. Turn on Live status in Settings." : "Answer in \(agent.short)."
     }
 
+    /// How long an unanswered question stays as wings in the notch, after its first nine seconds in full.
+    let questionSeconds = Prefs.questionSeconds
     let phase: String
     let settings: Settings?
     let character: Character
