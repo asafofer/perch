@@ -1,6 +1,6 @@
 #!/bin/bash
 # The README's GIF, filmed from the design page (ui/design.html?record): the real interface with sample data on a
-# Raycast wallpaper. Needs ffmpeg, and the screen unlocked (a corner panel shows while it records, ~22 s).
+# Raycast wallpaper. Needs ffmpeg. Headless: nothing shows on screen (~22 s).
 # Writes docs/assets/perch.gif.
 set -euo pipefail
 cd "$(dirname "$0")/.."
