@@ -983,8 +983,10 @@
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
-    var w = Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw));   /* the panel is 480 wide */
-    if (!actEl.querySelector('.act-btns')) return [Math.min(460, Math.max(idleW + 2 * side, idleW + 150)), idleH];   /* an update restarting: just the row */
+    /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
+    var even = function (x) { return Math.ceil(x / 2) * 2; };
+    var w = even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150, bw)));   /* the panel is 480 wide */
+    if (!actEl.querySelector('.act-btns')) return [even(Math.min(460, Math.max(idleW + 2 * side, idleW + 150))), idleH];   /* an update restarting: just the row */
     var bd = actEl.querySelector('.act-body');
     return [w, idleH + (bd ? +bd.dataset.h || 24 : 0) + 44];
   }
@@ -1141,7 +1143,7 @@
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
     var chipB = function (label, tip) { return '<button title="' + esc(tip) + '" class="s-upd h-[22px] cursor-pointer rounded-md px-2 text-[11.5px] font-medium tracking-[-0.005em] transition-colors">' + label + '</button>'; };
-    var mark = function (inner) { return '<span class="flex h-[22px] w-6 items-center justify-center">' + inner + '</span>'; };
+    var mark = function (inner) { return '<span class="grid size-5 flex-none place-items-center">' + inner + '</span>'; };
     if (ph === 'available') return chipB('Update', 'Perch ' + u.version + ' is available');
     if (ph === 'ready') return chipB('Restart to update', 'Perch ' + u.version + ' is downloaded. It installs and restarts Perch');
     if (ph === 'checking') return mark(Spinner('size-3.5', haze(COLORS.running)));
@@ -1941,7 +1943,7 @@
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', updSub(snap)), '<span class="s-updslot">' + updSlot(snap) + '</span>')
+      srow(slabel('Updates', updSub(snap)), '<span class="s-updslot flex items-center">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
     /* the card has to fit its panel: past seven rows they sit a little closer */
     rows = rows.length > 7 ? rows.map(function (r) { return r.replace('h-[30px]', rows.length > 9 ? 'h-[24px]' : rows.length > 8 ? 'h-[26px]' : 'h-[28px]'); }) : rows;
@@ -2063,7 +2065,12 @@
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
-      var us = box.querySelector('.s-updslot'); if (us && snap) { us.innerHTML = updSlot(snap); bindUpdSlot(us, snap); }
+      var us = box.querySelector('.s-updslot');
+      if (us && snap) {
+        var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
+        if (us._k !== key) { us.innerHTML = html; us._k = key; bindUpdSlot(us, snap); }
+        var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
+      }
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
