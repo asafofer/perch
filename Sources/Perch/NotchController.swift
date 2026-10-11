@@ -1161,6 +1161,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let fast = self.machine.phase != .idle || top < 160
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
+                self.watchLaunchers()
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
@@ -1185,15 +1186,30 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
     /// click outside, so the card makes way rather than cover that app's window. Not during onboarding (you go to System
     /// Settings in the middle of it), nor while a reply is typed or on its way.
-    private func lostKeys() {
+    private func makeWay() {
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
         send(.dismiss)
+    }
+
+    /// A card without the keyboard (the welcome card, a hovered one) never hears it go, so while a card is up Perch looks
+    /// a few times a second for a launcher that has it. Twice in a row counts, so an app switch in flight does not.
+    private var launcherCheck = (tick: 0, hits: 0)
+    private func watchLaunchers() {
+        guard machine.phase != .idle else { launcherCheck = (0, 0); return }
+        launcherCheck.tick += 1
+        guard launcherCheck.tick % 8 == 0 else { return }
+        let launcher = Quiet.launcherOpen()
+        launcherCheck.hits = launcher == nil ? 0 : launcherCheck.hits + 1
+        if launcherCheck.hits >= 2 {
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \(launcher ?? "") has the keyboard, the card makes way") }
+            launcherCheck.hits = 0; makeWay()
+        }
     }
 
     private func installMouseMonitors() {
         startCursorPolling()
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lostKeys() }
+            MainActor.assumeIsolated { self?.makeWay() }
         }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.clickedElsewhere() } }) { mouseMonitors.append(g) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
@@ -1220,7 +1236,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             guard let self, !Task.isCancelled else { return }
             self.hoverTask = nil
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hover: dwell done") }
-            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation) { self.comeBack(byHover: true) }
+            // Not over a launcher that has the keyboard: the card would cover it. It opens once the launcher is gone.
+            if self.machine.phase == .idle, self.notchHoverRect().contains(NSEvent.mouseLocation), Quiet.launcherOpen() == nil { self.comeBack(byHover: true) }
         }
     }
 
