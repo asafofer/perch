@@ -610,6 +610,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let moving = s.frame != info.frame
         if moving, ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch screen: \(s.localizedName), cursor at \(NSEvent.mouseLocation)") }
         screen = s; info = s.screenInfo
+        // Hovered stays set while a card you hovered open is up; carried to another display, the resting notch there
+        // would show as hovered (and a test build its tab) until the next cursor reading. The hover is the old screen's.
+        if moving, tabHot { tabHot = false; web.evaluateJavaScript("window.perch && window.perch.hot(false)", completionHandler: nil) }
         if moving, ready {
             panel.alphaValue = 0
             revealToken += 1; revealPending = true
