@@ -34,6 +34,9 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
    Back from full screen, both grow out of that point with a light pop (data-from=gone). */
 .n[data-virt="1"][data-gone="1"] { width: 0 !important; height: 0 !important; margin-left: 0 !important; border-radius: 9.5px; translate: 0 calc(var(--pt, 3px) + var(--ph, 18px) / 2);
   transition: height var(--pill-out), width var(--pill-out), margin-left var(--pill-out), translate var(--pill-out), border-radius .3s, box-shadow .3s, opacity 0s .36s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
+/* here only for a hover (Perch rests on another display): nothing at all, the box a point on the top edge for the card to grow from */
+.n[data-virt="1"][data-away="1"] { width: 0 !important; height: 0 !important; margin-left: 0 !important; translate: none;
+  transition: height .34s cubic-bezier(.4,0,.2,1), width .34s cubic-bezier(.4,0,.2,1), margin-left .34s cubic-bezier(.4,0,.2,1), border-radius .3s, box-shadow .3s, opacity 0s .36s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
 .n[data-virt="1"][data-pill="1"][data-from="gone"] {
   transition: height var(--pill-in), width var(--pill-in), margin-left var(--pill-in), translate var(--pill-in), border-radius 0s, box-shadow .3s, opacity 0s, --gcol .7s cubic-bezier(.3,.9,.4,1); }
 .perch, :root { --pill-go: .5s cubic-bezier(.32,.72,0,1); --pill-at: .06s; --pill-out: .3s cubic-bezier(.4,0,.7,.2); --pill-in: .46s cubic-bezier(.3,1.25,.5,1); }

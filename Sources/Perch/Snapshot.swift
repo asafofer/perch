@@ -3,7 +3,9 @@ import PerchCore
 
 /// What Swift tells the web UI. The UI never decides anything; it only draws this.
 struct UISnapshot: Encodable {
-    struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat; let pillW: CGFloat; let pillH: CGFloat; let pillTop: CGFloat; let fullScreen: Bool }
+    struct Screen: Encodable { let hasNotch: Bool; let notchW: CGFloat; let notchH: CGFloat; let pillW: CGFloat; let pillH: CGFloat; let pillTop: CGFloat; let fullScreen: Bool
+        /// Perch is on this display only for a hover (it rests on another): nothing is drawn here at rest, so no pill.
+        var away = false }
     struct Status: Encodable { let kind: String; let text: String; let app: String }
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
@@ -92,7 +94,7 @@ struct UISnapshot: Encodable {
     let selected: Int
     let autoCollapse: Bool
     let timerToken: Int
-    let screen: Screen
+    var screen: Screen
     let projects: [UIProject]
     /// Real app icons as data URLs. Sent once, with the first snapshot.
     let icons: [String: String]?

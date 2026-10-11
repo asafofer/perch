@@ -701,6 +701,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
+        sent.screen.away = awayForHover
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
@@ -1603,7 +1604,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// A screen without a notch, at rest with nothing showing: only the pill with the character is there to aim at,
     /// unless Hover opens on external displays makes the whole top edge count.
-    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty && !info.fullScreen }
+    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty && !info.fullScreen && !awayForHover }
 
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
     /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.

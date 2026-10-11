@@ -833,7 +833,8 @@
        sizes and places it (NotchGeometry.pill: the same whole-point gap above and below). The live activity and the card grow
        from the top centre and close back into it. While an app is full screen there, nothing at all: they shrink to nothing. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
-    var pill = virt && st === 'idle' && !act.mode && !scr.fullScreen, gone = virt && st === 'idle' && !act.mode && !!scr.fullScreen;
+    /* `away`: Perch rests on another display and is here only for a hover, so nothing is drawn and the card grows straight from the top edge */
+    var bare = virt && st === 'idle' && !act.mode, away = bare && !!scr.away, pill = bare && !away && !scr.fullScreen, gone = bare && !away && !!scr.fullScreen;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
@@ -850,17 +851,18 @@
     document.documentElement.dataset.guide = s.guide || '';
     /* back from full screen, the pill and the character grow out of the point they shrank into, with a light pop */
     var back = pill && n.dataset.gone === '1';
-    n.dataset.pill = pill ? '1' : ''; n.dataset.gone = gone ? '1' : '';
+    n.dataset.pill = pill ? '1' : ''; n.dataset.gone = gone ? '1' : ''; n.dataset.away = away ? '1' : '';
     if (back) { clearTimeout(backTimer); n.dataset.from = cr.dataset.from = 'gone'; backTimer = setTimeout(function () { n.dataset.from = cr.dataset.from = ''; }, 700); }
     else if (!pill) { clearTimeout(backTimer); n.dataset.from = cr.dataset.from = ''; }
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
       /* full screen: it shrinks into the pill's centre, the same point the pill shrinks into */
-      var d = pill ? 14 : gone ? 0 : 18; cr.style.width = cr.style.height = d + 'px';
+      var d = pill ? 14 : gone || away ? 0 : 18; cr.style.width = cr.style.height = d + 'px';
       /* in the pill, centred by its drawn outline rather than its box (an ear or a tentacle reaches further than a bun);
          otherwise beside the notch, or beside the live activity when it has widened the notch */
-      if (pill || gone) { var mid = bodyMid(), k = d / 24; idleXf = 'translate(' + (-d / 2 + (12 - mid[0]) * k) + 'px,' + (pt + ph / 2 - d / 2 + (12 - mid[1]) * k) + 'px)'; }
+      if (away) idleXf = 'translate(0px,0px)';
+      else if (pill || gone) { var mid = bodyMid(), k = d / 24; idleXf = 'translate(' + (-d / 2 + (12 - mid[0]) * k) + 'px,' + (pt + ph / 2 - d / 2 + (12 - mid[1]) * k) + 'px)'; }
       else idleXf = 'translate(' + (-w / 2 - d - 6) + 'px,' + ((idleH - d) / 2) + 'px)';
       idleD = d;
       cr.dataset.pill = pill || gone ? '1' : ''; cr.dataset.gone = gone ? '1' : '';
@@ -1345,7 +1347,7 @@
     lastSt = st;
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch or pill. A card opening there grows from its notch. */
-    var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
+    var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH, !!s.screen.away].join('|');
     if (screenKey && sk !== screenKey) {
       scene.dataset.moved = '1';
       layout(was === 'idle' ? 'idle' : st, s);
@@ -2490,8 +2492,8 @@
     }
     window.perchDev = {
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
-      setNotch: function (has, full) {
-        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 28, pillW: 30, pillH: 19, pillTop: 5, fullScreen: !!full };
+      setNotch: function (has, full, away) {
+        base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 28, pillW: 30, pillH: 19, pillTop: 5, fullScreen: !!full, away: !!away };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },
