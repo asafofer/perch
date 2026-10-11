@@ -1026,12 +1026,17 @@
   /* Settings > Notify me about: the kinds the notch may announce. Turning one off only stops the live activity (the full row and the
      wings); the list, the cards, the status rings and the welcome card keep saying everything. Swift sends the kinds that are off. */
   var NOTIFY = [['done', 'Finished'], ['run', 'Needs your OK'], ['ask', 'Asked you something'], ['plan', 'Has a plan'], ['error', 'Stopped on an error']];
-  /* the row's own marks: the three-line plan ring is unreadable this small, so a plan is a flag and an error a cross, each in a colour of its own */
-  var NMARK = { done: ['done', COLORS.done], run: ['permission', COLORS.attention], ask: ['question', COLORS.attention],
-    plan: ['<path d="M9.4 17V7"/><path d="M9.4 7.4l6.2 2.7-6.2 2.7z" fill="#B7A3F0"/>', '#B7A3F0'], error: ['<path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/>', '#F08A8A'] };
+  /* the row's own marks, Lucide icons as they are (lucide.dev, ISC), each in a colour of its own */
+  var NMARK = {
+    done: ['<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>', COLORS.done],
+    run: ['<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>', COLORS.attention],
+    ask: ['<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', COLORS.attention],
+    plan: ['<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>', '#B7A3F0'],
+    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A']
+  };
   function nMark(k) {
-    var m = NMARK[k], g = RING[m[0]] || m[0], c = m[1];
-    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/>' + g + '</svg>';
+    var m = NMARK[k];
+    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
   }
   function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
