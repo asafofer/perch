@@ -19,11 +19,14 @@ enum ScreenChooser {
         NSScreen.screens.first { $0.notchSize != nil } ?? NSScreen.main ?? NSScreen.screens[0]
     }
 
+    /// The display the cursor is on, the top row included (that is where you aim at a notch), else nil.
+    static func under(_ p: CGPoint = NSEvent.mouseLocation) -> NSScreen? {
+        let screens = NSScreen.screens
+        return ScreenPicker.index(of: p, in: screens.map(\.frame)).map { screens[$0] }
+    }
+
     /// The display under the cursor, else the built-in one, else the main one.
     static func current() -> NSScreen {
-        let p = NSEvent.mouseLocation
-        return NSScreen.screens.first { $0.frame.contains(p) }
-            ?? NSScreen.screens.first { $0.notchSize != nil }
-            ?? NSScreen.main ?? NSScreen.screens[0]
+        under() ?? NSScreen.screens.first { $0.notchSize != nil } ?? NSScreen.main ?? NSScreen.screens[0]
     }
 }

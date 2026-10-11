@@ -36,3 +36,13 @@ public enum NotchGeometry {
         CGRect(x: screen.frame.midX - width / 2, y: screen.frame.maxY - height, width: width, height: height)
     }
 }
+
+public enum ScreenPicker {
+    /// Which of these screen frames the cursor is on. CGRect.contains leaves out the top and right edges, but the cursor
+    /// rests exactly on the top edge of a screen (y == maxY) when you aim at a notch, so a screen that holds the point
+    /// strictly wins, and failing that one whose edge the point sits on. Nil when it is on none of them.
+    public static func index(of point: CGPoint, in frames: [CGRect]) -> Int? {
+        if let i = frames.firstIndex(where: { $0.contains(point) }) { return i }
+        return frames.firstIndex { point.x >= $0.minX && point.x <= $0.maxX && point.y >= $0.minY && point.y <= $0.maxY }
+    }
+}

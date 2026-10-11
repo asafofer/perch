@@ -780,7 +780,7 @@
     else g.style.transition = '';
   }
   function layout(st, s) {
-    /* No hardware notch (an external display): draw a small black tab at the top centre, so there is always something to aim at. */
+    /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
@@ -789,6 +789,7 @@
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
     n.dataset.virt = virt ? '1' : '';
+    n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
@@ -1704,9 +1705,14 @@
       srow(slabel('Away from your Mac for'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
       srow(slabel('Questions stay in the notch for'), questSeg),
-      srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+    ].concat(o.hasExternal ? [
+      /* a display without a notch shows nothing at rest; this lets the top edge of it open Perch (the hotkey always does) */
+      srow(slabel('Hover opens on external display'), swHtml(!!o.hoverExternal, 'hoverExternal', 'Hover opens on external display'))
+    ] : []).concat([
+      /* nothing to do when it is allowed, so with the hover row beside it the card stays within the panel it fits in */
+      o.accessibility && o.hasExternal ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access')), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login'), swHtml(o.login, 'login', 'Open at login'))
-    ].join('');
+    ]).join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
       /* the keys, like the list's: every setting can be changed without the mouse */
@@ -1717,7 +1723,7 @@
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
       setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
-      if (b.dataset.k === 'login') post({ type: 'setting', key: 'login', value: on });
+      if (b.dataset.k === 'login' || b.dataset.k === 'hoverExternal') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
     bindApps(box);
@@ -1813,10 +1819,10 @@
     if (!o) return;
     var sig = JSON.stringify([o, charNow]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.accessibility, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
+    var shape = JSON.stringify([o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
-      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
+      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'hoverExternal' ? !!o.hoverExternal : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var lv = box.querySelector('.s-live'); if (lv) lv.textContent = o.live === 'on' ? 'on' : 'off';
       box.querySelectorAll('.s-seg').forEach(function (b) {
@@ -1870,7 +1876,7 @@
       if (o.step === 3 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on' }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
@@ -1932,7 +1938,7 @@
       settings: function (o) {
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on' }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */

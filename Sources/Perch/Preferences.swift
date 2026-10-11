@@ -40,6 +40,12 @@ enum Prefs {
         get { let v = d.integer(forKey: "questionSeconds"); return [30, 60, 300].contains(v) ? v : 60 }
         set { d.set(newValue, forKey: "questionSeconds") }
     }
+    /// Whether resting the cursor on the top edge of a display without a notch opens Perch there. Off by default: such a
+    /// display shows nothing at rest, and the hotkey and the live activity still work on it.
+    static var hoverExternal: Bool {
+        get { d.bool(forKey: "hoverExternal") }
+        set { d.set(newValue, forKey: "hoverExternal") }
+    }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
         get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
