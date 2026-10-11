@@ -1025,7 +1025,14 @@
   var actSeen = {}, actExpTimer = 0, ACT_Q_MS = 69000;   /* nine seconds in full, then the setting's seconds as wings (Swift sends it as questionSeconds) */
   /* Settings > Notify me about: the kinds the notch may announce. Turning one off only stops the live activity (the full row and the
      wings); the list, the cards, the status rings and the welcome card keep saying everything. Swift sends the kinds that are off. */
-  var NOTIFY = [['done', 'Finished', 'done'], ['run', 'Needs your OK', 'permission'], ['ask', 'Asked you something', 'question'], ['plan', 'Has a plan', 'plan'], ['error', 'Stopped on an error', 'need']];
+  var NOTIFY = [['done', 'Finished'], ['run', 'Needs your OK'], ['ask', 'Asked you something'], ['plan', 'Has a plan'], ['error', 'Stopped on an error']];
+  /* the row's own marks: the three-line plan ring is unreadable this small, so a plan is a flag and an error a cross, each in a colour of its own */
+  var NMARK = { done: ['done', COLORS.done], run: ['permission', COLORS.attention], ask: ['question', COLORS.attention],
+    plan: ['<path d="M9.4 17V7"/><path d="M9.4 7.4l6.2 2.7-6.2 2.7z" fill="#B7A3F0"/>', '#B7A3F0'], error: ['<path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/>', '#F08A8A'] };
+  function nMark(k) {
+    var m = NMARK[k], g = RING[m[0]] || m[0], c = m[1];
+    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/>' + g + '</svg>';
+  }
   function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
   function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
@@ -2027,11 +2034,11 @@
   function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
   function notifyHtml() {
     var on = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
-    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return Ring(x[2]); }).join('') + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>';
+    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return nMark(x[0]); }).join('') + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>';
     var items = NOTIFY.map(function (x, i) {
       var y = notifyOn(x[0]);
       return '<button role="menuitemcheckbox" aria-checked="' + y + '" data-k="' + x[0] + '" data-i="' + i + '" class="s-nitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (y ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + Ring(x[2]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
+        '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + nMark(x[0]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
         '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
     }).join('');
     return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
