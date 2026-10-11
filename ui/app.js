@@ -925,6 +925,14 @@
   function inside(s, id) { return s.activeId === id || (s.activeIds || []).indexOf(id) >= 0; }
   /* a session that stopped on an error has nothing to answer: it says so once, and does not stay as wings */
   function actErr(p) { return !p.ask && p.status.kind === 'attention' && /error/.test(p.status.text); }
+  /* a build that is not a release says so beside the notch while it rests: which branch and commit this running copy is */
+  scene.insertAdjacentHTML('beforeend', '<div class="tb" aria-hidden="true"></div>');
+  var tbEl = q('.tb'), tbText = '';
+  function testTag(s, st) {
+    var t = s.testBuild || '';
+    if (t !== tbText) { tbText = t; var at = t.split(' @ '); tbEl.innerHTML = t ? '<b>TEST BUILD</b><span></span><span></span>' : ''; if (t) { tbEl.children[1].textContent = at[0].replace(/^claude\//, ''); tbEl.children[2].textContent = at[1] || ''; } }
+    tbEl.style.display = t && st === 'idle' && !act.mode ? '' : 'none';
+  }
   function waiting(s) { return s.projects.filter(function (p) { return !inside(s, p.id) && p.attention && !actErr(p) && !actGone[actKey(p)]; }); }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
@@ -1017,6 +1025,7 @@
     cardId = st === 'open' && p ? p.id : null;
     moments(s, st);
     activity(s, st);
+    testTag(s, st);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */

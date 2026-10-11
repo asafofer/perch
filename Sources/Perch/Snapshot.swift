@@ -83,6 +83,8 @@ struct UISnapshot: Encodable {
     /// On a call, on camera or presenting: the notch keeps what arrives to small wings.
     var quiet = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
+    /// "branch @ commit" on a test build; the page says so beside the notch.
+    var testBuild: String? = TestBuild.label
     var version: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
