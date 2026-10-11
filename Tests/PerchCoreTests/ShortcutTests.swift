@@ -40,6 +40,12 @@ import Testing
         #expect(Shortcut.name(keyCode: 15, typed: "\u{05E8}") == "R")
     }
 
+    @Test func aControlCharacterStillNamesTheKeyByItsPlace() {
+        // Hold Control and the key can report its control code (Control+Q is U+0011): the cap must still say Q.
+        #expect(Shortcut.name(keyCode: 12, typed: "\u{11}") == "Q")
+        #expect(Shortcut.combo([.control, .option, .shift, .command], keyCode: 12, name: Shortcut.name(keyCode: 12, typed: "\u{11}")).keys.count == 5)
+    }
+
     @Test func roundTripsThroughJSON() throws {
         let s = Shortcut.combo([.control, .shift], keyCode: 49, name: "Space")
         let back = try JSONDecoder().decode(Shortcut.self, from: JSONEncoder().encode(s))
