@@ -66,7 +66,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
-.group[hidden]{display:none}
+.group[hidden],.sc[hidden]{display:none}
+.dd2{margin-left:8px}.dd2>button{min-width:150px}
 .sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
 .sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -338,8 +339,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: Hover opens, on', 'The same, with the switch on.', function () { setDisplay(0); d.settings({ hoverExternal: true }); }]
     ]],
     ['Settings', [
-      ['Settings: spacing, before', 'The Settings rows as they were: 26px apart with nine rows, tighter as more show (an external display, a missing permission), so the card changed height from one situation to the next.', function () { d.rowsBefore = true; d.settings(); }],
       ['Settings: spacing, after', 'The same rows, a little more room: 30px apart whatever shows, so rows never change height. The card is taller to hold it: 348 pt with nine rows, 408 with all eleven, where it was 312 and 320. The panel would grow with it.', function () { d.settings(); }],
+      ['Settings: spacing, before', 'The Settings rows as they were: 26px apart with nine rows, tighter as more show (an external display, a missing permission), so the card changed height from one situation to the next.', function () { d.rowsBefore = true; d.settings(); }],
       ['Settings: Notify me about', 'Which moments the notch announces. The list and the cards still say all of them.', function () { d.settings(); }],
       ['Settings: Notify menu', 'A check for each moment. Up and Down move, Return switches one, Esc closes.', function () { d.settings(); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Settings: Finished off', 'Finished is switched off: its mark leaves the row and the menu shows it unchecked.', function () { d.settings({ notifyOff: ['done'] }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
@@ -458,7 +459,35 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
   });
   var boxes = [];
+  /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
+  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
+  var dd2 = document.createElement('div'); dd2.className = 'dd dd2'; dd2.hidden = true; dd.parentNode.insertBefore(dd2, dd.nextSibling);
+  var ddb2 = document.createElement('button'); ddb2.setAttribute('aria-haspopup', 'listbox'); dd2.appendChild(ddb2);
+  var menu2 = document.createElement('div'); menu2.className = 'menu'; menu2.setAttribute('role', 'listbox'); dd2.appendChild(menu2);
+  var curGroup = 0;
+  function tagOf(s) { return /^Settings/.test(s[0]) ? 'settings' : 'notch'; }
+  function setFilter(i, tag) {
+    var f = FILTERS[GROUPS[i][0]]; if (!f) return;
+    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s) !== tag; });
+    menu2.querySelectorAll('button').forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tag === tag)); });
+    var label = f.filter(function (x) { return x[1] === tag; })[0];
+    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s) === tag; }).length + '</span>' + CHEV;
+  }
+  function filterMenu(i) {
+    var f = FILTERS[GROUPS[i][0]]; dd2.hidden = !f; menu2.innerHTML = '';
+    if (!f) return;
+    f.forEach(function (x) {
+      var t = document.createElement('button'); t.setAttribute('role', 'option'); t.dataset.tag = x[1];
+      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s) === x[1]; }).length + '</span>';
+      t.onclick = function () { setFilter(i, x[1]); dd2.classList.remove('open'); };
+      menu2.appendChild(t);
+    });
+    setFilter(i, '');
+  }
+  ddb2.onclick = function (e) { e.stopPropagation(); dd2.classList.toggle('open'); ddOpen(false); };
+  document.addEventListener('click', function () { dd2.classList.remove('open'); });
   function showTab(i) {
+    curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
     tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
