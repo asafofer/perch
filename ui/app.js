@@ -902,7 +902,7 @@
     var qs = p.ask && p.ask.questions && p.ask.questions[0]; if (!qs) return '';
     if (actMore.c != null) {
       var o = qs.options[actMore.c]; if (o == null) return '';
-      return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
+      return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + (/\(recommended\)\s*$/i.test(o) ? '<i class="act-rec">Recommended</i>' : '') + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
     }
     return '';
   }
