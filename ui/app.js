@@ -32,6 +32,11 @@
     pointer: '<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>',
     access: '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
     login: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',
+    /* the new session flow (Lucide) */
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
@@ -207,7 +212,7 @@
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
-    '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<div class="pane p-switch">' + '<button aria-label="New session" title="New session (\u2318N)" class="x-new rv absolute right-[76px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('plus', 'size-3') + Kbd('\u2318N') + '</button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -215,6 +220,9 @@
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
     '</div></div>' +
+    /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
+    '<div class="pane p-new">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -509,6 +517,7 @@
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
   scene.querySelectorAll('.x-gear').forEach(function (b) { b.onclick = function () { post({ type: 'settings' }); }; });
+  q('.x-new').onclick = function () { post({ type: 'newSession' }); };
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
@@ -717,7 +726,7 @@
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match</div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318N') + 'New session</span></div>';
       edges(); return;
     }
     if (empty) {
@@ -725,7 +734,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2318N') + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -823,6 +832,170 @@
         { '--mql': '0px', offset: at(go + rest + back) }, { '--mql': '0px', offset: 1 }
       ], { duration: all, iterations: Infinity }));
     }, 1000);
+  }
+  /* ---- a new session, from the list (Command+N): which agent, which folder or none, then what to ask ----
+     Three steps on one card, each a short list like the session list, so the keys are the same: Up and Down choose, Return
+     (or Right) goes on, Esc (or Left) goes back a step. The choices you made sit along the top as chips; press one to change
+     it. Swift sends the agents found on this Mac and the folders sessions ran in, newest first, and what to start on: the
+     agent and folder of the row you were on. Return starts it and leaves you where you are; Command+Return starts it and
+     takes you there. Your words are a draft until they go: closing keeps them, and the next Command+N opens on them. */
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', text: '', o: null };
+  var NW_STEPS = ['app', 'project', 'prompt'];
+  function nwApps() { return (nw.o && nw.o.apps) || []; }
+  /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
+  function nwRows() {
+    var words = nw.q.toLowerCase().split(/\s+/).filter(Boolean), all = (nw.o && nw.o.projects) || [];
+    var hit = all.filter(function (p) { var hay = (p.name + ' ' + p.path).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    return (words.length ? [] : [{ none: true }]).concat(hit).concat([{ pick: true }]);
+  }
+  function nwAgent() { return nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
+  function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
+  function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
+  function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
+  function newApply(o, entering) {
+    nw.o = o;
+    if (entering) {
+      var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
+      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = '';
+      var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
+      nw.proj = pi < 0 ? 0 : pi;
+      /* a draft waiting: straight back to it, as you left it */
+      nw.step = nw.text ? 'prompt' : 'app';
+    }
+    newRender(entering);
+  }
+  function nwChip(step, inner) { return '<button class="nw-chip flex h-6 min-w-0 flex-none cursor-pointer items-center gap-1.5 rounded-md bg-white/[0.07] px-1.5 text-[12.5px] font-medium transition-colors hover:bg-white/[0.12]" data-go="' + step + '">' + inner + '</button>'; }
+  function nwSep() { return '<svg class="size-3 flex-none text-muted-foreground/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'; }
+  function newRender(entering) {
+    var box = q('.nw'), a = nwAgent(), f = nwFolder(), html = '', at = NW_STEPS.indexOf(nw.step);
+    /* along the top: the choices made so far as chips, then this step's question (or what you typed to narrow the folders) */
+    var crumbs = '';
+    if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
+    if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? 'No project' : f.name) + '</span>');
+    var ask = nw.step === 'app' ? 'New session' : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
+    var right = nw.step === 'app' ? 'Which agent?' : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
+    html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
+      (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
+      (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
+    if (nw.step === 'app') {
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + nwApps().map(function (x, i) {
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['esc', 'Back']);
+    } else if (nw.step === 'project') {
+      var rows = nwRows();
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
+        var on = i === nw.proj ? ' bg-accent' : '';
+        if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">No project</span><span class="flex-none text-xs text-muted-foreground">' + (a.via ? 'Starts in your home folder' : 'A chat with no folder') + '</span></div>';
+        if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
+          '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
+          '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
+          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.path) + '</span></div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
+    } else {
+      html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
+        '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+        '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
+    }
+    box.innerHTML = html;
+    var l = q('.nw-l'); if (l) { l.onscroll = function () { nwEdges(l); }; setTimeout(function () { nwEdges(l); }, 0); }
+    box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
+    box.querySelectorAll('.nrow').forEach(function (r) {
+      r.onclick = function () { nwPick(+r.dataset.i); nwNext(); };
+      r.onmouseenter = function () { if (!ptrMoved()) return; nwPick(+r.dataset.i, true); };
+    });
+    var ta = q('.nw-in');
+    if (ta) {
+      ta.value = nw.text; nwGrow(ta);
+      ta.oninput = function () { nw.text = ta.value; nwGrow(ta); };
+      ta.onkeydown = function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
+      };
+      q('.nw-start').onclick = function () { nwStart(false); };
+      q('.nw-go').onclick = function () { nwStart(true); };
+      q('.nw-back').onclick = nwBack;
+      setTimeout(function () { ta.focus({ preventScroll: true }); var e = ta.value.length; ta.setSelectionRange(e, e); }, entering ? 260 : 0);
+    }
+    if (snap) layout('new', snap);
+    nwShow(); nwSeen();
+  }
+  function nwHints() { return '<div class="flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground">' + [].map.call(arguments, function (h) { return '<span class="flex items-baseline gap-1.5">' + (h[0] === '\u2191\u2193' ? Keys('\u2191', '\u2193') : Kbd(h[0])) + h[1] + '</span>'; }).join('') + '</div>'; }
+  /* the chosen row stays in view, clear of the edge fades */
+  function nwShow() {
+    var sel = q('.nw .nrow.bg-accent'), l = q('.nw-l'), pad = 20; if (!sel || !l) return;
+    if (sel.offsetTop - pad < l.scrollTop) l.scrollTop = sel.offsetTop - pad;
+    else if (sel.offsetTop + sel.offsetHeight > l.scrollTop + l.clientHeight - pad) l.scrollTop = sel.offsetTop + sel.offsetHeight - l.clientHeight + pad;
+  }
+  function nwEdges(l) {
+    var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
+    l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
+  }
+  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('new', snap); }
+  /* the character's eyes go to what you are choosing */
+  function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
+  function nwPick(i, quiet) {
+    if (nw.step === 'app') nw.app = i; else nw.proj = i;
+    q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('bg-accent', +r.dataset.i === i); });
+    if (!quiet) nwShow();
+    nwSeen();
+  }
+  function nwTo(step) { nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr); }
+  function nwNext() {
+    if (nw.step === 'app') return nwTo('project');
+    if (nw.step === 'project') { if (nwRows()[nw.proj].pick) { post({ type: 'newSession', action: 'chooseFolder' }); return; } return nwTo('prompt'); }
+  }
+  function nwBack() {
+    if (nw.step === 'prompt') return nwTo('project');
+    if (nw.step === 'project') return nwTo('app');
+    post({ type: 'switcher' });
+  }
+  /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
+     session shows in the list, working. Command+Return starts it and takes you there. */
+  function nwStart(go) {
+    var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
+    var a = nwAgent(), f = nwFolder();
+    nw.text = '';
+    if (!go) newFly(t);
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, close: SEND_CLOSE });
+  }
+  function newFly(text) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var pane = q('.p-new'), ta = q('.nw-in'), pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var rows = [].slice.call(q('.nw').children).reverse();
+    var gone = rows.map(function (el, i) { return el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }); });
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = text; pane.appendChild(b);
+    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + 6;
+    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
+    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = 2 - (y0 + b.offsetHeight / 2);
+    b.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
+      { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
+      { duration: 360, delay: 40, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = document.createElement('div'); ring.className = 'fly-ring'; ring.style.left = (CARD_W / 2 - 30) + 'px'; ring.style.top = '-28px'; ring.style.animationDelay = '370ms'; pane.appendChild(ring);
+    look(2.8, -1.6);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 400);
+    n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
+    setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); b.remove(); ring.remove(); }, SEND_CLOSE * 1000 + 600);
+  }
+  /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
+  function newKey(e) {
+    if (nw.step === 'prompt') { if (e.key === 'Escape') { nwBack(); return true; } return false; }
+    var max = nw.step === 'app' ? nwApps().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
+    if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
+    if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else nwBack(); return true; }
+    if (e.key === 'ArrowLeft') { nwBack(); return true; }
+    if (nw.step === 'app' && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
+    if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
+    if (nw.step === 'project' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.q)))) {
+      nw.q = e.key === 'Backspace' ? nw.q.slice(0, -1) : nw.q + e.key;
+      /* typing narrows to folders (No project steps aside) and lands on the first that matches */
+      nw.proj = 0;
+      newRender(); return true;
+    }
+    return false;
   }
   /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
@@ -1389,7 +1562,7 @@
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
@@ -1412,6 +1585,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
+    if (st === 'new') newApply(s.newSession || {}, !nw.on); else nw.on = false;
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -2444,10 +2618,10 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -2497,6 +2671,7 @@
     if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
+    if (m.type === 'newSession') { devNew(m); return; }
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
@@ -2583,7 +2758,52 @@
       return P.map(function (p, k) { return k; }).filter(function (k) { var hay = (P[k].name + ' ' + P[k].topic).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); })
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
+    /* the new session flow: the agents on this Mac and the folders sessions ran in, newest first */
+    var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code' }, { id: 'codex', app: 'codex', name: 'Codex' },
+      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode' }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
+    var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
+      ['website', '~/Code/website', '48m'], ['room-planner-prototype', '~/Documents/room-planner-prototype', '5h'], ['lukatz_website', '~/Code/lukatz_website', '1d'], ['spec-gap-finder', '~/Code/spec-gap-finder', '2d'], ['finance', '~/Documents/finance', '3d']]
+      .map(function (x) { return { name: x[0], path: x[1], away: x[2] }; });
+    /* it starts on the agent and folder of the row you were on */
+    function newFrom(p) {
+      var agent = !p ? 'claude' : p.app === 'claude' ? (p.via ? 'claude-code' : 'claude') : p.app;
+      var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
+      return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
+    }
+    function devNew(m) {
+      var D = window.perchDev, nowEl = document.getElementById('now');
+      if (!m.action) { D.newSession(); return; }
+      if (m.action === 'chooseFolder') {
+        if (nowEl) nowEl.textContent = 'macOS\u2019s folder picker opens; you pick ~/Code/landing-page';
+        setTimeout(function () {
+          if (!snap || snap.phase !== 'newSession') return;
+          var o = JSON.parse(JSON.stringify(snap.newSession)); o.projects.unshift({ name: 'landing-page', path: '~/Code/landing-page', away: '' });
+          nw.q = ''; nw.proj = 1; nw.step = 'prompt'; apply(Object.assign({}, snap, { newSession: o, timerToken: Math.random() }));
+        }, 1100);
+        return;
+      }
+      if (m.action !== 'start') return;
+      var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
+      var name = m.folder ? m.folder.split('/').pop() : 'No project';
+      setTimeout(function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }, (m.go ? 0 : m.close + .46) * 1000);
+      if (m.go) { if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
+      if (nowEl) nowEl.textContent = 'Started. You stay where you were; ' + agentShort(a.app) + ' works on it';
+      /* a moment later, the list: the new session on top of Today, working */
+      setTimeout(function () {
+        P.unshift({ id: 'new-' + Date.now(), name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } });
+        D.show('switcher'); base.selected = 0; apply(Object.assign({}, snap, { selected: 0, timerToken: Math.random() }));
+        if (nowEl) nowEl.textContent = 'In the list: the new session, working';
+      }, 2200);
+    }
     window.perchDev = {
+      /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
+      newSession: function (o) {
+        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
+        if (o.text !== undefined) nw.text = o.text;
+        var ns = Object.assign(newFrom(P[base.selected]), o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
+        apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
+        if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
+      },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
@@ -2701,7 +2921,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
@@ -2759,6 +2979,8 @@
     }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
+      if (ph === 'newSession') { if (e.target && e.target.classList && e.target.classList.contains('nw-in')) return; if (newKey(e)) e.preventDefault(); return; }
+      if (e.metaKey && (e.key === 'n' || e.key === 'N') && (ph === 'switcher' || ph === 'open')) { e.preventDefault(); post({ type: 'newSession' }); return; }
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }
