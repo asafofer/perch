@@ -94,7 +94,8 @@ final class FocusProbe {
         if win.app == "kitty", let socket = terms.first(where: { $0.pid == pid && $0.kittySocket != nil })?.kittySocket {
             if let front = Kitty.frontPid(socket: socket, platformWindow: UInt(win.id)), let tty = Proc.stat(front)?.tty { return tty }
         }
-        if win.app == "org.wezfurlong.wezterm", let tty = Wezterm.focusedTty(socket: terms.first { $0.wezterm != nil }?.weztermSocket) { return tty }
+        if win.app == "org.wezfurlong.wezterm", let socket = terms.first(where: { $0.pid == pid && $0.weztermSocket != nil })?.weztermSocket,
+           let tty = Wezterm.focusedTty(socket: socket) { return tty }
         let ttys = Set(Proc.table().values.filter { $0.ppid == pid }.compactMap(\.tty))
         return ttys.count == 1 ? ttys.first : nil
     }

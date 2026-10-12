@@ -80,11 +80,13 @@ enum Kitty {
     }
 }
 
-/// WezTerm, through `wezterm cli`, which finds the GUI's socket itself ($WEZTERM_UNIX_SOCKET when a pane says which).
+/// WezTerm, through `wezterm cli` on the GUI's socket, which its panes' processes carry as $WEZTERM_UNIX_SOCKET. Without
+/// one it is not asked: on its own, `wezterm cli` would start a mux server of its own and talk to that.
 enum Wezterm {
     @discardableResult
     private static func cli(_ args: [String], socket: String?, input: String? = nil) -> String? {
-        Terminals.tool("wezterm", ["cli"] + args, env: socket.map { ["WEZTERM_UNIX_SOCKET": $0] } ?? [:], input: input)
+        guard let socket else { return nil }
+        return Terminals.tool("wezterm", ["cli", "--no-auto-start"] + args, env: ["WEZTERM_UNIX_SOCKET": socket], input: input)
     }
 
     /// Shows that pane in its tab and returns its title, which its window then carries.

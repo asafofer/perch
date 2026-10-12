@@ -101,7 +101,7 @@ enum Terminals {
         if let t = term, let k = t.kitty, let s = t.kittySocket, let w = Kitty.focus(window: k, socket: s) {
             target = all.first { $0.id == Window(w) }?.id
         } else if let t = term, let p = t.wezterm, let title = Wezterm.activate(pane: p, socket: t.weztermSocket) {
-            target = mine.last { $0.title == title }?.id
+            target = mine.last { !title.isEmpty && $0.title.contains(title) }?.id   // "[1/2] claude"
         }
         if target == nil, let top = mine.last {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
