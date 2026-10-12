@@ -1223,10 +1223,14 @@
      right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
      the same as the card closes (sentNext). `sentStyle` 'check' is the smaller one being weighed: the wings, the app and a check. */
   var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, sentStyle = 'answer', actPressing = false;
-  function sentWords(m) {
-    if (m.choice) return m.choice === 'deny' ? 'Denied' : 'Allowed';
-    var v = Object.keys(m.answers || {}).map(function (k) { return m.answers[k]; });
-    return v.length > 1 ? v.length + ' answers' : String(v[0] || 'Sent').replace(/\s*\(recommended\)/ig, '');
+  function sentWords(m) { return m.choice ? (m.choice === 'deny' ? 'Denied' : 'Allowed') : 'Sent'; }
+  /* the mark that says it went: a paper plane in green, Lucide's send as it is (lucide.dev, ISC), no ring. It flies in from the lower
+     left as if just thrown, overshoots a touch and settles. Being weighed: Lucide's send-horizontal, flying in from the left. */
+  var SENT_GLYPH = { plane: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+    flat: '<path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/>' };
+  var sentIcon = 'plane';
+  function SentMark() {
+    return '<svg class="size-[15px] flex-none" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.done + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(COLORS.done) + '" aria-label="Sent">' + SENT_GLYPH[sentIcon] + '</svg>';
   }
   function sentShow(p, words, ok, quiet) {
     sent = { words: words, ok: ok !== false };
@@ -1236,8 +1240,8 @@
   }
   function renderSent(p) {
     var small = sentStyle === 'check' && sent.ok;
-    var right = (small ? '' : '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>') + Ring(sent.ok ? 'done' : 'need');
-    var key = 'sent|' + p.id + '|' + sent.words + '|' + small;
+    var right = (small ? '' : '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>') + (sent.ok ? SentMark() : Ring('need'));
+    var key = 'sent|' + p.id + '|' + sent.words + '|' + small + '|' + sentIcon;
     if (actEl._h === key) return;
     actEl.classList.toggle('sm', small);
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1252,7 +1256,9 @@
     if (calm) return;
     var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
     if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-    mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
+    var from = sentIcon === 'plane' ? 'translate(-7px, 7px) scale(.75)' : 'translateX(-9px) scale(.8)', past = sentIcon === 'plane' ? 'translate(1px, -1px)' : 'translateX(1.2px)';
+    mark.animate([{ opacity: 0, transform: from }, { opacity: 1, transform: past, offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
     if (act.mode !== 'full') return;
@@ -2496,7 +2502,7 @@
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
-    if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + sentWords(m); }
+    if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
@@ -2620,6 +2626,7 @@
       updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       sentStyle: function (v) { sentStyle = v || 'answer'; },
+      sentIcon: function (v) { sentIcon = v || 'plane'; },
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
         var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;
