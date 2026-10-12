@@ -51,6 +51,20 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// An update of Perch itself, as the page draws it (Updater).
     var updateInfo: UpdateInfo? { didSet { if updateInfo != oldValue { push() } } }
     var onUpdateAction: ((String) -> Void)?
+    /// The first start after an update has something to say: what is new, held until Perch can show it (nothing else on the
+    /// notch, no call). It takes no keyboard; Command+Option+Return is Got it, registered only while it shows.
+    private var whatsNew: (version: String, notes: UpdateNotes)?
+    var onWhatsNewKey: ((Bool) -> Void)?
+    func showWhatsNew(version: String, notes: UpdateNotes) { whatsNew = (version, notes); tryWhatsNew(0) }
+    private func tryWhatsNew(_ tries: Int) {
+        guard whatsNew != nil, tries < 40 else { if tries >= 40 { whatsNew = nil }; return }
+        guard ready, machine.phase == .idle, activityMode == "", !quietNow() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.tryWhatsNew(tries + 1) }
+            return
+        }
+        openedByHover = false; proactiveOpen = false; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.openWhatsNew)
+    }
+    func whatsNewDone() { if machine.phase == .whatsNew { send(.confirm) } }
     var canUpdate = false
     /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
     var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
@@ -690,6 +704,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
+        if machine.phase == .whatsNew, let w = whatsNew { sent.whatsNew = .init(version: w.version, headline: w.notes.headline, bullets: w.notes.bullets) }
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
@@ -720,6 +735,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
+        if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
             if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
@@ -757,6 +773,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case .settings:
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
             watchOnboarding()
+        case .whatsNew:
+            // It opened by itself: no keyboard, so nothing typed behind it lands here. Its key is a global one, only while it shows.
+            timer?.cancel(); panel.allowsKey = false; panel.ignoresMouseEvents = false; onWhatsNewKey?(true)
         case .restoring:
             timer?.cancel()
             timer = Task { [weak self] in
@@ -799,6 +818,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             push()
         case "dismiss": send(.dismiss)
+        case "whatsnew": whatsNewDone()
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, onboarding, settings }
+public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, onboarding, settings, whatsNew }
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
@@ -10,6 +10,8 @@ public enum NotchEvent: Equatable, Sendable {
     /// From the list: the pointer came onto a row, which is now the one the arrows and Return act on.
     case select(Int)
     case openOnboarding
+    /// The first start after an update: the card that says what is new. Confirm (Got it) goes on to the list.
+    case openWhatsNew
     case openSettings
     case back
     /// The list was refreshed while the card is up: keep the card, clamp what is selected.
@@ -90,6 +92,14 @@ public struct NotchMachine: Equatable, Sendable {
             close()
         case (.onboarding, .dismiss):
             close()
+        case (.idle, .openWhatsNew):
+            selected = 0; phase = .whatsNew
+        case (.whatsNew, .confirm):
+            phase = .switcher
+        case (.whatsNew, .dismiss):
+            close()
+        case (.whatsNew, .openSwitcher):
+            phase = .switcher   // the shortcut that opens Perch goes on to the list too
         case (.idle, .openOnboarding), (.settings, .openOnboarding):
             phase = .onboarding
         case (.onboarding, .openSettings):
