@@ -3,7 +3,11 @@ import PerchCore
 
 /// What Perch remembers between launches.
 enum Prefs {
+    #if os(Linux)
+    private static let d = FileDefaults.shared   // UserDefaults keeps nothing between launches there
+    #else
     private static let d = UserDefaults.standard
+    #endif
     static var onboarded: Bool { get { d.bool(forKey: "onboarded") } set { d.set(newValue, forKey: "onboarded") } }
     /// Set when Perch restarts itself in the middle of setup, so it picks up at the same step.
     static var resumeStep: Int? {

@@ -95,7 +95,7 @@
      the terminal is the one showing herdr. */
   var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor',
     /* Linux's, by the names the shell gives them; "terminal" there is any other terminal */
-    'xfce4-terminal': 'Xfce Terminal', 'gnome-terminal': 'Terminal', alacritty: 'Alacritty', konsole: 'Konsole', xterm: 'XTerm', tilix: 'Tilix', terminator: 'Terminator' };
+    'xfce4-terminal': 'Terminal', 'gnome-terminal': 'Terminal', alacritty: 'Alacritty', konsole: 'Konsole', xterm: 'XTerm', tilix: 'Tilix', terminator: 'Terminator' };
   function AppOf(p, c) {
     /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
     var host = p.via || p.opens;
