@@ -1149,9 +1149,9 @@
     var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
-    if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
+    if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentShow(sn.p, sn.words, true, true); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
@@ -1171,9 +1171,8 @@
     if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
-    /* it is saying an answer went: it says it to the end, unless something new arrives */
-    if (act.mode === 'sent' && !((arrived || landed) && !s.quiet)) return;
-    if (act.mode === 'sent') { clearTimeout(sentT); sent = null; }
+    /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
+    if (act.mode === 'sent') return;
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1212,7 +1211,7 @@
     if (!m) { setAct('', null); return; }
     /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
     var b = actEl.querySelector('.act-btns [data-a="' + a + '"]'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id];
+    act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id]; sentBase = actKnown;
     if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
     post(m);
     setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
@@ -1221,7 +1220,7 @@
      right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
      the same as the card closes (sentNext). */
   var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, actPressing = false, sentN = 0;
-  function sentWords(m) { return m.choice ? (m.choice === 'deny' ? 'Denied' : 'Allowed') : 'Sent'; }
+  function sentWords() { return 'Sent'; }   /* a choice, several, Allow or Deny: the line says one thing, that it went */
   /* the mark that says it went: a paper plane, slightly tilted, in the blue the update ring uses. Lucide's send as it is
      (lucide.dev, ISC), no ring. It flies in from the lower left as if just thrown, overshoots a touch and settles. */
   var SENT_PLANE = '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>';
@@ -1247,7 +1246,15 @@
     sent = { words: words, ok: ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
-    sentT = setTimeout(function () { sent = null; if (act.mode === 'sent') actSettle(); }, sent.ok ? SENT_MS : 4500);
+    sentT = setTimeout(sentDone, sent.ok ? SENT_MS : 4500);
+  }
+  /* The line has said its piece. Anything that arrived while it showed, or while the button lit before it (`sentBase` is what
+     had been said when the answer was given), is said now, in full; whatever still waits on you stays as wings. */
+  var sentBase = null;
+  function sentDone() {
+    sent = null; if (act.mode !== 'sent' || !snap) { sentBase = null; return; }
+    if (sentBase) actKnown = sentBase;
+    sentBase = null; setAct('', null, true); activity(snap, lastSt); layout(lastSt, snap);
   }
   function renderSent(p) {
     var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
@@ -2633,12 +2640,14 @@
         at(t + 3700, function () { D.update(null); sc.style.opacity = '1'; });
         at(t + 4400, function () { D.update('updated', { fresh: false }); });
       },
+      /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
+      also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
       updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
         var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;
-        clearTimeout(actTimer); act.keys = []; actPressing = true; if (b) { actEl.classList.add('chose'); b.classList.add('on'); }
+        clearTimeout(actTimer); act.keys = []; actPressing = true; sentBase = actKnown; if (b) { actEl.classList.add('chose'); b.classList.add('on'); }
         notSent(p.id);   /* as Swift says it: a moment after the press, before the row has folded */
         setTimeout(function () { actPressing = false; sentShow(p, 'Sent'); }, 170);
       },
