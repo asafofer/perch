@@ -265,6 +265,7 @@ extension Project {
         p.ask = live.kind == .asking ? live.asks.last : nil
         p.now = live.kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
+        if let s = Recap.said(live.outcome), p.chat.last?.role == "assistant" { p.chat[p.chat.count - 1] = .init(role: "assistant", text: s) }
         return p
     }
 }
