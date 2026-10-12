@@ -1,4 +1,7 @@
+import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 import Foundation
 
 /// Where the shortcut opens Perch and where it shows up by itself (Settings, Show Perch on). Hovering the top of a

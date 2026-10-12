@@ -1,4 +1,7 @@
+import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 
 /// Screen facts the geometry needs, so it can be tested without a real display.
 public struct ScreenInfo: Equatable, Sendable {

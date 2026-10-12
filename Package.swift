@@ -1,6 +1,7 @@
 // swift-tools-version: 6.2
 import PackageDescription
 
+#if os(macOS)
 let package = Package(
     name: "Perch",
     platforms: [.macOS(.v26)],
@@ -14,3 +15,15 @@ let package = Package(
     ],
     swiftLanguageModes: [.v5]
 )
+#else
+// Linux: the core and its tests. macOS's SDK has a SQLite3 module; here it comes from the system library.
+let package = Package(
+    name: "Perch",
+    targets: [
+        .systemLibrary(name: "SQLite3", path: "Sources/SQLite3", pkgConfig: "sqlite3"),
+        .target(name: "PerchCore", dependencies: ["SQLite3"]),
+        .testTarget(name: "PerchCoreTests", dependencies: ["PerchCore"]),
+    ],
+    swiftLanguageModes: [.v5]
+)
+#endif
