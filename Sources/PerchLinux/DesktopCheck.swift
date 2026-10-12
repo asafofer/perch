@@ -16,9 +16,10 @@ func desktopCheck(_ args: [String]) -> Bool {
     print("check: main screen \(Screen.main?.displayID ?? "none")")
     print("check: autostart \(Autostart.isOn ? "on" : "off"), would run \(Autostart.quoted(Autostart.executable))")
     if ProcessInfo.processInfo.environment["PERCH_CHECK_AUTOSTART"] != nil {
+        let was = Autostart.isOn
         Autostart.set(true); print("check: autostart after set(true): \(Autostart.isOn)")
         Autostart.set(false); print("check: autostart after set(false): \(Autostart.isOn)")
-        Autostart.set(true)
+        Autostart.set(was)   // as it was found
     }
 
     let hotkeys = HotkeyService()
