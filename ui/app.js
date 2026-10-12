@@ -1145,6 +1145,18 @@
     var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)] && !muted(s, p); }), heard = need.concat(errs);
     /* What is remembered does not depend on which sessions you are in: that guess can flicker (a reading goes stale while a card is
        up), and a finish that dropped out of the list for a moment would land again. Only what is said is left out for the ones you are in. */
+    /* A request answered or put away stays away while it stands. Once it is settled (that session has moved on), the same
+       request asked again is news: the same command a second time must not pass in silence. Finishes and errors keep theirs. */
+    Object.keys(actGone).forEach(function (k) {
+      var bits = k.split('|'); if (['run', 'ask', 'plan'].indexOf(bits[1]) < 0) return;
+      var p = s.projects.filter(function (x) { return x.id === bits[0]; })[0];
+      if (p && actKey(p) !== k) delete actGone[k];
+    });
+    /* the same for when a question was first seen, which runs out its time on the notch (actExpired) */
+    Object.keys(actSeen).forEach(function (k) {
+      var id = k.split('|')[0], p = id !== 'update' && s.projects.filter(function (x) { return x.id === id; })[0];
+      if (p && actKey(p) !== k) delete actSeen[k];
+    });
     var everyDone = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
