@@ -1541,13 +1541,18 @@
     var p = swAt, now = Date.now(); swAt = [x, y];
     if (!p || now - swT > 120) { swT = now; return; }
     swT = now;
-    var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6);
+    var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6), last = null;
     for (var i = 1; i < n; i++) {
       var el = document.elementFromPoint(p[0] + dx * i / n, p[1] + dy * i / n), r = el && el.closest && el.closest('.row, .s-row');
+      if (r) last = r;
       if (r && !r.classList.contains('crossed')) { r.classList.add('crossed'); setTimeout(function (r) { r.classList.remove('crossed'); }.bind(null, r), 30); }
     }
+    /* A pointer that leaves the rows within one step (out of the card, or up to the notch) never entered the last row it
+       crossed: its choice would stay on an earlier one. The last row it went over is the one it left from. */
+    var end = document.elementFromPoint(x, y);
+    if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { sweep(e.clientX, e.clientY); ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; sweep(e.clientX, e.clientY); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
