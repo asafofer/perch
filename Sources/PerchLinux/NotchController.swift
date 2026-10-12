@@ -904,11 +904,13 @@ final class NotchController {
     /// The page drew your character for the tray: PNG data.
     var onMenuIcon: ((Data) -> Void)?
     private var onbStep = 0
-    /// The steps, as the page counts them on Linux (the Mac's, less Accessibility). Set from the page's own count.
-    var onbTotal = 7
+    /// The Mac's step ids (hello, look, Accessibility, shortcut, apps, live status, all set); the page counts five on Linux.
+    let onbTotal = 7
     /// The step that records the shortcut, and the one that lists the apps.
-    var shortcutStep = 3
-    var appsStep = 4
+    let shortcutStep = 3
+    let appsStep = 4
+    /// The Mac's Accessibility step: skipped on Linux, where nothing needs it.
+    private let accessibilityStep = 2
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu), not the whole setup.
     private var onbOnly = false
@@ -917,7 +919,7 @@ final class NotchController {
 
     func startOnboarding(step: Int = 0, characterOnly: Bool = false) {
         guard machine.phase == .idle else { return }
-        onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
+        onbStep = step == accessibilityStep ? step + 1 : step; onbOnly = characterOnly; onbBackToSettings = false
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
         place(on: ScreenChooser.target())
         if step >= appsStep { refreshProjects() }
@@ -948,9 +950,13 @@ final class NotchController {
                 finishCharacter(); return
             }
             onbStep = min(onbStep + 1, onbTotal - 1)
+            if onbStep == accessibilityStep { onbStep += 1 }   // no Accessibility on Linux: the page skips it too
             if onbStep == appsStep { refreshProjects() }
             stopRecording(); shortcutTried = false; shortcutSaved = false
-        case "back": onbStep = max(onbStep - 1, 0); stopRecording(); shortcutTried = false; shortcutSaved = false
+        case "back":
+            onbStep = max(onbStep - 1, 0)
+            if onbStep == accessibilityStep { onbStep -= 1 }
+            stopRecording(); shortcutTried = false; shortcutSaved = false
         case "finish": send(.dismiss); return
         case "restart": relaunch(); return
         default: break

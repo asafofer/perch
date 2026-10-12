@@ -2025,7 +2025,10 @@
         oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd(chord(['\u2303', '\u2325'], 'P')), 'The welcome card') + ohint(Kbd(chord(['\u2303', '\u2325'], 'L')), 'Other projects') +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) +
+          /* Linux: Ctrl+Alt+L locks the screen on most desktops, so the welcome card and the list live in the tray's menu */
+          (LINUX ? ohint('<span class="text-xs text-muted-foreground">Tray</span>', 'The welcome card and every session')
+            : ohint(Kbd(chord(['\u2303', '\u2325'], 'P')), 'The welcome card') + ohint(Kbd(chord(['\u2303', '\u2325'], 'L')), 'Other projects')) +
           /* no notch on Linux to rest on (hovering the top edge is off unless Settings turns it on) */
           (LINUX ? '' : ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek')) + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
