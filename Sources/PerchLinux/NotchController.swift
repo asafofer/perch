@@ -309,11 +309,8 @@ final class NotchController {
     private var fsPending = false
 
     private func startWatching() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let paths = [".claude/projects", ".codex/sessions", ".local/share/opencode", ".pi/agent/sessions"]
-            .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
-        guard !paths.isEmpty else { return }
-        let w = Watcher(paths: paths)
+        // Every agent's session folders, including ones that appear later (an agent installed while Perch runs).
+        let w = Watcher()
         w.onChange = { [weak self] in self?.sessionFilesChanged() }
         w.start()
         watcher = w

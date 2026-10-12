@@ -17,6 +17,7 @@ if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-
 }
 
 gtk_init()
+if args.contains("--dump") { MainActor.assumeIsolated { Dump.run() }; exit(0) }
 
 /// Where ui/ is: $PERCH_UI, beside the binary (an install), or the checkout's (a build run from the repo).
 func uiFolder() -> URL? {
