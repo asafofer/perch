@@ -37,4 +37,12 @@ public struct UpdateNotes: Equatable, Sendable {
             .replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
             .replacingOccurrences(of: "&#39;", with: "'").replacingOccurrences(of: "&quot;", with: "\"")
     }
+
+    /// The notes shipped inside the app for this version (`release-notes/<version>.md` in the bundle's Resources), nil when the
+    /// release has none or they say nothing.
+    public static func bundled(version: String, in folder: URL) -> UpdateNotes? {
+        guard let text = try? String(contentsOf: folder.appendingPathComponent("\(version).md"), encoding: .utf8) else { return nil }
+        let notes = parse(text)
+        return notes.headline.isEmpty && notes.bullets.isEmpty ? nil : notes
+    }
 }

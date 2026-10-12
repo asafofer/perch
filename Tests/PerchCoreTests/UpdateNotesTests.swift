@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PerchCore
 
@@ -27,5 +28,16 @@ import Testing
     @Test func nothingGivesNothing() {
         #expect(UpdateNotes.parse(nil) == UpdateNotes(headline: "", bullets: []))
         #expect(UpdateNotes.parse("") == UpdateNotes(headline: "", bullets: []))
+    }
+
+    @Test func bundledNotesAreReadFromTheFolder() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notes-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "Faster lists\n\n- One\n- Two\n".write(to: dir.appendingPathComponent("1.2.3.md"), atomically: true, encoding: .utf8)
+        try "\n\n".write(to: dir.appendingPathComponent("1.2.4.md"), atomically: true, encoding: .utf8)
+        #expect(UpdateNotes.bundled(version: "1.2.3", in: dir) == UpdateNotes(headline: "Faster lists", bullets: ["One", "Two"]))
+        #expect(UpdateNotes.bundled(version: "1.2.4", in: dir) == nil)   // says nothing
+        #expect(UpdateNotes.bundled(version: "9.9.9", in: dir) == nil)   // no file
     }
 }
