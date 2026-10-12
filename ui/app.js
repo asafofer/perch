@@ -753,7 +753,7 @@
           hovered = r; marquee(r);
           var i = +r.dataset.i;
           if (!ptrMoved() || i === (pend >= 0 ? pend : lastSel)) return;
-          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 400);
+          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 800);
           sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
           post({ type: 'pick', index: i });
         };
@@ -1544,7 +1544,7 @@
     var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6);
     for (var i = 1; i < n; i++) {
       var el = document.elementFromPoint(p[0] + dx * i / n, p[1] + dy * i / n), r = el && el.closest && el.closest('.row, .s-row');
-      if (r && !r.classList.contains('crossed')) { r.classList.add('crossed'); setTimeout(function (r) { r.classList.remove('crossed'); }.bind(null, r), 50); }
+      if (r && !r.classList.contains('crossed')) { r.classList.add('crossed'); setTimeout(function (r) { r.classList.remove('crossed'); }.bind(null, r), 30); }
     }
   }
   document.addEventListener('mousemove', function (e) { if (e.isTrusted) { sweep(e.clientX, e.clientY); ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
