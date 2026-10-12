@@ -137,6 +137,16 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
+  /* selects the words `from` to `to` (found in the text) inside the element, as a drag across them would */
+  function selectWords(sel, from, to) {
+    var el = document.querySelector(sel); if (!el) return;
+    var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [], all = '', t;
+    while ((t = w.nextNode())) { nodes.push([t, all.length]); all += t.data; }
+    var a = all.indexOf(from), b = to ? all.indexOf(to, a) + to.length : a + from.length; if (a < 0 || b < a) return;
+    var at = function (i) { for (var k = nodes.length - 1; k >= 0; k--) if (nodes[k][1] <= i) return [nodes[k][0], i - nodes[k][1]]; };
+    var r = document.createRange(), s = at(a), e = at(b); r.setStart(s[0], s[1]); r.setEnd(e[0], e[1]);
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+  }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
@@ -278,6 +288,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
+      ['Words selected on the card', 'What the agent said can be selected and copied with Command+C (the title, buttons and the rest of the notch cannot). The highlight is the character\u2019s colour. While words are selected the card stays open: the pointer can leave it and a card Perch opened by itself does not count down; a click elsewhere or Esc still closes it.', function () {
+        var me = charRun; d.project(1); d.show('open', false, true);
+        setTimeout(function () { if (me === charRun) selectWords('.o-h', 'The hero now fits', 'phone width'); }, 900);
+      }],
+      ['Words selected in the reply', 'The agent\u2019s message above the reply can be selected too, your own bubble with it, and Command+C copies it. Typing goes back into the field.', function () {
+        var me = charRun; reply(false)();
+        setTimeout(function () { if (me === charRun) { document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'I left the poster', 'look at.'); } }, 1300);
+      }],
       ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
         var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
         d.project(1); d.show('open', false, true);

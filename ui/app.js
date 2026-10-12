@@ -605,6 +605,12 @@
   function status(html, title) {
     var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
   }
+  /* Words are put in only when they change: the snapshot comes again every refresh, and new nodes would drop a selection
+     you are making in them. Written by anything else meanwhile (a question's card), they are put in again. */
+  function setWords(el, html) {
+    if (el._put === html && el.innerHTML === el._was) return;
+    el.innerHTML = html; el._put = html; el._was = el.innerHTML;
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -621,11 +627,11 @@
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
-      h.textContent = a.kind === 'question' ? a.subject : a.title;
-      c.textContent = a.kind === 'plan' ? a.subject : '';
-      box.innerHTML = a.kind === 'permission' && a.subject
+      setWords(h, esc(a.kind === 'question' ? a.subject : a.title));
+      setWords(c, a.kind === 'plan' ? esc(a.subject) : '');
+      setWords(box, a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
-        : '';
+        : '');
     } else {
       /* "You were creating a database." becomes the grey line under the title, "Creating a database"; a headline that only
          repeats the title is left out. What happened is the body, in white, two lines at most. */
@@ -634,9 +640,9 @@
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
       if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
-      else h.innerHTML = said ? '' : md(p.headline);
-      c.innerHTML = ''; box.innerHTML = '';
+      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      else setWords(h, said ? '' : md(p.headline));
+      setWords(c, ''); setWords(box, '');
     }
     c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -650,7 +656,7 @@
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
-    q('.o-x').innerHTML = md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : '');   /* the light's copy of the words, markup and all */
+    setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
@@ -1468,6 +1474,7 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
@@ -1597,11 +1604,29 @@
     chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
     hvEls = chain;
     if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
-    hand(!!el && getComputedStyle(el).cursor === 'pointer');
+    var cur = el ? getComputedStyle(el).cursor : '';
+    hand(cur === 'pointer', cur === 'text');
   }
   /* WebKit shows the hand only on a card with the keyboard; on one without, Swift shows it when the page says */
-  var handOn = false;
-  function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
+  var handOn = false, beamOn = false;
+  function hand(on, text) { text = !on && !!text; if (on !== handOn || text !== beamOn) { handOn = on; beamOn = text; post({ type: 'hand', on: on, text: text }); } }
+  /* Words selected on the card: Swift keeps the card open while they are (it would close as the pointer leaves, or when its
+     time is up) and sends Command+C to them. A selection on words no longer showing (the reply closed) or in the reply
+     field does not count, and goes when the card closes. */
+  var selOn = false;
+  function selCheck() {
+    var s = window.getSelection(), node = s && s.rangeCount && !s.isCollapsed ? s.anchorNode : null;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var on = !!(el && lastSt === 'open' && document.activeElement !== rIn && q('.p-open').contains(el) && el.getClientRects().length && String(s).trim());
+    if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
+    if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
+  }
+  document.addEventListener('selectionchange', selCheck);
+  /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
+  document.addEventListener('keydown', function (e) {
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
+  }, true);
   function cursor(x, y) {
     ptrAt = [x, y]; sweep(x, y); if (lastSt === 'switch') markList();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);

@@ -327,6 +327,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
 @media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
 /* replying (app.js showSaid): the agent's message takes the summary's place */
+/* What the agent said can be selected and copied, on the card and in the expanded reply; the rest of the notch cannot. The
+   highlight is the character's colour. A card with words selected stays open (NotchController, `textSelected`). */
+.p-open .o-h, .p-open .o-c, .p-open .o-x, .p-open .o-ask, .o-said-in { user-select: text; -webkit-user-select: text; cursor: text; }
+.p-open .o-x .shine, .p-open .o-ask button { user-select: none; -webkit-user-select: none; }
+.p-open ::selection { background: color-mix(in srgb, var(--cr) 42%, transparent); color: #fff; }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
 .p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
