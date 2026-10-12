@@ -37,6 +37,20 @@ struct UISnapshot: Encodable {
         let said: String?
         /// Your last message, shown above it.
         let asked: String?
+        /// A session started from the list, before it is a real session: "starting", "started", "failed", "gone".
+        var pending: String? = nil
+    }
+
+    /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
+    struct NewSession: Encodable {
+        struct App: Encodable { let id: String; let app: String; let via: String?; let name: String }
+        struct Folder: Encodable { let name: String; let path: String; let label: String; let away: String }
+        let apps: [App]
+        let projects: [Folder]
+        let agent: String?
+        let project: String?
+        /// "list" when opened from the list (it goes back there), "anywhere" otherwise.
+        let from: String
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -75,6 +89,7 @@ struct UISnapshot: Encodable {
         let shortcut: ShortcutState
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
+    var newSession: NewSession?
 
     /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
     static func why(_ a: Ask) -> String? {
@@ -95,7 +110,7 @@ struct UISnapshot: Encodable {
     let autoCollapse: Bool
     let timerToken: Int
     let screen: Screen
-    let projects: [UIProject]
+    var projects: [UIProject]
     /// Real app icons as data URLs. Sent once, with the first snapshot.
     let icons: [String: String]?
     /// The session you are in right now. It never nudges you about itself.
@@ -139,7 +154,7 @@ struct UISnapshot: Encodable {
         let pick = ProcessInfo.processInfo.environment["PERCH_CHARACTER"]?.split(separator: ",").map(String.init)
         character = pick?.count == 2 ? Character(shape: pick![0], color: pick![1]) : Character(shape: Prefs.shape, color: Prefs.color)
         self.icons = icons; self.activeId = activeId; self.activeIds = activeIds; self.scanning = scanning; self.canSend = canSend
-        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .onboarding: "onboarding"; case .settings: "settings" }
+        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .onboarding: "onboarding"; case .settings: "settings"; case .newSession: "newSession" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken

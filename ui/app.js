@@ -881,7 +881,7 @@
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
     var words = nw.q.toLowerCase().split(/\s+/).filter(Boolean), all = (nw.o && nw.o.projects) || [];
-    var hit = all.filter(function (p) { var hay = (p.name + ' ' + p.path).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    var hit = all.filter(function (p) { var hay = (p.name + ' ' + (p.label || p.path)).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
     return (words.length ? [] : [{ none: true }]).concat(hit).concat([{ pick: true }]);
   }
   /* the agents, narrowed by what you typed on that step (by name or where it opens) */
@@ -934,7 +934,7 @@
           '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
-          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.path) + '</span></div>';
+          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
       html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
@@ -996,7 +996,7 @@
   function nwBack() {
     if (nw.step === 'prompt') return nwTo('project');
     if (nw.step === 'project') return nwTo('app');
-    post({ type: 'switcher' });
+    post({ type: 'back' });
   }
   /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
      session shows in the list, working. Command+Return starts it and takes you there. */
@@ -1071,6 +1071,15 @@
     setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 400);
     n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
     setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); b.remove(); ring.remove(); }, SEND_CLOSE * 1000 + 600);
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!NATIVE || !snap || snap.phase !== 'newSession' || (e.target && e.target.classList && e.target.classList.contains('nw-in'))) return;
+    if (newKey(e)) e.preventDefault();
+  });
+  /* Swift: the folder chosen in the Mac's picker. It becomes the session's, and on to the prompt. */
+  function nwPicked(name, path) {
+    var o = nw.o || {}; o.projects = (o.projects || []).filter(function (p) { return p.path !== path; });
+    o.projects.unshift({ name: name, path: path, away: '' }); nw.o = o; nw.q = ''; nw.proj = 1; nwTo('prompt');
   }
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
@@ -2491,7 +2500,7 @@
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
-    on('.s-nsc', function () { post({ type: 'shortcut', action: 'record', which: 'new' }); });
+    on('.s-nsc', function () { post({ type: 'shortcut', action: 'recordNew' }); });   /* not recordable yet: Swift ignores it */
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -2733,7 +2742,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[snap.phase], snap); });
@@ -2826,7 +2835,7 @@
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
-    if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
+    if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : snap.phase === 'newSession' ? (snap.newSession && snap.newSession.from === 'list' ? 'switcher' : 'idle') : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
   }

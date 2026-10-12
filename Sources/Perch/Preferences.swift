@@ -23,6 +23,9 @@ enum Prefs {
         }
         set { d.set(Array(Set(Agent.all.map(\.id)).subtracting(newValue)), forKey: "sources.disabled") }
     }
+    /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).
+    static var lastNewChoice: String? { get { d.string(forKey: "new.choice") } set { d.set(newValue, forKey: "new.choice") } }
+    static var lastNewFolder: String? { get { d.string(forKey: "new.folder") } set { d.set(newValue, forKey: "new.folder") } }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or

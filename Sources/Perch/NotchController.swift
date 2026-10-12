@@ -383,7 +383,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 self.refreshing = false; self.scannedOnce = true
                 switch self.machine.phase {
                 case .idle: self.install(list)
-                case .open, .switcher: self.installLive(list)
+                case .open, .switcher, .newSession: self.installLive(list)
                 case .onboarding, .settings: self.base = list; self.projects = self.decorate(list); self.machine.send(.projectsChanged(count: self.projects.count, selected: 0)); self.push()
                 default: self.pendingProjects = list
                 }
@@ -391,6 +391,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     self.openWhenScanned = false
                     if self.machine.phase == .switcher, !list.isEmpty { self.send(.back) } else { self.push() }
                 }
+                self.checkStarted()
                 if self.refreshAgain { self.refreshAgain = false; self.refreshProjects() }
             }
         }
@@ -695,6 +696,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         sent.drafts = drafts
         sent.update = updateInfo; sent.canUpdate = canUpdate
         sent.proactive = proactiveOpen
+        if machine.phase == .newSession { sent.newSession = newSessionState() }
+        if machine.phase == .switcher, let st = starting, st.fromList, listQuery.isEmpty { pendingRow(st, into: &sent) }
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         tookKeysForAsk = askTakesKeys
@@ -755,6 +758,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case .settings:
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
             watchOnboarding()
+        case .newSession:
+            // Asked for, so it takes the keyboard: the prompt is typed here.
+            timer?.cancel()
+            startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
         case .restoring:
             timer?.cancel()
             timer = Task { [weak self] in
@@ -773,6 +780,149 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
         }
+    }
+
+    // MARK: a new session
+
+    /// A session being started: what was asked for, when, the sessions there were then (the new one is one Perch has not
+    /// seen), and how it is going: "starting", "started", "failed", "gone" (its row folding away).
+    private struct Starting {
+        let choice: NewSession.Choice, folder: String?, prompt: String, at: Date, known: Set<String>, sessionId: String?, fromList: Bool
+        var state = "starting"
+        var found: String?
+    }
+    private var starting: Starting?
+    private var startingTicker: Timer?
+    private var pickedFolders: [String] = []
+
+    /// The command line agents on this Mac, looked for where installers put them.
+    private static let commands: Set<String> = {
+        let home = NSHomeDirectory()
+        let dirs = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.npm-global/bin", "\(home)/.bun/bin", "\(home)/.claude/local", "\(home)/.opencode/bin"]
+        return Set(["claude", "codex", "opencode", "pi"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
+    }()
+    private func newChoices() -> [NewSession.Choice] {
+        let ws = NSWorkspace.shared
+        return NewSession.choices(claudeApp: ws.urlForApplication(withBundleIdentifier: Restorer.claudeApp) != nil,
+                                  codexApp: ws.urlForApplication(withBundleIdentifier: Restorer.codexApp) != nil, commands: Self.commands)
+    }
+    private func newFolders() -> [NewSession.Folder] {
+        let found = NewSession.folders(base)
+        let picked = pickedFolders.filter { p in !found.contains { $0.path == p } }.map { NewSession.Folder(name: ($0 as NSString).lastPathComponent, path: $0, lastActive: nil) }
+        return picked + found
+    }
+
+    /// Command+Option+N, or New session in the list.
+    func openNewSession() {
+        guard machine.phase != .newSession, machine.phase != .onboarding, machine.phase != .settings, recorder == nil else { return }
+        if machine.phase == .idle { place(on: ScreenChooser.target()) }
+        openedByHover = false; proactiveOpen = false; prepareToShow()
+        newLooking = lookingAt()
+        send(.openNew)
+        refreshProjects()
+    }
+    /// The session it starts like: the row you were on in the list or the card, else the one in front of you.
+    private var newLooking: Project?
+    private func lookingAt() -> Project? {
+        if machine.phase == .open || machine.phase == .switcher, projects.indices.contains(machine.selected) { return projects[machine.selected] }
+        let sure = youAreIn().sure
+        return projects.first { sure.contains($0.id) }
+    }
+
+    private func newSessionState() -> UISnapshot.NewSession {
+        let choices = newChoices(), folders = newFolders(), home = NSHomeDirectory()
+        let d = NewSession.defaults(looking: newLooking, lastChoice: Prefs.lastNewChoice, lastFolder: pickedFolders.first ?? Prefs.lastNewFolder, choices: choices, folders: folders)
+        let via = Terminals.keys[Terminals.preferred] ?? "terminal"
+        return UISnapshot.NewSession(
+            apps: choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) },
+            projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },
+            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere")
+    }
+
+    /// Choose a folder…: the Mac's own picker. The folder becomes the session's, and the card goes on to the prompt.
+    private func chooseFolder() {
+        let p = NSOpenPanel()
+        p.canChooseDirectories = true; p.canChooseFiles = false; p.allowsMultipleSelection = false; p.prompt = "Choose"
+        p.directoryURL = URL(fileURLWithPath: NSHomeDirectory())
+        NSApp.activate(ignoringOtherApps: true)
+        p.begin { [weak self] r in
+            MainActor.assumeIsolated {
+                guard let self, r == .OK, let url = p.url else { return }
+                self.pickedFolders.removeAll { $0 == url.path }; self.pickedFolders.insert(url.path, at: 0)
+                self.panel.makeKey(); self.push()
+                let name = url.lastPathComponent.replacingOccurrences(of: "'", with: "\\'"), path = url.path.replacingOccurrences(of: "'", with: "\\'")
+                self.web.evaluateJavaScript("window.perch && window.perch.newPicked('\(name)', '\(path)')", completionHandler: nil)
+            }
+        }
+    }
+
+    /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
+    /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
+    private func startNewSession(_ id: String, folder: String?, prompt: String, go: Bool, close: Double) {
+        guard let choice = newChoices().first(where: { $0.id == id }) else { return }
+        Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
+        let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
+        let fromList = machine.newFrom == .switcher && !go
+        let back = WhereYouWere.now()
+        starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList)
+        if go { send(.dismiss) }
+        else if fromList { send(.started) }
+        else { DispatchQueue.main.asyncAfter(deadline: .now() + close) { [weak self] in if self?.machine.phase == .newSession { self?.send(.started) } } }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    // Started and staying: back to where you were (the app or terminal came forward for it).
+                    if sent, !go { DispatchQueue.main.asyncAfter(deadline: .now() + (choice.terminal ? 0.8 : 0.2)) { back.restore() } }
+                    if !sent { self.finishStarting(false); return }
+                    self.startingTicker?.invalidate()
+                    self.startingTicker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
+                    self.refreshProjects()
+                }
+            }
+        }
+    }
+
+    /// After each scan: is the new session there yet? Given up after a while.
+    private func checkStarted() {
+        guard let st = starting, st.state == "starting" else { return }
+        if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId) {
+            starting?.found = p.id
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch new session: found \(p.id) in \(p.cwd ?? "-")") }
+            finishStarting(true)
+        } else if Date().timeIntervalSince(st.at) > NewSession.waits { finishStarting(false) }
+    }
+    private func finishStarting(_ ok: Bool) {
+        guard starting?.state == "starting" else { return }
+        startingTicker?.invalidate(); startingTicker = nil
+        starting?.state = ok ? "started" : "failed"
+        if !ok { NSLog("Perch: the new session did not show up") }
+        web.evaluateJavaScript("window.perch && window.perch.newStarted(\(ok))", completionHandler: nil)
+        push()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { [weak self] in
+            guard let self else { return }
+            if ok { self.starting = nil; self.push(); return }
+            self.starting?.state = "gone"; self.push()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.starting = nil; self?.push() }
+        }
+    }
+
+    /// In the list: a row for the session from the moment you press Return, at the top of Today. Once the scan finds it,
+    /// its real row says Started instead.
+    private func pendingRow(_ st: Starting, into sent: inout UISnapshot) {
+        if st.state == "started" {
+            if let id = st.found, let i = sent.projects.firstIndex(where: { $0.id == id }) { sent.projects[i].pending = "started" }
+            return
+        }
+        let folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
+        let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.prompt, app: st.choice.agent,
+                                       attention: false, fresh: false, line: "", status: .init(kind: "running", text: "Starting", app: st.choice.agent), steps: [], ask: nil, now: nil,
+                                       via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: st.state)
+        sent.projects.append(row)
+        var shown = sent.shown ?? Array(0..<(sent.projects.count - 1))
+        let at = shown.firstIndex { sent.projects[$0].section != "Needs you" } ?? shown.count
+        shown.insert(sent.projects.count - 1, at: at)
+        sent.shown = shown
     }
 
     // MARK: web view
@@ -809,6 +959,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if snoozeMenuOpen { timer?.cancel() } else { restartTimer() }
             push()
         case "switcher": send(.openSwitcher)
+        case "newSession":
+            switch body["action"] as? String {
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "chooseFolder": chooseFolder()
+            default: openNewSession()
+            }
         case "back": send(.back)
         case "onb": if let a = body["action"] as? String { onboardingAction(a) }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
@@ -1367,6 +1523,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]
                 if let k = keys[e.keyCode] { self.web.evaluateJavaScript("window.perch && window.perch.setKey('\(k)')", completionHandler: nil); return nil }
                 if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.setKey('esc')", completionHandler: nil); return nil }
+                return e
+            }
+            if self.machine.phase == .newSession {
+                let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
+                if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
+                    NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
+                }
                 return e
             }
             if self.replyOpen {

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, onboarding, settings }
+public enum NotchPhase: Equatable, Sendable { case idle, open, switcher, restoring, onboarding, settings, newSession }
 
 public enum NotchEvent: Equatable, Sendable {
     case comeBack, openSwitcher, next, previous, confirm, dismiss, timeout
@@ -11,6 +11,10 @@ public enum NotchEvent: Equatable, Sendable {
     case select(Int)
     case openOnboarding
     case openSettings
+    /// A new session (Command+Option+N, or New session in the list).
+    case openNew
+    /// The new session was started: back to the list it was opened from, else closed.
+    case started
     case back
     /// The list was refreshed while the card is up: keep the card, clamp what is selected.
     case projectsChanged(count: Int, selected: Int)
@@ -58,6 +62,8 @@ public struct NotchMachine: Equatable, Sendable {
     public private(set) var phase: NotchPhase = .idle
     /// The card or list Settings was opened from: Back (Esc) returns there. Nil when it came from the menu bar or a shortcut.
     public private(set) var settingsFrom: NotchPhase?
+    /// Where a new session was opened from: the list or a card (Esc goes back there, and the list is where it lands), or nil.
+    public private(set) var newFrom: NotchPhase?
     public private(set) var selected = 0
     public private(set) var hovering = false
     public var projectCount: Int
@@ -84,6 +90,15 @@ public struct NotchMachine: Equatable, Sendable {
         case (.idle, .openSettings), (.open, .openSettings), (.switcher, .openSettings):
             settingsFrom = phase == .idle ? nil : phase
             phase = .settings
+        case (.idle, .openNew), (.open, .openNew), (.switcher, .openNew):
+            newFrom = phase == .idle ? nil : phase
+            phase = .newSession
+        case (.newSession, .back):
+            if let from = newFrom, from != .open || projectCount > 0 { phase = from } else { close() }
+        case (.newSession, .started):
+            if newFrom == .switcher { phase = .switcher } else { close() }
+        case (.newSession, .dismiss):
+            close()
         case (.settings, .back):
             if let from = settingsFrom { phase = from } else { close() }
         case (.settings, .dismiss):
@@ -135,5 +150,5 @@ public struct NotchMachine: Equatable, Sendable {
         }
     }
 
-    private mutating func close() { phase = .idle; hovering = false; settingsFrom = nil }
+    private mutating func close() { phase = .idle; hovering = false; settingsFrom = nil; newFrom = nil }
 }
