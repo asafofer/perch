@@ -67,6 +67,8 @@ final class App {
             for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: [.command, .option], id: id) { c.activityKey(name) } } }
         }
         hotkeys.onChordTap = { c.chordTap() }
+        hotkeys.onButton = { down in c.mouseButton(down: down) }
+        c.hearsButtons = hotkeys.hearsButtons
         hotkeys.apply(Prefs.openShortcut)
         c.openComboWorks = { [hotkeys] in hotkeys.openCombo }
         c.onShortcutRecording = { [hotkeys] recording in if recording { hotkeys.pauseAll() } else { hotkeys.resumeAll(); hotkeys.apply(Prefs.openShortcut) } }

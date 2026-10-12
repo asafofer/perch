@@ -1182,11 +1182,14 @@ final class NotchController {
             let top = ScreenChooser.under(at).map { $0.frame.maxY - at.y } ?? 0
             let fast = self.machine.phase != .idle || top < 160 || self.activityMode != ""
             if fast != self.cursorFast { self.cursorFast = fast; self.startPointerPolling(); return false }
-            // Presses and releases anywhere, for "a click outside the card closes it".
+            // Presses and releases anywhere, for "a click outside the card closes it": from raw button events when the
+            // hotkey thread hears them (a touchpad tap is shorter than a poll), else from the button mask here.
             let down = buttons & 0x700 != 0, wasDown = self.buttonsWere & 0x700 != 0
             self.buttonsWere = buttons
-            if down && !wasDown { self.pressedElsewhere(at) }
-            if !down && wasDown { self.releasedElsewhere(at) }
+            if !self.hearsButtons {
+                if down && !wasDown { self.pressedElsewhere(at) }
+                if !down && wasDown { self.releasedElsewhere(at) }
+            }
             // Another app took the keyboard from the card.
             let key = self.panel.isKeyWindow
             if self.wasKey && !key { self.makeWay() }
@@ -1216,6 +1219,12 @@ final class NotchController {
     /// there) keeps it. Not during onboarding.
     private var pressedOutside = false
     private var cardRect: CGRect { NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info) }
+    /// Raw button events from the hotkey thread (main.swift wires them); when set, the poll leaves presses to them.
+    var hearsButtons = false
+    func mouseButton(down: Bool) {
+        let (at, _) = FakeKeys.pointer()
+        if down { pressedElsewhere(at) } else { releasedElsewhere(at) }
+    }
     private func pressedElsewhere(_ at: CGPoint) {
         pressedOutside = machine.phase != .idle && !cardRect.contains(at)
     }

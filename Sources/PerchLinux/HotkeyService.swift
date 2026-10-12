@@ -12,6 +12,9 @@ import PerchCore
 @MainActor
 final class HotkeyService {
     var onChordTap: (() -> Void)?
+    /// A mouse button went down or up anywhere, from raw XInput 2 events (nil if the server has none).
+    var onButton: ((Bool) -> Void)?
+    var hearsButtons: Bool { keys != nil }
     /// False when another app already holds the combo, so pressing it would do nothing here.
     private(set) var openCombo = true
     private static let openId: UInt32 = 4
@@ -26,6 +29,7 @@ final class HotkeyService {
         let me = Weak(self)
         keys?.onHotkey = { id in DispatchQueue.main.async { MainActor.assumeIsolated { me.value?.handlers[id]?() } } }
         keys?.onTap = { DispatchQueue.main.async { MainActor.assumeIsolated { me.value?.onChordTap?() } } }
+        keys?.onButton = { down in DispatchQueue.main.async { MainActor.assumeIsolated { me.value?.onButton?(down) } } }
     }
 
     private final class Weak: @unchecked Sendable { weak var value: HotkeyService?; init(_ v: HotkeyService) { value = v } }
@@ -102,6 +106,8 @@ private let chainedErrorHandler: XErrorHandler = { d, e in
 final class KeyThread: @unchecked Sendable {
     var onHotkey: (@Sendable (UInt32) -> Void)?
     var onTap: (@Sendable () -> Void)?
+    /// A mouse button (1 to 3) went down (true) or up, anywhere: X has no global mouse monitor, and polling misses a tap.
+    var onButton: (@Sendable (Bool) -> Void)?
 
     private let d: OpaquePointer
     private let root: Window
@@ -193,8 +199,9 @@ final class KeyThread: @unchecked Sendable {
                 guard XGetEventData(d, cookie) != 0 else { return }
                 defer { XFreeEventData(d, cookie) }
                 let type = cookie.pointee.evtype
-                guard type == 13 || type == 14, let data = cookie.pointee.data else { return }   // XI_RawKeyPress, XI_RawKeyRelease
+                guard (13...16).contains(type), let data = cookie.pointee.data else { return }   // XI_RawKey and XI_RawButton press, release
                 let raw = data.assumingMemoryBound(to: XIRawEvent.self).pointee
+                if type == 15 || type == 16 { if (1...3).contains(raw.detail) { onButton?(type == 15) }; return }   // not the wheel (4 to 7)
                 if raw.flags & (1 << 16) != 0 { return }                                        // XIKeyRepeat
                 let kc = UInt32(raw.detail)
                 if tap.key(Int(kc), role: KeyMap.role(x11Keycode: kc, display: d), pressed: type == 13) { onTap?() }
@@ -211,7 +218,7 @@ final class KeyThread: @unchecked Sendable {
         guard XIQueryVersion(d, &major, &minor) == Success else { print("perch: XInput 2 missing, the modifier tap is off"); return }
         xiOpcode = op
         var bits = [UInt8](repeating: 0, count: 4)
-        for t in [13, 14] { bits[t >> 3] |= UInt8(1 << (t & 7)) }
+        for t in [13, 14, 15, 16] { bits[t >> 3] |= UInt8(1 << (t & 7)) }
         bits.withUnsafeMutableBufferPointer { buf in
             var mask = XIEventMask(deviceid: 1, mask_len: Int32(buf.count), mask: buf.baseAddress)   // XIAllMasterDevices
             _ = XISelectEvents(d, root, &mask, 1)
