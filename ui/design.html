@@ -31,7 +31,24 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .fdrag.cur i::before,.fdrag.cur i::after{content:"";position:absolute;left:50%;top:50%;background:#fff;border-radius:1px;transform:translate(-50%,-50%)}
 .fdrag.cur i::before{width:7px;height:1.6px}.fdrag.cur i::after{width:1.6px;height:7px}
 .fdrag.cur.copy i{display:block}
-.now{position:absolute;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
+.now{position:absolute;z-index:6;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
+
+/* the disk image window (Installing): Finder's window as a stand-in, the picture inside is the real one that ships (install/background.html) */
+.desk.inst{height:500px}
+.fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#161B19;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 0 0 .5px rgba(0,0,0,.6),0 26px 64px rgba(0,0,0,.6);transition:opacity .35s,transform .35s}
+.fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#9AA39E;letter-spacing:-.005em}
+.fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#3A423E;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
+.fin .dbar i:nth-child(1){left:12px}.fin .dbar i:nth-child(2){left:30px}.fin .dbar i:nth-child(3){left:48px}
+.fin .dpic{position:relative;width:660px;height:400px;overflow:hidden}
+.fin iframe{display:block;border:0;width:660px;height:400px;pointer-events:none}
+.fin .dic{position:absolute;top:128px;width:112px;margin-left:-56px;text-align:center;transition:opacity .25s}
+.fin .dic img,.fin .dic svg{display:block;width:112px;height:112px;border-radius:24px;transition:background .2s}
+.fin .dic span{display:inline-block;margin-top:9px;font:400 12px/16px Inter,sans-serif;color:#000;padding:0 6px;border-radius:5px}
+.fin .dic.hl svg{background:rgba(255,255,255,.1)}.fin .dic.hl span{background:#2F6FE0;color:#fff}
+.fin .dic.lift{opacity:.4}
+.fin .dghost{position:absolute;width:112px;height:112px;margin:-56px 0 0 -56px;opacity:.7;pointer-events:none;transition:opacity .25s,transform .25s}
+.fin .dghost.in{opacity:0;transform:scale(.45)}
+.fin .dcur{position:absolute;z-index:4;width:17px;height:24px;margin:-2px 0 0 -2px;pointer-events:none;transition:opacity .3s}
 
 /* display switch */
 .disp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--pg-muted)}
@@ -436,6 +453,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: could not reopen', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[8][1]) }); }],
       ['Settings: mac too old', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[9][1]) }); }],
     ]],
+    ['Installing', [
+      ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, and the characters peeking up from the bottom edge.', function () { d.show('idle'); disk(false); }],
+      ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken along the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
+    ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
@@ -455,6 +476,34 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['6. All set', 'The ways to reach Perch, starting with your shortcut.', function () { d.onboarding(6, true); }]
     ]]
   ];
+  /* The disk image window as Finder draws it, over the desk. The picture behind the icons is install/background.html, the one that
+     ships; the Applications folder is a stand-in (Finder draws the real one). play: the drag it asks for, Perch to Applications. */
+  var APPS_SVG = '<svg viewBox="0 0 112 112"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6CC2FA"/><stop offset="1" stop-color="#2D84E4"/></linearGradient></defs><path d="M10 30a8 8 0 0 1 8-8h22l8 8h46a8 8 0 0 1 8 8v52a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8z" fill="#2A78D6"/><rect x="10" y="38" width="92" height="52" rx="8" fill="url(#fg)"/><path d="M42 80l14-26 14 26M47 72h18" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/></svg>';
+  function diskStop() { var e = document.querySelector('.fin'); if (e) e.remove(); document.getElementById('desk').classList.remove('inst'); }
+  function disk(play) {
+    diskStop();
+    var desk = document.getElementById('desk'), me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+    desk.classList.add('inst');
+    var w = document.createElement('div'); w.className = 'fin';
+    w.innerHTML = '<div class="dbar"><i></i><i></i><i></i>Perch</div><div class="dpic"><iframe src="install/background.html" title="The disk image\u2019s picture"></iframe>' +
+      '<div class="dic" id="icP" style="left:175px"><img src="install/icon.png" alt=""><span>Perch</span></div><div class="dic" id="icA" style="left:485px">' + APPS_SVG + '<span>Applications</span></div></div>';
+    desk.appendChild(w);
+    if (!play) return;
+    var pic = w.querySelector('.dpic'), P = [175, 184], A = [485, 184];
+    var cur = document.createElement('div'); cur.className = 'dcur'; cur.innerHTML = CURSOR_SVG.replace(/<i><\/i>/, ''); pic.appendChild(cur);
+    var ghost = document.createElement('img'); ghost.className = 'dghost'; ghost.src = 'install/icon.png'; ghost.style.display = 'none'; pic.appendChild(ghost);
+    var put = function (e, p, ms, ease) { e.style.transition = ms ? 'left ' + ms + 'ms ' + (ease || 'cubic-bezier(.4,0,.2,1)') + ', top ' + ms + 'ms ' + (ease || 'cubic-bezier(.4,0,.2,1)') + ', opacity .3s, transform .25s' : 'none'; e.style.left = p[0] + 'px'; e.style.top = p[1] + 'px'; };
+    put(cur, [P[0] + 150, P[1] + 140]);
+    var icP = w.querySelector('#icP'), icA = w.querySelector('#icA');
+    now.textContent = 'The disk image window';
+    at(900, function () { put(cur, [P[0] + 20, P[1] + 16], 1000); });
+    at(2100, function () { now.textContent = 'Pick Perch up'; ghost.style.display = ''; put(ghost, P); icP.classList.add('lift'); });
+    at(2300, function () { now.textContent = 'Drag it along the arrow, onto Applications'; put(cur, [330 + 20, 184 + 16], 800, 'cubic-bezier(.3,.6,.5,1)'); put(ghost, [330, 184], 800, 'cubic-bezier(.3,.6,.5,1)'); });
+    at(3100, function () { put(cur, [A[0] + 20, A[1] + 16], 800, 'cubic-bezier(.5,0,.6,1)'); put(ghost, A, 800, 'cubic-bezier(.5,0,.6,1)'); });
+    at(3800, function () { icA.classList.add('hl'); });
+    at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
+    at(5500, function () { now.textContent = 'Perch is in Applications: open it from there'; });
+  }
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
@@ -467,7 +516,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
@@ -481,6 +530,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'External display': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+    'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
@@ -546,8 +596,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  /* it opens on what changed last, the Settings; the first scenario there is the newest */
-  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
+  /* it opens on what changed last, the disk image; the first scenario there is the newest */
+  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Installing') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),

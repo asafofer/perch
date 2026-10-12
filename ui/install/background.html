@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Perch disk image</title>
+<!-- The picture behind the icons in the Perch.dmg window (660 x 400 points). Finder puts the Perch icon on the left and the
+     Applications folder on the right (scripts/make-dmg.sh places them at 175,180 and 485,180); this draws everything else:
+     the words, the light behind both icons, a thin line with a head between them, and the
+     crowd of characters, the real ones (app.js draws them, coat and eyes), peeking up from the bottom edge.
+     The design page shows it in a Finder window; scripts/render-dmg-background.mjs renders it to Resources/dmg/background.png and @2x. -->
+<link rel="stylesheet" href="../dist/ui.css">
+<style>
+@font-face { font-family: Inter; font-weight: 100 900; src: url(../dist/fonts/inter-latin-wght-normal.woff2) format('woff2'); }
+html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
+body { position: relative; font-family: Inter, -apple-system, system-ui, sans-serif; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; color: #EDF1EE; }
+/* the night: a soft light from the top left, a faint warm horizon under the crowd (and a soft glow behind each character, below) */
+#bg { position: absolute; inset: 0; background:
+  radial-gradient(ellipse 560px 420px at 50% 46%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),
+  radial-gradient(ellipse 420px 300px at 0% 0%, rgba(255,255,255,.055), rgba(255,255,255,0) 100%),
+  radial-gradient(ellipse 360px 80px at 50% 100%, rgba(255,170,130,.14), rgba(255,170,130,0) 100%),
+  linear-gradient(#0C1110, #060908); }
+#scene { display: none; }
+h1 { position: absolute; left: 0; right: 0; top: 40px; margin: 0; text-align: center; font-size: 21px; font-weight: 600; letter-spacing: -.024em; line-height: 28px;
+  background: linear-gradient(#FFFFFF, #D3DAD6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+p { position: absolute; left: 0; right: 0; margin: 0; text-align: center; color: #8C9690; letter-spacing: -.005em; }
+.sub { top: 72px; font-size: 13.5px; line-height: 20px; }
+.note { top: 276px; font-size: 11.5px; line-height: 18px; color: #66706B; }
+.note b { font-weight: 600; color: #8C9690; }
+/* Finder draws the two names itself (black in light mode, white in dark), so each sits on a small mid-grey plate that reads either way.
+   Measured on the real window: the text is centred at y 254, Perch 33 wide and Applications 71. */
+.plate { position: absolute; top: 244px; height: 20px; border-radius: 6px; transform: translateX(-50%); background: #8B9490; }
+svg.fx { position: absolute; left: 0; top: 0; overflow: visible; }
+.pal { position: absolute; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; }
+.cr-slot { position: absolute; }
+.cr-slot .cr { --lx: var(--gx, 0px); --ly: var(--gy, 0px); }
+</style>
+<div id="bg"></div>
+<div id="scene"></div>
+<svg class="fx" width="660" height="400" viewBox="0 0 660 400" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="trail" x1="262" x2="398" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#EDF1EE" stop-opacity="0"/><stop offset=".55" stop-color="#EDF1EE" stop-opacity=".5"/><stop offset="1" stop-color="#EDF1EE" stop-opacity=".78"/></linearGradient>
+  </defs>
+  <g id="sparks" fill="#EDF1EE"></g>
+  <g stroke="url(#trail)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M262 184H398"/><path d="M390 176.5L398 184L390 191.5"/>
+  </g>
+</svg>
+<div class="plate" style="left:175px;width:53px"></div><div class="plate" style="left:485px;width:91px"></div>
+<h1>Drag Perch to Applications</h1>
+<p class="sub">Then open it from there.</p>
+<p class="note">First time only: right-click Perch, then choose <b>Open</b>.</p>
+<div id="crew"></div>
+<script src="../orbs.js"></script>
+<script src="../app.js"></script>
+<script>
+/* shape, colour, centre x, top y (the bottom runs off the window), size, mood, which way the eyes look, tilt in degrees */
+var CREW = [['ears', '#F5B83D', 88, 318, 84, 'awake', [5, -3], -3], ['octo', '#B9A2F5', 208, 304, 94, 'happy', [4, -4], 2], ['bun', '#FF9E7A', 330, 324, 98, 'awake', [0, -4], 0],
+            ['tile', '#7DC4F5', 452, 306, 90, 'happy', [-4, -4], -2], ['peak', '#7FD9A8', 572, 318, 84, 'awake', [-5, -3], 3]];
+document.getElementById('crew').innerHTML = CREW.map(function (c) {
+  var x = c[2], y = c[3], z = c[4];
+  return '<div class="pal" style="left:' + x + 'px;top:' + (y + z * .55) + 'px;background:radial-gradient(circle,' + c[1] + '30 0%,' + c[1] + '22 14%,' + c[1] + '14 30%,' + c[1] + '08 48%,' + c[1] + '02 68%,' + c[1] + '00 100%)"></div>' +
+    '<div class="cr-slot" style="left:' + (x - z / 2) + 'px;top:' + y + 'px;--cr:' + c[1] + ';--gx:' + c[6][0] + 'px;--gy:' + c[6][1] + 'px;transform:rotate(' + c[7] + 'deg)">' + window.perchDev.character(c[0], z, c[5]) + '</div>';
+}).join('');
+/* a few specks of light, always the same ones */
+var k = 7, sp = '';
+for (var i = 0; i < 16; i++) { k = (k * 9301 + 49297) % 233280; var a = k / 233280; k = (k * 9301 + 49297) % 233280; var b = k / 233280; k = (k * 9301 + 49297) % 233280;
+  if (!(b < .3 && a > .28 && a < .72)) sp += '<circle cx="' + (a * 660).toFixed(0) + '" cy="' + (b * 250 + 10).toFixed(0) + '" r="' + (.6 + (k / 233280) * 1.1).toFixed(1) + '" opacity="' + (.1 + (k / 233280) * .3).toFixed(2) + '"/>'; }
+document.getElementById('sparks').innerHTML = sp;
+</script>

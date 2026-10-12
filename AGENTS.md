@@ -69,6 +69,8 @@ cd ui && npm install && cd ..       # once
 swift test
 ./scripts/package.sh                # build/Perch.zip for sharing
 ./scripts/release.sh [--publish]    # a release that installed copies update to (Sparkle), see Updates
+./scripts/make-dmg.sh               # build/Perch.dmg: the window people drag Perch to Applications in (release.sh makes and uploads it; the zip stays what Sparkle updates from)
+node scripts/render-dmg-background.mjs  # Resources/dmg/background.png and @2x from ui/install/background.html (the design page's Installing tab shows it)
 ./scripts/make-icon.sh              # Resources/AppIcon.icns and docs/assets/icon.png from docs/assets/icon.svg (WebKit draws the coat)
 ./scripts/pr-demo.sh [scenario...] [--publish]   # a PR's demo from the design page (see Opening a PR)
 ./scripts/agents-demo.sh [folder]   # herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux

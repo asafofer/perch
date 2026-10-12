@@ -2484,6 +2484,8 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     window.perchDev = {
+      /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
+      character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
