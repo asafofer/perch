@@ -222,6 +222,7 @@ public enum TranscriptParser {
             raw = blocks.compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }.joined(separator: keepLines ? "\n\n" : " ")
         }
         raw = strip(raw, open: "<system-reminder>", close: "</system-reminder>")
+        raw = strip(raw, open: "<system_instruction>", close: "</system_instruction>")   // what Conductor puts before your first prompt
         raw = strip(raw, open: "<command-name>", close: "</command-name>")
         raw = strip(raw, open: "<command-message>", close: "</command-message>")
         raw = strip(raw, open: "<command-args>", close: "</command-args>")
@@ -287,7 +288,7 @@ public struct GitInfo: Equatable, Sendable {
 
 public enum Recap {
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil) -> Project? {
+    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
         let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
@@ -306,11 +307,14 @@ public enum Recap {
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,
-                       steps: desktopSessionId != nil
+                       steps: conductor != nil
+                           ? [RestoreStep(icon: "win", text: "Opened Conductor"), RestoreStep(icon: "term", text: "Went back to your workspace")]
+                           : desktopSessionId != nil
                            ? [RestoreStep(icon: "win", text: "Opened the \(agent.short) app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent.name) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
         p.lastActive = last
+        p.conductor = conductor
         // A question the transcript shows still open: the card shows it and its choices even when no hook said so.
         if d.turnOpen, let t = d.pendingTool, var q = Ask(pending: t, agent: agent.id) { q.transcriptAt = t.at ?? last; p.ask = q }
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil

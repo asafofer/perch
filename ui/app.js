@@ -69,19 +69,21 @@
   /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
      OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
      the terminal is the one showing herdr. */
-  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed' };
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
   function AppOf(p, c) {
-    if (!p.via) return App(p.app, c);
+    /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
+    var host = p.via || p.opens;
+    if (!host) return App(p.app, c);
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
-    var term = icons[p.via] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[p.via] + '" alt="">'
+    var term = icons[host] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[host] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[p.via] || 'a terminal') + '">' + term +
+    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
          the ring sits on the icon's own edge instead of leaving a dark band between them */
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, iconOf(p.app) ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
   }
   /* where the main button takes you, by name: "Open Claude", "Open Ghostty" */
-  function goLabel(p) { return 'Open ' + (p && p.via ? TERMS[p.via] || 'Terminal' : agentShort(p && (p.app || (p.status && p.status.app)))); }
+  function goLabel(p) { return 'Open ' + (p && (p.via || p.opens) ? TERMS[p.via || p.opens] || 'Terminal' : agentShort(p && (p.app || (p.status && p.status.app)))); }
   /* The arc turns inside its own drawing, around its own centre (12, 12). Turning the whole icon with CSS made it wobble
      wherever it sat on a fraction of a pixel (beside a project name of any width): it circled a centre a little off its own. */
   var STILL = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -603,7 +605,7 @@
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
-    var ik = p.app + '|' + (p.via || '') + '|' + !!icons[p.via || p.app];
+    var ik = p.app + '|' + (p.via || p.opens || '') + '|' + !!icons[p.via || p.opens || p.app];
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
@@ -2462,7 +2464,10 @@
       { id: 'tui', name: 'tui-kit', via: 'ghostty', branch: 'main', away: '2m', at: '12:03 PM', headline: 'Keyboard focus for the table.', context: 'Moving focus with the arrow keys, then making Tab leave the table.', now: 'Running `bun test`', next: '', topic: 'Keyboard focus for the table component', app: 'opencode', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'OpenCode is working', app: 'opencode' },
         said: 'Arrow keys now move focus between cells, and Home and End jump to the ends of a row. I am running the tests before I touch Tab.' },
       { id: 'scraper', name: 'price-scraper', via: 'ghostty', host: 'herdr', branch: 'main', away: '12m', at: '11:52 AM', headline: 'You were retrying failed pages.', context: 'Failed pages now retry three times with backoff, and the run log lists the ones that never loaded.', next: 'Run it against the full catalogue', topic: 'Retry failed pages with backoff', app: 'pi', attention: false, fresh: true, line: 'Finished 12m ago', status: { kind: 'done', text: 'pi finished', app: 'pi' },
-        said: 'Failed pages now retry three times, waiting 1, 4 and 16 seconds. Pages that still fail go to `failed.txt` with their status code.\n\nNext: run it against the full catalogue.' }
+        said: 'Failed pages now retry three times, waiting 1, 4 and 16 seconds. Pages that still fail go to `failed.txt` with their status code.\n\nNext: run it against the full catalogue.' },
+      /* a workspace in Conductor: Conductor's icon with the agent on its corner, and Open Conductor on the button */
+      { id: 'phoenix', name: 'conductor-test', opens: 'conductor', branch: 'asafofer/ls-files', away: '6m', at: '1:30 PM', headline: 'Ls files.', context: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.', next: '', topic: 'Ls files', app: 'claude', attention: false, fresh: true, line: 'Finished 6m ago', status: { kind: 'done', text: 'Claude Code replied', app: 'claude' },
+        asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
     ];
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {

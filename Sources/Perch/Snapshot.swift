@@ -29,6 +29,8 @@ struct UISnapshot: Encodable {
         let via: String?
         /// The multiplexer it runs in inside that terminal: "herdr".
         let host: String?
+        /// The app it opens in when that is not the agent's own: "conductor".
+        let opens: String?
         /// The list's section: "Needs you", "Today" or "Earlier".
         let section: String
         /// The agent's own last message, shown while you reply.
@@ -152,7 +154,7 @@ struct UISnapshot: Encodable {
                       ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
-                      now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host,
+                      now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
                       section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked)
         }
     }

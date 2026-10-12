@@ -242,7 +242,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if line != traced { traced = line; NSLog("Perch in: \(line)") }
             }
             return (hit, hit)
-        case Restorer.codexApp: return ([], Focus.inCodexApp(projects))
+        case Restorer.conductorApp:
+            // The workspace in its window is the one you are in; where it cannot be read, any of its workspaces may be.
+            let all = Set(projects.filter { $0.conductor != nil }.map(\.id))
+            switch focus.fresh(for: bid)?.claude {
+            case .session(let workspace)?:
+                let here = Set(projects.filter { $0.conductor == workspace }.map(\.id))
+                return (here, here)
+            case .some(.none): return ([], [])
+            default: return ([], all)
+            }
+        case Restorer.codexApp: return ([], Focus.inCodexApp(projects.filter { $0.conductor == nil }))
         default:
             guard Terminals.keys[bid] != nil else { return ([], []) }
             let r = Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
@@ -254,6 +264,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Whether there is anything in that app to tell apart: nothing is read for an app that has no session of ours.
     private func hasSessions(in bid: String) -> Bool {
         if bid == Restorer.claudeApp { return projects.contains { $0.desktopSessionId != nil } }
+        if bid == Restorer.conductorApp { return projects.contains { $0.conductor != nil } }
         let app = bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid
         return projects.contains { $0.terminal && $0.via == app && $0.spot != nil }
     }

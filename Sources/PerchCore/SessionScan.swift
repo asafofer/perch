@@ -58,9 +58,10 @@ public final class SessionScanner: @unchecked Sendable {
     public var lookUpRepo: (String) -> String? = SessionScanner.repo(at:)
     let home: URL
     let desktop: DesktopSessions
+    let conductor: ConductorSessions
 
-    public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared) {
-        self.home = home; self.desktop = desktop
+    public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared) {
+        self.home = home; self.desktop = desktop; self.conductor = conductor
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -146,7 +147,8 @@ public final class SessionScanner: @unchecked Sendable {
         var out: [Found] = []
         // Sessions started in a terminal: the transcripts the app does not list, started from the command line.
         // Headless runs (`claude -p`, SDKs) and sessions the app has since deleted are not.
-        let listed = Set(desktop.index().keys)
+        let hosted = conductor.index()
+        let listed = Set(desktop.index().keys).union(hosted.keys)
         let terminal = all.compactMap { cli, url -> (url: URL, mtime: Date)? in
             guard !listed.contains(cli), let m = Self.mtime(url), m > cutoff else { return nil }
             return (url, m)
@@ -177,6 +179,22 @@ public final class SessionScanner: @unchecked Sendable {
                 out.append((p, digest, git, last))
             }
         }
+        // Conductor's own list: workspaces it made, each a worktree of a project. They open in Conductor.
+        var fromConductor = 0
+        for (cli, entry) in hosted where entry.agent == "claude" && !entry.archived {
+            guard fromConductor < limit, let url = transcript(cli, cwd: entry.cwd), let mtime = Self.mtime(url), mtime > cutoff,
+                  var digest = cachedDigest(url, mtime: mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
+                  !Recap.isTrivial(digest), usable(entry.cwd) else { continue }
+            digest.cwd = entry.cwd
+            if let t = entry.title { digest.title = t }
+            digest.repoName = entry.repo ?? cachedRepo(entry.cwd)
+            digest.branch = entry.branch ?? digest.branch
+            let git = cachedGit(entry.cwd).info
+            if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(mtime), conductor: entry.workspaceId), let last = digest.lastTimestamp {
+                p.startedAt = Self.created(url)
+                out.append((p, digest, git, last)); fromConductor += 1
+            }
+        }
         return out
     }
 
@@ -199,6 +217,7 @@ public final class SessionScanner: @unchecked Sendable {
         }
         candidates.sort { $0.mtime > $1.mtime }
         let names = codexThreadNames(root.appendingPathComponent("session_index.jsonl"))
+        let hosted = conductor.index()
 
         var out: [Found] = []
         for item in candidates {
@@ -209,11 +228,15 @@ public final class SessionScanner: @unchecked Sendable {
             digest.cwd = cwd; digest.sessionId = head.sessionId
             guard !Recap.isTrivial(digest) else { continue }
             if let id = head.sessionId, let t = names[id], !t.isEmpty { digest.title = t }
-            digest.repoName = cachedRepo(cwd)
+            // A thread Conductor runs is Conductor's, not the Codex app's: it opens there, and its workspace names it.
+            let workspace = head.sessionId.flatMap { hosted[$0] }
+            if workspace?.archived == true { continue }
+            if let t = workspace?.title { digest.title = t }
+            digest.repoName = workspace?.repo ?? cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             let git = cg.info
             digest.branch = cg.branch
-            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: .codex, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: .codex, quietFor: now.timeIntervalSince(item.mtime), conductor: workspace?.workspaceId), let last = digest.lastTimestamp {
                 p.terminal = head.entrypoint == "cli"   // the Codex CLI in a terminal, not the Codex app
                 p.startedAt = Self.created(item.url)
                 out.append((p, digest, git, last))
