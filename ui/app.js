@@ -752,12 +752,14 @@
         r.onmouseenter = function () {
           hovered = r; marquee(r);
           var i = +r.dataset.i;
-          if (!ptrMoved() || i === (pend >= 0 ? pend : lastSel)) return;
+          if (!ptrMoved()) return;
+          listKb = false; markList();
+          if (i === (pend >= 0 ? pend : lastSel)) return;
           pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 800);
           sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
           post({ type: 'pick', index: i });
         };
-        r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
+        r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); markList(); };
       });
     }
     var sel = null, cs = pend >= 0 && s.selected !== pend ? pend : s.selected;
@@ -779,6 +781,7 @@
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
     if (sel && cs !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[cs], row); }, 0); }
+    if (cs !== lastSel && lastSel >= 0 && cs !== ptrPick) { listKb = true; markList(); }   /* chosen by the keys: its row shows again */
     if (cs !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
     if (cs !== lastSel || !hovered) { lastSel = cs; marquee(sel); }
   }
@@ -797,6 +800,10 @@
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;
+  /* The list's choice shows only while the pointer is on a row or the keys made it: a pointer that has left leaves no row lit
+     (the choice itself stays, for Return, until the keys or the pointer move it). */
+  var listKb = true;
+  function markList() { var pn = q('.p-switch'); if (pn) pn.classList.toggle('nomark', !listKb && !hovered); }
   function marquee(row) {
     if (row && mq.el === row) return;
     clearTimeout(mq.t); mq.anims.forEach(function (a) { a.cancel(); });
@@ -1401,8 +1408,8 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'set') {
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; showOpen = false; }
+      if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
+    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
     if (st !== 'open') orbFor('');
@@ -2202,7 +2209,7 @@
       /* the keys, like the list's: every setting can be changed without the mouse */
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
-    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; paintFocus(); } }); });
+    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
@@ -2361,7 +2368,7 @@
     paintFocus();
   }
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
-  var setFocus = 0, appsAt = 0, liveNext = false;
+  var setFocus = 0, appsAt = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
   /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
   function flashLive() {
     var r = q('.set').querySelectorAll('.s-row')[3];
@@ -2370,7 +2377,7 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && !appsOpen && !notOpen && !showOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen); });
     var sitems = box.querySelectorAll('.s-sitem');
     showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
     sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
@@ -2383,7 +2390,7 @@
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
-    keyPtr = ptrAt.slice();
+    keyPtr = ptrAt.slice(); setKb = true;
     var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
     if (appsOpen) {

@@ -284,6 +284,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .row .rk:empty { display: none; }
 /* a highlight comes on at once and fades out, so a quick pass over rows leaves each one seen; .crossed marks a row the pointer crossed between two samples */
 .p-switch .row, .p-set .s-row { transition-duration: .09s; }
+.p-switch.nomark .row.bg-accent { background-color: transparent; }
 .row.bg-accent, .s-row.bg-accent, .row.crossed, .s-row.crossed { transition-duration: 0s; }
 .row.crossed, .s-row.crossed { background-color: hsl(var(--accent)); }
 /* the working step: grey words with a light passing over them, so it reads as happening rather than as yours to do. A white
