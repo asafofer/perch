@@ -717,6 +717,16 @@
   function sbUp() { if (!sbDrag) return; sbDrag = null; sb.classList.remove('drag'); sbar(true); }
   sb.addEventListener('pointerup', sbUp); sb.addEventListener('pointercancel', sbUp);
   var listNewT = 0, listArrived = {};
+  /* the header's word comes in as the notch line's does (renderSent): the words slide in, the plane flies in from below
+     left, a failure's ring pops */
+  function sNewIn(el, k) {
+    if (STILL || !el.animate) return;
+    var w = el.firstChild, mark = el.querySelector('svg:last-child');
+    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    if (!mark || k === 'starting') return;
+    if (k === 'failed') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+    else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+  }
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
@@ -729,7 +739,7 @@
     var sNewH = sNew === 'starting' ? '<span class="flex items-center gap-1.5">' + Spinner('size-3') + 'Starting\u2026</span>'
       : sNew === 'started' ? '<span class="flex items-center gap-1.5 text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
       : sNew === 'failed' ? '<span class="flex items-center gap-1.5" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>' : '';
-    if (sNewH) { if (q('.s-n')._k !== sNew) { q('.s-n').innerHTML = sNewH; q('.s-n')._k = sNew; } clearTimeout(listNewT); if (sNew !== 'starting') listNewT = setTimeout(function () { if (snap && snap.phase === 'switcher') list(snap); }, sNew === 'started' ? SENT_MS : 4500); }
+    if (sNewH) { if (q('.s-n')._k !== sNew) { q('.s-n').innerHTML = sNewH; q('.s-n')._k = sNew; sNewIn(q('.s-n'), sNew); } clearTimeout(listNewT); if (sNew !== 'starting') listNewT = setTimeout(function () { if (snap && snap.phase === 'switcher') list(snap); }, sNew === 'started' ? SENT_MS : 4500); }
     else { q('.s-n')._k = ''; q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : ''); }
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
