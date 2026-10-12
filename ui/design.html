@@ -55,6 +55,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .disp button{font:500 12.5px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .disp button[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 .desk.ext .mb{height:24px}
+/* Linux (the Linux category): a desktop's top bar with the clock in the middle, where GNOME keeps it. Perch draws nothing there at rest. */
+.desk.linux .mb{height:28px;background:rgba(10,10,12,.86);backdrop-filter:none}
+.desk.linux .mb::after{content:"Mon 12 Oct  12:04";position:absolute;left:0;right:0;top:0;line-height:28px;text-align:center;white-space:pre;font:600 12.5px Inter,sans-serif;color:rgba(255,255,255,.88)}
+.desk.linux #hw{display:none}
 /* the hardware notch: its pixels are not there, so whatever the card draws under it is gone. Painted over the card, with a thin pink edge to find it by. */
 .desk #hw{position:absolute;left:50%;top:0;width:185px;height:32px;margin-left:-92.5px;background:#000;border-radius:0 0 11px 11px;box-shadow:0 0 0 1px rgba(255,70,190,.6);z-index:5;pointer-events:none}
 .desk.ext #hw,.desk.noguide #hw{display:none}
@@ -466,6 +470,32 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, and the characters peeking up from the bottom edge.', function () { d.show('idle'); disk(false); }],
       ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken along the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
     ]],
+    ['Linux', [
+      ['Resting', 'Linux, at rest: nothing drawn. There is no notch to sit behind, and a tab at the top centre would cover the clock most Linux desktops keep there. Perch opens with its shortcut (Super+Alt) or the panel icon, and says what needs you from the top edge.', function () { linux(); d.show('idle', true); }],
+      ['All sessions', 'The list on Linux: every session runs in a terminal, so each row wears its terminal’s icon with the agent on its corner (stand-ins here; the app sends the real ones from the icon theme). Settings is Ctrl+comma.', function () { linux(); d.show('switcher'); }],
+      ['A card', 'A finished Claude Code session in kitty: Open kitty takes you back to its window.', function () { linux(); d.project(1); d.show('open', false, true); }],
+      ['A card, icon missing', 'A session in Tilix, whose icon the app did not find: the generic terminal mark stands in, with the agent on its corner.', function () { linux(); d.variant(9, { fresh: true, status: { kind: 'done', text: 'Claude finished', app: 'claude' }, line: 'Finished 2m ago' }); }],
+      ['Asked you something', 'Claude Code in GNOME Terminal asks a question: 1, 2 or 3 answers it from the card.', function () { linux(); d.variant(0, Object.assign({}, CLAUDE_ASKS, { ask: CLAUDE_ASKS.ask })); }],
+      ['Needs your OK', 'A command waiting for your OK: A allows, D denies.', function () { linux(); d.project(0); d.show('open'); }],
+      ['Reply', 'R opens the reply: the agent’s last message, your words below it. Return types them into its terminal.', function () { linux(); d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Bring the video back for desktop only.'; r.dispatchEvent(new Event('input')); }, 700); }],
+      ['Reply to a terminal, sent', 'Return: the words shoot up and the top edge swallows them with a green ripple, as the notch does, then the card folds away.', function () { linux(); d.project(7); d.show('open', false, true); var me = charRun; setTimeout(function () { if (me !== charRun) return; window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Add a test for the burst limit'; r.dispatchEvent(new Event('input')); }, 700); setTimeout(function () { if (me === charRun) document.querySelector('.x-send').click(); }, 2000); }],
+      ['Live activity: finished', 'A session you are not in finishes: the row grows from the top edge, with Open and Reply on Super+Alt+Return and Super+R.', function () { linux(); d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
+      ['Live activity: needs your OK', 'Allow and Deny on Super+Alt+Y and Super+Alt+N; after nine seconds it folds to wings.', function () { linux(); d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
+      ['Live activity: asked you something', 'Up to three choices on the row, Super+Alt said once, then 1, 2, 3.', function () { linux(); d.arrive(3, CLAUDE_ASKS); }],
+      ['Live activity: wings', 'Something already waits on you: just the wings at the top edge, the terminal and a mark.', function () { linux(); d.show('idle'); }],
+      ['Hello after setup', 'The character comes out beside a small black tab that appears at the top edge for the moment, says hi, and runs back into it; the tab tucks away after it.', function () { linux(); d.show('idle', true); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.hi(); }, 700); }],
+      ['Settings', 'No Accessibility row and no Updates row (no self-update on Linux yet). Settings opens with Ctrl+comma; the shortcut shows as Super Alt.', function () { linux(); d.settings({ sources: FOUR, displays: [{ id: 'eDP-1', name: 'Built-in display', connected: true }, { id: 'DP-1', name: 'DELL U2723QE', connected: true }] }); }],
+      ['Settings: Show Perch on', 'The menu ends with Hover at the top edge opens Perch, off by default: every Linux screen is one without a notch.', function () { linux(); d.settings({ sources: FOUR, displays: [{ id: 'eDP-1', name: 'Built-in display', connected: true }, { id: 'DP-1', name: 'DELL U2723QE', connected: true }] }); setTimeout(function () { var t = document.querySelector('.set .s-showtrig'); if (t && t.getAttribute('aria-expanded') !== 'true') t.click(); }, 400); }],
+      ['Shortcut: Change', 'The recorder, with Linux’s key names on the caps.', function () { linux(); d.settings({ sources: FOUR }); setTimeout(function () { document.querySelector('.set button.s-sc').click(); }, 500); }],
+      ['Shortcut: refused', 'A shortcut Perch cannot take: the keys stay, shake, and the reason spells them out (Ctrl+Alt+L is the project list).', function () { linux(); d.settings({ sources: FOUR }); setTimeout(function () { document.querySelector('.set button.s-sc').click(); setTimeout(function () { d.shortcut({ error: '⌃⌥L is the project list', attempt: ['⌃', '⌥', 'L'], refusals: 1 }); }, 700); }, 500); }],
+      ['Shortcut: custom', 'A recorded combo in Settings: Ctrl Space.', function () { linux(); d.settings({ sources: FOUR, shortcut: { keys: ['⌃', 'Space'], kind: 'combo', custom: true, recording: false, error: '', tried: false } }); }],
+      ['Onboarding: hello', 'It lives at the top of the screen here, not on a notch.', function () { linux(); d.onboarding(0, true, false, null, true); }],
+      ['Onboarding: 1. Make me yours', 'Five steps on Linux: the Accessibility step is gone.', function () { linux(); d.onboarding(1, true, false, null, true); }],
+      ['Onboarding: 2. Your shortcut', 'The Super and Alt keys, tapped together.', function () { linux(); d.onboarding(3, true, false, null, true); }],
+      ['Onboarding: 3. Choose your apps', 'The four agents, all in terminals. No macOS folder prompt.', function () { linux(); d.onboarding(4, true, false, null, true); }],
+      ['Onboarding: 4. Live status', 'The hooks, as on the Mac.', function () { linux(); d.onboarding(5, true, false, null, true); }],
+      ['Onboarding: 5. All set', 'The shortcut, Ctrl Alt P and Ctrl Alt L. No hover hint: there is no notch to rest on.', function () { linux(); d.onboarding(6, true, false, null, true); }]
+    ]],
     ['Onboarding', [
       ['Hello', 'Perch introduces itself: it lands on the notch, wakes, says hi, and shows two sessions as rows of the list, one finishing and one needing your OK. Only a picture: nothing there to hover or press.', function () { d.onboarding(0); }],
       ['1. Make me yours', 'Shape and colour. Arrows change them.', function () { d.onboarding(1); }],
@@ -525,7 +555,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); macAgain(); fn(); }
+  /* a Linux scenario draws the page as Linux's app does, on a screen with no notch; any other scenario puts the Mac back */
+  var desk = document.getElementById('desk');
+  function linux() { d.platform('linux'); desk.classList.add('linux'); setDisplay(0); }
+  function macAgain() { if (!desk.classList.contains('linux')) return; desk.classList.remove('linux'); d.platform('mac'); setDisplay(1); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
@@ -541,6 +575,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
     'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    'Linux': '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
