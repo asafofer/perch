@@ -282,6 +282,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-sec.first { padding-top: 0; }
 /* a row with no mark (seen, idle) gives its space to the project */
 .row .rk:empty { display: none; }
+/* a highlight comes on at once and fades out, so a quick pass over rows leaves each one seen; .sw marks a row the pointer crossed between two samples */
+.row.bg-accent, .s-row.bg-accent, .row.sw, .s-row.sw { transition-duration: 0s; }
+.row.sw, .s-row.sw { background-color: hsl(var(--accent)); }
 /* the working step: grey words with a light passing over them, so it reads as happening rather than as yours to do. A white
    copy of the words (app.js sets data-shine) sits on top, and a soft band of mask moves across it. The mask repeats and each
    pass moves it exactly one repeat, so the light comes in from the left, leaves at the right, and the loop has no seam. */

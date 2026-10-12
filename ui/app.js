@@ -1533,7 +1533,21 @@
      mouseenter too (here and from WebKit); that must not pull the keyboard's choice back to the pointer. Only a pointer that moved does. */
   var ptrAt = [-1, -1], keyPtr = null;
   function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  /* The pointer is sampled, not followed: a quick pass skips rows, and a skipped row never gets its mouseenter. Walk the
+     line from the last sample to this one and give each list or settings row it crossed a brief flash (.sw, in input.css),
+     on in a frame and fading out, so every row the pointer went over shows it. Only looks; the choice stays with the row it stops on. */
+  var swAt = null, swT = 0;
+  function sweep(x, y) {
+    var p = swAt, now = Date.now(); swAt = [x, y];
+    if (!p || now - swT > 120) { swT = now; return; }
+    swT = now;
+    var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6);
+    for (var i = 1; i < n; i++) {
+      var el = document.elementFromPoint(p[0] + dx * i / n, p[1] + dy * i / n), r = el && el.closest && el.closest('.row, .s-row');
+      if (r && !r.classList.contains('sw')) { r.classList.add('sw'); setTimeout(function (r) { r.classList.remove('sw'); }.bind(null, r), 50); }
+    }
+  }
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { sweep(e.clientX, e.clientY); ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1547,7 +1561,7 @@
   var handOn = false;
   function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
-    ptrAt = [x, y];
+    ptrAt = [x, y]; sweep(x, y);
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -2351,7 +2365,7 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen && !notOpen && !showOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && !appsOpen && !notOpen && !showOpen); });
     var sitems = box.querySelectorAll('.s-sitem');
     showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
     sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
