@@ -51,7 +51,7 @@ enum Terminals {
     /// herdr), its cmux surface, or its terminal tab (Terminal and iTerm2 by tty, Ghostty by folder; any other terminal is
     /// brought forward as a whole). Nil when there is nothing to bring forward.
     @discardableResult
-    static func focus(_ live: LiveSessions.Hit) -> String? {
+    static func focus(_ live: LiveSessions.Hit, hints: [String] = []) -> String? {
         switch live.place {
         case .herdr(let pane, let socket, let session):
             Herdr.focus(pane: pane, socket: socket, bin: live.herdrBin)
@@ -61,9 +61,9 @@ enum Terminals {
             return preferred
         case .cmux(let workspace, let surface):
             if Cmux.focus(workspace: workspace, surface: surface) { return cmux }
-            return focusTab(app: live.app, tty: live.tty, cwd: live.cwd)
+            return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         case .tab:
-            return focusTab(app: live.app, tty: live.tty, cwd: live.cwd)
+            return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         }
     }
 
@@ -73,28 +73,60 @@ enum Terminals {
         return focusTab(app: v.app, tty: v.tty, cwd: v.cwd)
     }
 
-    /// Warp has no way to ask for a window or tab, so its windows are told apart by title through Accessibility (a window is
-    /// titled after its active tab, which is usually the folder). True when a window naming this folder was brought forward.
-    private static func raiseWarpWindow(cwd: String) -> Bool {
+    /// Warp has no way to ask for a tab, so Perch switches tabs with their own keys (Command+1 to 9) and reads each one through
+    /// Accessibility: the window's title and the terminal text on screen. It stops on the tab that shows the session, and
+    /// puts you back where you were when none does. True when a tab was picked. Blocks for a second or two.
+    private static func switchWarpTab(cwd: String, hints: [String]) -> Bool {
         guard AXIsProcessTrusted(), let running = NSRunningApplication.runningApplications(withBundleIdentifier: warp).first else { return false }
+        running.activate()
+        Thread.sleep(forTimeInterval: 0.3)
         let ax = AXUIElementCreateApplication(running.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 1)
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(ax, kAXWindowsAttribute as CFString, &value) == .success, let windows = value as? [AXUIElement] else { return false }
-        let titles = windows.map { w -> String in
-            var t: AnyObject?
-            return AXUIElementCopyAttributeValue(w, kAXTitleAttribute as CFString, &t) == .success ? (t as? String ?? "") : ""
-        }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: Warp windows \(titles) for \(cwd)") }
-        guard let i = WarpWindows.match(titles: titles, cwd: cwd, home: home) else { return false }
-        AXUIElementSetAttributeValue(windows[i], kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-        AXUIElementPerformAction(windows[i], kAXRaiseAction as CFString)
-        running.activate()
-        return true
+        let trace = ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil
+        let windows = (ConductorApp.attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+        for window in windows {
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+            func read() -> WarpTabs.Reading {
+                let text = ConductorApp.first(in: [window], limit: 60) { ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXTextArea" }
+                return WarpTabs.Reading(title: ConductorApp.attr(window, kAXTitleAttribute) as? String ?? "", text: text.flatMap { ConductorApp.attr($0, kAXValueAttribute) as? String } ?? "")
+            }
+            let start = read()
+            var seen: [WarpTabs.Reading] = [], hit: Int?
+            for n in 1...9 {
+                press(digit: n, with: .maskCommand)
+                Thread.sleep(forTimeInterval: 0.15)
+                let r = read()
+                seen.append(r)
+                let score = WarpTabs.score(r, cwd: cwd, home: home, hints: hints)
+                if trace { NSLog("Perch: Warp tab \(n): \(r.title.prefix(40)) score \(score)") }
+                if score >= WarpTabs.certain { hit = n - 1; break }
+            }
+            if hit == nil { hit = WarpTabs.best(seen, cwd: cwd, home: home, hints: hints) }
+            if let hit {
+                // Pressing digits past the last tab does nothing, so a tab found early may not be where the keys ended.
+                if seen.count != hit + 1 { press(digit: hit + 1, with: .maskCommand) }
+                return true
+            }
+            // Nothing here: back to the tab this window was on.
+            if let back = seen.firstIndex(of: start) { press(digit: back + 1, with: .maskCommand) }
+        }
+        return false
     }
 
-    static func focusTab(app: String?, tty: String, cwd: String) -> String? {
+    /// A key press with a modifier, sent to whatever is in front.
+    private static func press(digit n: Int, with flags: CGEventFlags) {
+        let codes = [18, 19, 20, 21, 23, 22, 26, 28, 25]   // 1 to 9 on a US layout
+        let src = CGEventSource(stateID: .combinedSessionState)
+        for down in [true, false] {
+            let e = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(codes[n - 1]), keyDown: down)
+            e?.flags = flags
+            e?.post(tap: .cghidEventTap)
+        }
+    }
+
+    static func focusTab(app: String?, tty: String, cwd: String, hints: [String] = []) -> String? {
         let folder = cwd
         let tty = appleQuote(tty), cwd = appleQuote(cwd)
         let byFolder = { (name: String) in """
@@ -143,7 +175,7 @@ enum Terminals {
         ]
         guard let app else { return nil }
         if let script = scripts[app], run(script) == "ok" { return app }
-        if app == warp, raiseWarpWindow(cwd: folder) { return app }
+        if app == warp, switchWarpTab(cwd: folder, hints: hints) { return app }
         // No way to pick the tab: bring its terminal forward, which is most of the way there.
         NSRunningApplication.runningApplications(withBundleIdentifier: app).first?.activate()
         return app

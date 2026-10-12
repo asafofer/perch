@@ -54,7 +54,7 @@ enum ConductorApp {
 
     // MARK: Accessibility
 
-    nonisolated private static func attr(_ e: AXUIElement, _ name: String) -> AnyObject? {
+    nonisolated static func attr(_ e: AXUIElement, _ name: String) -> AnyObject? {
         var v: AnyObject?
         return AXUIElementCopyAttributeValue(e, name as CFString, &v) == .success ? v : nil
     }
@@ -66,7 +66,7 @@ enum ConductorApp {
     nonisolated private static func address(_ e: AXUIElement) -> String? { (attr(e, kAXURLAttribute) as? URL)?.absoluteString }
 
     /// The first element in these trees, breadth first so a window's chrome is not walked before its sidebar, that matches.
-    nonisolated private static func first(in roots: [AXUIElement], limit: Int = 1500, _ match: (AXUIElement) -> Bool) -> AXUIElement? {
+    nonisolated static func first(in roots: [AXUIElement], limit: Int = 1500, _ match: (AXUIElement) -> Bool) -> AXUIElement? {
         var queue = roots, seen = 0
         while !queue.isEmpty, seen < limit {
             let e = queue.removeFirst(); seen += 1

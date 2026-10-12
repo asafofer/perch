@@ -119,12 +119,14 @@ enum Restorer {
             // Still running: its own tab or pane. Otherwise it opens again where it last ran.
             // AppleScript waits while macOS asks for Automation permission, so it runs off the main thread.
             let agent = p.app, pid = p.pid
+            // Words only this session has on screen, for a terminal that cannot be asked which tab it is (Warp).
+            let hints = [p.topic, p.asked.map { String($0.split(whereSeparator: \.isNewline).first ?? "").prefix(60) }.map(String.init)].compactMap { $0 }
             DispatchQueue.global(qos: .userInitiated).async {
                 let landing: Landing
                 let live = LiveSessions.all()
                 let hit = live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }
                 if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch pick up: \(agent) \(id.prefix(8)) in \(cwd); running: \(hit.map { "\($0.pid) \($0.place)" } ?? "no")") }
-                if let hit, let app = Terminals.focus(hit) {
+                if let hit, let app = Terminals.focus(hit, hints: hints) {
                     landing = .app(app, exact: true)
                 } else {
                     landing = reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id))
