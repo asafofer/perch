@@ -119,6 +119,26 @@ Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`), with no Apple
 
 Displays. Settings → Show Perch on (`Prefs.showOn`, `ScreenTarget`) decides where the shortcut opens Perch and where it shows up by itself (live activity, welcome card, a snooze coming due, an update): the screen with the mouse (the default), the screen with the active window (the front layer-0 window of the app in front, from the window list, `FrontWindow`; none means the mouse), or one display by its UUID (`NSScreen.displayID`; one not connected stays in the menu greyed, with the name it had, `Prefs.showOnName`, and until it is back Perch follows the mouse). `ScreenChooser.target()` is that screen; `rest()` is where the panel waits while nothing is open: with the mouse it follows the cursor as always, otherwise it waits on the target. A hover always opens Perch on the hovered screen: in the fixed modes the panel moves to a screen whose hover zone the cursor enters and goes back once it leaves (`followHoverWhileFixed`). A display with no notch shows nothing at rest: Perch opens there with the hotkey and shows the live activity from the top edge; the Show Perch on menu ends with a Hover opens on external displays switch (`Prefs.hoverExternal`, off by default, shown only while such a display is connected) that lets the top edge open it too. Hover only counts on the screen the cursor is on, because the hover zone reaches above its screen's edge (`overNotch`, `NotchGeometry.hovering`). `--dump` prints the screens, their ids and where Show Perch on points now. The resting notch on a Mac with one is drawn a point inside the size the system reports, with smooth corners (app.js `notchPath`), so it hides behind the hardware; `PERCH_NOTCH_GUIDE=1` paints it magenta at the full reported size to see any overhang.
 
+## Linux
+
+`Sources/PerchLinux` is the Linux shell (X11, GTK 4, WebKitGTK 6.0); `Package.swift` builds it, with a `SQLite3` system library, only on Linux, so the Mac's manifest is untouched. It loads the same `ui/` and `PerchCore`. Its `NotchController.swift` is the Mac's, section by section, with the Linux calls in place of AppKit: a change to the Mac controller usually needs the same change there. `HookServer`, `Snapshot`, `PerchPlugins` and `Preferences` are the Mac's own files, symlinked in; keep them Foundation-only (`#if os(Linux)` where sockets differ). The page gets `platform: "linux"` and draws keys, words and settings for Linux (app.js `LINUX`, `onLinux`); the design page's Linux category shows every state.
+
+```
+Sources/PerchLinux
+  main.swift          Flags (--dump, --fake, --show, --list, --onboarding, --activity, --idle, --terminals, --desktop-check), one instance (flock), hotkeys, tray.
+  GLoop               GTK owns the main thread: GLib's loop also drains Swift's main queue (libdispatch's eventfd), so MainActor, Task and DispatchQueue.main work.
+  Panel               Override-redirect window (no window manager touches it; 10 pt above the screen like the Mac's), input shape for click-through, keys captured before WebKit, file drops.
+  X11, XServer        EWMH reading and activating; XServer is Perch's own Xlib connection for background threads (GDK's is main-thread only).
+  ScreenSupport       Screens in Cocoa coordinates (X11.flip), so NotchGeometry and ScreenTarget work unchanged.
+  Terminals, Proc, Mux, Herdr, FocusProbe, Clipboard, WhereYouWere   /proc instead of sysctl; tmux, kitty, WezTerm and herdr exactly, other terminals by window. App ids are WM_CLASS, lowercased.
+  RealSessionProvider, Watcher, AppIcons, Dump   Terminal sessions only; inotify; icons from the icon theme by .desktop entry.
+  HotkeyService, KeyMap, ActivityMonitor, Quiet, Tray, DBus   XGrabKey and XInput2 raw keys on their own connection; kVK codes and ShortcutMods kept (Command is Super, Option is Alt); XScreenSaver idle; pactl and /proc for calls; a StatusNotifierItem over GDBus.
+```
+
+Working on it: everything runs on the VM (see the Linux build commands in the README); a Linux `swift build` deletes `Package.resolved` (the Mac's Sparkle pin), and `scripts/linux/build.sh` puts it back: never commit that deletion. `swift test` builds the debug binary without the Swift runtime inside; run `build.sh` again before running it on a machine without Swift. WebKit pages do not load in an ssh session without a desktop (its sandbox wants a session bus and portals): test the page on a real desktop, the rest under Xvfb. `pkill -f`/`pgrep -f` with a pattern from your own command line kills your own shell. `gitNamesTheProjectOfAWorktree` fails when the checkout itself is a git worktree outside a `/worktrees/` folder.
+
+Not on Linux yet: the Claude app, the Codex app, Conductor and cmux (none run there), self-update, HiDPI scaling of the panel (frames are device pixels; `Screen.scale` is read but not applied), Wayland.
+
 ## Where things are headed
 
 Open ideas, roughly in order: approving Codex from the notch if its hooks ever run alongside its prompt, notarized releases, a sound and haptics option, launch at login that survives distribution.

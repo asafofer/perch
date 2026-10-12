@@ -46,6 +46,33 @@
   function Keys(a, b) { return '<span class="inline-flex items-baseline gap-[3px]">' + Kbd(a) + Kbd(b) + '</span>'; }
   /* Return (the only key drawn as an icon) is a little wider with its arrow at the right, like the key itself */
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
+  /* ---- Linux: the same page, drawn for Linux when the snapshot says platform "linux" (apply sets it). No notch, no
+     Accessibility, no app sessions, no self-update; the Mac's Command is Super and Option is Alt there. Keys keep the Mac's
+     glyphs in the data (Swift's Shortcut, the page's own key names) and only the words drawn change. ---- */
+  var LINUX = false;
+  var KEYNAME = { '\u2318': 'Super', '\u2303': 'Ctrl', '\u2325': 'Alt', '\u21e7': 'Shift' }, KEYORDER = '\u2318\u2303\u2325\u21e7';
+  /* the Mac's words, or Linux's */
+  function onLinux(mac, lin) { return LINUX ? lin : mac; }
+  /* one key cap: a modifier's name on Linux, its glyph on the Mac */
+  function capText(k) { return LINUX && KEYNAME[k] ? KEYNAME[k] : k; }
+  /* a chord in one pill: the Mac's glyphs run together ("\u2318\u2325Y"), Linux's names stand apart ("Super Alt Y") */
+  function chord(mods, key) {
+    if (!LINUX) return mods.join('') + (key || '');
+    return mods.slice().sort(function (a, b) { return KEYORDER.indexOf(a) - KEYORDER.indexOf(b); }).map(capText).concat(key ? [key] : []).join(' ');
+  }
+  /* words that name keys by their glyphs ("\u2303\u2325L is the project list", "Hold \u2318, \u2325 or \u2303 too"): Linux spells them, joined by + */
+  function keyWords(t) {
+    if (!LINUX || !t) return t;
+    return String(t).replace(/([\u2318\u2325\u2303\u21e7]+)(Space|Return|Enter|Tab|Delete|F\d{1,2}|[A-Z0-9]|[\u2190-\u2193\u21a9])?/g, function (m, mods, key) {
+      return mods.split('').sort(function (a, b) { return KEYORDER.indexOf(a) - KEYORDER.indexOf(b); }).map(capText).concat(key ? [key] : []).join('+');
+    });
+  }
+  /* Perch's own keys for the welcome card and the list: Control+Option on the Mac; on Linux Super+Alt, with its other keys
+     (Control and Alt are the desktop's there: Ctrl+Alt+L locks the screen). Swift's Shortcut.ownMods says the same. */
+  function ownMods() { return LINUX ? ['\u2318', '\u2325'] : ['\u2303', '\u2325']; }
+  /* what Settings is on: Command+comma on the Mac; on Linux the card keeps its own keys to Linux's ways, Ctrl+comma */
+  function setKeyPill() { return onLinux('\u2318,', 'Ctrl ,'); }
+  function setKeyTitle() { return 'Settings (' + onLinux('\u2318,', 'Ctrl+,') + ')'; }
   var icons = {};
   /* each agent's name, and the short one sentences and buttons use */
   var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'] };
@@ -69,7 +96,9 @@
   /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
      OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
      the terminal is the one showing herdr. */
-  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor',
+    /* Linux's, by the names the shell gives them; "terminal" there is any other terminal */
+    'xfce4-terminal': 'Terminal', 'gnome-terminal': 'Terminal', alacritty: 'Alacritty', konsole: 'Konsole', xterm: 'XTerm', tilix: 'Tilix', terminator: 'Terminator' };
   function AppOf(p, c) {
     /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
     var host = p.via || p.opens;
@@ -439,7 +468,7 @@
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
     if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
     /* without Accessibility Perch asks for it first; your words stay here and go out once it is on */
-    if (snap.canSend === false && !(p && p.via)) { if (!snap.allowing) post({ type: 'reply', text: t }); rIn.focus({ preventScroll: true }); return; }
+    if (snap.canSend === false && !LINUX && !(p && p.via)) { if (!snap.allowing) post({ type: 'reply', text: t }); rIn.focus({ preventScroll: true }); return; }
     replyMenu(false, true); post({ type: 'reply', text: t });
   }
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only your words are moving; then they
@@ -852,6 +881,8 @@
      hardware about 1.5 to 2 pt narrower on each side and about 1.5 pt shorter, with bottom corners near 10 pt. So it is drawn
      2.5 pt in at the sides and 1.5 pt up from the bottom, with smooth corners (a superellipse), and can only hide behind the
      hardware, never show past it. */
+  /* a screen with no hardware notch: an external display, and every screen on Linux */
+  function noNotch(scr) { return LINUX || !scr.hasNotch; }
   function notchPath(w, h) {
     var ix = 2.5, iy = 1.5, r = 12, e = 2 / 2.6, pts = [], k, t, x0 = w - ix - r, y0 = h - iy - r, N = 14;
     pts.push([ix, -2], [w - ix, -2]);
@@ -861,10 +892,11 @@
   }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
-    var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
+    var scr = s.screen, virt = noNotch(scr), idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
     if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
-    else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
+    /* the live activity's two sides keep clear of the camera in the middle; Linux has no camera, so they keep only a small gap */
+    else if (act.mode) { var mid = LINUX ? 32 : idleW, sz = actSize(mid, idleH); w = sz[0]; h = sz[1]; placeAct(mid, idleH, w); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
     n.style.opacity = 1;
@@ -873,7 +905,8 @@
     if (shaped) n.style.setProperty('--np', notchPath(idleW, idleH));
     n.dataset.shape = shaped ? '1' : '';
     document.documentElement.dataset.guide = s.guide || '';
-    n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
+    /* on Linux a moment beside the top edge (the hello, a word) gets a small black tab to come out of and run back into */
+    n.dataset.hide = virt && st === 'idle' && !act.mode && !(LINUX && hello) ? '1' : '';
     n.dataset.s = st;
     curH = h;
     if (st === 'idle') {
@@ -913,7 +946,6 @@
      until you answer. Resting the pointer on it holds it open. During a call or a presentation it skips straight to the
      wings. When you come back from a break, the welcome card says all this instead. */
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
-  var CMDOPT = '\u2318\u2325';
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
@@ -969,12 +1001,12 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>' +
-      (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
+    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (' + onLinux('\u2318\u2325.', 'Super+Alt+.') + ')">' + svg('x', 'size-3') + '</button>' +
+      (choices ? '<span class="act-mod">' + chord(['\u2318', '\u2325']) + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
-        var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
+        var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? b[2] : b[0] === 'reply' && !LINUX ? chord(['\u2318'], b[2]) : chord(['\u2318', '\u2325'], b[2])) + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
@@ -1014,7 +1046,7 @@
     var btn = function (a, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + a + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
-    if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', 'Show in Finder', true) : btn('retry', 'Try again', true))); }
+    if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', onLinux('Show in Finder', 'Show folder'), true) : btn('retry', 'Try again', true))); }
     act.keys = keys;
     var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s ' + (ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
@@ -1376,7 +1408,7 @@
     if (ph === 'restarting') return note(Spinner('size-3.5', haze(COLORS.running)), 'Updating', COLORS.running);
     /* the reason is said on the left (updSub): here only what to do about it */
     if (ph === 'failed' && u.fix === 'none') return '';
-    if (ph === 'failed') return u.fix === 'move' ? Button('ghost', 'Show in Finder', '', 's-rev s-gr') : Button('ghost', 'Try again', '', 's-chk s-gr');
+    if (ph === 'failed') return u.fix === 'move' ? Button('ghost', onLinux('Show in Finder', 'Show folder'), '', 's-rev s-gr') : Button('ghost', 'Try again', '', 's-chk s-gr');
     return Button('ghost', 'Check for updates', '', 's-chk s-gr" title="Look for a newer version of Perch');
   }
   function bindUpdSlot(root, s) {
@@ -1398,6 +1430,11 @@
       b.onclick = function () { if (ph !== 'downloading') post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
     });
   }
+  /* the parts drawn once at load that differ on Linux: the Settings key on the card and the list */
+  function platformChrome() {
+    scene.querySelectorAll('.x-gear').forEach(function (b) { b.title = setKeyTitle(); b.querySelector('kbd').textContent = setKeyPill(); });
+    chipSig = ''; listSig = ''; iconKey = ''; actEl._h = '';
+  }
   var verSig = '';
   /* What is new, after an update. The card says it once: Perch and its version, the headline, then the few lines behind it (six show,
      the rest scroll). It opens by itself, so it takes no keys; Got it goes on to the list. */
@@ -1417,6 +1454,7 @@
     q('.wn-ok').onclick = function () { post({ type: 'whatsnew', action: 'done' }); };
   }
   function apply(s) {
+    if ((s.platform === 'linux') !== LINUX) { LINUX = s.platform === 'linux'; platformChrome(); }
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
     /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
     var head = s.testBuild ? '' : (s.version || '');
@@ -1450,7 +1488,7 @@
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
-    var canSend = s.canSend !== false || !!(p && p.via);
+    var canSend = LINUX || s.canSend !== false || !!(p && p.via);
     q('.x-send-l').textContent = canSend ? 'Send' : s.allowing ? 'Waiting for access' : 'Allow and send';
     /* while it waits there is nothing to press: no Return on it, and it steps back */
     q('.x-send kbd').style.display = !canSend && s.allowing ? 'none' : '';
@@ -1520,7 +1558,7 @@
      and the character are still moving into place. */
   function lookAt(el, along) {
     var pane = el.closest('.pane'); if (!pane || !snap) return;
-    var scr = snap.screen, idleH = !scr.hasNotch ? Math.min(scr.notchH || 24, 28) : scr.notchH;
+    var scr = snap.screen, idleH = noNotch(scr) ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var r = el.getBoundingClientRect(), pr = pane.getBoundingClientRect(), dx = r.left - pr.left + Math.min(along, r.width / 2) - 26,
         dy = r.top - pr.top + r.height / 2 - idleH / 2, d = Math.max(1, Math.hypot(dx, dy));
     tracking = true; clearTimeout(trackTimer); trackTimer = setTimeout(function () { tracking = false; }, 1600);
@@ -1747,7 +1785,7 @@
       if (text && (tries || 0) < 6) setTimeout(function () { pop(mood, ms, text, (tries || 0) + 1); }, 600);
       return;
     }
-    hello = true; scene.dataset.peek = '1';
+    hello = true; scene.dataset.peek = '1'; if (LINUX) n.dataset.hide = '';
     var ci = cr.querySelector('.cr-in'), say = cr.querySelector('.say');
     say.textContent = text || ''; cr.dataset.say = text ? '1' : '';
     cr.style.transform = idleXf; cr.style.opacity = 1; cr.dataset.m = 'awake';
@@ -1766,7 +1804,7 @@
   }
   /* After setup the character peeks out beside the notch, says hi, and tucks back in. */
   function sayHello() {
-    hello = true; scene.dataset.peek = '1';
+    hello = true; scene.dataset.peek = '1'; if (LINUX) n.dataset.hide = '';
     var ci = cr.querySelector('.cr-in');
     cr.style.opacity = 1; cr.dataset.m = 'awake';
     ci.classList.remove('arrive'); void ci.offsetWidth; ci.classList.add('arrive');
@@ -1802,23 +1840,23 @@
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
   var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0, pending: [], picks: 0 };
   function scOf(sc) { return sc || SC0; }
-  function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(k); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
+  function scKeysHtml(sc, tint, gap) { return '<span class="inline-flex items-baseline ' + (gap || 'gap-[3px]') + '">' + scOf(sc).keys.map(function (k) { var h = Kbd(capText(k)); return tint ? h.replace('<kbd class="', '<kbd style="color:' + tint + '" class="') : h; }).join('') + '</span>'; }
   function scWords(sc) { return scOf(sc).kind === 'tap' ? 'Tap both to open or close Perch' : 'Open or close Perch'; }
   /* what the recorder asks for, or why it refused the last try (it keeps listening) */
-  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
+  function scPrompt(sc) { return sc.error ? '<span style="color:' + COLORS.attention + '">' + keyWords(sc.error) + '</span>' : '<span class="sc-live" data-t="Press your shortcut\u2026">Press your shortcut\u2026</span>'; }
   function shortcutStep(o) {
-    var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility, big = sc.keys.map(function (k) {
-      return '<button class="kcap' + (sc.tried || sc.saved ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + k + '">' + k + '</button>';
+    var sc = scOf(o.shortcut), needsAx = sc.kind === 'tap' && !o.accessibility && !LINUX, big = sc.keys.map(function (k) {
+      return '<button class="kcap' + (sc.tried || sc.saved ? ' ok' : sc.works ? ' on' : ' off') + '" data-k="' + k + '" aria-label="' + capText(k) + '">' + capText(k) + '</button>';
     }).join('');
-    var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + sc.why + '</span>' : '';
+    var broken = !sc.works && !sc.recording ? '<span style="color:' + COLORS.attention + '">' + keyWords(sc.why) + '</span>' : '';
     /* while it listens the keys are drawn as you hold them, each its own key (scHeldApply); until one is held, an empty key */
     /* no separate recording look: while it listens the card shows the shortcut you have now, plain grey, and says it is listening */
     var chosen = sc.recording && sc.pending && sc.pending.length;
-    var current = (chosen ? sc.pending : sc.keys).map(function (k) { return '<span class="kcap' + (chosen ? ' ok' : '') + '" data-k="' + k + '" style="cursor:default;pointer-events:none">' + k + '</span>'; }).join('');
-    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : current;
+    var current = (chosen ? sc.pending : sc.keys).map(function (k) { return '<span class="kcap' + (chosen ? ' ok' : '') + '" data-k="' + k + '" style="cursor:default;pointer-events:none">' + capText(k) + '</span>'; }).join('');
+    var tried = sc.recording && sc.error && sc.attempt && sc.attempt.length ? sc.attempt.map(function (k) { return '<span class="kcap bad" data-k="' + k + '" style="cursor:default">' + capText(k) + '</span>'; }).join('') : current;
     scRest = tried;
     var shown = sc.recording ? tried : big, ask = sc.pending && sc.pending.length ? 'Press Return to save it, or press another shortcut.' : 'Listening for your new shortcut\u2026',
-      listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + sc.error + '</span>' : ask;
+      listening = sc.error ? '<span style="color:' + COLORS.attention + '">' + keyWords(sc.error) + '</span>' : ask;
     if (o.only) {
       /* opened from Settings: the whole card is the recorder. It listens from the start; Done goes back to Settings. */
       var note = sc.recording ? listening
@@ -1855,11 +1893,11 @@
       if (b.dataset.held === sig) return;
       /* what was held is remembered here, not on the row: the card redraws now and then and a fresh row must not replay the press */
       var before = sig.indexOf(scHeldShown) === 0 ? scHeldShown.length : 0; b.dataset.held = sig; var same = scHeldShown === sig; scHeldShown = sig;
-      b.innerHTML = keys.length ? keys.map(function (k) { return '<span class="kcap' + (fresh ? ' ok' : '') + ' down" data-k="' + k + '" style="cursor:default">' + k + '</span>'; }).join('') : scRest;
+      b.innerHTML = keys.length ? keys.map(function (k) { return '<span class="kcap' + (fresh ? ' ok' : '') + ' down" data-k="' + k + '" style="cursor:default">' + capText(k) + '</span>'; }).join('') : scRest;
       if (!STILL) b.querySelectorAll('.kcap.down').forEach(function (c, i) { if (c.animate && !same && i >= before && keys.length) c.animate([{ transform: 'translateY(-5px) scale(.9)', opacity: .5 }, { transform: 'translateY(2px) scale(.97)', opacity: 1 }], { duration: 180, easing: 'cubic-bezier(.3,1.4,.5,1)' }); });
     });
     document.querySelectorAll('.o-sc-big:not([data-rec]) .kcap[data-k]').forEach(function (c) { c.classList.toggle('down', scHeldNow.indexOf(c.dataset.k) >= 0); });
-    document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.join(' ') : e.dataset.t; });
+    document.querySelectorAll('.sc-live').forEach(function (e) { e.textContent = scHeldNow.length ? scHeldNow.map(capText).join(' ') : e.dataset.t; });
   }
   function scAfter(o) {
     var sc = scOf(o && o.shortcut);
@@ -1891,7 +1929,9 @@
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
     /* the hello is not a step of the setup: the count starts after it */
-    return (o.only ? '' : oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + o.step + ' of ' + (o.total - 1) + '</div>')) +
+    /* Linux has no Accessibility step: the app skips step 2 there and the count closes the gap */
+    var at = LINUX && o.step > 2 ? o.step - 1 : o.step, of = LINUX ? o.total - 2 : o.total - 1;
+    return (o.only ? '' : oi(0, '<div class="px-4 pt-0.5 text-xs tabular-nums text-muted-foreground">' + at + ' of ' + of + '</div>')) +
       oi(1, '<p class="' + (o.only ? 'pt-0.5' : 'mt-1') + ' px-4 text-[15px] font-semibold leading-5 tracking-[-0.02em]">' + title + '</p>') +
       oi(2, '<p class="mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground">' + sub + '</p>');
   }
@@ -2004,7 +2044,7 @@
       /* Hello: the character lands on the notch, wakes up and says who it is, then shows what it does with two sessions */
       h = oi(0, '<div class="flex items-start gap-3 px-4 pt-0.5"><div class="hi-cr relative grid size-[60px] flex-none place-items-center">' + crHtml('cr-hi', 52, shapeOf(charNow.shape), 'sleep') + '</div>' +
             '<div class="min-w-0 flex-1 pt-1"><p class="hi-say inline-block rounded-2xl rounded-bl-md bg-white/[0.09] px-3 py-1.5 text-[15px] font-semibold leading-5 tracking-[-0.02em]"><span class="hi-t"></span><span class="hi-ghost invisible">Hi, I\u2019m Perch.</span></p>' +
-            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">I live on your notch and watch your coding agents. When one finishes or needs your OK, I\u2019ll tell you. Answer it here, or jump straight back in.</p></div></div>') +
+            '<p class="hi-sub mt-2 text-[13px] leading-[18px] text-muted-foreground">' + onLinux('I live on your notch', 'I live at the top of your screen') + ' and watch your coding agents. When one finishes or needs your OK, I\u2019ll tell you. Answer it here, or jump straight back in.</p></div></div>') +
         oi(1, '<div class="hi-demo pointer-events-none mx-2.5 mt-3 flex select-none flex-col rounded-lg bg-white/[0.04] py-0.5" aria-hidden="true">' + introRow(0, 'claude', 'Hero spacing', 'Website') + introRow(1, 'codex', 'Install guide', 'Docs') + '</div>') +
         ofoot(2, false, '', 'Nice to meet you', 'next');
     } else if (st === 1) {
@@ -2030,21 +2070,23 @@
         var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
         return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
       }).join('');
-      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
+      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later ' + onLinux('from the menu bar.', 'in Settings.')) +
         /* more than two agents sit two to a row, so the card keeps its height */
         oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+        oi(4, LINUX ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
-      h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer from the notch.') +
+      h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer ' + onLinux('from the notch.', 'right from Perch.')) +
         oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
           '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
         oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + liveNote(live) + '</p>') +
         oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd(chord(ownMods(), 'P')), 'The welcome card') + ohint(Kbd(chord(ownMods(), 'L')), 'Other projects') +
+          /* no notch on Linux to rest on (hovering the top edge is off unless Settings turns it on) */
+          (LINUX ? '' : ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek')) + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
     }
     box.className = 'onb' + (animate ? ' go' : '');
@@ -2126,7 +2168,7 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    var sig = [LINUX, o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
       if (o.step === 4) onbSources(o);
@@ -2210,7 +2252,7 @@
     var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
     var sc = scOf(o.shortcut),
       /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
-      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : esc(keyWords(sc.why))) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     var rows = [
       scRow,
       srow(slabel('Character', sh[1] + ', ' + colorName, 'cat'), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
@@ -2221,14 +2263,16 @@
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
-      srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
+      srow(slabel(onLinux('Questions stay in the notch for', 'Questions stay on screen for'), '', 'hourglass'), questSeg),
       /* where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen */
       srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
     ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      /* Linux has no Accessibility to ask for */
+      o.accessibility || LINUX ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).concat(snap && snap.canUpdate ? [
+    /* Linux does not update itself yet: the row shows only if the app ever sends an update */
+    ]).concat(snap && snap.canUpdate && (!LINUX || snap.update) ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
@@ -2312,7 +2356,7 @@
         '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + nMark(x[0]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
         '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
     }).join('');
-    return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
+    return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="' + onLinux('What the notch tells you about', 'What Perch tells you about') + '" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
       '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (notOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
   }
   function bindNotify(box) {
@@ -2353,16 +2397,16 @@
         '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.on ? 'text-foreground' : 'text-muted-foreground') + '">' +
         '<span class="flex-1 truncate">' + x.name + '</span>' + (x.on ? '' : '<span class="text-xs text-muted-foreground">Not connected</span>') +
         '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('') + (o.hasExternal ? '<span class="mx-2 my-1 block h-px"></span>' +
+    }).join('') + (o.hasExternal || LINUX ? '<span class="mx-2 my-1 block h-px"></span>' +
       '<button role="menuitemcheckbox" aria-checked="' + !!o.hoverExternal + '" data-k="hover" data-i="' + all.length + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
-      '<span class="flex-1 truncate">Hover opens on external displays</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
+      '<span class="flex-1 truncate">' + onLinux('Hover opens on external displays', 'Hover at the top edge opens Perch') + '</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
     return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
       '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
   }
   /* what the menu shows, so it is drawn again only when that changes: not for opening or closing it (Swift sends
      Settings every half second while sessions are written, and a redraw would drop it back under the notch) and not
      for the hover switch, which slides in place */
-  function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal]); }
+  function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal, LINUX]); }
   /* it opens upward but never under the notch: when it would, it slides down over its own row */
   function showClamp(m) {
     m.style.transform = '';
@@ -2468,9 +2512,9 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, LINUX]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate, LINUX, LINUX && !!(snap && snap.update)]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
@@ -2575,6 +2619,8 @@
       var o = s.onboarding;
       if (m.action === 'next') o.step = Math.min(o.step + 1, o.total - 1);
       else if (m.action === 'back') o.step = Math.max(o.step - 1, 0);
+      /* Linux has no Accessibility step: the app goes round it, as here */
+      if (LINUX && o.step === 2) o.step = m.action === 'back' ? 1 : 3;
       else if (m.action === 'finish') s.phase = 'idle';
       else if (m.action === 'accessibility') o.accessibility = true;
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
@@ -2623,8 +2669,19 @@
     ];
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
-      if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
+      if (!o) return; devIcons = o; icons = LINUX ? Object.assign({}, o, LINUX_STAND) : o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
     }).catch(function () {});
+    /* Linux: the same sessions, every one in a terminal (no Claude or Codex app, no Conductor), each in a Linux terminal.
+       Tilix has no icon here, to show the generic one the page falls back to. */
+    var P_MAC = P.slice(), LIN_VIA = { onboarding: 'gnome-terminal', website: 'kitty', docs: 'alacritty', finance: 'konsole', planner: 'xfce4-terminal', repo: 'wezterm', lukatz: 'ghostty',
+      fluid: 'xterm', gaps: 'tilix', tui: 'vscode', scraper: 'kitty' };
+    var P_LINUX = P.filter(function (x) { return !x.opens; }).map(function (x) { return Object.assign({}, x, { via: LIN_VIA[x.id] || x.via }); });
+    /* stand-ins for the design page only, as the Mac's are: the app sends each terminal's real icon from the icon theme */
+    var devIcons = {};
+    function standIn(bg, fg) { return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5.5" fill="' + bg + '"/><path d="M7 8.5l3.5 3.5L7 15.5M12.5 15.5h4.5" stroke="' + fg + '" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'); }
+    var LINUX_STAND = { 'gnome-terminal': standIn('#3D3846', '#FFFFFF'), 'xfce4-terminal': standIn('#2E3B4E', '#8FC0F0'), kitty: standIn('#2B2522', '#F2B279'), alacritty: standIn('#1F1F1F', '#F7A440'),
+      konsole: standIn('#1D99F3', '#FFFFFF'), wezterm: standIn('#4A3FD9', '#FFFFFF'), ghostty: standIn('#3551F3', '#FFFFFF'), xterm: standIn('#0A0A0A', '#E6E6E6'), terminator: standIn('#B3261E', '#FFFFFF'),
+      vscode: standIn('#0F6CBD', '#FFFFFF'), cursor: standIn('#111111', '#F5F5F5'), zed: standIn('#084CCF', '#FFFFFF'), terminal: standIn('#27272A', '#E4E4E7') };
     var hash = (location.hash || '#open').slice(1);
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
@@ -2641,6 +2698,14 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     window.perchDev = {
+      /* the page as Linux's app draws it ('linux'), or the Mac's ('mac', the default): its sessions, icons and words */
+      platform: function (pf) {
+        var lin = pf === 'linux'; if ((base.platform === 'linux') === lin) return;
+        base.platform = lin ? 'linux' : 'mac'; base.canUpdate = !lin; base.update = null;
+        P.length = 0; (lin ? P_LINUX : P_MAC).forEach(function (x) { P.push(x); });
+        icons = lin ? Object.assign({}, devIcons, LINUX_STAND) : devIcons; listSig = ''; iconKey = '';
+        if (snap) apply(Object.assign({}, snap, { platform: base.platform, canUpdate: base.canUpdate, projects: P, timerToken: Math.random() }));
+      },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },

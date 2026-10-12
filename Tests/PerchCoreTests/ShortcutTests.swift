@@ -26,7 +26,8 @@ import Testing
     }
 
     @Test func perchsOwnAndEverySystemShortcutIsRefusedWithAReason() {
-        #expect(Shortcut.problem(.combo([.control, .option], keyCode: 37, name: "L")) == "\u{2303}\u{2325}L is the project list")
+        let list = Shortcut.combo(Shortcut.ownMods, keyCode: 37, name: "L")   // Control+Option+L on the Mac, Super+Alt+L on Linux
+        #expect(Shortcut.problem(list) == "\(list.label) is the project list")
         #expect(Shortcut.problem(.combo([.command], keyCode: 12, name: "Q")) == "\u{2318}Q is Quit in every app")
         #expect(Shortcut.problem(.combo([.command, .option], keyCode: 16, name: "Y")) != nil)
         #expect(Shortcut.problem(.combo([.command, .option], keyCode: 5, name: "G")) == nil)
@@ -66,6 +67,27 @@ import Testing
         #expect(r.keyDown(keyCode: 49, typed: " ", mods: [.control]) == .chosen(.combo([.control], keyCode: 49, name: "Space")))
         // Letting go of the modifier afterwards is not also a tap.
         #expect(r.flagsChanged(mods: []) == .none)
+    }
+
+    @Test func perchsOwnKeysAreRefused() {
+        // The list's key: Control+Option+L on the Mac, Super+Alt+L on Linux (Ctrl+Alt+L locks the screen there).
+        #if os(Linux)
+        #expect(Shortcut.problem(.combo([.command, .option], keyCode: 37, name: "L")) != nil)
+        #expect(Shortcut.problem(.combo([.control, .option], keyCode: 37, name: "L")) == nil)
+        #else
+        #expect(Shortcut.problem(.combo([.control, .option], keyCode: 37, name: "L")) != nil)
+        #endif
+    }
+
+    @Test func lettingGoOfAComboOneModifierAtATimeKeepsIt() {
+        var r = ShortcutRecorder()
+        _ = r.flagsChanged(mods: [.control])
+        _ = r.flagsChanged(mods: [.control, .option])
+        #expect(r.keyDown(keyCode: 40, typed: "k", mods: [.control, .option]) == .chosen(.combo([.control, .option], keyCode: 40, name: "K")))
+        // Option comes up before Control: what is left is not a fresh press of Control, and its release is not a refused tap.
+        #expect(r.flagsChanged(mods: [.control]) == .none)
+        #expect(r.flagsChanged(mods: []) == .none)
+        #expect(r.pending == .combo([.control, .option], keyCode: 40, name: "K"))
     }
 
     @Test func aBareKeyIsRefusedAndRecordingGoesOn() {

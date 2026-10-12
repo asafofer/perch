@@ -1,5 +1,8 @@
+import Foundation
 import Testing
+#if canImport(CoreGraphics)
 import CoreGraphics
+#endif
 @testable import PerchCore
 
 @Suite struct NotchGeometryTests {

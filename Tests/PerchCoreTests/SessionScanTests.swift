@@ -100,6 +100,19 @@ private final class Home {
         #expect(found.last?.terminal == false)
     }
 
+    /// Linux has no Claude app: its folder of sessions is not there, and every terminal session still gets its row.
+    @Test func withoutTheClaudeAppTerminalSessionsStillGetRows() {
+        let h = Home(), api = h.folder("code/api"), docs = h.folder("code/docs")
+        h.write(".claude/projects/-code-api/term.jsonl", Home.transcript("term", cwd: api, at: h.now.addingTimeInterval(-60), entrypoint: "cli"), ago: 60)
+        h.write(".claude/projects/-code-api/headless.jsonl", Home.transcript("headless", cwd: api, at: h.now, entrypoint: "sdk-cli"), ago: 10)
+        h.codex("tui1", cwd: docs, source: #""cli""#, originator: "codex-tui", ago: 30)
+        #expect(!FileManager.default.fileExists(atPath: h.url.appendingPathComponent("Library").path))
+        let claude = h.scanner.claude(limit: 15, now: h.now).map(\.project)
+        #expect(claude.map(\.sessionId) == ["term"])
+        #expect(claude.first?.terminal == true); #expect(claude.first?.desktopSessionId == nil)
+        #expect(h.scanner.codex(limit: 15, now: h.now).map(\.project.terminal) == [true])
+    }
+
     @Test func codexInATerminalIsATerminalSession() {
         let h = Home(), docs = h.folder("code/docs")
         h.codex("cli1", cwd: docs, source: #""cli""#, originator: "codex_cli_rs", ago: 60)

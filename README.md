@@ -98,6 +98,32 @@ Perch reads the session files your agents already keep on your Mac and sends not
 | Automation | Switching to the exact terminal tab or cmux split and typing a reply into it | The terminal comes forward and you find the tab |
 | Files | Reading project folders (macOS asks once per folder) | That project is skipped |
 
+## Linux
+
+Perch also runs on Linux desktops with X11 (tested on Xubuntu 22.04 with XFCE). It is the same app: the same page draws it, the same core reads your sessions, and the shell underneath is GTK 4 and WebKitGTK instead of AppKit.
+
+| Requirement | |
+|---|---|
+| Desktop | X11, any window manager with a compositor for the see-through corners (XFCE's is on by default). Wayland sessions are not supported. |
+| Libraries | GTK 4 and WebKitGTK 6.0. On Ubuntu 22.04: `sudo apt install libwebkitgtk-6.0-4` |
+| Agents | Claude Code, Codex, OpenCode and pi in a terminal, tmux, herdr, kitty or WezTerm. |
+| To build | Swift 6.2 or later and the dev packages: `libwebkitgtk-6.0-dev libgtk-4-dev libxtst-dev libxss-dev libxi-dev libsqlite3-dev`. |
+
+```bash
+./scripts/linux/build.sh release   # where Swift is; the binary carries the Swift runtime
+./scripts/linux/install.sh         # installs to ~/.local/share/perch, adds a launcher entry, starts it
+./scripts/linux/install.sh --remove
+```
+
+What is different from the Mac:
+
+- **No notch.** Nothing shows at rest; Perch grows from the top centre of the screen. Turn on Settings, Show Perch on, Hover at the top edge, to open it by resting the pointer there.
+- **Keys.** Command is Super and Option is Alt: tap <kbd>Super</kbd> <kbd>Alt</kbd> to open Perch. Settings is <kbd>Ctrl</kbd> <kbd>,</kbd>. The live activity's buttons are all <kbd>Super</kbd> <kbd>Alt</kbd> and a key (Reply too: Super+R is the run dialog on XFCE). Where was I and All sessions are in the tray menu: <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>L</kbd> locks the screen on most desktops.
+- **No permissions to grant.** Accessibility does not exist on Linux; Perch reads `/proc` and X11 window properties.
+- **Going back to a session.** tmux and herdr panes, kitty windows and WezTerm panes exactly; any other terminal by its window. xfce4-terminal and GNOME Terminal cannot be asked which tab is in front, so only the window comes forward.
+- **Replies** type straight into tmux, herdr, kitty and WezTerm; anywhere else they are pasted (Ctrl+Shift+V) and sent.
+- **Not on Linux:** the Claude app, the Codex app, Conductor, cmux, and self-updates (install again to update).
+
 ## How it works
 
 ```mermaid

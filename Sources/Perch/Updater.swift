@@ -2,24 +2,6 @@ import AppKit
 import PerchCore
 import Sparkle
 
-/// What the page draws of an update: the phase (checking, available, downloading, ready, restarting, updated, current, failed),
-/// how far the download is, and what the release says about itself.
-struct UpdateInfo: Encodable, Equatable {
-    var version: String
-    var phase: String
-    var progress = 0.0
-    var notes = ""
-    var bullets: [String] = []
-    /// Counts up to say an offer again (Check for updates while one waits): the page treats it as new.
-    var nudge = 0
-    /// A failed update (phase "failed"): one line for the notch, a few words for Settings, what you can do (retry, move, none), and
-    /// whether it was looking ("check") or getting one in ("update").
-    var problem = ""
-    var short = ""
-    var fix = ""
-    var during = ""
-}
-
 /// Keeps a released Perch up to date with Sparkle, with Perch's own face instead of Sparkle's windows: the notch says what is
 /// happening (ui/app.js, "an update of Perch itself"). A check on a schedule that finds a new version downloads it and restarts
 /// at a quiet moment; one you asked for (Check for updates) offers it first. The update is signed with Perch's own key

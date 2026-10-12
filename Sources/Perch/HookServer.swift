@@ -23,7 +23,11 @@ final class HookServer: @unchecked Sendable {
         let path = HookInstaller.socket.path
         try? FileManager.default.createDirectory(at: HookInstaller.dir, withIntermediateDirectories: true)
         unlink(path)
+        #if os(Linux)
+        let fd = socket(AF_UNIX, Int32(SOCK_STREAM.rawValue), 0)
+        #else
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        #endif
         guard fd >= 0 else { NSLog("Perch: hook socket failed"); return }
         var addr = sockaddr_un(); addr.sun_family = sa_family_t(AF_UNIX)
         let bytes = Array(path.utf8.prefix(MemoryLayout.size(ofValue: addr.sun_path) - 1)) + [0]
@@ -67,8 +71,10 @@ final class HookServer: @unchecked Sendable {
     }
 
     private func handle(_ c: Int32) {
+        #if !os(Linux)
         var one: Int32 = 1
         setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
+        #endif
         var tv = timeval(tv_sec: 2, tv_usec: 0)
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         guard let (path, body, headers) = Self.readRequest(c) else { close(c); return }
@@ -93,7 +99,7 @@ final class HookServer: @unchecked Sendable {
             watch.setEventHandler { [weak self] in
                 guard let self, self.held[id] != nil else { return }
                 var b: UInt8 = 0
-                if recv(c, &b, 1, MSG_PEEK) <= 0 {
+                if recv(c, &b, 1, Int32(MSG_PEEK)) <= 0 {
                     Self.trace("\(id.prefix(8)) closed by the app before Perch answered")
                     self.held[id]?.watch.cancel(); self.held[id] = nil; self.timers.removeValue(forKey: id)?.cancel(); close(c)
                     DispatchQueue.main.async { MainActor.assumeIsolated { self.onAbandoned?(id) } }
@@ -161,12 +167,18 @@ final class HookServer: @unchecked Sendable {
     }
 
     /// With PERCH_TRACE set: what happens to each request Perch holds.
+    /// Linux has no SO_NOSIGPIPE: a hook gone before its answer must not kill Perch, so each send says so itself.
+    #if os(Linux)
+    private static let noSigPipe = Int32(MSG_NOSIGNAL)
+    #else
+    private static let noSigPipe: Int32 = 0
+    #endif
     private static func trace(_ s: String) { if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch hook: \(s)") } }
 
     private static func respond(_ c: Int32, _ body: Data) {
         let head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         let out = Data(head.utf8) + body
-        out.withUnsafeBytes { p in var sent = 0; while sent < out.count { let n = send(c, p.baseAddress! + sent, out.count - sent, 0); if n <= 0 { break }; sent += n } }
+        out.withUnsafeBytes { p in var sent = 0; while sent < out.count { let n = send(c, p.baseAddress! + sent, out.count - sent, Self.noSigPipe); if n <= 0 { break }; sent += n } }
         close(c)
     }
 }
