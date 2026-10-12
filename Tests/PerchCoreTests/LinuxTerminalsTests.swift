@@ -16,7 +16,9 @@ import Testing
         #expect(ProcStat.ttyPath(0) == nil)
         #expect(ProcStat.ttyPath(136 << 8 | 7) == "/dev/pts/7")
         // Minor numbers past 255 keep their high bits above the major.
-        #expect(ProcStat.ttyPath(Int32(136 << 8 | (300 & 0xff) | ((300 & 0xfff00) << 12))) == "/dev/pts/300")
+        let minor: Int32 = 300
+        let dev: Int32 = 136 << 8 | (minor & 0xff) | ((minor & 0xfff00) << 12)   // typed parts: macOS's compiler gave up on it as one expression
+        #expect(ProcStat.ttyPath(dev) == "/dev/pts/300")
         #expect(ProcStat.ttyPath(137 << 8 | 2) == "/dev/pts/258")
         #expect(ProcStat.ttyPath(4 << 8 | 2) == "/dev/tty2")
     }
