@@ -560,7 +560,11 @@ final class NotchController {
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         tookKeysForAsk = askTakesKeys
-        guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
+        // Sorted keys: Foundation on Linux writes keys in a different order on every encode, and the page compares parts of
+        // the snapshot as text to decide whether to draw again (the settings and the shortcut step). Unsorted, it redrew
+        // them on every snapshot, and a click whose press and release fell on two drawings never happened.
+        let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         js("window.perch && window.perch.apply(\(json))")
         if revealPending { revealPending = false; js("window.perch && window.perch.painted(\(revealToken))") }
     }
@@ -635,6 +639,7 @@ final class NotchController {
     // MARK: the page
     private func message(_ body: [String: Any]) {
         guard let type = body["type"] as? String else { return }
+        if type != "size" && type != "log" { Trace.log("Perch page: \(type) \(body.filter { $0.key != "type" && $0.key != "png" })") }
         switch type {
         case "confirm": send(.confirm)
         case "flip": send(.next)
@@ -1212,7 +1217,9 @@ final class NotchController {
         let r: CGRect
         if machine.phase == .idle { r = activityMode == "full" ? activityRect : .zero } else { r = cardRect }
         let f = panel.frame
-        panel.clickRect = CGRect(x: r.minX - f.minX, y: f.maxY - r.maxY, width: r.width, height: r.height).integral
+        let rect = CGRect(x: r.minX - f.minX, y: f.maxY - r.maxY, width: r.width, height: r.height).integral
+        if rect != panel.clickRect { Trace.log("Perch clicks: \(rect) of the panel, content \(contentSize)") }
+        panel.clickRect = rect
     }
 
     /// A click anywhere outside the card closes it, as the button comes up. A press that ends on the card (a file dragged
