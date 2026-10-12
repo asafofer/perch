@@ -26,6 +26,8 @@ rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices"
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Perch"
 cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
+# What each release says about itself, for the What's new card on the first start after an update.
+cp -R release-notes "$APP/Contents/Resources/release-notes"
 # Sign with the stable local "Perch Dev" certificate when it exists, so macOS remembers privacy permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
 if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then SIGN="Perch Dev"; else SIGN=-; fi

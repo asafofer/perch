@@ -21,6 +21,8 @@ final class NotchController {
     private var ready = false
     /// What you typed in the list to narrow it. Cleared when the card closes.
     private var listQuery = ""
+    /// The list has a row lit (the page says: the pointer is on one, or the keys chose it). With none, Return, Right and Tab open nothing.
+    private var listMarked = true
     /// The app icons this page has. Nil until sent, and again after the page reloads.
     private var iconKeys: Set<String>?
     private var iconsCheckedAt = Date.distantPast
@@ -45,6 +47,20 @@ final class NotchController {
     var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
     /// What showed when the card or list was put away, for the shortcut to bring back (PutAway).
     private var putAway: PutAway?
+    /// What is new, held until Perch can show it (nothing else up, no call). It takes no keyboard; Super+Alt+Return is Got
+    /// it, registered only while it shows. On the Mac the first start after an update shows it; Linux has no updates yet.
+    private var whatsNew: (version: String, notes: UpdateNotes)?
+    var onWhatsNewKey: ((Bool) -> Void)?
+    func showWhatsNew(version: String, notes: UpdateNotes) { whatsNew = (version, notes); tryWhatsNew(0) }
+    private func tryWhatsNew(_ tries: Int) {
+        guard whatsNew != nil, tries < 40 else { if tries >= 40 { whatsNew = nil }; return }
+        guard ready, machine.phase == .idle, activityMode == "", !quietNow() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.tryWhatsNew(tries + 1) }
+            return
+        }
+        openedByHover = false; proactiveOpen = false; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.openWhatsNew)
+    }
+    func whatsNewDone() { if machine.phase == .whatsNew { send(.confirm) } }
     /// The card takes the keyboard when the pointer comes onto it, or when a hovered card gets something to answer: once.
     private var pointerOnCard = false
     private var tookKeysForAsk = false
@@ -555,6 +571,7 @@ final class NotchController {
         sent.platform = "linux"
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
+        if machine.phase == .whatsNew, let w = whatsNew { sent.whatsNew = .init(version: w.version, headline: w.notes.headline, bullets: w.notes.bullets) }
         sent.drafts = drafts
         sent.proactive = proactiveOpen
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
@@ -584,6 +601,7 @@ final class NotchController {
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
+        if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
         Trace.log("Perch phase: \(old) -> \(new)")
         switch new {
         case .idle:
@@ -616,6 +634,9 @@ final class NotchController {
         case .settings:
             keysOn = true; panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
             watchOnboarding()
+        case .whatsNew:
+            // It opened by itself: no keyboard, so nothing typed behind it lands here. Its key is a global one, only while it shows.
+            timer?.cancel(); keysOn = false; panel.allowsKey = false; panel.ignoresMouseEvents = false; onWhatsNewKey?(true)
         case .restoring:
             timer?.cancel()
             timer = Task { [weak self] in
@@ -656,6 +677,8 @@ final class NotchController {
             }
             push()
         case "dismiss": send(.dismiss)
+        case "whatsnew": whatsNewDone()
+        case "marked": listMarked = body["on"] as? Bool ?? true
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
@@ -1120,14 +1143,14 @@ final class NotchController {
         if machine.phase == .switcher {
             if code == 51 { if !listQuery.isEmpty { listQuery.removeLast(); filterChanged() }; return true }
             if code == 53, !listQuery.isEmpty { listQuery = ""; filterChanged(); return true }
-            if code == 125 || code == 126 { stepList(code == 125 ? 1 : -1); return true }
+            if code == 125 || code == 126 { listMarked = true; js("window.perch && window.perch.listKey()"); stepList(code == 125 ? 1 : -1); return true }
             let typed = e.characters ?? ""
             if e.mods.intersection([.command, .control]).isEmpty, typed.count == 1,
                typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) {
-                if !(typed == " " && listQuery.isEmpty) { listQuery += typed; filterChanged() }
+                if !(typed == " " && listQuery.isEmpty) { listQuery += typed; listMarked = true; js("window.perch && window.perch.listKey()"); filterChanged() }
                 return true
             }
-            if [36, 76, 48, 124].contains(code), ListFilter.shown(projects, listQuery).isEmpty { return true }
+            if [36, 76, 48, 124].contains(code), !listMarked || ListFilter.shown(projects, listQuery).isEmpty { return true }
         }
         if machine.phase == .switcher, code == 124 { send(.back); return true }
         switch (code, ch) {

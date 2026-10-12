@@ -42,9 +42,9 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
-.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
+.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
-.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
+.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .notouch { transition: none !important; }
 /* moved to another display: everything takes its place there at once (app.js apply) */
 #scene[data-moved="1"], #scene[data-moved="1"] *, #scene[data-moved="1"] *::before, #scene[data-moved="1"] *::after { transition: none !important; }
@@ -282,6 +282,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-sec.first { padding-top: 0; }
 /* a row with no mark (seen, idle) gives its space to the project */
 .row .rk:empty { display: none; }
+/* a highlight fades in (.13 s) and out (.2 s), quick enough that a fast pass still shows every row; one the pointer only crossed comes on at once, so a quick pass over rows leaves each one seen; .crossed marks a row the pointer crossed between two samples */
+.p-switch .row, .p-set .s-row { transition-duration: .2s; }
+.p-switch.nomark .row.bg-accent { background-color: transparent; }
+.p-switch .row.bg-accent, .p-set .s-row.bg-accent { transition-duration: .13s; }
+.p-switch .row.crossed, .p-set .s-row.crossed { transition-duration: 0s; }
+.row.crossed, .s-row.crossed { background-color: hsl(var(--accent)); }
 /* the working step: grey words with a light passing over them, so it reads as happening rather than as yours to do. A white
    copy of the words (app.js sets data-shine) sits on top, and a soft band of mask moves across it. The mask repeats and each
    pass moves it exactly one repeat, so the light comes in from the left, leaves at the right, and the loop has no seam. */
