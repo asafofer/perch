@@ -33,10 +33,15 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     private var quietTimer: Timer?, clearTimer: Timer?, quitTimer: Timer?
     private var retryQuit: (() -> Void)?                     // Sparkle's way to ask Perch to quit again
     private var demoTask: Task<Void, Never>?
+    static let demoNotes = UpdateNotes(headline: "Record your own shortcut to open Perch", bullets: ["Shortcuts work on non-Latin keyboard layouts", "A notch that fits the hardware, on every display", "Hover opens on the right screen when you have more than one"])
 
     /// The state for the page, nil when there is nothing to say.
     private(set) var info: UpdateInfo? { didSet { if info != oldValue { onChange(info) } } }
     var onChange: (UpdateInfo?) -> Void = { _ in }
+    /// The first start on a new version, when the release has notes: the notch's What's new card takes the place of the small row.
+    var onWhatsNew: ((String, UpdateNotes) -> Void)?
+    /// This release's notes, shipped inside the app (release-notes/<version>.md).
+    var bundledNotes: UpdateNotes? { Bundle.main.resourceURL.flatMap { UpdateNotes.bundled(version: shortVersion, in: $0.appendingPathComponent("release-notes")) } }
     /// Asked before a downloaded update restarts Perch: true when nothing is on screen and no reply is half written.
     var isQuiet: () -> Bool = { true }
 
@@ -104,6 +109,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         guard let was, was != build else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
             guard let self, self.info == nil else { return }
+            if let notes = self.bundledNotes, let say = self.onWhatsNew { say(self.shortVersion, notes); return }
             self.info = UpdateInfo(version: self.shortVersion, phase: "updated"); self.clear(after: 8)
         }
     }
@@ -281,8 +287,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
             guard let self else { return }
             self.info = UpdateInfo(version: v, phase: "restarting"); guard await wait(2.4) else { return }
             self.info = nil; guard await wait(1.4) else { return }
-            self.info = UpdateInfo(version: v, phase: "updated"); guard await wait(6) else { return }
-            self.info = nil
+            self.onWhatsNew?(v, Self.demoNotes)
         }
     }
 
@@ -299,9 +304,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
             for k in 0...24 { self.info = UpdateInfo(version: v, phase: "downloading", progress: Double(k) / 24); guard await wait(0.4) else { return } }
             self.info = UpdateInfo(version: v, phase: "restarting"); guard await wait(2.4) else { return }
             self.info = nil; guard await wait(1.4) else { return }
-            self.info = UpdateInfo(version: v, phase: "updated"); guard await wait(6) else { return }
-            self.info = nil
-            guard await wait(1) else { return }
+            self.onWhatsNew?(v, Self.demoNotes); guard await wait(14) else { return }
             self.info = UpdateInfo(version: v, phase: "ready")   // and the chip, for as long as you are in the list
         }
     }
