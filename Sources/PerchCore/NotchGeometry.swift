@@ -5,7 +5,8 @@ public struct ScreenInfo: Equatable, Sendable {
     public var frame: CGRect          // screen frame in global coordinates (origin bottom-left)
     public var notchSize: CGSize?     // hardware notch size, nil on Macs without one
     public var menuBarHeight: CGFloat // height of the menu bar here; sizes the stand-in tab on screens without a notch
-    public init(frame: CGRect, notchSize: CGSize?, menuBarHeight: CGFloat = 24) { self.frame = frame; self.notchSize = notchSize; self.menuBarHeight = menuBarHeight }
+    public var fullScreen: Bool       // an app is full screen here: a display without a notch then shows nothing at rest
+    public init(frame: CGRect, notchSize: CGSize?, menuBarHeight: CGFloat = 24, fullScreen: Bool = false) { self.frame = frame; self.notchSize = notchSize; self.menuBarHeight = menuBarHeight; self.fullScreen = fullScreen }
 }
 
 public enum NotchGeometry {
@@ -38,6 +39,24 @@ public enum NotchGeometry {
         let w = max(idle.width, 150, wingsWidth)
         let left: CGFloat = 30, right: CGFloat = 8     // the character sits just left of the notch
         return CGRect(x: screen.frame.midX - w / 2 - left, y: screen.frame.maxY - idle.height - 2, width: w + left + right, height: idle.height + 40)
+    }
+
+    /// On a screen without a notch, a small black pill with your character rests at the top centre, in the menu bar with
+    /// the same gap above and below it. The bar's last point is its hairline, so the band you see is one point shorter
+    /// than the height macOS reports (measured on a 1x display: 30 reported, 29 of bar, then the line). The pill is 18 or
+    /// 19 tall, whichever leaves a whole-point gap on both sides, so neither edge lands on half a pixel.
+    public static let pillWidth: CGFloat = 30
+    public static func pill(for screen: ScreenInfo) -> (top: CGFloat, size: CGSize) {
+        let band = max(20, (screen.menuBarHeight - 1).rounded())
+        let h: CGFloat = band.truncatingRemainder(dividingBy: 2) == 0 ? 18 : 19
+        return ((band - h) / 2, CGSize(width: pillWidth, height: h))
+    }
+
+    /// Where resting the cursor on that pill opens Perch: the pill with a little slack round it, up past the top edge so
+    /// the cursor parked on it (y == maxY) counts.
+    public static func pillHoverRect(for screen: ScreenInfo) -> CGRect {
+        let p = pill(for: screen), slack: CGFloat = 6, w = p.size.width + slack * 2, below = p.top + p.size.height + slack
+        return CGRect(x: screen.frame.midX - w / 2, y: screen.frame.maxY - below, width: w, height: below + 2)
     }
 
     /// The cursor is in that screen's hover zone. The zone reaches above its screen's edge, so a display stacked above

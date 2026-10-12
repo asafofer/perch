@@ -145,6 +145,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.start()
         startRefreshing()
         startWatchingFocus()
+        watchFullScreen()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -569,6 +570,41 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         redecorate()
     }
 
+    /// An app going full screen (or back) on a display without a notch hides (or brings back) the resting pill there.
+    /// macOS says nothing to other apps as a window starts going full screen, but the window list shows it filling the
+    /// display about 0.1 s in, long before the Space-change notice at the end of the animation; leaving, the list clears
+    /// about 70 ms after that notice. So the list is read every quarter second while the pill is showing (about 1 ms a
+    /// read), and every 40 ms for a moment after a Space or app change.
+    private var fullScreenBurst = 0
+    private func watchFullScreen() {
+        let check: () -> Void = { [weak self] in
+            guard let self, FullScreenWatch.refresh() else { return }
+            self.info = self.screen.screenInfo
+            if self.machine.phase == .idle { self.push() }
+        }
+        let burst: () -> Void = { [weak self] in
+            guard let self else { return }
+            self.fullScreenBurst += 1
+            let token = self.fullScreenBurst
+            for k in 0...30 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(k) * 0.04) { [weak self] in
+                    MainActor.assumeIsolated { if self?.fullScreenBurst == token { check() } }
+                }
+            }
+        }
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { _ in MainActor.assumeIsolated { burst() } }
+        }
+        Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.machine.phase == .idle, self.info.notchSize == nil || !FullScreenWatch.covered.isEmpty else { return }
+                check()
+            }
+        }
+        check()
+    }
+
     private func startRefreshing() {
         // Switching apps changes which session counts as "the one you are in", so the resting character is re-evaluated.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
@@ -665,6 +701,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
+        sent.screen.away = awayForHover
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
@@ -707,11 +744,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                   query: listQuery, replying: replyOpen, at: Date())
             }
             hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
-            // The card shrinks away where it was; the task below takes the panel home once that has played.
-            closedAt = Date(); awayForHover = false
+            // The card shrinks away where it was; the task below takes the panel home once that has played. A hover's
+            // visit lasts until then, so on a display Perch only visited the card shrinks to nothing, not into a pill
+            // that would vanish the moment the panel leaves.
+            closedAt = Date()
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
                 guard let self, self.machine.phase == .idle else { return }
+                self.awayForHover = false
                 self.place(on: ScreenChooser.rest())
                 if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
                 self.refreshProjects()
@@ -1562,8 +1602,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
-        NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
+        if onPill { return NotchGeometry.pillHoverRect(for: info) }
+        return NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
     }
+    /// A screen without a notch, at rest with nothing showing: only the pill with the character is there to aim at,
+    /// unless Hover opens on external displays makes the whole top edge count.
+    private var onPill: Bool { info.notchSize == nil && !Prefs.hoverExternal && activityMode.isEmpty && !info.fullScreen && !awayForHover }
 
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the
     /// top of another screen that opens on hover still brings Perch there; leaving that zone sends it back.
@@ -1596,7 +1640,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func overNotch() -> Bool {
         let at = NSEvent.mouseLocation
         guard notchHoverRect().contains(at), ScreenChooser.under(at)?.frame == info.frame else { return false }
-        return info.notchSize != nil || Prefs.hoverExternal
+        return info.notchSize != nil || (Prefs.hoverExternal && !info.fullScreen) || onPill
     }
 
     /// Resting the cursor on the notch for a moment opens the welcome card.
