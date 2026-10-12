@@ -1220,7 +1220,7 @@
   /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
      right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
      the same as the card closes (sentNext). */
-  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, actPressing = false;
+  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, actPressing = false, sentN = 0;
   function sentWords(m) { return m.choice ? (m.choice === 'deny' ? 'Denied' : 'Allowed') : 'Sent'; }
   /* the mark that says it went: a paper plane, slightly tilted, in the blue the update ring uses. Lucide's send as it is
      (lucide.dev, ISC), no ring. It flies in from the lower left as if just thrown, overshoots a touch and settles. */
@@ -1229,29 +1229,34 @@
     return '<svg class="size-[15px] flex-none" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(COLORS.running) + '" aria-label="Sent">' + SENT_PLANE + '</svg>';
   }
   function sentShow(p, words, ok, quiet) {
-    sent = { words: words, ok: ok !== false };
+    /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
+       when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
+    sent = { words: words, ok: ok !== false, n: ++sentN, fold: act.mode === 'full' && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
     sentT = setTimeout(function () { sent = null; if (act.mode === 'sent') actSettle(); }, sent.ok ? SENT_MS : 4500);
   }
   function renderSent(p) {
     var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
-    var key = 'sent|' + p.id + '|' + sent.words;
+    var key = 'sent|' + sent.n;
     if (actEl._h === key) return;
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    /* the row it answered is still there: it folds in place, and only the right side changes */
-    if (r && actEl._for === p.id && actEl._h) r.innerHTML = right;
+    /* the row it answered is still there: it folds in place, and only the right side changes. From a card that is closing,
+       the notch is still shrinking to one line: the session fades in as it lands, and the words and the plane wait until it
+       has settled (`lag`), or the plane would fly while nothing can be seen. */
+    var lag = 0;
+    if (sent.fold && r && actEl._for === p.id) r.innerHTML = right;
     else {
       actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(p.topic && p.name !== p.topic ? p.name : p.topic || p.name) + '</span></span></span><span class="act-r">' + right + '</span>';
-      if (!calm) [].forEach.call(actEl.children, function (el) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 180, easing: 'ease-out', fill: 'backwards' }); });
-      r = actEl.querySelector('.act-r');
+      if (!calm) actEl.firstChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 180, easing: 'ease-out', fill: 'backwards' });
+      r = actEl.querySelector('.act-r'); lag = 300;
     }
     actEl._h = key; actEl._for = p.id; actEl.classList.remove('chose');
     if (calm) return;
     var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
-    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
-    mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140 + lag, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
+    mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
     if (act.mode !== 'full') return;
