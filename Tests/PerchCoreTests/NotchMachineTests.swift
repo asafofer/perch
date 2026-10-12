@@ -221,4 +221,20 @@ import Testing
         m.send(away.recall(ids: ["a", "b", "c"], now: Date())!)
         #expect(m.phase == .open); #expect(m.selected == 1)
     }
+
+    @Test func whatsNewConfirmedGoesOnToTheList() {
+        var m = NotchMachine(projectCount: 3); m.send(.openWhatsNew)
+        #expect(m.phase == .whatsNew)
+        m.send(.confirm); #expect(m.phase == .switcher); #expect(m.selected == 0)
+    }
+    @Test func whatsNewDismissedGoesAway() {
+        var m = NotchMachine(projectCount: 3); m.send(.openWhatsNew); m.send(.dismiss)
+        #expect(m.phase == .idle)
+    }
+    @Test func whatsNewOnlyOpensFromRest() {
+        var m = NotchMachine(projectCount: 3); m.send(.openSwitcher); m.send(.openWhatsNew)
+        #expect(m.phase == .switcher)   // something is up: it waits
+        var e = NotchMachine(projectCount: 0); e.send(.openWhatsNew); e.send(.confirm)
+        #expect(e.phase == .switcher)   // an empty list says so, as when asked for
+    }
 }
