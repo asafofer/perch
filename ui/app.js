@@ -879,7 +879,7 @@
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
-    var mode = st === 'idle' ? act.mode : '', keys = !mode || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
+    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
   }
@@ -931,6 +931,8 @@
     actEl.dataset.mode = act.mode;
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
+    if (act.mode === 'sent') { renderSent(act.p); actGlide(); return; }
+    actEl.classList.remove('sm', 'chose');
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
@@ -960,6 +962,7 @@
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    actEl._for = p.id;
     actGlide();
   }
   /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
@@ -1038,10 +1041,11 @@
   }
   /* the size follows what it says: both sides as wide as the wider one, so the camera stays in the middle */
   function actSize(idleW, idleH) {
-    if (act.mode === 'wings') return [idleW + 56, idleH];
+    if (actWingy()) return [idleW + 56, idleH];
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
+    if (act.mode === 'sent') return [Math.ceil(Math.min(460, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1066,9 +1070,11 @@
     }
     return [w, base];
   }
+  /* the wings, or the small way of saying an answer went (the app and a check) */
+  function actWingy() { return act.mode === 'wings' || (act.mode === 'sent' && actEl.classList.contains('sm')); }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
-    var wing = (w - idleW) / 2, side = act.mode === 'wings' ? Math.round(wing / 2 - 7.5) : 13;
+    var wing = (w - idleW) / 2, side = actWingy() ? Math.round(wing / 2 - 7.5) : 13;
     /* each side's words (with the icon or mark, 22px) end 8px short of the camera, never under it */
     actEl.style.setProperty('--as', side + 'px'); actEl.style.setProperty('--ah', idleH + 'px'); actEl.style.setProperty('--aw', Math.max(0, wing - 13 - 8 - 22) + 'px');
   }
@@ -1145,7 +1151,11 @@
     var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
-    if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
+    if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
+    /* an answer just given on the card: the card closes into the line that says it went */
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentShow(sn.p, sn.words, true, true); return; }
+    sentNext = null;
+    if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
@@ -1163,6 +1173,9 @@
     if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
+    /* it is saying an answer went: it says it to the end, unless something new arrives */
+    if (act.mode === 'sent' && !((arrived || landed) && !s.quiet)) return;
+    if (act.mode === 'sent') { clearTimeout(sentT); sent = null; }
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1193,10 +1206,53 @@
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
-    if (a === 'allow' || a === 'deny') post({ type: 'activityAnswer', id: p.id, choice: a });
-    else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; post({ type: 'activityAnswer', id: p.id, answers: ans }); }
+    var m = null;
+    if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
+    else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
     else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
-    actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null);
+    actGone[actKey(p)] = 1; clearTimeout(actTimer);
+    if (!m) { setAct('', null); return; }
+    /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
+    var b = actEl.querySelector('.act-btns [data-a="' + a + '"]'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    act.keys = []; actPressing = !!b && !calm;
+    if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
+    post(m);
+    setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
+  }
+  /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
+     right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
+     the same as the card closes (sentNext). `sentStyle` 'check' is the smaller one being weighed: the wings, the app and a check. */
+  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, sentStyle = 'answer', actPressing = false;
+  function sentWords(m) {
+    if (m.choice) return m.choice === 'deny' ? 'Denied' : 'Allowed';
+    var v = Object.keys(m.answers || {}).map(function (k) { return m.answers[k]; });
+    return v.length > 1 ? v.length + ' answers' : String(v[0] || 'Sent').replace(/\s*\(recommended\)/ig, '');
+  }
+  function sentShow(p, words, ok, quiet) {
+    sent = { words: words, ok: ok !== false };
+    clearTimeout(actTimer); clearTimeout(sentT);
+    setAct('sent', p, quiet);
+    sentT = setTimeout(function () { sent = null; if (act.mode === 'sent') actSettle(); }, sent.ok ? SENT_MS : 4500);
+  }
+  function renderSent(p) {
+    var small = sentStyle === 'check' && sent.ok;
+    var right = (small ? '' : '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>') + Ring(sent.ok ? 'done' : 'need');
+    var key = 'sent|' + p.id + '|' + sent.words + '|' + small;
+    if (actEl._h === key) return;
+    actEl.classList.toggle('sm', small);
+    var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* the row it answered is still there: it folds in place, and only the right side changes */
+    if (r && actEl._for === p.id && actEl._h) r.innerHTML = right;
+    else {
+      actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(p.topic && p.name !== p.topic ? p.name : p.topic || p.name) + '</span></span></span><span class="act-r">' + right + '</span>';
+      if (!calm) [].forEach.call(actEl.children, function (el) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 180, easing: 'ease-out', fill: 'backwards' }); });
+      r = actEl.querySelector('.act-r');
+    }
+    actEl._h = key; actEl._for = p.id; actEl.classList.remove('chose');
+    if (calm) return;
+    var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
+    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
     if (act.mode !== 'full') return;
@@ -2357,6 +2413,8 @@
 
   /* ---- bridge ---- */
   function post(m) {
+    /* an answer on the card: once it closes, the notch says it went (activity, sentNext) */
+    if (m.type === 'answer' && snap && snap.projects[snap.selected]) sentNext = { p: snap.projects[snap.selected], words: sentWords(m), at: Date.now() };
     if (NATIVE) window.webkit.messageHandlers.perch.postMessage(m); else dev(m);
   }
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
@@ -2437,6 +2495,8 @@
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
+    /* answered from the notch: that session goes on, working again */
+    if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + sentWords(m); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
@@ -2516,7 +2576,7 @@
         };
         autoTimer = setTimeout(again, 1600);
       },
-      variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
@@ -2558,6 +2618,14 @@
         at(t + 4400, function () { D.update('updated', { fresh: false }); });
       },
       updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
+      /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
+      sentStyle: function (v) { sentStyle = v || 'answer'; },
+      /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
+      sentFail: function (a) {
+        var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;
+        clearTimeout(actTimer); act.keys = []; actPressing = true; if (b) { actEl.classList.add('chose'); b.classList.add('on'); }
+        setTimeout(function () { actPressing = false; sentShow(p, 'Didn\u2019t send', false); }, 170);
+      },
       /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
       trick: function (name) {
         window.perchDev.onboarding(1);
@@ -2583,7 +2651,7 @@
       /* the notch at rest, then one session changes: what the live activity does when an answer or a request arrives */
       /* `off`: the kinds Settings > Notify me about has switched off */
       arrive: function (i, o, off) {
-        d0(); base.selected = 0;
+        d0(); base.selected = 0; actGone = {}; actSeen = {};   /* a scenario played again arrives again, answered or not */
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
         apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', notifyOff: off || [], timerToken: Math.random() }));
         autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', notifyOff: off || [], timerToken: Math.random() })); }, 900);
@@ -2657,7 +2725,7 @@
       var ask = ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask;
       if (ask && ask.answerable && fRep.style.display !== 'flex') {
         var k = e.key.toLowerCase();
-        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
+        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }

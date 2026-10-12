@@ -137,6 +137,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
+  /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
+  function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 2600); }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
@@ -347,6 +349,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ['Push branch and open a PR (Recommended)', 'Push claude/login-state-persistence and open a pull request, so Vercel builds a preview deployment you can check before anything reaches production'],
           ['Push straight to main', 'Push the commits to main now. Vercel deploys production from main, so this ships the change to everyone right away'],
           ['Don\u2019t push yet', 'Leave GitHub as it is for now. Production keeps running the current version until you decide']])] } }); }],
+      ['Answered from the notch', 'You press a choice (here Vendor first). It lights for a beat, the others step back, then the row folds to one line: the session on the left, what you answered on the right with a check. After two and a half seconds it folds away; anything else still waiting on you stays as wings. Try it yourself on Asked you something.', function () { d.arrive(3, CLAUDE_ASKS); press('pick1'); }],
+      ['Answered from the notch, smaller', 'The same, folded all the way to the wings: the app and a check beside the camera, no words. Smaller, but it does not say what you chose.', function () { d.sentStyle('check'); d.arrive(3, CLAUDE_ASKS); press('pick1'); }],
+      ['Allowed from the notch', 'Allow or Deny says so the same way: Allowed, or Denied, with the check.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); press('allow'); }],
+      ['Answered on the card', 'A card you hovered open, answered with 2: the card closes straight into the same line, Amount first with a check. Then it folds away; here Onboarding flow still needs your OK, so its wings stay.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('2'); }, 1800); }],
+      ['Answered four things on the card', 'Four questions answered one after another: the line says 4 answers.', function () { d.variant(0, FOUR_ASKS); var me = charRun; ['1', '2', '1', '2', 'next'].forEach(function (k, i) { setTimeout(function () { if (me === charRun) window.perch.askKey(k); }, 1400 + i * 650); }); }],
+      ['Didn\u2019t send', 'The answer came too late: the question was already answered in Claude, or Perch had let it go. The line says Didn\u2019t send in orange and stays a little longer; the question is Claude\u2019s to answer now.', function () { d.arrive(3, CLAUDE_ASKS); press('pick1', 2600, true); }],
       ['Asks in a terminal', 'A terminal session answers in its own tab, so the row offers Pick up, which goes there.', function () { d.arrive(7, { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, attention: true, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run test -- --runInBand', options: [], answerable: false } }); }],
       ['Something needs you', 'Already waiting when you look: just the wings.', function () { d.show('idle'); }],
       ['All clear', 'The last thing waiting on you was answered: the wings fold away. The character stays in.', function () { d.clear(); }]
@@ -516,7 +524,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); d.sentStyle('answer'); charRun++; fileDragStop(); diskStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
