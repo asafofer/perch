@@ -10,7 +10,7 @@ import PerchCore
 enum Terminals {
     /// Every app that counts as a terminal (WM_CLASS, lowercased), with the name its icon goes by in the page.
     static let keys: [String: String] = [
-        "xfce4-terminal": "xfce4-terminal", "gnome-terminal-server": "gnome-terminal", "kitty": "kitty", "alacritty": "alacritty",
+        "xfce4-terminal": "xfce4-terminal", "gnome-terminal": "gnome-terminal", "kitty": "kitty", "alacritty": "alacritty",
         "org.wezfurlong.wezterm": "wezterm", "com.mitchellh.ghostty": "ghostty", "ghostty": "ghostty", "konsole": "konsole",
         "xterm": "xterm", "tilix": "tilix", "terminator": "terminator", "code": "vscode", "cursor": "cursor", "zed": "zed",
         "dev.zed.zed": "zed",
@@ -23,7 +23,7 @@ enum Terminals {
         if let last = Prefs.lastTerminal, opens.contains(last), installed(last) { return last }
         return systemDefault ?? order.first(where: installed) ?? "xterm"
     }
-    private static let order = ["xfce4-terminal", "gnome-terminal-server", "konsole", "kitty", "alacritty", "org.wezfurlong.wezterm", "com.mitchellh.ghostty", "tilix", "terminator", "xterm"]
+    private static let order = ["xfce4-terminal", "gnome-terminal", "konsole", "kitty", "alacritty", "org.wezfurlong.wezterm", "com.mitchellh.ghostty", "tilix", "terminator", "xterm"]
     static func installed(_ app: String) -> Bool { TerminalLaunch.binaries[app].flatMap(Proc.which) != nil }
 
     /// XFCE's choice (helpers.rc), else $TERMINAL, else Debian's x-terminal-emulator, if it is one Perch can open.
@@ -299,7 +299,7 @@ enum LiveSessions {
         }
 
         private let byName: [String: String] = [
-            "xfce4-terminal": "xfce4-terminal", "gnome-terminal-server": "gnome-terminal-server", "kitty": "kitty", "alacritty": "alacritty",
+            "xfce4-terminal": "xfce4-terminal", "gnome-terminal-server": "gnome-terminal", "kitty": "kitty", "alacritty": "alacritty",
             "wezterm-gui": "org.wezfurlong.wezterm", "ghostty": "com.mitchellh.ghostty", "konsole": "konsole", "xterm": "xterm", "tilix": "tilix",
             "code": "code", "cursor": "cursor", "zed-editor": "zed",
         ]

@@ -68,11 +68,11 @@ import Testing
 
     @Test func theSystemsOwnTerminal() {
         #expect(TerminalLaunch.app(named: "/usr/bin/xfce4-terminal.wrapper") == "xfce4-terminal")
-        #expect(TerminalLaunch.app(named: "/usr/bin/gnome-terminal.wrapper") == "gnome-terminal-server")
+        #expect(TerminalLaunch.app(named: "/usr/bin/gnome-terminal.wrapper") == "gnome-terminal")
         #expect(TerminalLaunch.app(named: "/usr/bin/koi8rxterm") == "xterm")
         #expect(TerminalLaunch.app(named: "/usr/bin/kitty") == "kitty")
         #expect(TerminalLaunch.app(named: "/usr/bin/st") == nil)
-        #expect(TerminalLaunch.fromHelpersRC("WebBrowser=firefox\nTerminalEmulator=gnome-terminal\n") == "gnome-terminal-server")
+        #expect(TerminalLaunch.fromHelpersRC("WebBrowser=firefox\nTerminalEmulator=gnome-terminal\n") == "gnome-terminal")
         #expect(TerminalLaunch.fromHelpersRC("WebBrowser=firefox\n") == nil)
     }
 

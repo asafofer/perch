@@ -164,7 +164,7 @@ public enum WeztermList {
 public enum TerminalLaunch {
     /// Each terminal's program, by app id.
     public static let binaries: [String: String] = [
-        "xfce4-terminal": "xfce4-terminal", "gnome-terminal-server": "gnome-terminal", "kitty": "kitty", "alacritty": "alacritty",
+        "xfce4-terminal": "xfce4-terminal", "gnome-terminal": "gnome-terminal", "kitty": "kitty", "alacritty": "alacritty",
         "org.wezfurlong.wezterm": "wezterm", "com.mitchellh.ghostty": "ghostty", "ghostty": "ghostty", "konsole": "konsole",
         "xterm": "xterm", "tilix": "tilix", "terminator": "terminator",
     ]
@@ -175,7 +175,7 @@ public enum TerminalLaunch {
         if name.hasSuffix(".wrapper") { name = String(name.dropLast(8)) }
         if name.hasSuffix(".desktop") { name = String(name.dropLast(8)) }
         switch name {
-        case "gnome-terminal", "org.gnome.terminal": return "gnome-terminal-server"
+        case "gnome-terminal-server", "org.gnome.terminal": return "gnome-terminal"   // its windows' class is Gnome-terminal
         case "wezterm", "org.wezfurlong.wezterm": return "org.wezfurlong.wezterm"
         case "ghostty", "com.mitchellh.ghostty": return "com.mitchellh.ghostty"
         case "xterm", "uxterm", "lxterm", "koi8rxterm": return "xterm"
@@ -202,7 +202,7 @@ public enum TerminalLaunch {
         let run = [shell, "-l", "-i", "-c", script]
         switch app {
         case "xfce4-terminal": return ["xfce4-terminal", "--window", "--working-directory=\(cwd)", "-x"] + run
-        case "gnome-terminal-server": return ["gnome-terminal", "--window", "--working-directory=\(cwd)", "--"] + run
+        case "gnome-terminal": return ["gnome-terminal", "--window", "--working-directory=\(cwd)", "--"] + run
         case "kitty": return ["kitty", "--directory", cwd] + run
         case "alacritty": return ["alacritty", "--working-directory", cwd, "-e"] + run
         case "org.wezfurlong.wezterm": return ["wezterm", "start", "--cwd", cwd, "--"] + run

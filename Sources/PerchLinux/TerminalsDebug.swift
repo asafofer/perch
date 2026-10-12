@@ -50,6 +50,10 @@ enum TerminalsDebug {
             Clipboard.restore(saved)
             print("restored")
             serve(3)
+        case "badwindow":
+            // A window that is gone: X answers with an error, which must not end Perch.
+            XServer.shared.activate(0x7fff_fff0)
+            print("still here, windows \(XServer.shared.windows().count)")
         case "files":
             serve(0.5)   // GDK learns what the clipboard offers a moment after it starts
             var got: [String]?
