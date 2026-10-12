@@ -881,7 +881,7 @@
       : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
-    var mode = st === 'idle' ? act.mode : '', keys = !mode || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
+    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
   }
@@ -933,6 +933,8 @@
     actEl.dataset.mode = act.mode;
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
+    if (act.mode === 'sent') { renderSent(act.p); actGlide(); return; }
+    actEl.classList.remove('chose');
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
@@ -962,6 +964,7 @@
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    actEl._for = p.id;
     actGlide();
   }
   /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
@@ -1044,6 +1047,7 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
+    if (act.mode === 'sent') return [Math.ceil(Math.min(460, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1143,11 +1147,27 @@
     var errs = others.filter(function (p) { return actErr(p) && !actGone[actKey(p)] && !muted(s, p); }), heard = need.concat(errs);
     /* What is remembered does not depend on which sessions you are in: that guess can flicker (a reading goes stale while a card is
        up), and a finish that dropped out of the list for a moment would land again. Only what is said is left out for the ones you are in. */
+    /* A request answered or put away stays away while it stands. Once it is settled (that session has moved on), the same
+       request asked again is news: the same command a second time must not pass in silence. Finishes and errors keep theirs. */
+    Object.keys(actGone).forEach(function (k) {
+      var bits = k.split('|'); if (['run', 'ask', 'plan'].indexOf(bits[1]) < 0) return;
+      var p = s.projects.filter(function (x) { return x.id === bits[0]; })[0];
+      if (p && actKey(p) !== k) delete actGone[k];
+    });
+    /* the same for when a question was first seen, which runs out its time on the notch (actExpired) */
+    Object.keys(actSeen).forEach(function (k) {
+      var id = k.split('|')[0], p = id !== 'update' && s.projects.filter(function (x) { return x.id === id; })[0];
+      if (p && actKey(p) !== k) delete actSeen[k];
+    });
     var everyDone = s.projects.filter(function (p) { return p.status.kind === 'done' && p.fresh && !actGone[actKey(p)]; });
     var everyHeard = s.projects.filter(function (p) { return ((p.attention && !actErr(p)) || actErr(p)) && !actGone[actKey(p)]; });
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
-    if (st !== 'idle') { clearTimeout(actTimer); setAct('', null, true); return; }   /* the card is up: it says all of this */
+    if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
+    /* an answer just given on the card: the card closes into the line that says it went */
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true); return; }
+    sentNext = null;
+    if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
@@ -1165,6 +1185,8 @@
     if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
+    /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
+    if (act.mode === 'sent') return;
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1195,10 +1217,80 @@
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
-    if (a === 'allow' || a === 'deny') post({ type: 'activityAnswer', id: p.id, choice: a });
-    else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; post({ type: 'activityAnswer', id: p.id, answers: ans }); }
+    var m = null;
+    if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
+    else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
     else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
-    actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null);
+    actGone[actKey(p)] = 1; clearTimeout(actTimer);
+    if (!m) { setAct('', null); return; }
+    /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
+    var b = actEl.querySelector('.act-btns [data-a="' + a + '"]'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id]; sentBase = actKnown;
+    if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
+    post(m);
+    setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
+  }
+  /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
+     right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
+     the same as the card closes (sentNext). */
+  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, actPressing = false, sentN = 0;
+  function sentWords() { return 'Sent'; }   /* a choice, several, Allow or Deny: the line says one thing, that it went */
+  /* the mark that says it went: a paper plane, slightly tilted, in the blue the update ring uses. Lucide's send as it is
+     (lucide.dev, ISC), no ring. It flies in from the lower left as if just thrown, overshoots a touch and settles. */
+  var SENT_PLANE = '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>';
+  function SentMark() {
+    return '<svg class="size-[15px] flex-none" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(COLORS.running) + '" aria-label="Sent">' + SENT_PLANE + '</svg>';
+  }
+  /* an answer on the card (here, or A and D, which Swift takes): once the card closes, the notch says it went (activity) */
+  function noteAnswer(m) {
+    var p = snap && snap.projects[snap.selected]; if (!p) return;
+    delete sentLate[p.id]; sentNext = { p: p, words: sentWords(m), at: Date.now() };
+  }
+  /* Swift: that answer reached nothing (the request was settled or let go a moment before). The line says so, however far it got. */
+  var sentLate = {};
+  function notSent(id) {
+    sentLate[id] = Date.now();
+    if (act.mode === 'sent' && act.p && act.p.id === id && sent && sent.ok) sentShow(act.p, '', false);
+  }
+  function sentShow(p, words, ok, quiet) {
+    if (ok !== false && Date.now() - (sentLate[p.id] || 0) < 3000) ok = false;
+    if (ok === false) words = 'Didn\u2019t send';
+    /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
+       when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
+    sent = { words: words, ok: ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
+    clearTimeout(actTimer); clearTimeout(sentT);
+    setAct('sent', p, quiet);
+    sentT = setTimeout(sentDone, sent.ok ? SENT_MS : 4500);
+  }
+  /* The line has said its piece. Anything that arrived while it showed, or while the button lit before it (`sentBase` is what
+     had been said when the answer was given), is said now, in full; whatever still waits on you stays as wings. */
+  var sentBase = null;
+  function sentDone() {
+    sent = null; if (act.mode !== 'sent' || !snap) { sentBase = null; return; }
+    if (sentBase) actKnown = sentBase;
+    sentBase = null; setAct('', null, true); activity(snap, lastSt); layout(lastSt, snap);
+  }
+  function renderSent(p) {
+    var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
+    var key = 'sent|' + sent.n;
+    if (actEl._h === key) return;
+    var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* the row it answered is still there: it folds in place, and only the right side changes. From a card that is closing,
+       the notch is still shrinking to one line: the session fades in as it lands, and the words and the plane wait until it
+       has settled (`lag`), or the plane would fly while nothing can be seen. */
+    var lag = 0;
+    if (sent.fold && r && actEl._for === p.id) r.innerHTML = right;
+    else {
+      actEl.innerHTML = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(p.topic && p.name !== p.topic ? p.name : p.topic || p.name) + '</span></span></span><span class="act-r">' + right + '</span>';
+      if (!calm) actEl.firstChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 180, easing: 'ease-out', fill: 'backwards' });
+      r = actEl.querySelector('.act-r'); lag = 300;
+    }
+    actEl._h = key; actEl._for = p.id; actEl.classList.remove('chose');
+    if (calm) return;
+    var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
+    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140 + lag, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
+    mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
     if (act.mode !== 'full') return;
@@ -2352,13 +2444,14 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
+    if (m.type === 'answer') noteAnswer(m);
     if (NATIVE) window.webkit.messageHandlers.perch.postMessage(m); else dev(m);
   }
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
@@ -2439,6 +2532,8 @@
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
+    /* answered from the notch: that session goes on, working again */
+    if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
@@ -2521,7 +2616,7 @@
         };
         autoTimer = setTimeout(again, 1600);
       },
-      variant: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
@@ -2562,7 +2657,17 @@
         at(t + 3700, function () { D.update(null); sc.style.opacity = '1'; });
         at(t + 4400, function () { D.update('updated', { fresh: false }); });
       },
+      /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
+      also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
       updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
+      /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
+      /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
+      sentFail: function (a) {
+        var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;
+        clearTimeout(actTimer); act.keys = []; actPressing = true; sentBase = actKnown; if (b) { actEl.classList.add('chose'); b.classList.add('on'); }
+        notSent(p.id);   /* as Swift says it: a moment after the press, before the row has folded */
+        setTimeout(function () { actPressing = false; sentShow(p, 'Sent'); }, 170);
+      },
       /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
       trick: function (name) {
         window.perchDev.onboarding(1);
@@ -2588,7 +2693,7 @@
       /* the notch at rest, then one session changes: what the live activity does when an answer or a request arrives */
       /* `off`: the kinds Settings > Notify me about has switched off */
       arrive: function (i, o, off) {
-        d0(); base.selected = 0;
+        d0(); base.selected = 0; actGone = {}; actSeen = {};   /* a scenario played again arrives again, answered or not */
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'running' ? x.status : { kind: 'idle', text: 'Finished', app: x.app } }); });
         apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', notifyOff: off || [], timerToken: Math.random() }));
         autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', notifyOff: off || [], timerToken: Math.random() })); }, 900);
@@ -2662,7 +2767,7 @@
       var ask = ph === 'open' && snap.projects[snap.selected] && snap.projects[snap.selected].ask;
       if (ask && ask.answerable && fRep.style.display !== 'flex') {
         var k = e.key.toLowerCase();
-        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { dev({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
+        if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
