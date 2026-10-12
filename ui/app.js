@@ -212,7 +212,7 @@
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
-    '<div class="pane p-switch">' + '<button aria-label="New session" title="New session (\u2318N)" class="x-new rv absolute right-[76px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('plus', 'size-3') + Kbd('\u2318N') + '</button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<div class="pane p-switch">' + '<button aria-label="New session" title="New session (\u2318\u2325N)" class="x-new rv absolute right-[76px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('plus', 'size-3') + Kbd('\u2318\u2325N') + '</button>' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8">' +
@@ -726,7 +726,7 @@
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318N') + 'New session</span></div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318\u2325N') + 'New session</span></div>';
       edges(); return;
     }
     if (empty) {
@@ -734,7 +734,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2318N') + 'Start a new session</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2318\u2325N') + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -833,12 +833,13 @@
       ], { duration: all, iterations: Infinity }));
     }, 1000);
   }
-  /* ---- a new session, from the list (Command+N): which agent, which folder or none, then what to ask ----
+  /* ---- a new session (Command+Option+N, from anywhere; or the list's New button): which agent, which folder or none, then what to ask ----
      Three steps on one card, each a short list like the session list, so the keys are the same: Up and Down choose, Return
      (or Right) goes on, Esc (or Left) goes back a step. The choices you made sit along the top as chips; press one to change
      it. Swift sends the agents found on this Mac and the folders sessions ran in, newest first, and what to start on: the
-     agent and folder of the row you were on. Return starts it and leaves you where you are; Command+Return starts it and
-     takes you there. Your words are a draft until they go: closing keeps them, and the next Command+N opens on them. */
+     agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
+     in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
+     takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', text: '', o: null };
   var NW_STEPS = ['app', 'project', 'prompt'];
   function nwApps() { return (nw.o && nw.o.apps) || []; }
@@ -2329,8 +2330,12 @@
     var sc = scOf(o.shortcut),
       /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
       scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+    /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
+    var nsc = o.newShortcut || { keys: ['\u2318', '\u2325', 'N'] };
+    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
     var rows = [
       scRow,
+      newRow,
       srow(slabel('Character', sh[1] + ', ' + colorName, 'cat'), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps', '', 'grid'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       /* which moments the notch announces (the list and the cards say all of them) */
@@ -2350,7 +2355,8 @@
       /* a build that can update says where it stands; a local test build has no updater and no row */
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
-    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt) */
+    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt). New session's
+       row makes twelve at most (438 pt), so building it grows the panel by a row. */
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
@@ -2377,6 +2383,7 @@
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
+    on('.s-nsc', function () { post({ type: 'shortcut', action: 'record', which: 'new' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -2764,7 +2771,7 @@
     var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
       ['website', '~/Code/website', '48m'], ['room-planner-prototype', '~/Documents/room-planner-prototype', '5h'], ['lukatz_website', '~/Code/lukatz_website', '1d'], ['spec-gap-finder', '~/Code/spec-gap-finder', '2d'], ['finance', '~/Documents/finance', '3d']]
       .map(function (x) { return { name: x[0], path: x[1], away: x[2] }; });
-    /* it starts on the agent and folder of the row you were on */
+    /* it starts on the agent and folder of the session you are looking at: the row you were on, or the one in front of you */
     function newFrom(p) {
       var agent = !p ? 'claude' : p.app === 'claude' ? (p.via ? 'claude-code' : 'claude') : p.app;
       var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
@@ -2772,7 +2779,7 @@
     }
     function devNew(m) {
       var D = window.perchDev, nowEl = document.getElementById('now');
-      if (!m.action) { D.newSession(); return; }
+      if (!m.action) { D.newSession(m.from === 'anywhere' ? { from: 'anywhere' } : {}); return; }
       if (m.action === 'chooseFolder') {
         if (nowEl) nowEl.textContent = 'macOS\u2019s folder picker opens; you pick ~/Code/landing-page';
         setTimeout(function () {
@@ -2800,7 +2807,8 @@
       newSession: function (o) {
         o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
         if (o.text !== undefined) nw.text = o.text;
-        var ns = Object.assign(newFrom(P[base.selected]), o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
+        var front = P.filter(function (x) { return x.id === 'api'; })[0];
+        var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
         apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
         if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
       },
@@ -2977,10 +2985,13 @@
         scDone(mods.slice().sort(function (a, b) { return '\u2303\u2325\u21E7\u2318'.indexOf(a) - '\u2303\u2325\u21E7\u2318'.indexOf(b); }), 'tap');
       } else if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'tap' && mods.slice().sort().join('') === devSc.keys.slice().sort().join('')) devScSync({ tried: true });
     }, true);
+    /* Command+Option+N from anywhere, even with nothing open: a new session */
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey && e.altKey && e.code === 'KeyN' && snap && snap.phase !== 'onboarding' && snap.phase !== 'settings') { e.preventDefault(); e.stopImmediatePropagation(); post({ type: 'newSession', from: snap.phase === 'switcher' ? 'list' : 'anywhere' }); }
+    }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       if (ph === 'newSession') { if (e.target && e.target.classList && e.target.classList.contains('nw-in')) return; if (newKey(e)) e.preventDefault(); return; }
-      if (e.metaKey && (e.key === 'n' || e.key === 'N') && (ph === 'switcher' || ph === 'open')) { e.preventDefault(); post({ type: 'newSession' }); return; }
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }

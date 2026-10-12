@@ -336,10 +336,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
     ['New session', [
-      ['The whole flow', 'From the list to a running session: Command+N, pick the agent, pick the folder, type, Return. Plays it once; then try it yourself.', function () {
-        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); }, key = function (k, meta) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, metaKey: !!meta, bubbles: true })); };
+      ['The whole flow', 'From the list to a running session: Command+Option+N, pick the agent, pick the folder, type, Return. Plays it once; then try it yourself (Command+Option+N works from anywhere on this page, as it would on the Mac).', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); }, key = function (k, meta) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: meta ? 'KeyN' : '', metaKey: !!meta, altKey: !!meta, bubbles: true })); };
         d.project(1); d.show('switcher');
-        at(1200, function () { now.textContent = 'Command+N in the list'; key('n', true); });
+        at(1200, function () { now.textContent = 'Command+Option+N in the list'; key('n', true); });
         at(2600, function () { now.textContent = 'Which agent: it starts on the one of the row you were on'; key('ArrowDown'); });
         at(3400, function () { key('ArrowUp'); });
         at(4200, function () { now.textContent = 'Return: on to the folder'; key('Enter'); });
@@ -351,7 +351,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           (function type() { if (me !== charRun || !t) return; i += 2; t.value = words.slice(0, i); t.dispatchEvent(new Event('input')); if (i < words.length) setTimeout(type, 28); })(); });
         at(10600, function () { now.textContent = 'Return: it starts, and you stay where you were'; document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
       }],
-      ['From the list', 'The list has a New button at the top, beside Settings: Command+N, or a click.', function () { d.project(1); d.show('switcher'); }],
+      ['From the list', 'The list has a New button at the top, beside Settings: Command+Option+N, or a click.', function () { d.project(1); d.show('switcher'); }],
+      ['From anywhere', 'Command+Option+N works with Perch closed too: it opens straight on a new session, starting on the agent and folder of the session in front of you (here Claude Code in api-server, in Ghostty).', function () {
+        var me = charRun; d.show('idle', true); now.textContent = 'Working in api-server, Perch closed';
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+Option+N'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', code: 'KeyN', metaKey: true, altKey: true, bubbles: true })); }, 1300);
+      }],
       ['Choose the agent', 'Every agent on this Mac, with where it opens: the Claude and Codex apps, or the terminal you use for the others. It starts on the agent of the row you were on; a number picks one and goes on.', function () { d.project(1); d.newSession(); }],
       ['Choose the folder', 'The folders your sessions ran in, newest first, starting on the one of the row you were on. No project starts a chat with no folder; Choose a folder… opens the Mac’s own picker. Press the agent’s chip to change it.', function () { d.project(1); d.newSession({ step: 'project' }); }],
       ['Choose the folder, typed', 'Typing narrows the folders, by name or path, and lands on the first that matches.', function () { d.project(1); d.newSession({ step: 'project', q: 'code' }); }],
@@ -360,8 +364,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['The prompt', 'The two choices sit along the top as chips, and where it opens at the right. Return starts it and leaves you where you are; Command+Return starts it and takes you there. Shift+Return is a new line.', function () { d.project(1); d.newSession({ step: 'prompt' }); }],
       ['The prompt, typed', 'A longer prompt grows the field, up to six lines, then it scrolls.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' }); }],
       ['Started', 'Return: the words fly into the notch and it swallows them, the card folds away, and a moment later the new session is in the list, working.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
-      ['A draft kept', 'Close it with words in the field and they wait: the next Command+N opens on them, as you left them.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Bump the version to 0.4.0 and write the release notes' }); setTimeout(function () { now.textContent = 'Closed, the words kept'; d.show('idle'); }, 1400); setTimeout(function () { now.textContent = 'Command+N: back on the draft'; d.newSession(); }, 2800); }],
-      ['Nothing to pick up yet', 'An empty list says how to start one.', function () { d.empty(false); }]
+      ['A draft kept', 'Close it with words in the field and they wait: the next Command+Option+N opens on them, as you left them.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Bump the version to 0.4.0 and write the release notes' }); setTimeout(function () { now.textContent = 'Closed, the words kept'; d.show('idle'); }, 1400); setTimeout(function () { now.textContent = 'Command+Option+N: back on the draft'; d.newSession(); }, 2800); }],
+      ['Nothing to pick up yet', 'An empty list says how to start one.', function () { d.empty(false); }],
+      ['Settings: its shortcut', 'Command+Option+N has its own row under Open Perch, with Change, since Finder uses the same keys for New Smart Folder.', function () { d.settings(); }]
     ]],
     ['Moving between sessions', [
       ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
