@@ -1,13 +1,14 @@
 import AppKit
+import ApplicationServices
 import Darwin
 import PerchCore
 
 /// Terminal apps. Pick up goes back to the tab a session runs in, or opens it again in the terminal you use.
 enum Terminals {
-    static let terminal = "com.apple.Terminal", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app"
+    static let terminal = "com.apple.Terminal", warp = "dev.warp.Warp-Stable", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app"
     /// Every app that counts as a terminal, with the name its icon goes by in the page.
     static let keys: [String: String] = [
-        terminal: "terminal", iterm: "iterm", ghostty: "ghostty", cmux: "cmux", "com.cmuxterm.app.nightly": "cmux", "dev.warp.Warp-Stable": "warp",
+        terminal: "terminal", iterm: "iterm", ghostty: "ghostty", cmux: "cmux", "com.cmuxterm.app.nightly": "cmux", warp: "warp",
         "com.github.wez.wezterm": "wezterm", "net.kovidgoyal.kitty": "kitty", "com.microsoft.VSCode": "vscode",
         "com.todesktop.230313mzl4w4u92": "cursor", "dev.zed.Zed": "zed",
     ]
@@ -72,7 +73,29 @@ enum Terminals {
         return focusTab(app: v.app, tty: v.tty, cwd: v.cwd)
     }
 
+    /// Warp has no way to ask for a window or tab, so its windows are told apart by title through Accessibility (a window is
+    /// titled after its active tab, which is usually the folder). True when a window naming this folder was brought forward.
+    private static func raiseWarpWindow(cwd: String) -> Bool {
+        guard AXIsProcessTrusted(), let running = NSRunningApplication.runningApplications(withBundleIdentifier: warp).first else { return false }
+        let ax = AXUIElementCreateApplication(running.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(ax, kAXWindowsAttribute as CFString, &value) == .success, let windows = value as? [AXUIElement] else { return false }
+        let titles = windows.map { w -> String in
+            var t: AnyObject?
+            return AXUIElementCopyAttributeValue(w, kAXTitleAttribute as CFString, &t) == .success ? (t as? String ?? "") : ""
+        }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: Warp windows \(titles) for \(cwd)") }
+        guard let i = WarpWindows.match(titles: titles, cwd: cwd, home: home) else { return false }
+        AXUIElementSetAttributeValue(windows[i], kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+        AXUIElementPerformAction(windows[i], kAXRaiseAction as CFString)
+        running.activate()
+        return true
+    }
+
     static func focusTab(app: String?, tty: String, cwd: String) -> String? {
+        let folder = cwd
         let tty = appleQuote(tty), cwd = appleQuote(cwd)
         let byFolder = { (name: String) in """
             tell application "\(name)"
@@ -120,6 +143,7 @@ enum Terminals {
         ]
         guard let app else { return nil }
         if let script = scripts[app], run(script) == "ok" { return app }
+        if app == warp, raiseWarpWindow(cwd: folder) { return app }
         // No way to pick the tab: bring its terminal forward, which is most of the way there.
         NSRunningApplication.runningApplications(withBundleIdentifier: app).first?.activate()
         return app
