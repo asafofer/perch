@@ -49,8 +49,8 @@ enum Quiet {
     static func appUsingMic() -> String? {
         // Only with a pulse server to ask (PipeWire's included): pactl with none may start a PulseAudio daemon itself.
         let env = ProcessInfo.processInfo.environment
-        let socket = env["XDG_RUNTIME_DIR"].map { "\($0)/pulse/native" }
-        guard let pactl = which("pactl"), env["PULSE_SERVER"] != nil || socket.map({ FileManager.default.fileExists(atPath: $0) }) == true else {
+        let sockets = [env["PULSE_RUNTIME_PATH"].map { "\($0)/native" }, env["XDG_RUNTIME_DIR"].map { "\($0)/pulse/native" }].compactMap { $0 }
+        guard let pactl = which("pactl"), env["PULSE_SERVER"] != nil || sockets.contains(where: { FileManager.default.fileExists(atPath: $0) }) else {
             return alsaCapturing() ? "an app" : nil
         }
         guard let out = run(pactl, ["-f", "json", "list", "source-outputs"]),
