@@ -932,7 +932,7 @@
     /* what was there stays while it fades; shown again, its names are measured again */
     if (!act.mode) { actGlideFor = ''; return; }
     if (act.mode === 'sent') { renderSent(act.p); actGlide(); return; }
-    actEl.classList.remove('sm', 'chose');
+    actEl.classList.remove('chose');
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
@@ -1041,7 +1041,7 @@
   }
   /* the size follows what it says: both sides as wide as the wider one, so the camera stays in the middle */
   function actSize(idleW, idleH) {
-    if (actWingy()) return [idleW + 56, idleH];
+    if (act.mode === 'wings') return [idleW + 56, idleH];
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
@@ -1070,11 +1070,9 @@
     }
     return [w, base];
   }
-  /* the wings, or the small way of saying an answer went (the app and a check) */
-  function actWingy() { return act.mode === 'wings' || (act.mode === 'sent' && actEl.classList.contains('sm')); }
   /* in the wings the icon and the mark sit centred beside the camera; open, the words reach to the edges */
   function placeAct(idleW, idleH, w) {
-    var wing = (w - idleW) / 2, side = actWingy() ? Math.round(wing / 2 - 7.5) : 13;
+    var wing = (w - idleW) / 2, side = act.mode === 'wings' ? Math.round(wing / 2 - 7.5) : 13;
     /* each side's words (with the icon or mark, 22px) end 8px short of the camera, never under it */
     actEl.style.setProperty('--as', side + 'px'); actEl.style.setProperty('--ah', idleH + 'px'); actEl.style.setProperty('--aw', Math.max(0, wing - 13 - 8 - 22) + 'px');
   }
@@ -1221,8 +1219,8 @@
   }
   /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
      right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
-     the same as the card closes (sentNext). `sentStyle` 'check' is the smaller one being weighed: the wings, the app and a check. */
-  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, sentStyle = 'answer', actPressing = false;
+     the same as the card closes (sentNext). */
+  var sent = null, sentNext = null, sentT = 0, SENT_MS = 2400, actPressing = false;
   function sentWords(m) { return m.choice ? (m.choice === 'deny' ? 'Denied' : 'Allowed') : 'Sent'; }
   /* the mark that says it went: a paper plane, slightly tilted, in the blue the update ring uses. Lucide's send as it is
      (lucide.dev, ISC), no ring. It flies in from the lower left as if just thrown, overshoots a touch and settles. */
@@ -1237,11 +1235,9 @@
     sentT = setTimeout(function () { sent = null; if (act.mode === 'sent') actSettle(); }, sent.ok ? SENT_MS : 4500);
   }
   function renderSent(p) {
-    var small = sentStyle === 'check' && sent.ok;
-    var right = (small ? '' : '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>') + (sent.ok ? SentMark() : Ring('need'));
-    var key = 'sent|' + p.id + '|' + sent.words + '|' + small;
+    var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
+    var key = 'sent|' + p.id + '|' + sent.words;
     if (actEl._h === key) return;
-    actEl.classList.toggle('sm', small);
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     /* the row it answered is still there: it folds in place, and only the right side changes */
     if (r && actEl._for === p.id && actEl._h) r.innerHTML = right;
@@ -2622,7 +2618,6 @@
       },
       updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
-      sentStyle: function (v) { sentStyle = v || 'answer'; },
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
         var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;

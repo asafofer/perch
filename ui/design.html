@@ -350,7 +350,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ['Push straight to main', 'Push the commits to main now. Vercel deploys production from main, so this ships the change to everyone right away'],
           ['Don\u2019t push yet', 'Leave GitHub as it is for now. Production keeps running the current version until you decide']])] } }); }],
       ['Answered from the notch', 'You press a choice (here Vendor first). It lights for a beat, the others step back, then the row folds to one line: the session on the left, Sent on the right with a blue paper plane, slightly tilted, that flies in from the lower left. After two and a half seconds it folds away; anything else still waiting on you stays as wings. Try it yourself on Asked you something.', function () { d.arrive(3, CLAUDE_ASKS); press('pick1'); }],
-      ['Answered from the notch, icon only', 'Folded all the way to the wings: the app and the paper plane beside the camera, no words.', function () { d.sentStyle('check'); d.arrive(3, CLAUDE_ASKS); press('pick1'); }],
       ['Allowed from the notch', 'Allow or Deny says which it was: Allowed, or Denied, with the same plane.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); press('allow'); }],
       ['Answered on the card', 'A card you hovered open, answered with 2: the card closes straight into the same line, Sent with the plane. Then it folds away; here Onboarding flow still needs your OK, so its wings stay.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('2'); }, 1800); }],
       ['Answered four things on the card', 'Four questions answered one after another: one Sent once the last is in.', function () { d.variant(0, FOUR_ASKS); var me = charRun; ['1', '2', '1', '2', 'next'].forEach(function (k, i) { setTimeout(function () { if (me === charRun) window.perch.askKey(k); }, 1400 + i * 650); }); }],
@@ -524,7 +523,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); d.sentStyle('answer'); charRun++; fileDragStop(); diskStop(); fn(); }
+  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */

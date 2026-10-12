@@ -272,7 +272,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act[data-mode=wings] .act-n, .act[data-mode=wings] .act-s { display: none; }
 /* an answer went (app.js sentShow): the row folds to its top line; the question and the buttons fade up and away */
 .act[data-mode=sent] > .act-l, .act[data-mode=sent] > .act-r { opacity: 1; transform: none; }
-.act[data-mode=sent].sm .act-n, .act[data-mode=sent].sm .act-s { display: none; }
 /* the choice you pressed lights for a beat before the row folds; the rest step back */
 .act.chose .act-b:not(.on):not(.act-x) { opacity: .35; transition: opacity .12s; }
 .act-b.on, .act-b.on:hover, .act-b.on.hv { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
