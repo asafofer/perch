@@ -64,7 +64,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         FocusProbe.setKnown((live, viewers))
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
-        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = HerdrCLI.agents(socket: socket, bin: h.herdrBin) } }
+        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.herdrBin) } }
         func seen(_ h: LiveSessions.Hit) -> (status: String, session: String?)? {
             if case .herdr(let pane, let socket, _) = h.place { return herdr[socket]?[pane] }
             return nil
@@ -163,78 +163,13 @@ enum Restorer {
         let last = Prefs.places[id], preferred = Terminals.preferred
         if last?["kind"] == "herdr", let socket = last?["socket"], let name = last?["session"] {
             let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
-            if HerdrCLI.running(socket: socket, bin: bin), HerdrCLI.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
+            if Herdr.running(socket: socket, bin: bin), Herdr.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
                 if let v = LiveSessions.scan().viewers.first(where: { $0.session == name }) { return .newTerminal(Terminals.show(v) ?? preferred, cwd: cwd, agent: agent) }
-                Terminals.open(HerdrCLI.attach(session: name, bin: bin), in: cwd, app: preferred)
+                Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
                 return .newTerminal(preferred, cwd: cwd, agent: agent)
             }
         }
         Terminals.open(command, in: cwd, app: preferred)
         return .newTerminal(preferred, cwd: cwd, agent: agent)
-    }
-}
-
-/// What the scan and Pick up need of herdr's command line: what it sees in each pane, whether a server answers, a new tab
-/// that runs a command, and the command that attaches to a server. herdr prints nothing when some commands work, so
-/// success is the exit status. (Mac: Herdr in Terminals.swift. Focusing and typing into a pane are Terminals' job.)
-enum HerdrCLI {
-    /// The CLI: the one the pane says it came with (HERDR_BIN_PATH), else the usual places.
-    static func bin(_ hint: String?) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let path = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map { "\($0)/herdr" }
-        return ([hint].compactMap { $0 } + [home + "/.local/bin/herdr", home + "/.cargo/bin/herdr", "/usr/local/bin/herdr", "/usr/bin/herdr"] + path)
-            .first { FileManager.default.isExecutableFile(atPath: $0) } ?? "herdr"
-    }
-
-    /// Runs the CLI against that server: its output when it exits 0, else nil.
-    private static func tool(_ args: [String], socket: String, bin hint: String?) -> String? {
-        let p = Process()
-        let b = bin(hint)
-        if b.hasPrefix("/") { p.executableURL = URL(fileURLWithPath: b); p.arguments = args }
-        else { p.executableURL = URL(fileURLWithPath: "/usr/bin/env"); p.arguments = [b] + args }
-        p.environment = ProcessInfo.processInfo.environment.merging(["HERDR_SOCKET_PATH": socket]) { _, new in new }
-        let out = Pipe()
-        p.standardOutput = out; p.standardError = FileHandle.nullDevice; p.standardInput = FileHandle.nullDevice
-        do { try p.run() } catch { return nil }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        return p.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
-    }
-    private static func act(_ args: [String], socket: String, bin: String?) -> Bool { tool(args, socket: socket, bin: bin) != nil }
-    private static func cli(_ args: [String], socket: String, bin: String?) -> [String: Any]? {
-        guard let out = tool(args, socket: socket, bin: bin) else { return nil }
-        return (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any]
-    }
-
-    /// The command that attaches to a server in a terminal.
-    static func attach(session: String, bin: String?) -> String {
-        let b = Terminals.shellQuote(Self.bin(bin))
-        return session == "default" ? b : "\(b) --session \(Terminals.shellQuote(session))"
-    }
-
-    /// Whether a server answers on that socket.
-    static func running(socket: String, bin: String?) -> Bool {
-        FileManager.default.fileExists(atPath: socket) && act(["workspace", "list"], socket: socket, bin: bin)
-    }
-
-    /// A new tab in that workspace (or a new workspace if it is gone) that runs `command` in `cwd`, focused.
-    static func run(_ command: String, cwd: String, workspace: String?, socket: String, bin: String?) -> Bool {
-        var made = workspace.flatMap { $0.isEmpty ? nil : cli(["tab", "create", "--workspace", $0, "--cwd", cwd, "--focus"], socket: socket, bin: bin) }
-        if made == nil { made = cli(["workspace", "create", "--cwd", cwd, "--focus"], socket: socket, bin: bin) }
-        guard let r = made?["result"] as? [String: Any], let pane = (r["root_pane"] as? [String: Any])?["pane_id"] as? String else { return false }
-        return act(["pane", "run", pane, command], socket: socket, bin: bin)
-    }
-
-    /// Each agent herdr sees on that server, by pane: its state ("idle", "working", "blocked", "done", "unknown") and,
-    /// when herdr's own integration reports it, the agent's session id.
-    static func agents(socket: String, bin: String?) -> [String: (status: String, session: String?)] {
-        guard let r = cli(["agent", "list"], socket: socket, bin: bin)?["result"] as? [String: Any], let list = r["agents"] as? [[String: Any]] else { return [:] }
-        var out: [String: (String, String?)] = [:]
-        for a in list {
-            guard let pane = a["pane_id"] as? String else { continue }
-            let s = a["agent_session"] as? [String: Any]
-            out[pane] = (a["agent_status"] as? String ?? "unknown", s?["kind"] as? String == "id" ? s?["value"] as? String : nil)
-        }
-        return out
     }
 }

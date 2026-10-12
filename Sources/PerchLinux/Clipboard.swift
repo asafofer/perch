@@ -79,8 +79,3 @@ enum Clipboard {
         }
     }
 }
-
-extension Clipboard {
-    /// STUB: true when the clipboard offers files, whose paths then go to `done`.
-    static func filePaths(then done: @escaping @MainActor ([String]) -> Void) -> Bool { false }
-}
