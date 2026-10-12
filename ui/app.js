@@ -225,9 +225,9 @@
   /* a whole message, not one line: paragraphs, lists and code blocks; the words inside them as md() draws a line */
   function mdBlock(t) {
     return String(t || '').split('```').map(function (part, i) {
-      if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 text-foreground/85">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
+      if (i % 2) return '<pre class="my-1.5 overflow-x-auto rounded-md bg-black/40 px-2 py-1.5 font-mono text-[11.5px] leading-4 md-code">' + esc(part.replace(/^[\w-]*\n/, '').replace(/\n$/, '')) + '</pre>';
       return part.split(/\n{2,}/).map(function (para) {
-        var lines = para.trim().split('\n').filter(function (l) { return l.trim(); }); if (!lines.length) return '';
+        var lines = para.replace(/^\s*\n/, '').replace(/\s+$/, '').split('\n').filter(function (l) { return l.trim(); }); if (!lines.length) return '';
         /* a table can follow a line of text with no blank line between: the paragraph is cut into text and tables */
         var out = '', text = [];
         for (var k = 0; k < lines.length; k++) {
@@ -239,11 +239,30 @@
       }).join('');
     }).join('');
   }
+  /* Lines of one paragraph: text, headings, and lists. A list can follow a bold line with no blank line, a deeper indent nests,
+     and an indented line under an item carries on that item. */
   function mdLines(lines) {
-    if (!lines.length) return '';
-    if (lines.every(function (l) { return /^\s*([-*]|\d+\.)\s+/.test(l); }))
-      return '<ul class="my-1 flex flex-col gap-0.5">' + lines.map(function (l) { return '<li class="flex gap-2"><span class="text-muted-foreground">\u2022</span><span dir="auto" class="min-w-0">' + md(l.replace(/^\s*([-*]|\d+\.)\s+/, '')) + '</span></li>'; }).join('') + '</ul>';
-    return '<p dir="auto" class="my-1">' + lines.map(function (l) { return /^\s*#{1,6}\s/.test(l) ? '<strong class="font-semibold text-foreground">' + md(l) + '</strong>' : md(l); }).join('<br>') + '</p>';
+    var out = '', text = [], items = [], stack = [];
+    var flushText = function () { if (text.length) out += '<p dir="auto" class="my-2">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
+    var flushItems = function () {
+      if (items.length) out += '<ul class="my-2 flex flex-col gap-0.5">' + items.map(function (it) {
+        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
+      }).join('') + '</ul>';
+      items = []; stack = [];
+    };
+    lines.forEach(function (raw) {
+      var l = raw.replace(/\t/g, '    '), m = /^(\s*)([-*\u2022]|\d+[.)])\s+(\S.*)$/.exec(l);
+      if (m) {
+        flushText();
+        var ind = m[1].length; while (stack.length && ind < stack[stack.length - 1]) stack.pop();
+        if (!stack.length || ind > stack[stack.length - 1]) stack.push(ind);
+        items.push({ lvl: stack.length - 1, num: /\d/.test(m[2]), mark: /\d/.test(m[2]) ? m[2].replace(')', '.') : '\u2022', text: m[3] });
+      } else if (/^\s*#{1,6}\s/.test(l)) { flushItems(); flushText(); out += '<p dir="auto" class="my-2 font-semibold text-foreground">' + md(l) + '</p>'; }
+      else if (items.length && /^\s/.test(l)) items[items.length - 1].text += '\n' + l.trim();
+      else { flushItems(); text.push(l); }
+    });
+    flushItems(); flushText();
+    return out;
   }
   /* | a | b | rows: the cells, an escaped \| kept as a pipe */
   function mdCells(l) {
@@ -274,9 +293,10 @@
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return h.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/`([^`]+)`/g, '<code class="rounded bg-white/[0.09] px-1 py-px font-mono text-[11.5px] text-foreground/90">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="rounded bg-white/[0.09] px-1 py-px font-mono text-[11.5px] md-code">$1</code>')
       .replace(/\*\*([^*]+)\*\*|__([^_]+)__/g, function (m, a, b) { return '<strong class="font-semibold text-foreground">' + (a || b) + '</strong>'; })
-      .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
+      .replace(/(^|[^*\w])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>')
+      .replace(/(^|[^\w])_([^_\s][^_]*)_(?![\w])/g, '$1<em>$2</em>');
   }
   /* Everything that comes from a session (names, titles, prompts) is text, never markup. */
   function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

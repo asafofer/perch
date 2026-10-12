@@ -8,12 +8,10 @@ final class HotkeyService {
     private var refs: [UInt32: EventHotKeyRef] = [:]
     private var handlers: [UInt32: () -> Void] = [:]
     private var flagsMonitor: Any?
-    private var chordStart: Date?
-    private var chordDirty = false
     var onChordTap: (() -> Void)?
     private var localMonitor: Any?
-    /// The modifiers whose tap opens Perch; empty when the shortcut is a key combo (or while one is being recorded).
-    private var tapFlags: NSEvent.ModifierFlags = [.command, .option]
+    /// The tap that opens Perch; its modifiers are empty when the shortcut is a key combo (or while one is being recorded).
+    private var tap = ModifierTap([.command, .option])
     private static let openId: UInt32 = 4
     /// False when another app already holds the combo, so pressing it would do nothing here.
     private(set) var openCombo = true
@@ -21,18 +19,18 @@ final class HotkeyService {
     /// Makes `s` the shortcut that opens Perch: a tap watches the modifiers, a combo is a Carbon hotkey. Both call `onChordTap`.
     func apply(_ s: Shortcut) {
         unregister(id: Self.openId)
-        chordStart = nil; openCombo = true
+        tap.reset(); openCombo = true
         switch s.kind {
-        case .tap: tapFlags = s.mods.eventFlags
+        case .tap: tap.mods = s.mods
         case .combo:
-            tapFlags = []
+            tap.mods = []
             if let code = s.keyCode { openCombo = register(keyCode: code, modifiers: s.mods.carbonFlags, id: Self.openId) { [weak self] in self?.onChordTap?() } }
         }
     }
     /// While a new shortcut is being recorded, none of Perch's own shortcuts may fire: a Carbon hotkey takes its key before the
     /// recorder sees it (pressing Control+Option+Q would quit instead of being refused).
     func pauseAll() {
-        unregister(id: Self.openId); tapFlags = []; chordStart = nil
+        unregister(id: Self.openId); tap.mods = []; tap.reset()
         for ref in refs.values { UnregisterEventHotKey(ref) }
         refs = [:]
     }
@@ -77,7 +75,7 @@ final class HotkeyService {
             let me = Unmanaged<HotkeyService>.fromOpaque(userData!).takeUnretainedValue()
             // A shortcut's key never reaches the tap monitor (the hotkey takes it), so Command+Option+Y must not also
             // count as tapping Command+Option.
-            MainActor.assumeIsolated { me.chordDirty = true }
+            MainActor.assumeIsolated { me.tap.keyDown() }
             DispatchQueue.main.async { me.handlers[hk.id]?() }
             return noErr
         }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), nil)
@@ -105,17 +103,10 @@ final class HotkeyService {
     }
 
     private func handle(_ event: NSEvent) {
-        if event.type == .keyDown { chordDirty = true; return }
-        guard !tapFlags.isEmpty else { return }
-        let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        if flags == tapFlags {
-            if chordStart == nil { chordStart = Date(); chordDirty = false }
-        } else if flags.isEmpty {
-            if let start = chordStart, !chordDirty, Date().timeIntervalSince(start) < 0.6 { onChordTap?() }
-            chordStart = nil
-        } else if !flags.isSubset(of: tapFlags) {
-            chordDirty = true
-        }
+        if event.type == .keyDown { tap.keyDown(); return }
+        // Every key press on the system, ones another app's hotkey takes before they reach this monitor included.
+        let keyDowns = Int(CGEventSource.counterForEventType(.hidSystemState, eventType: .keyDown))
+        if tap.flagsChanged(ShortcutMods(event.modifierFlags), keyDowns: keyDowns) { onChordTap?() }
     }
 }
 
