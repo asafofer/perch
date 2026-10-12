@@ -804,8 +804,11 @@
      (the choice itself stays, for Return, until the keys or the pointer move it). */
   var listKb = true;
   var listShown = true;
+  /* from where the pointer is, not from enter and leave: a pointer that WebKit never reported moving (a list hovered open) gets
+     its leave events played by the page (hoverAt), and a late leave from the row it came from can arrive after the next row's enter */
+  function overRow() { var e = ptrAt[0] >= 0 ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null; return !!(e && e.closest && e.closest('.p-switch .row')); }
   function markList() {
-    var pn = q('.p-switch'), lit = listKb || !!hovered;
+    var pn = q('.p-switch'), lit = listKb || overRow();
     if (pn) pn.classList.toggle('nomark', !lit);
     if (lit !== listShown) { listShown = lit; post({ type: 'marked', on: lit }); }   /* Return, Right and Tab open nothing while no row is lit */
   }
@@ -1565,7 +1568,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; sweep(e.clientX, e.clientY); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1579,7 +1582,7 @@
   var handOn = false;
   function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
   function cursor(x, y) {
-    ptrAt = [x, y]; sweep(x, y);
+    ptrAt = [x, y]; sweep(x, y); if (lastSt === 'switch') markList();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
