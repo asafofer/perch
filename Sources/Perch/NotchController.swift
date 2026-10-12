@@ -556,17 +556,29 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Allow, deny, or one of a question's options, for the request on the card. The card closes; the agent goes on.
+    /// The page says Sent as it goes; an answer that reached nothing (the request was settled or let go a moment before)
+    /// makes it say Didn't send instead.
     private func answer(_ choice: String, answers: [String: String]? = nil, at index: Int? = nil) {
         let i = index ?? machine.selected
-        guard projects.indices.contains(i), let ask = projects[i].ask, ask.answerable else { return }
+        guard projects.indices.contains(i), let ask = projects[i].ask, ask.answerable else {
+            if projects.indices.contains(i) { notSent(projects[i].id) }
+            return
+        }
         let p = projects[i]
-        hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice))
+        hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice)) { [weak self] delivered in
+            if !delivered { self?.notSent(p.id) }
+        }
         if let sid = p.sessionId { live[sid]?.settle(ask.id, at: Date()) }
         markSeen(p)
         let onCard = machine.phase != .idle
         send(.dismiss)
         if onCard || putAway?.session == p.id { putAway = nil }   // answered: nothing to bring back
         redecorate()
+    }
+
+    private func notSent(_ id: String) {
+        guard let data = try? JSONEncoder().encode(id), let arg = String(data: data, encoding: .utf8) else { return }
+        web.evaluateJavaScript("window.perch && window.perch.notSent(\(arg))", completionHandler: nil)
     }
 
     private func startRefreshing() {
@@ -1411,6 +1423,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // A permission on the card: A allows, D denies.
                 guard self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
                       let ask = self.projects[self.machine.selected].ask, ask.answerable, ask.kind == .permission else { return e }
+                // the page hears it first, so the card closes into the line that says it went
+                self.web.evaluateJavaScript("window.perch && window.perch.answering('\(ch == "a" ? "allow" : "deny")')", completionHandler: nil)
                 self.answer(ch == "a" ? "allow" : "deny"); return nil
             default: return e
             }
@@ -1562,7 +1576,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
-        NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" ? activitySize.width : 0)
+        NotchGeometry.hoverRect(for: info, wingsWidth: activityMode == "wings" || activityMode == "sent" ? activitySize.width : 0)
     }
 
     /// Show Perch on is a screen other than the mouse's, so the resting notch waits there. Resting the cursor on the

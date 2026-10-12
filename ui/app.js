@@ -1212,7 +1212,7 @@
     if (!m) { setAct('', null); return; }
     /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
     var b = actEl.querySelector('.act-btns [data-a="' + a + '"]'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    act.keys = []; actPressing = !!b && !calm;
+    act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id];
     if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
     post(m);
     setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
@@ -1228,10 +1228,23 @@
   function SentMark() {
     return '<svg class="size-[15px] flex-none" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(COLORS.running) + '" aria-label="Sent">' + SENT_PLANE + '</svg>';
   }
+  /* an answer on the card (here, or A and D, which Swift takes): once the card closes, the notch says it went (activity) */
+  function noteAnswer(m) {
+    var p = snap && snap.projects[snap.selected]; if (!p) return;
+    delete sentLate[p.id]; sentNext = { p: p, words: sentWords(m), at: Date.now() };
+  }
+  /* Swift: that answer reached nothing (the request was settled or let go a moment before). The line says so, however far it got. */
+  var sentLate = {};
+  function notSent(id) {
+    sentLate[id] = Date.now();
+    if (act.mode === 'sent' && act.p && act.p.id === id && sent && sent.ok) sentShow(act.p, '', false);
+  }
   function sentShow(p, words, ok, quiet) {
+    if (ok !== false && Date.now() - (sentLate[p.id] || 0) < 3000) ok = false;
+    if (ok === false) words = 'Didn\u2019t send';
     /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
        when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
-    sent = { words: words, ok: ok !== false, n: ++sentN, fold: act.mode === 'full' && !!act.p && act.p.id === p.id };
+    sent = { words: words, ok: ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
     sentT = setTimeout(function () { sent = null; if (act.mode === 'sent') actSettle(); }, sent.ok ? SENT_MS : 4500);
@@ -2410,15 +2423,14 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
-    /* an answer on the card: once it closes, the notch says it went (activity, sentNext) */
-    if (m.type === 'answer' && snap && snap.projects[snap.selected]) sentNext = { p: snap.projects[snap.selected], words: sentWords(m), at: Date.now() };
+    if (m.type === 'answer') noteAnswer(m);
     if (NATIVE) window.webkit.messageHandlers.perch.postMessage(m); else dev(m);
   }
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
@@ -2627,7 +2639,8 @@
       sentFail: function (a) {
         var p = act.p, b = actEl.querySelector('.act-btns [data-a="' + a + '"]'); if (!p) return;
         clearTimeout(actTimer); act.keys = []; actPressing = true; if (b) { actEl.classList.add('chose'); b.classList.add('on'); }
-        setTimeout(function () { actPressing = false; sentShow(p, 'Didn\u2019t send', false); }, 170);
+        notSent(p.id);   /* as Swift says it: a moment after the press, before the row has folded */
+        setTimeout(function () { actPressing = false; sentShow(p, 'Sent'); }, 170);
       },
       /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
       trick: function (name) {

@@ -36,7 +36,7 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 ## Features
 
 - **Where was I.** After a break, a card drops from the notch with the session, its project, what the agent did and the next step when there is a real one. While a session works, it says what it is doing right now.
-- **While you work.** When a session you are not in finishes or asks for something, the notch grows with what happened and a row of buttons. A finish folds away on its own; a request folds to small wings until you answer.
+- **While you work.** When a session you are not in finishes or asks for something, the notch grows with what happened and a row of buttons. A finish folds away on its own; a request folds to small wings until you answer. An answer from the notch or a card says it went: the notch folds to one line that reads Sent, with a blue paper plane.
 - **What needs you.** With live status on, Claude Code, Codex, OpenCode and pi tell Perch the moment they finish or need your OK. Sessions that need you come first.
 - **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's or OpenCode's question, without leaving what you are doing.
 - **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr pane or cmux split. A session that has ended opens again where it last ran.

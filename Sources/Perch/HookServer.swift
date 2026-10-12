@@ -40,13 +40,19 @@ final class HookServer: @unchecked Sendable {
         listener = src
     }
 
-    /// Answers a held request. An empty body means "no decision": the app's own prompt decides.
-    func answer(_ askId: String, with body: Data) {
+    /// Answers a held request. An empty body means "no decision": the app's own prompt decides. `done` hears, on the main
+    /// thread, whether it reached the hook: false when it came too late (answered in the app, or let go).
+    func answer(_ askId: String, with body: Data, done: (@MainActor (Bool) -> Void)? = nil) {
         queue.async { [weak self] in
-            guard let self, let h = self.held.removeValue(forKey: askId) else { Self.trace("answer for \(askId.prefix(8)) came too late: no longer held"); return }
+            guard let self, let h = self.held.removeValue(forKey: askId) else {
+                Self.trace("answer for \(askId.prefix(8)) came too late: no longer held")
+                if let done { DispatchQueue.main.async { MainActor.assumeIsolated { done(false) } } }
+                return
+            }
             Self.trace("answered \(askId.prefix(8)): \(String(decoding: body.prefix(400), as: UTF8.self))")
             h.watch.cancel(); self.timers.removeValue(forKey: askId)?.cancel()
             Self.respond(h.fd, body)
+            if let done { DispatchQueue.main.async { MainActor.assumeIsolated { done(true) } } }
         }
     }
     func release(_ askId: String) { answer(askId, with: Data()) }
