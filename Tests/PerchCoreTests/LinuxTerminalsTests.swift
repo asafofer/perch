@@ -36,13 +36,13 @@ import Testing
     }
 
     @Test func tmuxListsAndTheClientToShowAPaneIn() {
-        let clients = TmuxList.clients("501\t/dev/pts/3\twork\t100\t%2\t/dev/pts/5\n502\t/dev/pts/4\tother\t300\t%7\t/dev/pts/9\n")
+        let clients = TmuxList.clients("501<|>/dev/pts/3<|>work<|>100<|>%2<|>/dev/pts/5\n502<|>/dev/pts/4<|>other<|>300<|>%7<|>/dev/pts/9\n")
         #expect(clients.count == 2); #expect(clients[0].paneTty == "/dev/pts/5")
         #expect(TmuxList.client(for: "work", in: clients)?.pid == 501)
         #expect(TmuxList.client(for: "gone", in: clients)?.pid == 502)   // the one used last can switch to it
         #expect(TmuxList.client(for: "work", in: []) == nil)
-        let panes = TmuxList.panes("%2\twork\t/dev/pts/5\t0\n%3\twork\t/dev/pts/6\t1\n")
-        #expect(panes == [TmuxList.Pane(id: "%2", session: "work", tty: "/dev/pts/5", inMode: false), TmuxList.Pane(id: "%3", session: "work", tty: "/dev/pts/6", inMode: true)])
+        let panes = TmuxList.panes("%2<|>work<|>/dev/pts/5<|>0\n%3<|>my_work<|>/dev/pts/6<|>1\n")
+        #expect(panes == [TmuxList.Pane(id: "%2", session: "work", tty: "/dev/pts/5", inMode: false), TmuxList.Pane(id: "%3", session: "my_work", tty: "/dev/pts/6", inMode: true)])
     }
 
     @Test func kittyListFindsTheXWindowAndWhatIsInFront() {
@@ -97,5 +97,13 @@ import Testing
         #expect(WindowPick.best(titles, cwd: "/home/u/code/perch", home: "/home/u", hints: []) == 3)
         #expect(WindowPick.best(titles, cwd: "/srv/other", home: "/home/u", hints: []) == nil)
         #expect(WindowPick.best(["u@h: ~"], cwd: "/home/u", home: "/home/u", hints: []) == 0)
+    }
+}
+
+@Suite struct CopiedFilesTests {
+    @Test func pathsFromAFileManagersCopy() {
+        #expect(CopiedFiles.paths("file:///tmp/a\r\n# comment\r\nfile:///tmp/o%20d\r\nhttps://x.org/f\r\n") == ["/tmp/a", "/tmp/o d"])
+        #expect(CopiedFiles.paths("copy\nfile:///home/u/caf%C3%A9.txt") == ["/home/u/caf\u{e9}.txt"])
+        #expect(CopiedFiles.paths("plain words") == [])
     }
 }

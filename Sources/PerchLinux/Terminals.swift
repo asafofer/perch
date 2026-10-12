@@ -40,18 +40,25 @@ enum Terminals {
         let shell = ProcessInfo.processInfo.environment["SHELL"].flatMap { $0.isEmpty ? nil : $0 } ?? "/bin/bash"
         guard let argv = TerminalLaunch.argv(app: opens.contains(app) ? app : preferred, cwd: cwd, command: command, shell: shell),
               let exe = Proc.which(argv[0]) else { return }
-        // Its own session (setsid), so it outlives Perch and no signal meant for Perch reaches it. The variables Perch set
-        // for itself, and those of a multiplexer Perch was started in, stay behind.
+        // The variables Perch set for itself, and those of a multiplexer Perch was started in, stay behind.
         var env = ProcessInfo.processInfo.environment
         for k in env.keys where ["GDK_BACKEND", "WEBKIT_DISABLE_COMPOSITING_MODE", "DESKTOP_STARTUP_ID", "XDG_ACTIVATION_TOKEN", "TMUX", "TMUX_PANE"].contains(k)
             || ["HERDR_", "KITTY_", "WEZTERM_", "CMUX_"].contains(where: k.hasPrefix) { env[k] = nil }
-        let p = Process()
-        if let setsid = Proc.which("setsid") { p.executableURL = URL(fileURLWithPath: setsid); p.arguments = ["-f", exe] + argv.dropFirst() }
-        else { p.executableURL = URL(fileURLWithPath: "/bin/sh"); p.arguments = ["-c", "\"$@\" &", "sh", exe] + argv.dropFirst() }
-        p.environment = env
-        if FileManager.default.fileExists(atPath: cwd) { p.currentDirectoryURL = URL(fileURLWithPath: cwd) }
-        p.standardInput = FileHandle.nullDevice; p.standardOutput = FileHandle.nullDevice; p.standardError = FileHandle.nullDevice
-        do { try p.run(); p.waitUntilExit() } catch { NSLog("Perch: could not open \(argv[0]): \(error)") }
+        if !spawn([exe] + argv.dropFirst(), env: env.map { "\($0.key)=\($0.value)" }, cwd: FileManager.default.fileExists(atPath: cwd) ? cwd : nil) {
+            NSLog("Perch: could not open \(argv[0])")
+        }
+    }
+
+    /// Starts a program that lives on its own: GLib forks twice (so nothing is left for Perch to reap) and closes Perch's
+    /// descriptors in it, and it gets its own session, so no signal meant for Perch reaches it. Foundation's Process is
+    /// not used here: it waits on a socket the terminal would inherit, so it waits until the terminal quits.
+    @discardableResult
+    static func spawn(_ argv: [String], env: [String], cwd: String?) -> Bool {
+        func cStrings(_ a: [String]) -> [UnsafeMutablePointer<CChar>?] { a.map { strdup($0) } + [nil] }
+        var args = cStrings(argv), envp = cStrings(env)
+        defer { args.forEach { free($0) }; envp.forEach { free($0) } }
+        let flags = GSpawnFlags(rawValue: G_SPAWN_STDOUT_TO_DEV_NULL.rawValue | G_SPAWN_STDERR_TO_DEV_NULL.rawValue)   // stdin is /dev/null by default
+        return g_spawn_async(cwd, &args, &envp, flags, { _ in _ = setsid() }, nil, nil, nil) != 0
     }
 
     /// Brings what this session runs in to the front and says which app has it: its herdr pane (in the terminal that shows

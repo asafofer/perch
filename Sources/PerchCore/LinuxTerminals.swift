@@ -68,8 +68,10 @@ extension ProcessArgs {
     }
 }
 
-/// tmux's own lists, read with formats Perch chooses.
+/// tmux's own lists, read with formats Perch chooses. tmux prints a tab or any other control character in a format as
+/// "_", so the fields are parted by a string no name is likely to hold.
 public enum TmuxList {
+    static let sep = "<|>"
     /// $TMUX in a pane: "socket,server pid,session index".
     public static func socket(fromEnv v: String?) -> String? {
         guard let v, let s = v.split(separator: ",", omittingEmptySubsequences: false).first, s.hasPrefix("/") else { return nil }
@@ -83,10 +85,10 @@ public enum TmuxList {
             self.pid = pid; self.tty = tty; self.session = session; self.activity = activity; self.pane = pane; self.paneTty = paneTty
         }
     }
-    public static let clientFormat = "#{client_pid}\t#{client_tty}\t#{client_session}\t#{client_activity}\t#{pane_id}\t#{pane_tty}"
+    public static let clientFormat = ["#{client_pid}", "#{client_tty}", "#{client_session}", "#{client_activity}", "#{pane_id}", "#{pane_tty}"].joined(separator: sep)
     public static func clients(_ out: String) -> [Client] {
         out.split(separator: "\n").compactMap { line in
-            let f = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            let f = line.components(separatedBy: sep)
             guard f.count >= 6, let pid = Int32(f[0]) else { return nil }
             return Client(pid: pid, tty: f[1], session: f[2], activity: Int(f[3]) ?? 0, pane: f[4], paneTty: f[5])
         }
@@ -99,10 +101,10 @@ public enum TmuxList {
         public let inMode: Bool
         public init(id: String, session: String, tty: String, inMode: Bool) { self.id = id; self.session = session; self.tty = tty; self.inMode = inMode }
     }
-    public static let paneFormat = "#{pane_id}\t#{session_name}\t#{pane_tty}\t#{pane_in_mode}"
+    public static let paneFormat = ["#{pane_id}", "#{session_name}", "#{pane_tty}", "#{pane_in_mode}"].joined(separator: sep)
     public static func panes(_ out: String) -> [Pane] {
         out.split(separator: "\n").compactMap { line in
-            let f = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            let f = line.components(separatedBy: sep)
             guard f.count >= 4, f[0].hasPrefix("%") else { return nil }
             return Pane(id: f[0], session: f[1], tty: f[2], inMode: f[3] != "0" && !f[3].isEmpty)
         }
@@ -240,5 +242,18 @@ public enum WindowPick {
             if score > 0, score >= (best?.score ?? 0) { best = (i, score) }
         }
         return best?.i
+    }
+}
+
+/// Files a file manager copied, as the clipboard carries them: text/uri-list (one URI a line, "#" lines are comments) or
+/// x-special/gnome-copied-files ("copy" or "cut", then the URIs).
+public enum CopiedFiles {
+    /// The local paths, in order. URIs that are not local files are left out.
+    public static func paths(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isNewline).compactMap { line in
+            let l = line.trimmingCharacters(in: .whitespaces)
+            guard l.hasPrefix("file://"), let url = URL(string: l), url.isFileURL else { return nil }
+            return url.path
+        }
     }
 }
