@@ -716,6 +716,7 @@
   });
   function sbUp() { if (!sbDrag) return; sbDrag = null; sb.classList.remove('drag'); sbar(true); }
   sb.addEventListener('pointerup', sbUp); sb.addEventListener('pointercancel', sbUp);
+  var listNewT = 0, listArrived = {};
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
@@ -723,7 +724,13 @@
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
     var reading = switchFx === 'watch' && typed !== fxTyped && !!typed; fxTyped = typed;
     if (reading) { var caret = q('.s-h .s-caret'); if (caret) setTimeout(function () { lookAt(caret, 0); }, 0); }
-    q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
+    /* a session started from here: Starting until Perch sees it, then Started (and its row slides in), or Didn't start */
+    var sNew = !typed && (s.starting ? 'starting' : s.started && Date.now() - s.started.at < SENT_MS ? 'started' : s.startFailed && Date.now() - s.startFailed.at < 4500 ? 'failed' : '');
+    var sNewH = sNew === 'starting' ? '<span class="flex items-center gap-1.5">' + Spinner('size-3') + 'Starting\u2026</span>'
+      : sNew === 'started' ? '<span class="flex items-center gap-1.5 text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
+      : sNew === 'failed' ? '<span class="flex items-center gap-1.5" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>' : '';
+    if (sNewH) { if (q('.s-n')._k !== sNew) { q('.s-n').innerHTML = sNewH; q('.s-n')._k = sNew; } clearTimeout(listNewT); if (sNew !== 'starting') listNewT = setTimeout(function () { if (snap && snap.phase === 'switcher') list(snap); }, sNew === 'started' ? SENT_MS : 4500); }
+    else { q('.s-n')._k = ''; q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : ''); }
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
       sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318\u2325N') + 'New session</span></div>';
@@ -784,6 +791,12 @@
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
     }
+    /* the row of a session just started slides in, once */
+    if (s.started && !listArrived[s.started.id]) {
+      listArrived[s.started.id] = 1;
+      var ni = s.projects.findIndex(function (x) { return x.id === s.started.id; }), nr = ni >= 0 && sl.querySelector('.row[data-i="' + ni + '"]');
+      if (nr && nr.animate && !STILL) nr.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.9,.3,1)' });
+    }
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
@@ -840,7 +853,7 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', text: '', o: null };
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
   var NW_STEPS = ['app', 'project', 'prompt'];
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
@@ -849,7 +862,12 @@
     var hit = all.filter(function (p) { var hay = (p.name + ' ' + p.path).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
     return (words.length ? [] : [{ none: true }]).concat(hit).concat([{ pick: true }]);
   }
-  function nwAgent() { return nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
+  /* the agents, narrowed by what you typed on that step (by name or where it opens) */
+  function nwAppList() {
+    var words = nw.aq.toLowerCase().split(/\s+/).filter(Boolean);
+    return nwApps().filter(function (a) { var hay = (a.name + ' ' + nwWhere(a)).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+  }
+  function nwAgent() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
   function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
   function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
@@ -857,7 +875,7 @@
     nw.o = o;
     if (entering) {
       var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
-      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = '';
+      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
       var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
       /* a draft waiting: straight back to it, as you left it */
@@ -873,13 +891,14 @@
     var crumbs = '';
     if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
     if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? 'No project' : f.name) + '</span>');
-    var ask = nw.step === 'app' ? 'New session' : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
-    var right = nw.step === 'app' ? 'Which agent?' : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
+    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
+    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
       (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
     if (nw.step === 'app') {
-      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + nwApps().map(function (x, i) {
+      var apps = nwAppList();
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
           '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['esc', 'Back']);
@@ -943,9 +962,13 @@
     if (!quiet) nwShow();
     nwSeen();
   }
-  function nwTo(step) { nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr); }
+  function nwTo(step) {
+    /* leaving the agents: the one you chose keeps its place in the whole list */
+    if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
+  }
   function nwNext() {
-    if (nw.step === 'app') return nwTo('project');
+    if (nw.step === 'app') { if (!nwAppList().length) return; return nwTo('project'); }
     if (nw.step === 'project') { if (nwRows()[nw.proj].pick) { post({ type: 'newSession', action: 'chooseFolder' }); return; } return nwTo('prompt'); }
   }
   function nwBack() {
@@ -957,10 +980,20 @@
      session shows in the list, working. Command+Return starts it and takes you there. */
   function nwStart(go) {
     var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
-    var a = nwAgent(), f = nwFolder();
-    nw.text = '';
+    var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
+    nw.last = nw.text; nw.text = '';
     if (!go) newFly(t);
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, close: SEND_CLOSE });
+    /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
+    if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+  }
+  function nwLineP(a, f) { return { id: 'new-session', name: f.none ? 'No project' : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
+  /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
+     place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
+  function nwStarted(ok) {
+    if (!ok && nw.last) nw.text = nw.last;
+    nw.last = '';
+    if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
   }
   function newFly(text) {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -983,13 +1016,17 @@
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
     if (nw.step === 'prompt') { if (e.key === 'Escape') { nwBack(); return true; } return false; }
-    var max = nw.step === 'app' ? nwApps().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
+    var max = nw.step === 'app' ? nwAppList().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && max) { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
     if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
-    if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else nwBack(); return true; }
+    if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
     if (e.key === 'ArrowLeft') { nwBack(); return true; }
     if (nw.step === 'app' && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
     if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
+    /* typing narrows the agents too (a number still picks one) */
+    if (nw.step === 'app' && (e.key === 'Backspace' || (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.aq)))) {
+      nw.aq = e.key === 'Backspace' ? nw.aq.slice(0, -1) : nw.aq + e.key; nw.app = 0; newRender(); return true;
+    }
     if (nw.step === 'project' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.q)))) {
       nw.q = e.key === 'Backspace' ? nw.q.slice(0, -1) : nw.q + e.key;
       /* typing narrows to folders (No project steps aside) and lands on the first that matches */
@@ -1339,7 +1376,7 @@
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
@@ -1426,15 +1463,18 @@
     sentLate[id] = Date.now();
     if (act.mode === 'sent' && act.p && act.p.id === id && sent && sent.ok) sentShow(act.p, '', false);
   }
-  function sentShow(p, words, ok, quiet) {
+  function sentShow(p, words, ok, quiet, failWords, pending) {
     if (ok !== false && Date.now() - (sentLate[p.id] || 0) < 3000) ok = false;
-    if (ok === false) words = 'Didn\u2019t send';
+    if (ok === false) words = failWords || 'Didn\u2019t send';
     /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
        when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
-    sent = { words: words, ok: ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
+    sent = { words: words, ok: ok !== false, pending: !!pending && ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
-    sentT = setTimeout(sentDone, sent.ok ? SENT_MS : 4500);
+    /* already the line for this session: setAct leaves it be, so its words change here (renderSent draws each line once) */
+    if (act.mode === 'sent') renderSent(act.p);
+    /* a line still waiting (Starting) stays until it is told how it went; never longer than 20 s */
+    sentT = setTimeout(sentDone, sent.pending ? 20000 : sent.ok ? SENT_MS : 4500);
   }
   /* The line has said its piece. Anything that arrived while it showed, or while the button lit before it (`sentBase` is what
      had been said when the answer was given), is said now, in full; whatever still waits on you stays as wings. */
@@ -1445,7 +1485,7 @@
     sentBase = null; setAct('', null, true); activity(snap, lastSt); layout(lastSt, snap);
   }
   function renderSent(p) {
-    var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
+    var right = '<span dir="auto" class="act-s' + (sent.pending ? ' mu' : sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.pending ? Spinner('size-[15px]', glow(COLORS.running)) : sent.ok ? SentMark() : Ring('need'));
     var key = 'sent|' + sent.n;
     if (actEl._h === key) return;
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1463,6 +1503,7 @@
     if (calm) return;
     var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
     if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140 + lag, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    if (sent.pending) return;
     if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
     mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
@@ -2625,7 +2666,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[snap.phase], snap); });
@@ -2777,6 +2818,7 @@
       var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
       return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
     }
+    var devNewRun = 0;
     function devNew(m) {
       var D = window.perchDev, nowEl = document.getElementById('now');
       if (!m.action) { D.newSession(m.from === 'anywhere' ? { from: 'anywhere' } : {}); return; }
@@ -2791,16 +2833,32 @@
       }
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
-      var name = m.folder ? m.folder.split('/').pop() : 'No project';
-      setTimeout(function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }, (m.go ? 0 : m.close + .46) * 1000);
-      if (m.go) { if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
-      if (nowEl) nowEl.textContent = 'Started. You stay where you were; ' + agentShort(a.app) + ' works on it';
-      /* a moment later, the list: the new session on top of Today, working */
-      setTimeout(function () {
-        P.unshift({ id: 'new-' + Date.now(), name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } });
-        D.show('switcher'); base.selected = 0; apply(Object.assign({}, snap, { selected: 0, timerToken: Math.random() }));
-        if (nowEl) nowEl.textContent = 'In the list: the new session, working';
-      }, 2200);
+      var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
+      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
+      var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
+      var close = (m.go ? 0 : m.close + .46) * 1000;
+      if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
+      /* from the list: back to the list, which says Starting until the session is seen, then Started as its row slides in */
+      if (m.from === 'list') {
+        later(close, function () {
+          D.show('switcher'); apply(Object.assign({}, snap, { starting: { name: name }, timerToken: Math.random() }));
+          if (nowEl) nowEl.textContent = 'Back in the list: Starting\u2026 until Perch sees the new session';
+        });
+        later(close + 1500, function () {
+          if (fail) { nwStarted(false); apply(Object.assign({}, snap, { starting: null, startFailed: { at: Date.now() }, timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'It never came: Didn\u2019t start, and your words wait for the next Command+Option+N'; return; }
+          P.unshift(row); D.show('switcher'); base.selected = 0;
+          apply(Object.assign({}, snap, { selected: 0, starting: null, started: { id: id, at: Date.now() }, timerToken: Math.random() })); nwStarted(true);
+          if (nowEl) nowEl.textContent = 'Started: the new session slides into the list, working';
+        });
+        return;
+      }
+      /* from anywhere: the card folds into one line, Starting, then Started (or Didn't start) */
+      later(close, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'The card folds into one line: Starting\u2026'; });
+      later(close + 1700, function () {
+        if (!fail) P.unshift(row);
+        nwStarted(!fail);
+        if (nowEl) nowEl.textContent = fail ? 'It never came: Didn\u2019t start, and your words wait for the next Command+Option+N' : 'Started: Perch sees the new session';
+      });
     }
     window.perchDev = {
       /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
@@ -2808,7 +2866,7 @@
         o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
         if (o.text !== undefined) nw.text = o.text;
         var front = P.filter(function (x) { return x.id === 'api'; })[0];
-        var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
+        var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
         apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
         if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
       },
@@ -2929,7 +2987,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
