@@ -95,13 +95,15 @@ public struct ShortcutRecorder: Sendable {
 
     private var peak: ShortcutMods = []
     private var keyPressed = false
+    /// The modifiers held now: a press is fresh only when they go up from none.
+    private var held: ShortcutMods = []
     /// The last usable shortcut pressed, waiting for Return.
     public private(set) var pending: Shortcut?
     public init() {}
 
     /// A key went down with these modifiers held.
     public mutating func keyDown(keyCode: Int, typed: String?, mods: ShortcutMods) -> Outcome {
-        keyPressed = true
+        keyPressed = true; held = mods
         if keyCode == 53 { return .cancel }
         if [36, 76].contains(keyCode), mods.isEmpty, let chosen = pending { return .record(chosen) }
         let s = Shortcut.combo(mods, keyCode: keyCode, name: Shortcut.name(keyCode: keyCode, typed: typed))
@@ -112,8 +114,12 @@ public struct ShortcutRecorder: Sendable {
 
     /// The modifiers held changed. A tap is recorded when they are all let go with no key pressed in between.
     public mutating func flagsChanged(mods: ShortcutMods) -> Outcome {
+        let fresh = held.isEmpty
+        held = mods
         if !mods.isEmpty {
-            if peak.isEmpty { keyPressed = false }   // a fresh press: a key refused a moment ago does not count against it
+            // A fresh press: a key refused a moment ago does not count against it. Letting go of one modifier of a combo
+            // just chosen (Option before Control) is not a fresh press, so the rest coming up is not a tap.
+            if fresh { keyPressed = false; peak = [] }
             if mods.count >= peak.count { peak = mods }
             return .none
         }

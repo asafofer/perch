@@ -68,6 +68,17 @@ import Testing
         #expect(r.flagsChanged(mods: []) == .none)
     }
 
+    @Test func lettingGoOfAComboOneModifierAtATimeKeepsIt() {
+        var r = ShortcutRecorder()
+        _ = r.flagsChanged(mods: [.control])
+        _ = r.flagsChanged(mods: [.control, .option])
+        #expect(r.keyDown(keyCode: 40, typed: "k", mods: [.control, .option]) == .chosen(.combo([.control, .option], keyCode: 40, name: "K")))
+        // Option comes up before Control: what is left is not a fresh press of Control, and its release is not a refused tap.
+        #expect(r.flagsChanged(mods: [.control]) == .none)
+        #expect(r.flagsChanged(mods: []) == .none)
+        #expect(r.pending == .combo([.control, .option], keyCode: 40, name: "K"))
+    }
+
     @Test func aBareKeyIsRefusedAndRecordingGoesOn() {
         var r = ShortcutRecorder()
         #expect(r.keyDown(keyCode: 0, typed: "a", mods: []) == .refused("Hold \u{2318}, \u{2325} or \u{2303} too", keys: ["A"]))
