@@ -77,7 +77,11 @@ struct UISnapshot: Encodable {
         /// Recording: the shortcut pressed so far. It saves only on Return; pressing another replaces it.
         let pending: [String]
         /// How many shortcuts were chosen in this recording, so choosing the same one again still counts as new.
-        let picks: Int }
+        let picks: Int
+        /// Which shortcut this is: "open" (opens Perch) or "new" (starts a new session).
+        var which = "open" }
+    /// New session's shortcut, as Settings shows it.
+    struct NewShortcut: Encodable { let keys: [String]; let custom: Bool }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
     struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
@@ -87,6 +91,7 @@ struct UISnapshot: Encodable {
         /// connected stays listed, greyed).
         let showOn: String; let displays: [Display]
         let shortcut: ShortcutState
+        var newShortcut: NewShortcut? = nil
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
     var newSession: NewSession?

@@ -1005,6 +1005,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "onbOpen":
             let step = body["step"] as? Int ?? 0
+            recordingFor = body["which"] as? String == "new" ? "new" : "open"
             if body["only"] as? Bool == true, machine.phase == .settings {
                 // Changing the character is a page inside Settings: it opens in place and Done goes back.
                 onbStep = step; onbOnly = true; onbBackToSettings = true
@@ -1317,6 +1318,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState(),
+                                   newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
                                    back: machine.settingsFrom != nil)
     }
     /// The connected displays, then a chosen one that is not connected, under the name it had when chosen.
@@ -1454,12 +1456,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var shortcutRefusals = 0
 
     private func shortcutState() -> UISnapshot.ShortcutState {
-        let s = Prefs.openShortcut
+        let new = recordingFor == "new", s = new ? Prefs.newShortcut : Prefs.openShortcut
         var works = true, why = ""
         if s.kind == .tap, !AXIsProcessTrusted() { works = false; why = "A tap needs Accessibility. Allow it, or record a key combo." }
-        else if s.kind == .combo, openComboWorks?() == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks)
+        else if s.kind == .combo, (new ? newComboWorks?() : openComboWorks?()) == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: new ? s != Prefs.standardNew : !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks, which: recordingFor)
     }
+    /// Which shortcut the recorder page records: "open" or "new" (New session's, from its row in Settings).
+    private var recordingFor = "open"
+    var onNewShortcutChanged: (() -> Void)?
+    var newComboWorks: (() -> Bool)?
 
     private func shortcutAction(_ action: String) {
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch shortcut action: \(action)") }
@@ -1469,7 +1475,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             recorder = ShortcutRecorder(); shortcutError = ""; shortcutAttempt = []; shortcutPending = []; shortcutTried = false; shortcutSaved = false
             onShortcutRecording?(true)
         case "cancel": stopRecording()
-        case "reset": Prefs.openShortcut = .standard; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+        case "reset":
+            if recordingFor == "new" { Prefs.newShortcut = Prefs.standardNew } else { Prefs.openShortcut = .standard }
+            shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; onShortcutRecording?(false)
+            if recordingFor == "new" { onNewShortcutChanged?() }
         default: break
         }
         push()
@@ -1508,7 +1517,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if machine.phase == .onboarding, onbOnly { finishCharacter(); return }
         case .refused(let why, let keys): shortcutError = why; shortcutAttempt = keys; shortcutRefusals += 1
         case .chosen(let s): shortcutPending = s.keys; shortcutPicks += 1; shortcutError = ""; shortcutAttempt = []
-        case .record(let s): Prefs.openShortcut = s; shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; shortcutAttempt = []; shortcutPending = []; onShortcutRecording?(false)
+        case .record(let s) where recordingFor == "new" && (s.kind == .tap || s == Prefs.openShortcut):
+            // New session's shortcut is a key combo, and not the one that opens Perch.
+            shortcutError = s.kind == .tap ? "New session needs a key too, like \u{2325}\u{2318}N." : "That one opens Perch. Press a different one."
+            shortcutAttempt = s.keys; shortcutPending = []; shortcutRefusals += 1
+        case .record(let s):
+            if recordingFor == "new" { Prefs.newShortcut = s } else { Prefs.openShortcut = s }
+            shortcutTried = false; shortcutSaved = true; recorder = nil; shortcutError = ""; shortcutAttempt = []; shortcutPending = []; onShortcutRecording?(false)
+            if recordingFor == "new" { onNewShortcutChanged?() }
         }
         push()
     }

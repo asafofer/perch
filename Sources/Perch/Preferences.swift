@@ -69,6 +69,12 @@ enum Prefs {
         get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }
         set { if newValue.isStandard { d.removeObject(forKey: "shortcut.open") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.open") } }
     }
+    /// What starts a new session from anywhere: Option+Command+N unless you recorded your own. Always a key combo.
+    static let standardNew = Shortcut.combo([.option, .command], keyCode: 45, name: "N")
+    static var newShortcut: Shortcut {
+        get { (d.data(forKey: "shortcut.new").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { $0.kind == .combo && Shortcut.problem($0) == nil ? $0 : nil } ?? standardNew }
+        set { if newValue == standardNew { d.removeObject(forKey: "shortcut.new") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.new") } }
+    }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
         get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
