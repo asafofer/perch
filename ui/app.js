@@ -1111,6 +1111,7 @@
     for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([ix + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
+  var crHideT = 0;
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
@@ -1143,7 +1144,14 @@
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
     var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
-    cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
+    var crHide = (st === 'idle' && !news && !hello) || choosing;
+    /* Put away with the card: it fades where it stands and only then takes its place beside the notch, unseen. Moving while
+       it faded, it slid off sideways, half there. */
+    if (crHide && st === 'idle' && cr.style.opacity !== '0' && !STILL) {
+      cr.style.transition = 'transform 0s .26s, width 0s .26s, height 0s .26s, opacity .24s'; clearTimeout(crHideT);
+      crHideT = setTimeout(function () { crHideT = 0; if (cr.style.transition !== 'none') cr.style.transition = ''; }, 320);
+    } else if (!crHide && crHideT) { clearTimeout(crHideT); crHideT = 0; cr.style.transition = ''; }   /* back before it settled: it moves as always */
+    cr.style.opacity = crHide ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
