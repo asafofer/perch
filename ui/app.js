@@ -1534,7 +1534,7 @@
   var ptrAt = [-1, -1], keyPtr = null;
   function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
   /* The pointer is sampled, not followed: a quick pass skips rows, and a skipped row never gets its mouseenter. Walk the
-     line from the last sample to this one and give each list or settings row it crossed a brief flash (.sw, in input.css),
+     line from the last sample to this one and give each list or settings row it crossed a brief flash (.crossed, in input.css),
      on in a frame and fading out, so every row the pointer went over shows it. Only looks; the choice stays with the row it stops on. */
   var swAt = null, swT = 0;
   function sweep(x, y) {
@@ -1544,7 +1544,7 @@
     var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6);
     for (var i = 1; i < n; i++) {
       var el = document.elementFromPoint(p[0] + dx * i / n, p[1] + dy * i / n), r = el && el.closest && el.closest('.row, .s-row');
-      if (r && !r.classList.contains('sw')) { r.classList.add('sw'); setTimeout(function (r) { r.classList.remove('sw'); }.bind(null, r), 50); }
+      if (r && !r.classList.contains('crossed')) { r.classList.add('crossed'); setTimeout(function (r) { r.classList.remove('crossed'); }.bind(null, r), 50); }
     }
   }
   document.addEventListener('mousemove', function (e) { if (e.isTrusted) { sweep(e.clientX, e.clientY); ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
