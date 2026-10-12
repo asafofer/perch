@@ -716,14 +716,20 @@
   });
   function sbUp() { if (!sbDrag) return; sbDrag = null; sb.classList.remove('drag'); sbar(true); }
   sb.addEventListener('pointerup', sbUp); sb.addEventListener('pointercancel', sbUp);
-  var listNewT = 0, listArrived = {};
-  /* the header's word comes in as the notch line's does (renderSent): the words slide in, the plane flies in from below
-     left, a failure's ring pops */
-  function sNewIn(el, k) {
-    if (STILL || !el.animate) return;
-    var w = el.firstChild, mark = el.querySelector('svg:last-child');
-    if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-    if (!mark || k === 'starting') return;
+  /* A session started from the list is a row from the moment you press Return: your words as its title, and where the
+     project goes, how it is going (`pending`): Starting with a spinner, Started with the paper plane once Perch sees the
+     session, Didn't start in orange if it never comes. It cannot be opened until it is a real session. */
+  var listPend = {};
+  function pendHtml(k) {
+    return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026' + Spinner('size-[13px]') + '</span>'
+      : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
+      : '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
+  }
+  /* its words slide in and its mark arrives as the notch line's do (renderSent): the plane flies in from below left, a failure's ring pops */
+  function pendIn(el, k) {
+    if (STILL || !el || !el.animate) return;
+    el.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    var mark = el.querySelector('svg'); if (!mark || k === 'starting') return;
     if (k === 'failed') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
     else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
@@ -734,13 +740,7 @@
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
     var reading = switchFx === 'watch' && typed !== fxTyped && !!typed; fxTyped = typed;
     if (reading) { var caret = q('.s-h .s-caret'); if (caret) setTimeout(function () { lookAt(caret, 0); }, 0); }
-    /* a session started from here: Starting until Perch sees it, then Started (and its row slides in), or Didn't start */
-    var sNew = !typed && (s.starting ? 'starting' : s.started && Date.now() - s.started.at < SENT_MS ? 'started' : s.startFailed && Date.now() - s.startFailed.at < 4500 ? 'failed' : '');
-    var sNewH = sNew === 'starting' ? '<span class="flex items-center gap-1.5">' + Spinner('size-3') + 'Starting\u2026</span>'
-      : sNew === 'started' ? '<span class="flex items-center gap-1.5 text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
-      : sNew === 'failed' ? '<span class="flex items-center gap-1.5" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>' : '';
-    if (sNewH) { if (q('.s-n')._k !== sNew) { q('.s-n').innerHTML = sNewH; q('.s-n')._k = sNew; sNewIn(q('.s-n'), sNew); } clearTimeout(listNewT); if (sNew !== 'starting') listNewT = setTimeout(function () { if (snap && snap.phase === 'switcher') list(snap); }, sNew === 'started' ? SENT_MS : 4500); }
-    else { q('.s-n')._k = ''; q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : ''); }
+    q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
       sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318\u2325N') + 'New session</span></div>';
@@ -760,21 +760,24 @@
     var sec = '';
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
+      if (p.pending) first = p.topic;
       if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        (p.pending && p.pending !== 'gone' ? pendHtml(p.pending) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span></div>';
+        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
-        r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
-        r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
+        var pend = !!s.projects[+r.dataset.i].pending;
+        r.onclick = function () { if (!pend) post({ type: 'details', index: +r.dataset.i }); };
+        r.ondblclick = function () { if (!pend) post({ type: 'choose', index: +r.dataset.i }); };
         r.onmouseenter = function () {
           hovered = r; marquee(r);
           var i = +r.dataset.i;
@@ -792,8 +795,9 @@
     sl.querySelectorAll('.row').forEach(function (r) {
       var on = +r.dataset.i === cs; r.classList.toggle('bg-accent', on); if (on) sel = r;
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
+      if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      if (rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
+      if (rk && rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel && cs !== ptrPick) {
@@ -801,12 +805,17 @@
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
     }
-    /* the row of a session just started slides in, once */
-    if (s.started && !listArrived[s.started.id]) {
-      listArrived[s.started.id] = 1;
-      var ni = s.projects.findIndex(function (x) { return x.id === s.started.id; }), nr = ni >= 0 && sl.querySelector('.row[data-i="' + ni + '"]');
-      if (nr && nr.animate && !STILL) nr.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.9,.3,1)' });
-    }
+    /* a started row: it slides in once; each new state says itself; once real, its spinner and project fade in; gone, it folds away */
+    s.projects.forEach(function (p, k) {
+      var was = listPend[p.id], now = p.pending || (was && was !== 'real' ? 'real' : was);
+      if (!now || now === was) return;
+      listPend[p.id] = now;
+      var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
+      if (now === 'starting') r.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.9,.3,1)' });
+      if (now === 'starting' || now === 'started' || now === 'failed') pendIn(r.querySelector('.pw'), now);
+      if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
+      if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    });
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
@@ -2848,17 +2857,23 @@
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       var close = (m.go ? 0 : m.close + .46) * 1000;
       if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
-      /* from the list: back to the list, which says Starting until the session is seen, then Started as its row slides in */
+      /* from the list: back to the list, where the new session is a row at once, Starting, then Started (or Didn't start) */
       if (m.from === 'list') {
+        var keep = null, relist = function () { var sh = devShown(); base.selected = Math.max(0, P.indexOf(keep)); apply(Object.assign({}, base, { phase: 'switcher', character: charNow, autoCollapse: false, query: '', shown: sh, selected: base.selected, timerToken: Math.random() })); };
+        var pend = Object.assign({}, row, { pending: 'starting', status: { kind: 'running', text: 'Starting', app: a.app }, fresh: false, now: '' });
         later(close, function () {
-          D.show('switcher'); apply(Object.assign({}, snap, { starting: { name: name }, timerToken: Math.random() }));
-          if (nowEl) nowEl.textContent = 'Back in the list: Starting\u2026 until Perch sees the new session';
+          D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
+          if (nowEl) nowEl.textContent = 'Back in the list: the new session is a row at once, Starting\u2026';
         });
         later(close + 1500, function () {
-          if (fail) { nwStarted(false); apply(Object.assign({}, snap, { starting: null, startFailed: { at: Date.now() }, timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'It never came: Didn\u2019t start, and your words wait for the next Command+Option+N'; return; }
-          P.unshift(row); D.show('switcher'); base.selected = 0;
-          apply(Object.assign({}, snap, { selected: 0, starting: null, started: { id: id, at: Date.now() }, timerToken: Math.random() })); nwStarted(true);
-          if (nowEl) nowEl.textContent = 'Started: the new session slides into the list, working';
+          pend.pending = fail ? 'failed' : 'started'; relist();
+          if (fail) nwStarted(false); else nwStarted(true);
+          if (nowEl) nowEl.textContent = fail ? 'It never came: Didn\u2019t start. Your words wait for the next Command+Option+N' : 'Perch sees it: Started, the plane flies in';
+        });
+        later(close + 1500 + SENT_MS, function () {
+          if (fail) { pend.pending = 'gone'; relist(); later(360, function () { P.splice(P.indexOf(pend), 1); relist(); }); if (nowEl) nowEl.textContent = 'The row folds away'; return; }
+          P[P.indexOf(pend)] = row; relist();
+          if (nowEl) nowEl.textContent = 'An ordinary row now: working, in website';
         });
         return;
       }
@@ -2882,7 +2897,7 @@
       },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
-      show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
