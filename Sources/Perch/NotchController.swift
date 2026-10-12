@@ -840,14 +840,22 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Choose a folder…: the Mac's own picker. The folder becomes the session's, and the card goes on to the prompt.
+    private var pickingUntil = Date.distantPast
+    /// Where you were before the picker made Perch the app in front: where a session started after it puts you back.
+    private var pickBack: WhereYouWere?
     private func chooseFolder() {
+        pickBack = WhereYouWere.now()
+        pickingUntil = .distantFuture
         let p = NSOpenPanel()
         p.canChooseDirectories = true; p.canChooseFiles = false; p.allowsMultipleSelection = false; p.prompt = "Choose"
         p.directoryURL = URL(fileURLWithPath: NSHomeDirectory())
         NSApp.activate(ignoringOtherApps: true)
         p.begin { [weak self] r in
             MainActor.assumeIsolated {
-                guard let self, r == .OK, let url = p.url else { return }
+                guard let self else { return }
+                self.pickingUntil = Date().addingTimeInterval(1.5)
+                NSApp.activate(ignoringOtherApps: true); self.panel.makeKey()
+                guard r == .OK, let url = p.url else { return }
                 self.pickedFolders.removeAll { $0 == url.path }; self.pickedFolders.insert(url.path, at: 0)
                 self.panel.makeKey(); self.push()
                 let name = url.lastPathComponent.replacingOccurrences(of: "'", with: "\\'"), path = url.path.replacingOccurrences(of: "'", with: "\\'")
@@ -863,7 +871,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
         let fromList = machine.newFrom == .switcher && !go
-        let back = WhereYouWere.now()
+        let back = pickBack ?? WhereYouWere.now(); pickBack = nil
         starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList)
         if go { send(.dismiss) }
         else if fromList { send(.started) }
@@ -1742,6 +1750,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way.
     private func makeWay() {
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
+        if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
         if let st = starting, st.fromList, st.state == "starting", Date().timeIntervalSince(st.at) < 8 { return }
         // A press in another app took it: the release decides, so a file dragged from there can still land on the card.
