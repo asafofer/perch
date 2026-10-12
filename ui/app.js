@@ -2895,8 +2895,8 @@
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
       var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
-      /* from the list it goes back to the list at once; from anywhere the card first sends the words into the notch */
-      var close = (m.go || m.from === 'list' ? 0 : m.close + .46) * 1000;
+      /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
+      var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
       if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
       /* from the list: back to the list, where the new session is a row at once, Starting, then Started (or Didn't start) */
       if (m.from === 'list') {
