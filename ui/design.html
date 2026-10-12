@@ -351,7 +351,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           (function type() { if (me !== charRun || !t) return; i += 2; t.value = words.slice(0, i); t.dispatchEvent(new Event('input')); if (i < words.length) setTimeout(type, 28); })(); });
         at(10600, function () { now.textContent = 'Return: it starts, and you stay where you were'; document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
       }],
-      ['From the list', 'The list has a New button at the top, beside Settings: Command+Option+N, or a click.', function () { d.project(1); d.show('switcher'); }],
+      ['From the list', 'The list\u2019s footer offers New session where Esc to close used to be: Command+Option+N, or a click. Esc still closes.', function () { d.project(1); d.show('switcher'); }],
       ['From anywhere', 'Command+Option+N works with Perch closed too: it opens straight on a new session, starting on the agent and folder of the session in front of you (here Claude Code in api-server, in Ghostty).', function () {
         var me = charRun; d.show('idle', true); now.textContent = 'Working in api-server, Perch closed';
         setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+Option+N'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', code: 'KeyN', metaKey: true, altKey: true, bubbles: true })); }, 1300);
