@@ -10,3 +10,8 @@ enum Clipboard {
     static func restore(_ saved: Saved) {}
     static func set(_ text: String) {}
 }
+
+extension Clipboard {
+    /// STUB: true when the clipboard offers files, whose paths then go to `done`.
+    static func filePaths(then done: @escaping @MainActor ([String]) -> Void) -> Bool { false }
+}

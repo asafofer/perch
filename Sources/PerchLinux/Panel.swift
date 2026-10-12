@@ -83,6 +83,69 @@ final class Panel {
         }
         _ = perch_connect(raw(web), "decide-policy", unsafeBitCast(noNav, to: GCallback.self), me)
 
+        // Keys reach the controller before the page, as the Mac's local key monitor does: it answers true for keys it took.
+        let keys = gtk_event_controller_key_new()
+        gtk_event_controller_set_propagation_phase(keys, GTK_PHASE_CAPTURE)
+        let onKey: @convention(c) (OpaquePointer?, guint, guint, GdkModifierType, UnsafeMutableRawPointer?) -> gboolean = { _, keyval, keycode, state, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            return MainActor.assumeIsolated {
+                let isRepeat = panel.down.contains(keycode)
+                panel.down.insert(keycode)
+                return panel.onKey?(keyval, keycode, state.rawValue, isRepeat) == true ? 1 : 0
+            }
+        }
+        _ = perch_connect(raw(keys), "key-pressed", unsafeBitCast(onKey, to: GCallback.self), me)
+        let onKeyUp: @convention(c) (OpaquePointer?, guint, guint, GdkModifierType, UnsafeMutableRawPointer?) -> Void = { _, _, keycode, _, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            MainActor.assumeIsolated { _ = panel.down.remove(keycode) }
+        }
+        _ = perch_connect(raw(keys), "key-released", unsafeBitCast(onKeyUp, to: GCallback.self), me)
+        let onMods: @convention(c) (OpaquePointer?, GdkModifierType, UnsafeMutableRawPointer?) -> gboolean = { _, state, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            MainActor.assumeIsolated { panel.onModifiers?(state.rawValue) }
+            return 0
+        }
+        _ = perch_connect(raw(keys), "modifiers", unsafeBitCast(onMods, to: GCallback.self), me)
+        gtk_widget_add_controller(window, keys)
+
+        // Files dragged from the file manager go into the reply as their paths (the Mac's CardWebView), not to WebKit.
+        let drop = gtk_drop_target_new(gdk_file_list_get_type(), GDK_ACTION_COPY)
+        gtk_event_controller_set_propagation_phase(drop, GTK_PHASE_CAPTURE)
+        let onMotion: @convention(c) (OpaquePointer?, Double, Double, UnsafeMutableRawPointer?) -> GdkDragAction = { _, x, y, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            return MainActor.assumeIsolated {
+                guard panel.takesFiles() else { panel.tellDrag(0, .zero); return GdkDragAction(0) }
+                panel.tellDrag(1, CGPoint(x: x, y: y))
+                return GDK_ACTION_COPY
+            }
+        }
+        _ = perch_connect(raw(drop), "motion", unsafeBitCast(onMotion, to: GCallback.self), me)
+        _ = perch_connect(raw(drop), "enter", unsafeBitCast(onMotion, to: GCallback.self), me)
+        let onLeave: @convention(c) (OpaquePointer?, UnsafeMutableRawPointer?) -> Void = { _, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            MainActor.assumeIsolated { panel.tellDrag(0, .zero) }
+        }
+        _ = perch_connect(raw(drop), "leave", unsafeBitCast(onLeave, to: GCallback.self), me)
+        let onDrop: @convention(c) (OpaquePointer?, UnsafePointer<GValue>?, Double, Double, UnsafeMutableRawPointer?) -> gboolean = { _, value, _, _, data in
+            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
+            var paths: [String] = []
+            if let value, let list = g_value_get_boxed(value) {
+                var node = gdk_file_list_get_files(OpaquePointer(list))
+                let head = node
+                while let n = node {
+                    if let file = n.pointee.data, let p = g_file_get_path(OpaquePointer(file)) { paths.append(String(cString: p)); g_free(p) }
+                    node = n.pointee.next
+                }
+                g_slist_free(head)
+            }
+            return MainActor.assumeIsolated {
+                panel.dragSent = nil
+                return !paths.isEmpty && panel.onFiles(paths) ? 1 : 0
+            }
+        }
+        _ = perch_connect(raw(drop), "drop", unsafeBitCast(onDrop, to: GCallback.self), me)
+        gtk_widget_add_controller(window, drop)
+
         // Realized but not shown: override-redirect has to be set before the window is mapped.
         gtk_widget_realize(window)
         if let surface = gtk_native_get_surface(OpaquePointer(window)), let d = X11.display {
@@ -95,6 +158,26 @@ final class Panel {
     }
 
     private static var loadedURI: String?
+
+    /// A key went down on the panel: GDK keyval, X keycode, GdkModifierType, and whether it is the key repeating. True
+    /// when the controller took it; otherwise the page gets it.
+    var onKey: ((UInt32, UInt32, UInt32, Bool) -> Bool)?
+    /// The modifiers held changed (GdkModifierType).
+    var onModifiers: ((UInt32) -> Void)?
+    private var down: Set<UInt32> = []
+    /// Whether the card can take files now (a card with a reply showing or on offer).
+    var takesFiles: () -> Bool = { false }
+    /// The dropped files' paths. False when they had nowhere to go.
+    var onFiles: ([String]) -> Bool = { _ in false }
+    /// Files over the card: how many (1 for "some": X does not say how many until the drop), and where in the page. 0 when they go.
+    var onDrag: (Int, CGPoint) -> Void = { _, _ in }
+    private var dragSent: (Int, CGPoint)?
+    /// Only what changed: a drag sends updates many times a second, moving or not.
+    private func tellDrag(_ count: Int, _ at: CGPoint) {
+        if count == 0 { guard dragSent != nil else { return }; dragSent = nil; onDrag(0, .zero); return }
+        if let s = dragSent, s.0 == count, s.1 == at { return }
+        dragSent = (count, at); onDrag(count, at)
+    }
 
     func load(_ index: URL) {
         Panel.loadedURI = index.deletingLastPathComponent().absoluteString
