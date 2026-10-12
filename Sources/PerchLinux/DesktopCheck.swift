@@ -15,6 +15,11 @@ func desktopCheck(_ args: [String]) -> Bool {
     }
     print("check: main screen \(Screen.main?.displayID ?? "none")")
     print("check: autostart \(Autostart.isOn ? "on" : "off"), would run \(Autostart.quoted(Autostart.executable))")
+    if ProcessInfo.processInfo.environment["PERCH_CHECK_AUTOSTART"] != nil {
+        Autostart.set(true); print("check: autostart after set(true): \(Autostart.isOn)")
+        Autostart.set(false); print("check: autostart after set(false): \(Autostart.isOn)")
+        Autostart.set(true)
+    }
 
     let hotkeys = HotkeyService()
     hotkeys.onChordTap = { print("check: tap") }
@@ -33,13 +38,41 @@ func desktopCheck(_ args: [String]) -> Bool {
     let monitor = ActivityMonitor(threshold: Double(ProcessInfo.processInfo.environment["PERCH_CHECK_IDLE"] ?? "") ?? 6)
     monitor.onReturn = { since in print("check: back, away since \(since.map { String(format: "%.0f s ago", Date().timeIntervalSince($0)) } ?? "?")") }
     checkKeep += [hotkeys, tray, monitor]
+    if ProcessInfo.processInfo.environment["PERCH_CHECK_KEYS"] != nil { keyWindow() }
     var last = ""
     GLoop.every(2) {
         let line = "idle \(Int(ActivityMonitor.idleSeconds())) s, locked \(ActivityMonitor.screenLocked), quiet: \(Quiet.reason() ?? "no"), launcher: \(Quiet.launcherOpen() ?? "none")"
         if line != last { print("check: \(line)"); last = line }
+        if ProcessInfo.processInfo.environment["PERCH_CHECK_TIMING"] != nil {
+            func ms(_ f: () -> Any?) -> String { let t = Date(); _ = f(); return String(format: "%.0f ms", Date().timeIntervalSince(t) * 1000) }
+            print("check: mic \(ms { Quiet.appUsingMic() }), camera \(ms { Quiet.cameraInUse() }), presenting \(ms { Quiet.presenting() }), launcher \(ms { Quiet.launcherOpen() }), idle \(ms { ActivityMonitor.idleSeconds() })")
+        }
         return true
     }
     GLoop.every(seconds) { GLoop.quit(); return false }
     return true
 }
 @MainActor private var checkKeep: [AnyObject] = []
+
+/// A plain GTK window that prints each key as KeyMap reads it: for checking the controller's key path.
+@MainActor private func keyWindow() {
+    let window = gtk_window_new()!
+    gtk_window_set_title(UnsafeMutableRawPointer(window).assumingMemoryBound(to: GtkWindow.self), "perch-keys")
+    gtk_window_set_default_size(UnsafeMutableRawPointer(window).assumingMemoryBound(to: GtkWindow.self), 300, 200)
+    let keys = gtk_event_controller_key_new()
+    let pressed: @convention(c) (OpaquePointer?, UInt32, UInt32, UInt32, UnsafeMutableRawPointer?) -> Int32 = { _, keyval, keycode, state, _ in
+        MainActor.assumeIsolated {
+            let k = KeyMap.press(keyval: keyval, keycode: keycode, state: state)
+            let flags = KeyMap.flags(keyval: keyval, state: state, pressed: true)
+            print("check: key down kVK \(k.keyCode) typed \(k.typed ?? "nil") chars \(k.characters ?? "nil") mods \(k.mods.glyphs.joined())\(flags.map { " flags after \($0.glyphs.joined())" } ?? "")")
+        }
+        return 0
+    }
+    let released: @convention(c) (OpaquePointer?, UInt32, UInt32, UInt32, UnsafeMutableRawPointer?) -> Void = { _, keyval, _, state, _ in
+        MainActor.assumeIsolated { if let f = KeyMap.flags(keyval: keyval, state: state, pressed: false) { print("check: modifier up, flags after \(f.glyphs.joined())") } }
+    }
+    _ = perch_connect(UnsafeMutableRawPointer(keys), "key-pressed", unsafeBitCast(pressed, to: GCallback.self), nil)
+    _ = perch_connect(UnsafeMutableRawPointer(keys), "key-released", unsafeBitCast(released, to: GCallback.self), nil)
+    gtk_widget_add_controller(window, keys)
+    gtk_widget_show(window)
+}

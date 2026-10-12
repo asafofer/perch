@@ -47,7 +47,12 @@ enum Quiet {
     /// The first app recording from a microphone (a source that is not a speaker's monitor, a stream that is not paused),
     /// from PulseAudio or PipeWire's pulse server. Without pactl, any ALSA capture device running counts, unnamed.
     static func appUsingMic() -> String? {
-        guard let pactl = which("pactl") else { return alsaCapturing() ? "an app" : nil }
+        // Only with a pulse server to ask (PipeWire's included): pactl with none may start a PulseAudio daemon itself.
+        let env = ProcessInfo.processInfo.environment
+        let socket = env["XDG_RUNTIME_DIR"].map { "\($0)/pulse/native" }
+        guard let pactl = which("pactl"), env["PULSE_SERVER"] != nil || socket.map({ FileManager.default.fileExists(atPath: $0) }) == true else {
+            return alsaCapturing() ? "an app" : nil
+        }
         guard let out = run(pactl, ["-f", "json", "list", "source-outputs"]),
               let streams = try? JSONSerialization.jsonObject(with: out) as? [[String: Any]], !streams.isEmpty else { return nil }
         var monitors: Set<Int>?
@@ -96,7 +101,7 @@ enum Quiet {
         let pid = X11.pid(of: front)
         let screens = Screen.screens.map { X11.flip($0.frame).size }
         let fullscreen = X11.atom("_NET_WM_STATE_FULLSCREEN")
-        return X11.clientWindows().contains { w in
+        return managedWindows().contains { w in
             guard w == front || (pid != nil && X11.pid(of: w) == pid) || X11.appId(of: w) == app else { return false }
             if X11.cardinals(w, "_NET_WM_STATE", type: Atom(XA_ATOM)).contains(UInt(fullscreen)) { return true }
             var a = XWindowAttributes()
@@ -106,6 +111,13 @@ enum Quiet {
     }
 
     // MARK: plumbing
+
+    /// The windows the window manager manages. xfwm4 (4.16 at least) keeps _NET_CLIENT_LIST but not always the stacking
+    /// list X11.clientWindows reads, so the plain list stands in.
+    static func managedWindows() -> [Window] {
+        let stacked = X11.clientWindows()
+        return stacked.isEmpty ? X11.cardinals(X11.root, "_NET_CLIENT_LIST", type: Atom(XA_WINDOW)).map { Window($0) } : stacked
+    }
 
     /// A window's WM_CLASS and owner, from it or the nearest ancestor that has one (focus can sit on a child window).
     @MainActor private static func classed(_ d: OpaquePointer, _ start: Window) -> (String, pid_t?)? {
