@@ -52,13 +52,23 @@ public struct Shortcut: Equatable, Sendable, Codable {
     }
 
     private struct Taken: Hashable { let mods: ShortcutMods; let keyCode: Int }
+    /// Perch's own keys for the welcome card, the list and Quit, and Settings on the card. On Linux, Control and Alt belong to
+    /// the desktop (Ctrl+Alt+L locks the screen), so these sit with Perch's other keys under Super and Alt, and Settings is
+    /// Ctrl+comma as Linux apps have it.
+    #if os(Linux)
+    public static let ownMods: ShortcutMods = [.command, .option]
+    private static let settingsMods: ShortcutMods = .control
+    #else
+    public static let ownMods: ShortcutMods = [.control, .option]
+    private static let settingsMods: ShortcutMods = .command
+    #endif
     private static let taken: [Taken: String] = {
         var t: [Taken: String] = [
-            Taken(mods: [.control, .option], keyCode: 35): "the welcome card",
-            Taken(mods: [.control, .option], keyCode: 37): "the project list",
-            Taken(mods: [.control, .option], keyCode: 12): "Quit Perch",
+            Taken(mods: ownMods, keyCode: 35): "the welcome card",
+            Taken(mods: ownMods, keyCode: 37): "the project list",
+            Taken(mods: ownMods, keyCode: 12): "Quit Perch",
             Taken(mods: .command, keyCode: 15): "Reply in Perch",
-            Taken(mods: .command, keyCode: 43): "Settings in Perch",
+            Taken(mods: settingsMods, keyCode: 43): "Settings in Perch",
         ]
         // The notch's own buttons while it asks something: Allow, Deny, Reply, put away, choices, open.
         for code in [16, 45, 15, 47, 18, 19, 20, 36] { t[Taken(mods: [.command, .option], keyCode: code)] = "a button in the notch" }

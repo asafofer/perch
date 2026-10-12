@@ -66,6 +66,10 @@ final class App {
             // All of them Super+Alt and a key: the Mac's Command+R for Reply would be Super+R, XFCE's run dialog.
             for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: [.command, .option], id: id) { c.activityKey(name) } } }
         }
+        // The Mac's Control+Option+P, L and Q: here under Super+Alt with Perch's other keys (Shortcut.ownMods).
+        hotkeys.register(keyCode: 35, modifiers: Shortcut.ownMods, id: 1) { c.comeBack() }
+        hotkeys.register(keyCode: 37, modifiers: Shortcut.ownMods, id: 2) { c.toggleSwitcher() }
+        hotkeys.register(keyCode: 12, modifiers: Shortcut.ownMods, id: 3) { GLoop.quit() }
         // What is new has one key, Super+Alt+Return, registered only while the card shows.
         c.onWhatsNewKey = { [hotkeys] on in
             if on { hotkeys.register(keyCode: 36, modifiers: [.command, .option], id: 40) { c.whatsNewDone() } } else { hotkeys.unregister(id: 40) }

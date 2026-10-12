@@ -67,6 +67,9 @@
       return mods.split('').sort(function (a, b) { return KEYORDER.indexOf(a) - KEYORDER.indexOf(b); }).map(capText).concat(key ? [key] : []).join('+');
     });
   }
+  /* Perch's own keys for the welcome card and the list: Control+Option on the Mac; on Linux Super+Alt, with its other keys
+     (Control and Alt are the desktop's there: Ctrl+Alt+L locks the screen). Swift's Shortcut.ownMods says the same. */
+  function ownMods() { return LINUX ? ['\u2318', '\u2325'] : ['\u2303', '\u2325']; }
   /* what Settings is on: Command+comma on the Mac; on Linux the card keeps its own keys to Linux's ways, Ctrl+comma */
   function setKeyPill() { return onLinux('\u2318,', 'Ctrl ,'); }
   function setKeyTitle() { return 'Settings (' + onLinux('\u2318,', 'Ctrl+,') + ')'; }
@@ -2081,10 +2084,7 @@
         oi(5, liveFoot(live));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) +
-          /* Linux: Ctrl+Alt+L locks the screen on most desktops, so the welcome card and the list live in the tray's menu */
-          (LINUX ? ohint('<span class="text-xs text-muted-foreground">Tray</span>', 'The welcome card and every session')
-            : ohint(Kbd(chord(['\u2303', '\u2325'], 'P')), 'The welcome card') + ohint(Kbd(chord(['\u2303', '\u2325'], 'L')), 'Other projects')) +
+        oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd(chord(ownMods(), 'P')), 'The welcome card') + ohint(Kbd(chord(ownMods(), 'L')), 'Other projects') +
           /* no notch on Linux to rest on (hovering the top edge is off unless Settings turns it on) */
           (LINUX ? '' : ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek')) + '</div>') +
         ofoot(4, true, '', 'Done', 'finish');
