@@ -119,6 +119,8 @@ struct UISnapshot: Encodable {
     var quiet = false
     /// An update of Perch itself: checking, offered, downloading, restarting, updated.
     var update: UpdateInfo?
+    /// Which shell draws the page: "mac", or "linux" (no notch, Super and Alt for the keys, no Accessibility, no app sessions).
+    var platform = "mac"
     /// This build can look for updates, so Settings offers it.
     var canUpdate = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
@@ -163,4 +165,22 @@ struct UISnapshot: Encodable {
 /// Set by scripts/run.sh on any build that is not a release: "branch @ commit", "+" when it has uncommitted changes.
 enum TestBuild {
     static let label: String? = Bundle.main.infoDictionary?["PerchTestBuild"] as? String
+}
+
+/// What the page draws of an update: the phase (checking, available, downloading, ready, restarting, updated, current, failed),
+/// how far the download is, and what the release says about itself.
+struct UpdateInfo: Encodable, Equatable {
+    var version: String
+    var phase: String
+    var progress = 0.0
+    var notes = ""
+    var bullets: [String] = []
+    /// Counts up to say an offer again (Check for updates while one waits): the page treats it as new.
+    var nudge = 0
+    /// A failed update (phase "failed"): one line for the notch, a few words for Settings, what you can do (retry, move, none), and
+    /// whether it was looking ("check") or getting one in ("update").
+    var problem = ""
+    var short = ""
+    var fix = ""
+    var during = ""
 }
