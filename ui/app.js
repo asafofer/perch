@@ -803,7 +803,12 @@
   /* The list's choice shows only while the pointer is on a row or the keys made it: a pointer that has left leaves no row lit
      (the choice itself stays, for Return, until the keys or the pointer move it). */
   var listKb = true;
-  function markList() { var pn = q('.p-switch'); if (pn) pn.classList.toggle('nomark', !listKb && !hovered); }
+  var listShown = true;
+  function markList() {
+    var pn = q('.p-switch'), lit = listKb || !!hovered;
+    if (pn) pn.classList.toggle('nomark', !lit);
+    if (lit !== listShown) { listShown = lit; post({ type: 'marked', on: lit }); }   /* Return, Right and Tab open nothing while no row is lit */
+  }
   function marquee(row) {
     if (row && mq.el === row) return;
     clearTimeout(mq.t); mq.anims.forEach(function (a) { a.cancel(); });
@@ -1439,6 +1444,7 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    if (st === 'switch' && was !== 'switch') { listKb = true; markList(); }   /* opened (by the hotkey too): the first row is lit */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
     var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
@@ -2470,7 +2476,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });

@@ -36,6 +36,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var leftCardAt: Date?
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
     private var openedByHover = false
+    /// The list has a row lit (the page says: the pointer is on one, or the keys chose it). With none, Return, Right and Tab open nothing.
+    private var listMarked = true
     private var openedAt = Date.distantPast
     /// Perch spoke up on its own: it must not take the keyboard from whatever you are typing in. A click gives it focus.
     private var proactiveOpen = false
@@ -886,6 +888,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "activitySeen":
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
+        case "marked": listMarked = body["on"] as? Bool ?? true
         case "hand":
             handCursor = body["on"] as? Bool ?? false
             if !handCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
@@ -1406,15 +1409,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Typing narrows the list. Backspace edits, Esc clears what you typed before it closes anything.
                 if e.keyCode == 51 { if !self.listQuery.isEmpty { self.listQuery.removeLast(); self.filterChanged() }; return nil }
                 if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
-                if e.keyCode == 125 || e.keyCode == 126 { self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
+                if e.keyCode == 125 || e.keyCode == 126 { self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
                 let typed = e.characters ?? ""
                 if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1,
                    typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
-                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.filterChanged() }
+                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.filterChanged() }
                     return nil
                 }
                 // Nothing left to open or look at when nothing matches.
-                if [36, 76, 48, 124].contains(e.keyCode), ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
+                if [36, 76, 48, 124].contains(e.keyCode), !self.listMarked || ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
             }
             if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
