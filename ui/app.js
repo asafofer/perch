@@ -1447,7 +1447,7 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
-    if (st === 'switch' && was !== 'switch') { listKb = true; markList(); }   /* opened (by the hotkey too): the first row is lit */
+    if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
     var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
