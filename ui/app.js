@@ -218,7 +218,7 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2318\u2325N), from anywhere">' + Kbd('\u2318\u2325N') + 'New session</button></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
     '</div></div>' +
     /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
     '<div class="pane p-new">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -720,7 +720,8 @@
      project goes, how it is going (`pending`): Starting with a spinner, Started with the paper plane once Perch sees the
      session, Didn't start in orange if it never comes. It cannot be opened until it is a real session. */
   var listPend = {};
-  function pendHtml(k) {
+  function pendHtml(k, app) {
+    if (k === 'confirm') return '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Confirm in ' + esc(agentShort(app)) + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
     return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026' + Spinner('size-[13px]') + '</span>'
       : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
       : '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
@@ -730,7 +731,7 @@
     if (STILL || !el || !el.animate) return;
     el.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
     var mark = el.querySelector('svg'); if (!mark || k === 'starting') return;
-    if (k === 'failed') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+    if (k === 'failed' || k === 'confirm') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
     else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   function list(s) {
@@ -743,7 +744,7 @@
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2318\u2325N') + 'New session</span></div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2325\u2318N') + 'New session</span></div>';
       edges(); return;
     }
     if (empty) {
@@ -751,7 +752,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2318\u2325N') + 'Start a new session</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2325\u2318N') + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -767,7 +768,7 @@
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
-        (p.pending && p.pending !== 'gone' ? pendHtml(p.pending) : p.pending ? '' :
+        (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
         (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
@@ -812,10 +813,10 @@
       listPend[p.id] = now;
       var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
       /* your words carried from the field land as its title (nwLandGo); the row opens up under them */
-      var landing = now === 'starting' && nwLand && Date.now() - nwLand.at < 3000;
+      var landing = !was && now !== 'gone' && now !== 'real' && nwLand && Date.now() - nwLand.at < 3000;
       if (landing) nwLandGo(r);
-      if (now === 'starting') r.animate([{ height: '0px', opacity: landing ? 1 : 0, transform: landing ? 'none' : 'translateY(-6px)', filter: landing ? 'none' : 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: landing ? 560 : 380, delay: landing ? 60 : 0, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' });
-      if (now === 'starting' || now === 'started' || now === 'failed') { var pw = r.querySelector('.pw'); if (landing && pw && pw.animate && !STILL) pw.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 560 }); setTimeout(function () { pendIn(pw, now); }, landing ? 560 : 0); }
+      if (now === 'starting' || landing) r.animate([{ height: '0px', opacity: landing ? 1 : 0, transform: landing ? 'none' : 'translateY(-6px)', filter: landing ? 'none' : 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: landing ? 560 : 380, delay: landing ? 60 : 0, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' });
+      if (now === 'starting' || now === 'started' || now === 'failed' || now === 'confirm') { var pw = r.querySelector('.pw'); if (landing && pw && pw.animate && !STILL) pw.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 560 }); setTimeout(function () { pendIn(pw, now); }, landing ? 560 : 0); }
       if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
       if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     });
@@ -1021,6 +1022,8 @@
     ta.value = '';
     nwLand = { b: b, at: Date.now() };
     look(0, 1.6);
+    /* never left hanging: if no row comes for it, the words fade where they are */
+    setTimeout(function () { if (nwLand && nwLand.b === b) { nwLand = null; if (b.animate && !STILL) b.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' }).onfinish = function () { b.remove(); }; else b.remove(); } }, 1600);
   }
   function nwLandGo(r) {
     var b = nwLand.b; nwLand = null;
@@ -1049,7 +1052,9 @@
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? 'No project' : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
-  function nwStarted(ok) {
+  function nwStarted(ok, app) {
+    /* the app asks you to trust the folder first: the line says to confirm there, and waits */
+    if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
     if (!ok && nw.last) nw.text = nw.last;
     nw.last = '';
     if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
@@ -1539,18 +1544,18 @@
     sentLate[id] = Date.now();
     if (act.mode === 'sent' && act.p && act.p.id === id && sent && sent.ok) sentShow(act.p, '', false);
   }
-  function sentShow(p, words, ok, quiet, failWords, pending) {
+  function sentShow(p, words, ok, quiet, failWords, pending, asks) {
     if (ok !== false && Date.now() - (sentLate[p.id] || 0) < 3000) ok = false;
     if (ok === false) words = failWords || 'Didn\u2019t send';
     /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
        when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
-    sent = { words: words, ok: ok !== false, pending: !!pending && ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
+    sent = { words: words, ok: ok !== false, pending: !!pending && ok !== false, asks: !!asks, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
     /* already the line for this session: setAct leaves it be, so its words change here (renderSent draws each line once) */
     if (act.mode === 'sent') renderSent(act.p);
     /* a line still waiting (Starting) stays until it is told how it went; never longer than 20 s */
-    sentT = setTimeout(sentDone, sent.pending ? 20000 : sent.ok ? SENT_MS : 4500);
+    sentT = setTimeout(sentDone, sent.asks ? 150000 : sent.pending ? 20000 : sent.ok ? SENT_MS : 4500);
   }
   /* The line has said its piece. Anything that arrived while it showed, or while the button lit before it (`sentBase` is what
      had been said when the answer was given), is said now, in full; whatever still waits on you stays as wings. */
@@ -1561,7 +1566,7 @@
     sentBase = null; setAct('', null, true); activity(snap, lastSt); layout(lastSt, snap);
   }
   function renderSent(p) {
-    var right = '<span dir="auto" class="act-s' + (sent.pending ? ' mu' : sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.pending ? Spinner('size-[15px]', glow(COLORS.running)) : sent.ok ? SentMark() : Ring('need'));
+    var right = '<span dir="auto" class="act-s' + (sent.asks ? '' : sent.pending ? ' mu' : sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.asks ? Ring('need') : sent.pending ? Spinner('size-[15px]', glow(COLORS.running)) : sent.ok ? SentMark() : Ring('need'));
     var key = 'sent|' + sent.n;
     if (actEl._h === key) return;
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1579,8 +1584,8 @@
     if (calm) return;
     var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
     if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140 + lag, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-    if (sent.pending) return;
-    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
+    if (sent.pending && !sent.asks) return;
+    if (!sent.ok || sent.asks) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
     mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
@@ -2448,7 +2453,7 @@
       /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
       scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
-    var nsc = o.newShortcut || { keys: ['\u2318', '\u2325', 'N'] };
+    var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'] };
     var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
     var rows = [
       scRow,

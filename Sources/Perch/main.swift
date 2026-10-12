@@ -64,8 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys.register(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey, id: 1) { c.comeBack() }
         hotkeys.register(keyCode: kVK_ANSI_L, modifiers: controlKey | optionKey, id: 2) { c.toggleSwitcher() }
         hotkeys.register(keyCode: kVK_ANSI_Q, modifiers: controlKey | optionKey, id: 3) { NSApp.terminate(nil) }
-        // A new session, from anywhere (Settings shows it under Open Perch).
-        hotkeys.register(keyCode: kVK_ANSI_N, modifiers: cmdKey | optionKey, id: 4) { c.openNewSession() }
+        // A new session, from anywhere (Settings shows it under Open Perch). Id 4 is the open shortcut (HotkeyService.openId).
+        hotkeys.register(keyCode: kVK_ANSI_N, modifiers: cmdKey | optionKey, id: 5) { c.openNewSession() }
         // While the notch says an answer or a request arrived, its buttons answer to Command+Option and a key. Only then.
         let activityCodes: [String: Int] = ["pick": kVK_Return, "open": kVK_Return, "reply": kVK_ANSI_R, "gone": kVK_ANSI_Period,
                                             "allow": kVK_ANSI_A, "deny": kVK_ANSI_X, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3]

@@ -869,31 +869,52 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         else if fromList { send(.started) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + close) { [weak self] in if self?.machine.phase == .newSession { self?.send(.started) } } }
         DispatchQueue.global(qos: .userInitiated).async {
-            let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    // Started and staying: back to where you were (the app or terminal came forward for it).
-                    if sent, !go { DispatchQueue.main.asyncAfter(deadline: .now() + (choice.terminal ? 0.8 : 0.2)) { back.restore() } }
-                    if !sent { self.finishStarting(false); return }
                     self.startingTicker?.invalidate()
                     self.startingTicker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
+                }
+            }
+            let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, needsYou: { [weak self] in
+                MainActor.assumeIsolated { self?.startingAsks() }
+            })
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    // Started and staying: back to where you were (the app or terminal came forward for it), unless it asked you something there.
+                    if sent, !go, self.starting?.state != "confirm" {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + (choice.terminal ? 0.8 : 0.2)) {
+                            back.restore()
+                            // still on the list: it takes the keyboard back from them
+                            if self.machine.phase == .switcher { self.panel.makeKey() }
+                        }
+                    }
+                    // Not sent: it may still begin (you pressed Send yourself), so the scan keeps looking until it gives up.
                     self.refreshProjects()
                 }
             }
         }
     }
 
+    /// The app asks you to trust the folder: the notch says to confirm there, and the wait is longer.
+    private func startingAsks() {
+        guard starting?.state == "starting" else { return }
+        starting?.state = "confirm"
+        let app = starting?.choice.agent == "codex" ? "Codex" : "Claude"
+        web.evaluateJavaScript("window.perch && window.perch.newStarted('confirm', '\(app)')", completionHandler: nil)
+        push()
+    }
+
     /// After each scan: is the new session there yet? Given up after a while.
     private func checkStarted() {
-        guard let st = starting, st.state == "starting" else { return }
+        guard let st = starting, st.state == "starting" || st.state == "confirm" else { return }
         if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId) {
             starting?.found = p.id
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch new session: found \(p.id) in \(p.cwd ?? "-")") }
             finishStarting(true)
-        } else if Date().timeIntervalSince(st.at) > NewSession.waits { finishStarting(false) }
+        } else if Date().timeIntervalSince(st.at) > (st.state == "confirm" ? 150 : NewSession.waits) { finishStarting(false) }
     }
     private func finishStarting(_ ok: Bool) {
-        guard starting?.state == "starting" else { return }
+        guard starting?.state == "starting" || starting?.state == "confirm" else { return }
         startingTicker?.invalidate(); startingTicker = nil
         starting?.state = ok ? "started" : "failed"
         if !ok { NSLog("Perch: the new session did not show up") }
@@ -1705,6 +1726,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way.
     private func makeWay() {
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
+        if let st = starting, st.fromList, st.state == "starting", Date().timeIntervalSince(st.at) < 8 { return }
         // A press in another app took it: the release decides, so a file dragged from there can still land on the card.
         if NSEvent.pressedMouseButtons != 0 { return }
         send(.dismiss)

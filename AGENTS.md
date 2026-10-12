@@ -105,10 +105,10 @@ Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`), with no Apple
 - Tailwind classes are generated from strings in `app.js`. Rebuild CSS after adding classes.
 - macOS TCC permissions are tied to the code signature. Without the "Perch Dev" certificate the app is signed ad hoc and macOS asks again after every build.
 - Accessibility is needed for Command+Option and for pasting replies. `AXIsProcessTrusted()` can lag after granting; onboarding offers a restart.
-- The panel is one fixed transparent window (480 x 410 plus a 10 pt overscan above the screen). Cards must fit inside it.
+- The panel is one fixed transparent window (480 x 440 plus a 10 pt overscan above the screen). Cards must fit inside it.
 - Self-signed and ad-hoc builds cannot register for launch at login reliably.
 - Opening a notch app over full-screen apps depends on window level and collection behavior; see `NotchPanel`.
-- The settings and onboarding cards must fit the panel (410 pt). Settings rows are 30 pt apart whatever shows (348 pt with nine rows, 408 with all eleven: an external display and no Accessibility), so adding a row needs the panel to grow. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
+- The settings and onboarding cards must fit the panel (440 pt). Settings rows are 30 pt apart whatever shows (378 pt with ten rows, 438 with all twelve: an external display and no Accessibility), so adding a row needs the panel to grow. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
 - Hooks only change behaviour once installed (Settings, Live status). Codex skips a new hook until you trust it once. Never write to `~/.claude/settings.json` or `~/.codex/hooks.json` except through `HookInstaller`, which only touches its own entries; for OpenCode and pi it writes and removes only its own file (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`, first line `// Perch:`). Try the installer with `PERCH_HOME=<folder> .build/debug/Perch --install-hooks`, and a plugin against a stand-in socket before it reaches real config.
 - cmux's command line tool only answers processes inside cmux (its default socket mode), so Perch drives cmux through AppleScript: a terminal's `id` is the `CMUX_SURFACE_ID` its processes carry. `input text` pastes (bracketed), so Return is sent separately with `perform action "text:\\r"`.
 - Codex 0.162's terminal app writes `source: "vscode"` like the Codex app; `originator: "codex-tui"` is what says terminal.

@@ -11,7 +11,7 @@ public struct ScreenInfo: Equatable, Sendable {
 public enum NotchGeometry {
     public static let cardWidth: CGFloat = 400
     /// One fixed, transparent panel hosts every phase. It holds the tallest card plus room for the shadow.
-    public static let panelSize = CGSize(width: 480, height: 410)
+    public static let panelSize = CGSize(width: 480, height: 440)
     /// The panel reaches this far above the top of the screen, and the card draws a black cap into it,
     /// so a rounding gap or a slight offset can never show the desktop above an open card.
     public static let overscan: CGFloat = 10
