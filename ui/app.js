@@ -219,6 +219,9 @@
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
+    /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
+    '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8 pb-2"><div class="wn"></div></div></div>' +
     '</div></div>';
 
   /* Inline markdown for summaries: **bold**, *italic*, `code`, [links](url) as plain text. Escaped first, so nothing can inject markup. */
@@ -878,7 +881,7 @@
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
-      : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
+      : st === 'new' ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
@@ -1381,6 +1384,23 @@
     });
   }
   var verSig = '';
+  /* What is new, after an update. The card says it once: Perch and its version, the headline, then the few lines behind it (six show,
+     the rest scroll). It opens by itself, so it takes no keys; Got it goes on to the list. */
+  var wnSig = '';
+  function whatsNew(w) {
+    if (!w) return;
+    var sig = JSON.stringify(w); if (sig === wnSig) return; wnSig = sig;
+    var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
+    var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
+      return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
+    }).join('') + '</div>' : '';
+    q('.wn').innerHTML =
+      header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
+      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list +
+      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:3">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+    var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
+    q('.wn-ok').onclick = function () { post({ type: 'whatsnew', action: 'done' }); };
+  }
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
     /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
@@ -1389,7 +1409,7 @@
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
@@ -1399,6 +1419,7 @@
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
+    if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
       settingsApply(s.settings);
       if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
@@ -2497,6 +2518,7 @@
     if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
+    if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
@@ -2648,6 +2670,14 @@
         if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open' || snap.phase === 'settings')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }
         apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: base.update }));
       },
+      /* the card that says what is new, on the first start after an update; `o.long` is a long list, `o.plain` a release with only a headline */
+      whatsNew: function (o) {
+        o = o || {}; d0(); window.perchDev.updStop(); actGone = {};
+        var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
+        var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
+        apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
+          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets } }));
+      },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
         var me = ++updTok, at = function (ms, f) { setTimeout(function () { if (me === updTok) f(); }, ms); }, sc = document.getElementById('scene'), D = window.perchDev, t = 0;
@@ -2655,7 +2685,7 @@
         at(t, function () { D.update('restarting', { fresh: false }); });
         at(t + 2300, function () { sc.style.transition = 'opacity .25s'; sc.style.opacity = '0'; });
         at(t + 3700, function () { D.update(null); sc.style.opacity = '1'; });
-        at(t + 4400, function () { D.update('updated', { fresh: false }); });
+        at(t + 4400, function () { D.whatsNew(); });
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
@@ -2759,6 +2789,8 @@
     }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
+      /* Got it on the what's new card: Command+Option+Return, a key that never types into anything behind the card (the app registers it only while the card shows) */
+      if (ph === 'whatsnew' && e.metaKey && e.altKey && e.key === 'Enter') { e.preventDefault(); post({ type: 'whatsnew', action: 'done' }); return; }
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }
