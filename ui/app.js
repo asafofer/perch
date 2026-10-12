@@ -811,8 +811,11 @@
       if (!now || now === was) return;
       listPend[p.id] = now;
       var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
-      if (now === 'starting') r.animate([{ height: '0px', opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.9,.3,1)' });
-      if (now === 'starting' || now === 'started' || now === 'failed') pendIn(r.querySelector('.pw'), now);
+      /* your words carried from the field land as its title (nwLandGo); the row opens up under them */
+      var landing = now === 'starting' && nwLand && Date.now() - nwLand.at < 3000;
+      if (landing) nwLandGo(r);
+      if (now === 'starting') r.animate([{ height: '0px', opacity: landing ? 1 : 0, transform: landing ? 'none' : 'translateY(-6px)', filter: landing ? 'none' : 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: landing ? 560 : 380, delay: landing ? 60 : 0, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' });
+      if (now === 'starting' || now === 'started' || now === 'failed') { var pw = r.querySelector('.pw'); if (landing && pw && pw.animate && !STILL) pw.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 560 }); setTimeout(function () { pendIn(pw, now); }, landing ? 560 : 0); }
       if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
       if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     });
@@ -1001,10 +1004,47 @@
     var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
     var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
     nw.last = nw.text; nw.text = '';
-    if (!go) newFly(t);
+    /* from the list your words go straight back with you and land as the new row's title (nwLandGo); from anywhere they fly into the notch */
+    if (!go && from === 'list') nwLandPrep(t); else if (!go) newFly(t);
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
     post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+  }
+  /* Started from the list: the list comes back at once, and your words are carried across, out of the field and down into
+     the new row, where they become its title. The row opens up under them as they come; once they land it lights for a
+     moment and the character hops. */
+  var nwLand = null;
+  function nwLandPrep(t) {
+    var ta = q('.nw-in'), nr = n.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = t; n.appendChild(b);
+    b.style.left = (fr.left - nr.left + 8) + 'px'; b.style.top = (fr.top - nr.top + 6) + 'px'; b.style.transformOrigin = '10px 50%';
+    ta.value = '';
+    nwLand = { b: b, at: Date.now() };
+    look(0, 1.6);
+  }
+  function nwLandGo(r) {
+    var b = nwLand.b; nwLand = null;
+    var title = r.querySelector('.nm'); if (!title || STILL || !b.animate) { b.remove(); return; }
+    /* where the title will be once the list has settled: the list still eases up into place as it appears */
+    var rv = r.closest('.rv'), lift = rv ? new DOMMatrix(getComputedStyle(rv).transform).m42 : 0;
+    var tr = title.getBoundingClientRect(), br = b.getBoundingClientRect(), k = parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(b).fontSize);
+    var dx = tr.left - (br.left + 10), dy = (tr.top - lift + tr.height / 2) - (br.top + br.height / 2);
+    title.style.opacity = '0';
+    var go = b.animate([{ transform: 'none', background: 'rgba(255,255,255,.14)', fontWeight: 400 },
+      { transform: 'translate(' + (dx * .35) + 'px,' + (dy * .55) + 'px) scale(1.02)', background: 'rgba(255,255,255,.12)', offset: .45 },
+      { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')', background: 'rgba(255,255,255,0)', fontWeight: 500 }],
+      { duration: 560, delay: 60, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
+    lookAt(title, 40);
+    var landed = false, land = function () {
+      if (landed) return; landed = true;
+      title.style.opacity = ''; b.remove();
+      /* it has landed: the row lights once, and the character hops */
+      r.animate([{ backgroundColor: 'rgba(255,255,255,.13)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1100, easing: 'ease-out' });
+      var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+      setTimeout(function () { if (cr.dataset.m === 'happy' && lastSt === 'switch') cr.dataset.m = 'awake'; }, 1400);
+    };
+    /* never left hanging: a hidden window plays no animations */
+    go.onfinish = land; setTimeout(land, 900);
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? 'No project' : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
@@ -2855,7 +2895,8 @@
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
       var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
-      var close = (m.go ? 0 : m.close + .46) * 1000;
+      /* from the list it goes back to the list at once; from anywhere the card first sends the words into the notch */
+      var close = (m.go || m.from === 'list' ? 0 : m.close + .46) * 1000;
       if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
       /* from the list: back to the list, where the new session is a row at once, Starting, then Started (or Didn't start) */
       if (m.from === 'list') {
