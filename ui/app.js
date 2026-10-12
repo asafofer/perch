@@ -1884,9 +1884,12 @@
   }
   /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
   function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
-  function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
-  /* off: Turn on, or Skip; on: Next */
-  function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
+  /* every app switched off on the apps step: there is nothing to add a hook to, so the step says so and goes back there */
+  var onbNoApps = false;
+  function noApps(o) { return !(o.sources || []).some(function (x) { return x.enabled; }); }
+  function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : onbNoApps ? 'Switch on an app first. Perch reads none right now.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
+  /* off: Turn on, or Skip; on: Next; no apps: Choose apps, which goes back to them */
+  function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : onbNoApps ? 'Choose apps' : 'Turn on', on ? 'next' : onbNoApps ? 'back' : 'hooks'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-[4.5rem] flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
@@ -2018,6 +2021,7 @@
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
+      onbNoApps = noApps(o);
       h = otitle(o, 'Know the moment they need you', 'Your agents tell Perch when they finish or need your OK, and you can answer ' + onLinux('from the notch.', 'right from Perch.')) +
         oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]"><span class="flex-1">Live status</span>' +
           '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
@@ -2049,7 +2053,7 @@
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
-    box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
+    box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; if (on && onbNoApps) return; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
   }
@@ -2139,6 +2143,7 @@
   /* live status turned on or off: the switch slides, the note and the buttons follow */
   function onbLive(o) {
     var on = o.live === 'on', box = q('.onb'), b = box.querySelector('.o-live'), note = box.querySelector('.o-note'), foot = box.querySelector('.o-foot');
+    onbNoApps = noApps(o);
     if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
     if (note) note.textContent = liveNote(on);
     if (foot) { foot.parentNode.innerHTML = liveFoot(on); onbBind(box); }

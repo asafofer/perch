@@ -645,7 +645,7 @@ final class NotchController {
         case "details": if let i = int(body["index"]) { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
-            for agent in HookInstaller.agents where (Prefs.enabledSources.contains(agent) && AgentPresence.installed(.of(agent))) || !on {
+            for agent in HookInstaller.agents where (Prefs.enabledSources.contains(agent) && (["claude", "codex"].contains(agent) || AgentPresence.installed(.of(agent)))) || !on {
                 do { if on { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } }
                 catch { Trace.log("Perch: hooks for \(agent): \(error.localizedDescription)", always: true) }
             }
@@ -899,7 +899,7 @@ final class NotchController {
 
     /// "on" when every enabled agent on this machine has Perch's hook installed.
     private var liveState: String {
-        let on = Prefs.enabledSources.filter { id in HookInstaller.agents.contains(id) && AgentPresence.installed(.of(id)) }
+        let on = Prefs.enabledSources.filter { id in HookInstaller.agents.contains(id) && (["claude", "codex"].contains(id) || AgentPresence.installed(.of(id))) }
         return !on.isEmpty && on.allSatisfy(HookInstaller.isInstalled) ? "on" : "off"
     }
 
