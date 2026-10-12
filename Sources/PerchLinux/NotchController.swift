@@ -85,9 +85,14 @@ final class NotchController {
         panel.onMessage = { [weak self] body in self?.message(body) }
         panel.onLoaded = { [weak self] in guard let self else { return }; self.ready = true; self.iconKeys = nil; self.push() }
         panel.onKey = { [weak self] keyval, keycode, state, isRepeat in
-            self?.key(KeyMap.press(keyval: keyval, keycode: keycode, state: state), isRepeat: isRepeat) ?? false
+            guard let self else { return false }
+            // A modifier going down is the Mac's flagsChanged: the recorder and the held keys hear it, the page gets it too.
+            if let mods = KeyMap.flags(keyval: keyval, state: state, pressed: true) { if !isRepeat { self.modifiersChanged(mods) }; return false }
+            return self.key(KeyMap.press(keyval: keyval, keycode: keycode, state: state), isRepeat: isRepeat)
         }
-        panel.onModifiers = { [weak self] state in self?.modifiersChanged(KeyMap.mods(state: state)) }
+        panel.onKeyUp = { [weak self] keyval, state in
+            if let mods = KeyMap.flags(keyval: keyval, state: state, pressed: false) { self?.modifiersChanged(mods) }
+        }
         // A card that offers Reply: one asking you something has no field to drop into.
         panel.takesFiles = { [weak self] in
             guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }

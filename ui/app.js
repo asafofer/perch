@@ -985,7 +985,7 @@
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
         /* a choice leads with its number, as on the card; an action ends with its keys */
-        var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? b[2] : b[0] === 'reply' ? chord(['\u2318'], b[2]) : chord(['\u2318', '\u2325'], b[2])) + '</kbd>';
+        var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? b[2] : b[0] === 'reply' && !LINUX ? chord(['\u2318'], b[2]) : chord(['\u2318', '\u2325'], b[2])) + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +

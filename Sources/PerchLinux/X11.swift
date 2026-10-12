@@ -41,7 +41,11 @@ enum X11 {
     static func appId(of w: Window) -> String? { strings(w, "WM_CLASS").last?.lowercased() }
     static func title(of w: Window) -> String? { strings(w, "_NET_WM_NAME").first ?? strings(w, "WM_NAME").first }
     /// Top-level windows the window manager manages, bottom to top.
-    static func clientWindows() -> [Window] { cardinals(root, "_NET_CLIENT_LIST_STACKING", type: Atom(XA_WINDOW)).map { Window($0) } }
+    /// Some window managers (xfwm4 4.16) keep no stacking list: then the plain client list, in mapping order.
+    static func clientWindows() -> [Window] {
+        let stacked = cardinals(root, "_NET_CLIENT_LIST_STACKING", type: Atom(XA_WINDOW))
+        return (stacked.isEmpty ? cardinals(root, "_NET_CLIENT_LIST", type: Atom(XA_WINDOW)) : stacked).map { Window($0) }
+    }
 
     /// Asks the window manager to bring a window forward and give it the keyboard (source 2: a pager, which WMs obey
     /// without focus-stealing checks).

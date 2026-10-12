@@ -95,17 +95,11 @@ final class Panel {
             }
         }
         _ = perch_connect(raw(keys), "key-pressed", unsafeBitCast(onKey, to: GCallback.self), me)
-        let onKeyUp: @convention(c) (OpaquePointer?, guint, guint, GdkModifierType, UnsafeMutableRawPointer?) -> Void = { _, _, keycode, _, data in
+        let onKeyUp: @convention(c) (OpaquePointer?, guint, guint, GdkModifierType, UnsafeMutableRawPointer?) -> Void = { _, keyval, keycode, state, data in
             let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
-            MainActor.assumeIsolated { _ = panel.down.remove(keycode) }
+            MainActor.assumeIsolated { _ = panel.down.remove(keycode); panel.onKeyUp?(keyval, state.rawValue) }
         }
         _ = perch_connect(raw(keys), "key-released", unsafeBitCast(onKeyUp, to: GCallback.self), me)
-        let onMods: @convention(c) (OpaquePointer?, GdkModifierType, UnsafeMutableRawPointer?) -> gboolean = { _, state, data in
-            let panel = Unmanaged<Panel>.fromOpaque(data!).takeUnretainedValue()
-            MainActor.assumeIsolated { panel.onModifiers?(state.rawValue) }
-            return 0
-        }
-        _ = perch_connect(raw(keys), "modifiers", unsafeBitCast(onMods, to: GCallback.self), me)
         gtk_widget_add_controller(window, keys)
 
         // Files dragged from the file manager go into the reply as their paths (the Mac's CardWebView), not to WebKit.
@@ -162,8 +156,8 @@ final class Panel {
     /// A key went down on the panel: GDK keyval, X keycode, GdkModifierType, and whether it is the key repeating. True
     /// when the controller took it; otherwise the page gets it.
     var onKey: ((UInt32, UInt32, UInt32, Bool) -> Bool)?
-    /// The modifiers held changed (GdkModifierType).
-    var onModifiers: ((UInt32) -> Void)?
+    /// A key came up: GDK keyval and GdkModifierType (the state before it, as GTK reports it).
+    var onKeyUp: ((UInt32, UInt32) -> Void)?
     private var down: Set<UInt32> = []
     /// Whether the card can take files now (a card with a reply showing or on offer).
     var takesFiles: () -> Bool = { false }

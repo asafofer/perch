@@ -21,6 +21,7 @@ XInitThreads()
 gtk_init()
 if args.contains("--dump") { MainActor.assumeIsolated { Dump.run() }; exit(0) }
 if MainActor.assumeIsolated({ TerminalsDebug.handle(args) }) { exit(0) }
+if MainActor.assumeIsolated({ desktopCheck(args) }) { exit(0) }
 
 /// Where ui/ is: $PERCH_UI, beside the binary (an install), or the checkout's (a build run from the repo).
 func uiFolder() -> URL? {
@@ -49,6 +50,7 @@ final class App {
     func start() {
         guard let ui = uiFolder() else { print("perch: ui/index.html not found (set PERCH_UI)"); exit(1) }
         HookInstaller.upgrade()
+        if Autostart.isOn { Autostart.set(true) }   // launch at login follows the binary if it moved
         let sample = args.contains("--fake") || args.contains("--demo")
         let provider: SessionProviding = sample ? FakeSessionProvider() : RealSessionProvider()
         let c = NotchController(provider: provider, ui: ui)
@@ -61,8 +63,8 @@ final class App {
         let activityIds = Dictionary(uniqueKeysWithValues: activityCodes.keys.sorted().enumerated().map { ($1, UInt32(20 + $0)) })
         c.onActivityKeys = { [hotkeys] keys in
             for (name, id) in activityIds where !keys.contains(name) { hotkeys.unregister(id: id) }
-            // Reply is Super+R, the rest Super+Alt and a key.
-            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? [.command] : [.command, .option], id: id) { c.activityKey(name) } } }
+            // All of them Super+Alt and a key: the Mac's Command+R for Reply would be Super+R, XFCE's run dialog.
+            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: [.command, .option], id: id) { c.activityKey(name) } } }
         }
         hotkeys.onChordTap = { c.chordTap() }
         hotkeys.apply(Prefs.openShortcut)
