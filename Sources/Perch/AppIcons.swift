@@ -9,6 +9,7 @@ enum AppIcons {
         "codex": ("com.openai.codex", "/Applications/Codex.app"),
         // The OpenCode desktop app, when it is installed. pi has no app: the page draws its own mark.
         "opencode": ("ai.opencode.desktop", "/Applications/OpenCode.app"),
+        "conductor": (ConductorApp.bundle, "/Applications/Conductor.app"),
         "xcode": ("com.apple.dt.Xcode", "/Applications/Xcode.app"),
         "numbers": ("com.apple.iWork.Numbers", "/Applications/Numbers.app"),
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),

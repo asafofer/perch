@@ -11,7 +11,7 @@ final class FocusProbe {
         let app: String
         let at: Date
         let looking: Looking
-        /// The Claude app only.
+        /// The Claude app and Conductor: what their window shows (a session, a workspace).
         let claude: ClaudeComposer.Showing
     }
     private(set) var reading: Reading?
@@ -30,7 +30,7 @@ final class FocusProbe {
     private var lastChange = Date.distantPast
     /// Apps this can read. Other terminals and editors cannot be told apart by tab.
     static func reads(_ bid: String) -> Bool {
-        bid == Restorer.claudeApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly"].contains(bid)
+        bid == Restorer.claudeApp || bid == Restorer.conductorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly"].contains(bid)
     }
 
     /// The last reading of `app`, if it is recent enough to trust.
@@ -64,6 +64,7 @@ final class FocusProbe {
     nonisolated private static func read(_ app: String) -> Reading {
         let now = Date()
         if app == Restorer.claudeApp { return Reading(app: app, at: now, looking: .cannotTell, claude: ClaudeComposer.showingNow()) }
+        if app == Restorer.conductorApp { return Reading(app: app, at: now, looking: .cannotTell, claude: ConductorApp.showingNow()) }
         return Reading(app: app, at: now, looking: looking(in: app), claude: .unreadable)
     }
 

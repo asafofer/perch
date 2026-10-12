@@ -42,6 +42,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var focusedAt: Date?
     /// While it works: the step it is on ("Running `swift test`"). The card shows it on a Now row.
     public var now: String?
+    /// Conductor's id for the workspace the session lives in. When set, Pick up opens it in Conductor.
+    public var conductor: String?
     /// Started in a terminal (Claude Code or Codex on the command line), not in an app. Pick up goes back to its tab.
     public var terminal = false
     /// The terminal app it runs in, or would open in (a bundle id). In herdr, the terminal that shows herdr.

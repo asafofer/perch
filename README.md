@@ -46,14 +46,14 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
-**Works with** the Claude app (Code), the Codex app, and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and cmux, and exact panes inside [herdr](https://herdr.dev).
+**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and cmux, and exact panes inside [herdr](https://herdr.dev).
 
 ## Install
 
 | Requirement | |
 |---|---|
 | macOS | 26 or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
-| Agents | The Claude app, the Codex app, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
+| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
 **Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time, right-click Perch and choose **Open**. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).

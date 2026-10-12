@@ -107,11 +107,11 @@ enum Landing {
     case newTerminal(String, cwd: String, agent: String)
 }
 
-/// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex, terminal sessions in their tab,
+/// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex, Conductor workspaces in Conductor, terminal sessions in their tab,
 /// herdr pane or cmux surface, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop"
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", conductorApp = ConductorApp.bundle
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
@@ -130,6 +130,16 @@ enum Restorer {
                     landing = reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id))
                 }
                 DispatchQueue.main.async { MainActor.assumeIsolated { done(landing) } }
+            }
+            return
+        }
+        // A Conductor workspace opens in Conductor, whichever agent runs in it. Its window is read, so this waits off the main thread.
+        if let workspace = p.conductor {
+            ConductorApp.bringForward()
+            let project = p.name
+            DispatchQueue.global(qos: .userInitiated).async {
+                let exact = ConductorApp.open(workspace: workspace, project: project)
+                DispatchQueue.main.async { MainActor.assumeIsolated { done(.app(conductorApp, exact: exact)) } }
             }
             return
         }
