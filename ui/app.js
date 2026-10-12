@@ -1120,7 +1120,7 @@
   function actButtons(p, k) {
     var a = p.ask;
     if (k === 'done') return [['pick', goLabel(p), '\u21a9'], ['reply', 'Reply', 'R']];
-    if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'Y'], ['deny', 'Deny', 'N']];
+    if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'A'], ['deny', 'Deny', 'X']];
     var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
     if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
     if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
