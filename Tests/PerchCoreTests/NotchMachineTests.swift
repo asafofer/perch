@@ -165,10 +165,10 @@ import Testing
         #expect(away.recall(ids: ["a", "b"], now: t0.addingTimeInterval(PutAway.keeps)) == nil)
         #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(10)) == nil)   // archived, or off the list
     }
-    @Test func theListComesBackWithItsFilterOnTheSameRow() {
+    @Test func theListComesBackWithItsFilterOnItsTopRow() {
         let away = PutAway(phase: .switcher, session: "c", query: "web", at: t0)!
         #expect(away.query == "web"); #expect(!away.replying)
-        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: 2))
+        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: nil))   // top row, whatever row it was on
         // its row has gone: the list still comes back, on its top row
         #expect(away.recall(ids: ["a"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: nil))
         #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(PutAway.keeps + 1)) == nil)

@@ -46,12 +46,12 @@ public struct PutAway: Equatable, Sendable {
     }
 
     /// Where to go back to among the sessions listed now (`ids`, in the machine's order). Nil once it is too old, or
-    /// when the card's session has gone; a list whose row has gone comes back on its top row.
+    /// when the card's session has gone; a list always comes back on its top row.
     public func recall(ids: [String], now: Date) -> NotchEvent? {
         guard now.timeIntervalSince(at) < Self.keeps, now >= at.addingTimeInterval(-1) else { return nil }
         let row = session.flatMap { ids.firstIndex(of: $0) }
         if phase == .open { return row.map { .reopen(.open, selected: $0) } }
-        return .reopen(.switcher, selected: row)
+        return .reopen(.switcher, selected: nil)   // the list comes back with its filter, lit on its top row
     }
 }
 
