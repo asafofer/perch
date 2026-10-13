@@ -287,8 +287,6 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
    pass moves it exactly one repeat, so the light comes in from the left, leaves at the right, and the loop has no seam. */
 /* the orb beside a working step (app.js orbFor) draws in the character's colour */
 .o-orb { color: var(--cr); }
-/* a row started from the list, not a session yet (design page: Starting in the list, faded) */
-.row.pend-faded { opacity: .45; }
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
 /* the passing light: a white copy of the same words, the same markup (so a command in code lines up), seen through a moving band */
 .shimmer code, .shimmer strong { color: inherit; }
