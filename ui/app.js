@@ -3178,6 +3178,14 @@
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   var devFrom = '', devSc = Object.assign({}, SC0);
+  /* New session's shortcut, as Settings shows it; while the recorder records it, devSc is its state and Open Perch's waits in devScOpen */
+  var SCN0 = { keys: ['\u2325', '\u2318', 'N'], kind: 'combo', custom: false }, devScNew = Object.assign({}, SCN0), devScOpen = null;
+  /* back from the recorder: what it recorded goes to its own shortcut, and devSc is Open Perch's again */
+  function devScBack() {
+    if (devSc.which !== 'new') return;
+    devScNew = { keys: devSc.keys, kind: devSc.kind, custom: devSc.custom };
+    devSc = devScOpen || Object.assign({}, SC0); devScOpen = null;
+  }
   /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
   /* what Swift sends for "does it work": a tap hears nothing without Accessibility, a combo can be held by another app */
   function devScOut(ax) {
@@ -3208,7 +3216,7 @@
     if (m.type === 'shortcut') {
       if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], pending: [], saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '', pending: [] });
-      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, devSc.which === 'new' ? SCN0 : {}, { which: devSc.which, saved: true }));
       else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
       return;
     }
@@ -3249,7 +3257,7 @@
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
+    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
     if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
@@ -3411,15 +3419,19 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
+        devScBack();
+        if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
-      onboarding: function (step, accessibility, only, live, all, scan) {
-        devSc = only && step === 3 ? Object.assign({}, devSc, { recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
+      onboarding: function (step, accessibility, only, live, all, scan, which) {
+        devScBack();
+        /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
+        if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
+        else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
@@ -3547,7 +3559,7 @@
     /* what you press is only a choice; Return alone saves it, another try replaces it */
     var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [], picks: (devSc.picks || 0) + 1 }); };
     var scSave = function () {
-      var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      var std = devSc.which === 'new' ? SCN0 : SC0, keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === std.keys.join('') && kind === std.kind;
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
     };
     window.perchDev.saveChoice = scSave;
@@ -3577,6 +3589,7 @@
       if (!only || !mods.length) return;
       if (devSc.recording) {
         e.preventDefault(); e.stopImmediatePropagation();
+        if (devSc.which === 'new') { devScSync({ error: 'New session needs a key too, like \u2325\u2318N.', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         var tap = mods.join('');
         if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap], attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
