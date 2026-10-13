@@ -1721,9 +1721,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
-                    // A file copied in Finder pastes as its path, into the prompt (on to it from an earlier step), as on a reply.
-                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-                        self.addPaths(urls.map(\.path)); return nil
+                    // A file copied in Finder, or a picture on the clipboard (a screenshot), is attached, into the prompt (on to it from an earlier step), as on a reply.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
@@ -1735,9 +1735,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
-                    // A file copied in Finder pastes as its path, not its name.
-                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-                        self.addPaths(urls.map(\.path)); return nil
+                    // A file copied in Finder is attached by its path; a picture on the clipboard (a screenshot) is saved and attached the same way.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
