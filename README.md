@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://perchapp.dev">perchapp.dev</a> ·
   <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
   <a href="#shortcuts">Shortcuts</a> ·
@@ -163,4 +164,8 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Credits
 
-Wallpapers by [Raycast](https://www.raycast.com/wallpapers). The working orb is [Thinking Orbs](https://thinkingorbs.com) by Yogesh (MIT). Set in [Inter](https://rsms.me/inter/).
+Wallpapers by [Raycast](https://www.raycast.com/wallpapers). The working orb is [Thinking Orbs](https://thinkingorbs.com) by Yogesh (MIT). Set in [Inter](https://rsms.me/inter/) (SIL Open Font License 1.1, `ui/dist/fonts/OFL.txt`).
+
+## License
+
+[MIT](LICENSE).
