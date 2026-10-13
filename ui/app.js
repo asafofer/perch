@@ -1111,7 +1111,7 @@
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
   var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
   /* what a row says while a file is over it (nwDropRow) */
-  var NW_DZ = '<span class="nw-dz hidden flex-none text-xs font-medium text-foreground">Drop to start</span>';
+  var NW_DZ = '<span class="nw-dz hidden h-5 flex-none items-center rounded-md bg-primary px-1.5 text-[11.5px] font-medium text-primary-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -1165,7 +1165,8 @@
     var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
-      (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
+      (right ? '<span class="nw-right flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') +
+      (nw.step !== 'prompt' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
     if (nw.step === 'app') {
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
@@ -1342,6 +1343,7 @@
     var to = i >= 0 ? i : nwDropWas;
     if (to != null && to !== cur) nwPick(to, true);
     q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('dz', +r.dataset.i === i); });
+    q('.nw').classList.toggle('dropping', x != null);
     if (x == null) nwDropWas = null;
   }
   function nwDragOver(n, x, y) {

@@ -466,5 +466,9 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .r-att, .nw-att { scrollbar-width: none; overscroll-behavior: contain; }
 .r-att::-webkit-scrollbar, .nw-att::-webkit-scrollbar { display: none; }
 /* a file over a new session's agent or folder: that row says Drop to start (app.js nwDropRow) */
+/* the whole card says it takes the file, and the row under it is lit as the prompt is for a drop: brighter, outlined */
+.nw.dropping .nw-right { display: none; }
+.nw.dropping .nw-dhint { display: inline; }
+.nw .nrow.dz { background-color: rgba(255, 255, 255, .16); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .7); }
 .nw .nrow.dz .nw-rt { display: none; }
-.nw .nrow.dz .nw-dz { display: inline; }
+.nw .nrow.dz .nw-dz { display: inline-flex; }
