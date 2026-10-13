@@ -30,7 +30,7 @@ enum NewSessionStarter {
         guard let url = c.url else { return false }
         let bundle = choice.agent == "codex" ? Restorer.codexApp : Restorer.claudeApp
         DispatchQueue.main.sync { _ = NSWorkspace.shared.open(url) }
-        return pressSend(in: bundle, words: prompt, needsYou: needsYou)
+        return pressSend(in: bundle, words: prompt, folder: folder.map { ($0 as NSString).lastPathComponent }, needsYou: needsYou)
     }
 
     /// Your answer, from the notch, to the app asking to trust the new session's folder. Set on the main thread, taken
@@ -47,10 +47,10 @@ enum NewSessionStarter {
     /// Waits for the app's message field to hold exactly these words, then presses its Send. While the app asks you to
     /// trust the folder it waits longer, for your answer on the notch: Perch presses the app's Trust workspace or Cancel
     /// for you. Answered in the app itself, Perch never presses Send after it: a Cancel there stays a Cancel.
-    private static func pressSend(in bundle: String, words: String, needsYou: @escaping @Sendable () -> Void) -> Bool {
+    private static func pressSend(in bundle: String, words: String, folder: String?, needsYou: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
-        var asked = false, sawField = false, trusted = false
+        var asked = false, sawField = false, trusted = false, folderBy: Date?
         trust.reset()
         while Date().timeIntervalSince(began) < (asked ? 120 : 20) {
             defer { Thread.sleep(forTimeInterval: 0.2) }
@@ -65,9 +65,9 @@ enum NewSessionStarter {
             let field = windows.lazy.compactMap { w in first(in: w, { role($0) == "AXTextArea" && classes($0).contains("ProseMirror") && squash(value($0)) == want }) }.first
             if asked, let a = trust.take() {
                 let title = a == .trust ? trustTitles : ["Cancel", "Don't trust", "Don\u{2019}t trust"]
-                if let b = windows.lazy.compactMap({ w in first(in: w, { role($0) == "AXButton" && title.contains(string($0, kAXTitleAttribute)) && inTrustDialog($0) }) }).first {
-                    _ = AXUIElementPerformAction(b, kAXPressAction as CFString)
-                }
+                let b = windows.lazy.compactMap({ w in first(in: w, { role($0) == "AXButton" && title.contains(string($0, kAXTitleAttribute)) && inTrustDialog($0) }) }).first
+                let pressed = b.map { AXUIElementPerformAction($0, kAXPressAction as CFString) == .success } ?? false
+                NSLog("Perch: \(a == .trust ? "Trust" : "Cancel") \(pressed ? "pressed" : "not found") in \(bundle)")
                 if a == .cancel { NSLog("Perch: the new session's folder was not trusted; nothing sent"); return false }
                 trusted = true; continue
             }
@@ -75,6 +75,16 @@ enum NewSessionStarter {
                 sawField = true
                 // Asked to trust and answered in the app, not from the notch: the rest is yours there.
                 if asked, !trusted, !asking { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
+                // Never into another folder than the one you chose: Claude's own folder menu by the field must name it
+                // (after a trust question it can take a moment). Not there in a few seconds, Send is left to you.
+                if let folder, bundle == Restorer.claudeApp, !asking {
+                    let shown = folderMenus(near: field)
+                    if !shown.contains(folder) {
+                        if folderBy == nil { folderBy = Date().addingTimeInterval(6) }
+                        if Date() < folderBy! { continue }
+                        NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you"); return false
+                    }
+                }
                 if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
                     if wait(3, { squash(value(field)).isEmpty ? true : nil }) == nil { NSLog("Perch: the new session's field still holds the words after Send") }
@@ -93,6 +103,18 @@ enum NewSessionStarter {
         }
         NSLog("Perch: new session not sent (\(sawField ? "no Send to press" : "its words never showed in the field"))")
         return false
+    }
+    /// The titles of the menus by the message field (Claude: Local, the folder, ...), a few levels up from it.
+    private static func folderMenus(near field: AXUIElement) -> [String] {
+        var box = field
+        for _ in 0..<7 { guard let up = attr(box, kAXParentAttribute) else { break }; box = up as! AXUIElement }
+        var out: [String] = [], stack = [box], seen = 0
+        while let e = stack.popLast(), seen < 600 {
+            seen += 1
+            if role(e) == "AXPopUpButton" { let t = string(e, kAXTitleAttribute); if !t.isEmpty { out.append(t) } }
+            stack.append(contentsOf: (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+        }
+        return out
     }
     /// The app's windows, the question a new session asks among them.
     private static func windowsOf(_ app: NSRunningApplication) -> [AXUIElement] {

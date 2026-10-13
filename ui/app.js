@@ -1750,6 +1750,11 @@
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
+    /* a new session's app asks to trust its folder: the request is said, not the Starting line it may have come before */
+    if (s.projects.some(function (p) { return p.id === 'new-session' && p.ask && p.ask.kind === 'trust'; })) {
+      if (sentNext && sentNext.p.id === 'new-session') sentNext = null;
+      if (act.mode === 'sent' && act.p && act.p.id === 'new-session' && sent && sent.pending) { clearTimeout(sentT); sent = null; setAct('', null, true); }
+    }
     /* an answer just given on the card: the card closes into the line that says it went */
     if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending, sn.asks); return; }
     sentNext = null;

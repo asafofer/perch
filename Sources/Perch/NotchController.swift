@@ -1008,6 +1008,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Trust or Cancel from the notch. Trusted, it goes on starting; cancelled, nothing is sent and your words wait.
     private func answerTrust(_ choice: String) {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch trust: \(choice), starting \(starting?.state ?? "none")") }
         guard starting?.state == "confirm" else { return }
         NewSessionStarter.trust.answer(choice == "trust" ? .trust : .cancel)
         if choice == "trust" { starting?.state = "starting"; push(); return }
