@@ -50,7 +50,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 .row .rt{display:flex;align-items:center;gap:8px;flex:none;max-width:38%}
 .row .tp{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rk{display:grid;width:16px;height:16px;place-items:center;flex:none}
-.rk > *{grid-area:1/1}
+.rk > *,.ai > *{grid-area:1/1}
 .app{width:20px;height:20px;border-radius:5px;flex:none;background:#27272a;display:block}
 .app.big{width:34px;height:34px;border-radius:8px}
 .sec{padding:6px 16px 3px;font-size:11.5px;line-height:16px;font-weight:500;color:rgba(161,161,170,.8)}
@@ -61,6 +61,11 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 .st{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;flex:none}
 .st .ic{display:inline-grid;place-items:center}
 .st .ic > *{grid-area:1/1}
+/* after: the words, not the spinner, set the line the status sits on, so nothing beside it moves; the spinner's room opens and closes with it */
+.after .st{gap:0}
+.after .st .t-text-swap{align-self:baseline}
+.after .st .ic{width:0;margin-right:0;justify-items:end;transition:width var(--icon-swap-dur) var(--icon-swap-ease),margin-right var(--icon-swap-dur) var(--icon-swap-ease)}
+.after .st .ic.has{width:12px;margin-right:6px}
 .body{margin:10px 16px 0;font-size:13px;line-height:18px}
 .ft{position:relative;height:36px;margin-top:8px;padding:0 10px}
 .ft > div{display:flex;height:36px;align-items:center;gap:2px}
@@ -127,6 +132,8 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 .pn{position:relative;height:138px}
 .pn .pane{padding-top:18px}
 .pn .gear:hover,.pn .gear.hv{background:#27272a;color:#fafafa}
+.cur{position:absolute;z-index:5;right:-6px;top:58px;pointer-events:none;transition:right .38s cubic-bezier(.3,.7,.4,1),top .38s cubic-bezier(.3,.7,.4,1)}
+.cur.on{right:13px;top:35px}
 .before .rv{opacity:0;transform:translateY(5px);filter:blur(3px);transition:all .12s}
 .before .pn[data-s=a] .pa .rv,.before .pn[data-s=b] .pb .rv{opacity:1;transform:none;filter:none;transition:all .4s cubic-bezier(.2,.9,.3,1);transition-delay:calc(.08s + var(--i,0) * .045s)}
 .after .rv{opacity:0;transform:translateY(5px);filter:blur(3px);transition:opacity .12s,transform .12s,filter .12s,background-color .15s,color .15s}
@@ -159,7 +166,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 <div class="wrap">
   <header>
     <h1>Motion, before and after</h1>
-    <p class="sub">Each fix from the transitions.dev review, side by side. <b>Before</b> is Perch as it is now, with the numbers from app.js and input.css. <b>After</b> uses the transitions.dev recipe at its own values. Both sides run on one clock. Slow it down to see the difference.</p>
+    <p class="sub"><b>Left:</b> Perch today. <b>Right:</b> the same moment using the transitions.dev version. Each pair plays on a loop. Set the speed to &frac14;&times; to see the difference clearly.</p>
   </header>
   <div class="bar">
     <span class="lbl">Speed</span>
@@ -270,7 +277,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 1, title: 'The card’s status', where: 'app.js:615 status()', h: 130,
-    why: 'Now the words and the spinner are replaced at once, so Working → Finished just snaps. <b>After:</b> the words swap out and back in with a blur (text-states-swap), and the spinner shrinks away with a blur (icon-swap).',
+    why: 'When a session finishes, the words at the top right of the card change, for example from Working to Finished. <b>Today</b> they change instantly and the spinner just disappears. <b>After:</b> the old word slides up and fades, the new one slides in from below, and the spinner shrinks away.',
     rec: 'text-states-swap + icon-swap',
     steps: [0, 1, 2], hold: 1600,
     before: {
@@ -281,7 +288,8 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
       html: cardTop('<span class="st"><span class="ic"></span><span class="t-text-swap"></span></span>'),
       go: function (el, i, first) {
         var s = ST[i], w = el.querySelector('.t-text-swap');
-        iconSwap(el.querySelector('.ic'), s.spin ? Spinner(12) : '');
+        var ic = el.querySelector('.ic');
+        ic.classList.toggle('has', !!s.spin); iconSwap(ic, s.spin ? Spinner(12) : '');
         if (first) { w.textContent = s.t; w.dataset.t = s.t; w.style.color = s.c; } else swapText(w, s.t, s.c);
       }
     }
@@ -297,7 +305,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 2, title: 'A row’s mark in the list', where: 'app.js:847 rowMark()', h: 150,
-    why: 'Now the list draws the row again, so the spinner jumps straight to the check or the question mark. <b>After:</b> the old mark shrinks and blurs out while the new one sharpens in the same spot (icon-swap). The skill pairs exactly this with a spinner turning into a check.',
+    why: 'Each row in the list has a small icon on the right: a spinner while the session works, a check when it is done, a question mark when it asks you something. <b>Today</b> the icon switches instantly. <b>After:</b> the old icon shrinks and blurs away while the new one grows in its place.',
     rec: 'icon-swap',
     steps: [0, 1, 2], hold: 1500,
     before: { html: listHtml(), go: function (el, i) { el.querySelector('.rk.m').innerHTML = MK[i](); } },
@@ -312,7 +320,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 3, title: 'The card’s footer: buttons ↔ reply field', where: 'app.js:333 footer()', h: 120,
-    why: 'Now the old footer slides up and out while the new one rises in, overlapping, on hand-tuned curves. That works well already. <b>After:</b> the same idea at the recipe’s pace: out up with a blur, then in from below, 150 ms each. The difference is small: Perch’s version is softer, the recipe’s crisper.',
+    why: 'When you press Reply, the buttons at the bottom of the card make way for the text field. Both sides already animate. <b>After</b> is a little quicker and crisper. A small difference: either is fine.',
     rec: 'text-states-swap',
     steps: [0, 1], hold: 1700,
     before: {
@@ -361,7 +369,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   function shimmerOn(el, on) { var nm = el.querySelector('.row.p .nm'); nm.classList.toggle('shimmer', on); nm.querySelector('.shine').style.display = on ? '' : 'none'; }
   FIX.push({
     n: 4, title: 'A new session’s row: Starting… → Started', where: 'app.js:736 pendHtml(), pendIn()', h: 110,
-    why: 'Now the whole label is replaced and slides in from the right. <b>After:</b> “Start” stays where it is, only the ending changes, and the label’s width eases (text-morph). Didn’t start shares nothing with Starting…, so there the whole label cross-blurs. The plane and the ring arrive exactly as they do now.',
+    why: 'When you start a new session from the list, its row says Starting\u2026 and then Started. <b>Today</b> the whole word is replaced and slides in from the right. <b>After:</b> \u201cStart\u201d stays where it is and only the ending changes. The paper plane is the same on both sides.',
     rec: 'text-morph',
     steps: [0, 1, 2, 3], hold: 1500,
     before: {
@@ -400,7 +408,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 5, title: 'The card moves on to the next session', where: 'app.js:605 (Up and Down on a card)', h: 150,
-    why: 'Now the new words appear at once and fade in from a blur, one line after another, with no way out for the old ones. <b>After:</b> each line that changed cross-blurs, old and new together in the same place, and the status’s width eases (text-swap-soft). Perch’s spring for lines that change place stays.',
+    why: 'When you press \u2193 on a card to see the next session, the card\u2019s words change. <b>Today</b> the new words just appear and fade in. <b>After:</b> the old words fade out while the new ones fade in, in the same spot, so it reads as one change.',
     rec: 'text-swap-soft',
     steps: [0, 1], hold: 1900,
     before: {
@@ -440,7 +448,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 6, title: 'A row that didn’t start folds away', where: 'app.js:832 (pending → gone)', h: 150,
-    why: 'Now the row’s height is animated from 36 px to 0, which makes the browser lay out the list again on every frame. <b>After:</b> the row collapses through a grid row (accordion): close to the same look, a little quicker, and the list is laid out only at the start and the end.',
+    why: 'When a new session fails to start, its row disappears from the list. Both sides look almost the same. The difference is invisible: the right side is less work for the computer to draw. Low priority.',
     rec: 'accordion',
     steps: [0, 1], hold: 1400,
     before: {
@@ -463,7 +471,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 
   /* 7. from the list to a card: the panes and their staggered rise */
   function paneHtml() {
-    return '<div class="pc"><div class="pn" data-s="a">' +
+    return '<div class="pc"><span class="cur"><svg width="16" height="20" viewBox="0 0 16 20"><path d="M1 1v15.5l4-3.6 2.6 5.8 2.6-1.1-2.5-5.7H13z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg></span><div class="pn" data-s="b">' +
       '<div class="pane pa"><span class="gear rv" style="--i:0">' + GEAR + '</span><div class="sec rv" style="--i:0">Today</div>' +
         '<div class="row rv" style="--i:1">' + App('claude') + '<span class="nm">Fix the flaky login test</span><span class="tm">2m</span><span class="rt"><span class="rk">' + Ring('done') + '</span></span></div>' +
         '<div class="row rv" style="--i:2">' + App('codex') + '<span class="nm">Move settings to SQLite</span><span class="tm">18m</span><span class="rt"><span class="rk">' + Ring('permission') + '</span></span></div></div>' +
@@ -473,19 +481,19 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
       '</div></div>';
   }
   FIX.push({
-    n: 7, title: 'List ↔ card, and the gear under the pointer', where: 'input.css:46–47 .rv', h: 168,
-    why: 'The staggered rise between panes looks the same on both sides: it is already the texts-reveal idea. The fix is in <code>transition: all</code>, which the skill flags. It also catches hover colours, so the gear (and the close button) light up late and slowly: 0.08 s of delay, then 0.4 s, where Tailwind’s own hover takes 0.15 s. <b>After:</b> only opacity, transform and blur rise; hover colours answer in 0.15 s. Watch the gear when the pointer reaches it, or hover it yourself.',
-    rec: 'texts-reveal, named properties',
-    steps: [0, 1, 2, 3], hold: 1300,
+    n: 7, title: 'Hovering the gear and \u00d7 buttons', where: 'input.css:46–47 .rv', h: 150,
+    why: 'The small gear and \u00d7 buttons at the top of the card light up grey when you point at them. <b>Today</b> that grey arrives late and fades in slowly, because the rule that animates the card opening also slows down these buttons. <b>After:</b> the grey shows up right away, like any other button. The pointer in the demo moves on and off the gear: compare how quickly the grey appears.',
+    rec: 'hover colours not slowed down',
+    steps: [0, 1], hold: 1400,
     before: { html: paneHtml(), go: function (el, i) { paneGo(el, i); } },
     after: { html: paneHtml(), go: function (el, i) { paneGo(el, i); } }
   });
-  /* list, the pointer comes to the gear, card, the pointer comes to the gear */
+  /* the pointer moves onto the gear, waits, and moves away; the gear is lit only while it is there */
   function paneGo(el, i) {
-    var pn = el.querySelector('.pn'), s = i < 2 ? 'a' : 'b';
-    pn.dataset.s = s;
-    pn.querySelectorAll('.gear').forEach(function (g) { g.classList.remove('hv'); });
-    if (i % 2) pn.querySelector('.p' + s + ' .gear').classList.add('hv');
+    var g = el.querySelector('.pb .gear'), cur = el.querySelector('.cur');
+    cur.classList.toggle('on', !!i);
+    if (!i) { g.classList.remove('hv'); return; }
+    wait(function () { if (cur.classList.contains('on')) g.classList.add('hv'); }, 380);
   }
 
   /* 8. a switch in Settings */
@@ -495,7 +503,7 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
   }
   FIX.push({
     n: 8, title: 'A switch in Settings', where: 'input.css:204–206 .sw', h: 100,
-    why: 'Now the knob travels in 0.2 s with one small overshoot. <b>After:</b> the toggle recipe: 0.35 s with a second, smaller settle. It is livelier. This one is optional: Perch’s switch is calmer, and calm may be the point.',
+    why: 'The on/off switches in Settings. <b>After</b> has a bit more bounce. Optional: today\u2019s calmer switch may suit Perch better.',
     rec: 'toggle',
     steps: [0, 1], hold: 1200,
     before: { html: swHtml(), go: function (el, i) { swGo(el, i, false); } },
