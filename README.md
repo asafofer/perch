@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://perchapp.dev">perchapp.dev</a> ·
   <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
   <a href="#shortcuts">Shortcuts</a> ·
