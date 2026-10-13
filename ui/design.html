@@ -841,7 +841,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   tabs.appendChild(none);
   /* it opens on the new session flow, on its first scenario */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'New session') first = gi; });
-  showTab(first); boxes[first].querySelector('.sc').click();
+  /* a demo being filmed (?play=) starts on its own scenarios: this one's timers would play over them */
+  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].querySelector('.sc').click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
