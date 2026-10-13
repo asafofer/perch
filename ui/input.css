@@ -42,9 +42,9 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
-.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
+.n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new, .n[data-s=ns] .p-ns { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
-.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
+.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv, .n[data-s=ns] .p-ns .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
 .notouch { transition: none !important; }
 /* moved to another display: everything takes its place there at once (app.js apply) */
 #scene[data-moved="1"], #scene[data-moved="1"] *, #scene[data-moved="1"] *::before, #scene[data-moved="1"] *::after { transition: none !important; }
@@ -282,6 +282,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-sec.first { padding-top: 0; }
 /* a row with no mark (seen, idle) gives its space to the project */
 .row .rk:empty { display: none; }
+/* a highlight fades in (.13 s) and out (.2 s), quick enough that a fast pass still shows every row; one the pointer only crossed comes on at once, so a quick pass over rows leaves each one seen; .crossed marks a row the pointer crossed between two samples */
+.p-switch .row, .p-set .s-row { transition-duration: .2s; }
+.p-switch.nomark .row.bg-accent { background-color: transparent; }
+.p-switch .row.bg-accent, .p-set .s-row.bg-accent { transition-duration: .13s; }
+.p-switch .row.crossed, .p-set .s-row.crossed { transition-duration: 0s; }
+.row.crossed, .s-row.crossed { background-color: hsl(var(--accent)); }
 /* the working step: grey words with a light passing over them, so it reads as happening rather than as yours to do. A white
    copy of the words (app.js sets data-shine) sits on top, and a soft band of mask moves across it. The mask repeats and each
    pass moves it exactly one repeat, so the light comes in from the left, leaves at the right, and the loop has no seam. */
@@ -321,6 +327,23 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
   100% { rotate: 0deg; translate: 0 0; scale: 1 1; } }
 @media (prefers-reduced-motion: reduce) { .cr-in.giggle { animation: none; } }
 /* replying (app.js showSaid): the agent's message takes the summary's place */
+/* What the agent said can be selected and copied, on the card and in the expanded reply; the rest of the notch cannot. The
+   highlight is the character's colour. A card with words selected stays open (NotchController, `textSelected`). */
+.p-open .o-h, .p-open .o-c, .p-open .o-x, .p-open .o-ask, .o-said-in { user-select: text; -webkit-user-select: text; cursor: text; }
+.p-open .o-x .shine, .p-open .o-ask button { user-select: none; -webkit-user-select: none; }
+/* The character's colour lifted toward white, so it reads the same on every colour (Saffron would go olive on black). */
+.perch { --hl: color-mix(in srgb, var(--cr) 62%, #fff); }
+.p-open ::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
+/* The highlight is drawn by the page (app.js `hlDraw`): one soft, rounded piece per line that fades in, screened over the
+   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. */
+html:not([data-hl=native]) .p-open ::selection { background: transparent; }
+.hl { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.hl i { position: absolute; border-radius: 4px; background: var(--hl); opacity: .3; mix-blend-mode: screen; transition: opacity .12s; }
+.hl i.in { opacity: 0; }
+/* copied: the highlight brightens for a beat and settles back */
+.hl.copied i { animation: hl-copied .5s cubic-bezier(.2,.8,.3,1); }
+@keyframes hl-copied { 0% { opacity: .3; } 18% { opacity: .62; background: color-mix(in srgb, var(--hl) 60%, #fff); } 100% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .hl i { transition: none; } .hl.copied i { animation-duration: .25s; } }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
 .p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }

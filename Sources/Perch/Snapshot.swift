@@ -139,6 +139,9 @@ struct UISnapshot: Encodable {
     var quiet = false
     /// An update of Perch itself: checking, offered, downloading, restarting, updated.
     var update: UpdateInfo?
+    /// The first start after an update: what is new (phase "whatsnew").
+    var whatsNew: WhatsNewCard?
+    struct WhatsNewCard: Encodable { let version: String; let headline: String; let bullets: [String] }
     /// This build can look for updates, so Settings offers it.
     var canUpdate = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
@@ -159,7 +162,7 @@ struct UISnapshot: Encodable {
         let pick = ProcessInfo.processInfo.environment["PERCH_CHARACTER"]?.split(separator: ",").map(String.init)
         character = pick?.count == 2 ? Character(shape: pick![0], color: pick![1]) : Character(shape: Prefs.shape, color: Prefs.color)
         self.icons = icons; self.activeId = activeId; self.activeIds = activeIds; self.scanning = scanning; self.canSend = canSend
-        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .onboarding: "onboarding"; case .settings: "settings"; case .newSession: "newSession" }
+        phase = switch machine.phase { case .idle: "idle"; case .open: "open"; case .switcher: "switcher"; case .restoring: "restoring"; case .onboarding: "onboarding"; case .settings: "settings"; case .whatsNew: "whatsnew"; case .newSession: "newSession" }
         selected = machine.selected
         autoCollapse = machine.autoCollapses && allowAutoCollapse
         self.timerToken = timerToken

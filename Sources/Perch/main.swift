@@ -58,6 +58,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updater.isQuiet = { [weak c] in c?.isQuiet ?? true }
         updater.onChange = { [weak c] info in c?.updateInfo = info }
         c.onUpdateAction = { [weak self] action in self?.updater.handle(action) }
+        updater.onWhatsNew = { [weak c] version, notes in c?.showWhatsNew(version: version, notes: notes) }
+        // What is new has one key, Command+Option+Return, registered only while the card shows.
+        c.onWhatsNewKey = { [hotkeys] on in
+            if on { hotkeys.register(keyCode: kVK_Return, modifiers: cmdKey | optionKey, id: 40) { c.whatsNewDone() } } else { hotkeys.unregister(id: 40) }
+        }
+        // --whats-new plays the card with this build's notes (or the demo's), as the first start on a new version would.
+        if args.contains("--whats-new") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [updater] in c.showWhatsNew(version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "", notes: updater.bundledNotes ?? Updater.demoNotes) }
+        }
         if args.contains("--update-demo") { updater.demo() } else if !sample { updater.start() }
         c.canUpdate = updater.canCheck
 

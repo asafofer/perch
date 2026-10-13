@@ -32,10 +32,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The pointer is on something to click, the page says (from what it marks under the pointer). WebKit shows the hand
     /// itself only on a card with the keyboard; a card without it hears no pointer moves, so Perch shows it.
     private var handCursor = false
+    /// The pointer is on words that can be selected (the page says), so Perch shows the I-beam on a card without the keyboard.
+    private var textCursor = false
+    /// Words are selected on the card. It stays open while they are: no countdown, and the pointer can leave it.
+    private var textSelected = false
     /// When the cursor left a hover-opened card. It closes only if it stays away for a moment.
     private var leftCardAt: Date?
     /// Opened by resting on the notch: no countdown, and it closes the moment the cursor leaves the card.
     private var openedByHover = false
+    /// The list has a row lit (the page says: the pointer is on one, or the keys chose it). With none, Return, Right and Tab open nothing.
+    private var listMarked = true
     private var openedAt = Date.distantPast
     /// Perch spoke up on its own: it must not take the keyboard from whatever you are typing in. A click gives it focus.
     private var proactiveOpen = false
@@ -49,6 +55,20 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// An update of Perch itself, as the page draws it (Updater).
     var updateInfo: UpdateInfo? { didSet { if updateInfo != oldValue { push() } } }
     var onUpdateAction: ((String) -> Void)?
+    /// The first start after an update has something to say: what is new, held until Perch can show it (nothing else on the
+    /// notch, no call). It takes no keyboard; Command+Option+Return is Got it, registered only while it shows.
+    private var whatsNew: (version: String, notes: UpdateNotes)?
+    var onWhatsNewKey: ((Bool) -> Void)?
+    func showWhatsNew(version: String, notes: UpdateNotes) { whatsNew = (version, notes); tryWhatsNew(0) }
+    private func tryWhatsNew(_ tries: Int) {
+        guard whatsNew != nil, tries < 40 else { if tries >= 40 { whatsNew = nil }; return }
+        guard ready, machine.phase == .idle, activityMode == "", !quietNow() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.tryWhatsNew(tries + 1) }
+            return
+        }
+        openedByHover = false; proactiveOpen = false; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.openWhatsNew)
+    }
+    func whatsNewDone() { if machine.phase == .whatsNew { send(.confirm) } }
     var canUpdate = false
     /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
     var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
@@ -683,12 +703,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let away = awaySinceForCard, now = Date()
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen,
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen && !textSelected,
                           activeId: nil, activeIds: machine.phase == .idle ? youAreIn().maybe.sorted() : [],
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
+        if machine.phase == .whatsNew, let w = whatsNew { sent.whatsNew = .init(version: w.version, headline: w.notes.headline, bullets: w.notes.bullets) }
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
@@ -721,6 +742,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
+        if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
             if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
@@ -742,7 +764,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if let pending = self.pendingProjects { self.pendingProjects = nil; self.install(pending) } else { self.push() }
                 self.refreshProjects()
             }
-            timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true
+            timer?.cancel(); stopKeys(); panel.allowsKey = false; panel.ignoresMouseEvents = true; textSelected = false
             // The card had the keyboard: hand it back to the app you were in. A key window stays key after it can no
             // longer become key, and the panel never leaves the screen, so step out and back in.
             if panel.isKeyWindow { panel.orderOut(nil); panel.orderFrontRegardless() }
@@ -758,6 +780,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case .settings:
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
             watchOnboarding()
+        case .whatsNew:
+            // It opened by itself: no keyboard, so nothing typed behind it lands here. Its key is a global one, only while it shows.
+            timer?.cancel(); panel.allowsKey = false; panel.ignoresMouseEvents = false; onWhatsNewKey?(true)
         case .newSession:
             // Asked for, so it takes the keyboard: the prompt is typed here.
             timer?.cancel()
@@ -775,7 +800,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
         // Only a card Perch opened on its own counts down. One you asked for stays until you are done with it.
-        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen else { return }
+        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen, !textSelected else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -976,6 +1001,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             push()
         case "dismiss": send(.dismiss)
+        case "whatsnew": whatsNewDone()
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
@@ -1072,9 +1098,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "activitySeen":
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
+        case "marked": listMarked = body["on"] as? Bool ?? true
         case "hand":
             handCursor = body["on"] as? Bool ?? false
-            if !handCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
+            textCursor = body["text"] as? Bool ?? false
+            if !handCursor, !textCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
+        case "selected":
+            // Selected with a press, which gives the card the keyboard; if it did not, it takes it now, for Command+C.
+            textSelected = body["on"] as? Bool ?? false
+            if textSelected, machine.phase != .idle, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
+            restartTimer(); push()
         case "log": NSLog("Perch UI: \(body["text"] ?? "")")
         default: break
         }
@@ -1592,6 +1625,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return e
             }
+            // Words selected on the card: Command+C copies them. Perch has no Edit menu to do it.
+            if self.textSelected, e.modifierFlags.intersection([.command, .option, .control, .shift]) == .command,
+               KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "c" {
+                NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: self); return nil
+            }
             // Letters by what they type, so N, R and the comma work on any Latin layout; on Hebrew and other layouts, by their place on a US keyboard.
             // Digits also by position (AZERTY).
             let ch = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
@@ -1615,15 +1653,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Typing narrows the list. Backspace edits, Esc clears what you typed before it closes anything.
                 if e.keyCode == 51 { if !self.listQuery.isEmpty { self.listQuery.removeLast(); self.filterChanged() }; return nil }
                 if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
-                if e.keyCode == 125 || e.keyCode == 126 { self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
+                if e.keyCode == 125 || e.keyCode == 126 { self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
                 let typed = e.characters ?? ""
                 if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1,
                    typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
-                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.filterChanged() }
+                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.filterChanged() }
                     return nil
                 }
                 // Nothing left to open or look at when nothing matches.
-                if [36, 76, 48, 124].contains(e.keyCode), ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
+                if [36, 76, 48, 124].contains(e.keyCode), !self.listMarked || ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
             }
             if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
@@ -1696,6 +1734,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 self.mouseMoved()
                 self.watchLaunchers()
                 if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
+                else if self.textCursor, !self.panel.isKeyWindow, self.machine.phase != .idle { NSCursor.iBeam.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
@@ -1874,8 +1913,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         panel.ignoresMouseEvents = !inside
         if inside, !pointerOnCard, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
         pointerOnCard = inside
-        // Writing a reply makes the card yours: it stays when the pointer wanders off, until a click elsewhere or Esc.
-        if openedByHover, !replyOpen, Date().timeIntervalSince(openedAt) > 0.5 {
+        // Writing a reply, or words selected to copy, make the card yours: it stays when the pointer wanders off, until a
+        // click elsewhere or Esc.
+        if openedByHover, !replyOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }

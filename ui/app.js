@@ -221,12 +221,15 @@
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
     '</div></div>' +
     /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
-    '<div class="pane p-new">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
+    /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
+    '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8 pb-2"><div class="wn"></div></div></div>' +
     '</div></div>';
 
   /* Inline markdown for summaries: **bold**, *italic*, `code`, [links](url) as plain text. Escaped first, so nothing can inject markup. */
@@ -254,7 +257,7 @@
     var flushText = function () { if (text.length) out += '<p dir="auto" class="my-2">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
     var flushItems = function () {
       if (items.length) out += '<ul class="my-2 flex flex-col gap-0.5">' + items.map(function (it) {
-        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
+        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="md-mk flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
       }).join('') + '</ul>';
       items = []; stack = [];
     };
@@ -611,6 +614,12 @@
   function status(html, title) {
     var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
   }
+  /* Words are put in only when they change: the snapshot comes again every refresh, and new nodes would drop a selection
+     you are making in them. Written by anything else meanwhile (a question's card), they are put in again. */
+  function setWords(el, html) {
+    if (el._put === html && el.innerHTML === el._was) return;
+    el.innerHTML = html; el._put = html; el._was = el.innerHTML;
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -627,11 +636,11 @@
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
-      h.textContent = a.kind === 'question' ? a.subject : a.title;
-      c.textContent = a.kind === 'plan' ? a.subject : '';
-      box.innerHTML = a.kind === 'permission' && a.subject
+      setWords(h, esc(a.kind === 'question' ? a.subject : a.title));
+      setWords(c, a.kind === 'plan' ? esc(a.subject) : '');
+      setWords(box, a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
-        : '';
+        : '');
     } else {
       /* "You were creating a database." becomes the grey line under the title, "Creating a database"; a headline that only
          repeats the title is left out. What happened is the body, in white, two lines at most. */
@@ -640,9 +649,9 @@
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
       if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
-      else h.innerHTML = said ? '' : md(p.headline);
-      c.innerHTML = ''; box.innerHTML = '';
+      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      else setWords(h, said ? '' : md(p.headline));
+      setWords(c, ''); setWords(box, '');
     }
     c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -656,7 +665,7 @@
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
-    q('.o-x').innerHTML = md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : '');   /* the light's copy of the words, markup and all */
+    setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
@@ -784,12 +793,14 @@
         r.onmouseenter = function () {
           hovered = r; marquee(r);
           var i = +r.dataset.i;
-          if (!ptrMoved() || i === (pend >= 0 ? pend : lastSel)) return;
-          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 400);
+          if (!ptrMoved()) return;
+          listKb = false; markList();
+          if (i === (pend >= 0 ? pend : lastSel)) return;
+          pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 800);
           sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
           post({ type: 'pick', index: i });
         };
-        r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); };
+        r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); markList(); };
       });
     }
     var sel = null, cs = pend >= 0 && s.selected !== pend ? pend : s.selected;
@@ -822,6 +833,7 @@
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
     if (sel && cs !== lastSel && !reading) { var row = sel; setTimeout(function () { switched(s.projects[cs], row); }, 0); }
+    if (cs !== lastSel && lastSel >= 0 && cs !== ptrPick) { listKb = true; markList(); }   /* chosen by the keys: its row shows again */
     if (cs !== lastSel && lastSel >= 0) keyPtr = ptrAt.slice();   /* chosen by the keys (or the pointer: the same spot): a row sliding under a still pointer must not take it back */
     if (cs !== lastSel || !hovered) { lastSel = cs; marquee(sel); }
   }
@@ -840,6 +852,18 @@
   }
   /* A row cut short reads itself out: after a second on it (hovered or chosen), its text glides left to the end, rests, and comes back. */
   var mq = { el: null, t: 0, anims: [] }, hovered = null;
+  /* The list's choice shows only while the pointer is on a row or the keys made it: a pointer that has left leaves no row lit
+     (the choice itself stays, for Return, until the keys or the pointer move it). */
+  var listKb = true;
+  var listShown = true;
+  /* from where the pointer is, not from enter and leave: a pointer that WebKit never reported moving (a list hovered open) gets
+     its leave events played by the page (hoverAt), and a late leave from the row it came from can arrive after the next row's enter */
+  function overRow() { var e = ptrAt[0] >= 0 ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null; return !!(e && e.closest && e.closest('.p-switch .row')); }
+  function markList() {
+    var pn = q('.p-switch'), lit = listKb || overRow();
+    if (pn) pn.classList.toggle('nomark', !lit);
+    if (lit !== listShown) { listShown = lit; post({ type: 'marked', on: lit }); }   /* Return, Right and Tab open nothing while no row is lit */
+  }
   function marquee(row) {
     if (row && mq.el === row) return;
     clearTimeout(mq.t); mq.anims.forEach(function (a) { a.cancel(); });
@@ -963,7 +987,7 @@
       q('.nw-back').onclick = nwBack;
       setTimeout(function () { ta.focus({ preventScroll: true }); var e = ta.value.length; ta.setSelectionRange(e, e); }, entering ? 260 : 0);
     }
-    if (snap) layout('new', snap);
+    if (snap) layout('ns', snap);
     nwShow(); nwSeen();
   }
   function nwHints() { return '<div class="flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground">' + [].map.call(arguments, function (h) { return '<span class="flex items-baseline gap-1.5">' + (h[0] === '\u2191\u2193' ? Keys('\u2191', '\u2193') : Kbd(h[0])) + h[1] + '</span>'; }).join('') + '</div>'; }
@@ -977,7 +1001,7 @@
     var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
     l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
   }
-  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('new', snap); }
+  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
@@ -1024,7 +1048,7 @@
   }
   function newFly(text) {
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var pane = q('.p-new'), ta = q('.nw-in'), pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var pane = q('.p-ns'), ta = q('.nw-in'), pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
     var rows = [].slice.call(q('.nw').children).reverse();
     var gone = rows.map(function (el, i) { return el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }); });
     var b = document.createElement('div'); b.className = 'fly'; b.textContent = text; pane.appendChild(b);
@@ -1133,7 +1157,7 @@
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
-      : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
+      : st === 'new' ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
@@ -1640,6 +1664,23 @@
     });
   }
   var verSig = '';
+  /* What is new, after an update. The card says it once: Perch and its version, the headline, then the few lines behind it (six show,
+     the rest scroll). It opens by itself, so it takes no keys; Got it goes on to the list. */
+  var wnSig = '';
+  function whatsNew(w) {
+    if (!w) return;
+    var sig = JSON.stringify(w); if (sig === wnSig) return; wnSig = sig;
+    var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
+    var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
+      return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
+    }).join('') + '</div>' : '';
+    q('.wn').innerHTML =
+      header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
+      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list +
+      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:3">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+    var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
+    q('.wn-ok').onclick = function () { post({ type: 'whatsnew', action: 'done' }); };
+  }
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
     /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
@@ -1648,7 +1689,7 @@
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
@@ -1658,10 +1699,11 @@
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
+    if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 3; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; appsAt = 0; appsOpen = false; showOpen = false; }
+      if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
+    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
     if (st !== 'open') orbFor('');
@@ -1671,7 +1713,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'new') newApply(s.newSession || {}, !nw.on); else nw.on = false;
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else nw.on = false;
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -1692,6 +1734,8 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    if (selOn || st !== 'open') selCheck();
+    if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
     var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
@@ -1793,7 +1837,26 @@
      mouseenter too (here and from WebKit); that must not pull the keyboard's choice back to the pointer. Only a pointer that moved does. */
   var ptrAt = [-1, -1], keyPtr = null;
   function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  /* The pointer is sampled, not followed: a quick pass skips rows, and a skipped row never gets its mouseenter. Walk the
+     line from the last sample to this one and give each list or settings row it crossed a brief flash (.crossed, in input.css),
+     on in a frame and fading out, so every row the pointer went over shows it. Only looks; the choice stays with the row it stops on. */
+  var swAt = null, swT = 0;
+  function sweep(x, y) {
+    var p = swAt, now = Date.now(); swAt = [x, y];
+    if (!p || now - swT > 120) { swT = now; return; }
+    swT = now;
+    var dx = x - p[0], dy = y - p[1], n = Math.floor(Math.hypot(dx, dy) / 6), last = null;
+    for (var i = 1; i < n; i++) {
+      var el = document.elementFromPoint(p[0] + dx * i / n, p[1] + dy * i / n), r = el && el.closest && el.closest('.row, .s-row');
+      if (r) last = r;
+      if (r && !r.classList.contains('crossed')) { r.classList.add('crossed'); setTimeout(function (r) { r.classList.remove('crossed'); }.bind(null, r), 30); }
+    }
+    /* A pointer that leaves the rows within one step (out of the card, or up to the notch) never entered the last row it
+       crossed: its choice would stay on an earlier one. The last row it went over is the one it left from. */
+    var end = document.elementFromPoint(x, y);
+    if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
+  }
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1801,13 +1864,83 @@
     chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
     hvEls = chain;
     if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
-    hand(!!el && getComputedStyle(el).cursor === 'pointer');
+    var cur = el ? getComputedStyle(el).cursor : '';
+    hand(cur === 'pointer', cur === 'text');
   }
   /* WebKit shows the hand only on a card with the keyboard; on one without, Swift shows it when the page says */
-  var handOn = false;
-  function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
+  var handOn = false, beamOn = false;
+  function hand(on, text) { text = !on && !!text; if (on !== handOn || text !== beamOn) { handOn = on; beamOn = text; post({ type: 'hand', on: on, text: text }); } }
+  /* Words selected on the card: Swift keeps the card open while they are (it would close as the pointer leaves, or when its
+     time is up) and sends Command+C to them. A selection on words no longer showing (the reply closed) or in the reply
+     field does not count, and goes when the card closes. */
+  var selOn = false;
+  function selCheck() {
+    var s = window.getSelection(), node = s && s.rangeCount && !s.isCollapsed ? s.anchorNode : null;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var on = !!(el && lastSt === 'open' && document.activeElement !== rIn && q('.p-open').contains(el) && el.getClientRects().length && String(s).trim());
+    if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
+    if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
+    hlDraw();
+  }
+  document.addEventListener('selectionchange', selCheck);
+  /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
+     them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
+     highlight stays underneath, hidden, and is what gets copied. */
+  var hlLayer = document.createElement('div'); hlLayer.className = 'hl'; hlLayer.setAttribute('aria-hidden', 'true'); q('.p-open').appendChild(hlLayer);
+  function hlDraw() {
+    var s = window.getSelection(), lines = [];
+    if (selOn && document.documentElement.dataset.hl !== 'native' && s.rangeCount) {
+      var r = s.getRangeAt(0), pr = q('.p-open').getBoundingClientRect(), clips = new Map();
+      var clip = function (el) {
+        if (clips.has(el)) return clips.get(el);
+        var c = el.classList.contains('p-open') || !el.parentElement ? { l: -1e4, t: -1e4, r: 1e4, b: 1e4 } : clip(el.parentElement), cs = getComputedStyle(el);
+        if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') { var b = el.getBoundingClientRect(); c = { l: Math.max(c.l, b.left), t: Math.max(c.t, b.top), r: Math.min(c.r, b.right), b: Math.min(c.b, b.bottom) }; }
+        clips.set(el, c); return c;
+      };
+      var root = r.commonAncestorContainer, w = document.createTreeWalker(root.nodeType === 1 ? root : root.parentNode, NodeFilter.SHOW_TEXT), t;
+      while ((t = w.nextNode())) {
+        if (!r.intersectsNode(t) || !t.parentElement.closest('.p-open') || t.parentElement.closest('.shine, button, .md-mk')) continue;   /* a list's marker is copied, not lit */
+        var sr = document.createRange(); sr.selectNodeContents(t);
+        if (t === r.startContainer) sr.setStart(t, r.startOffset);
+        if (t === r.endContainer) sr.setEnd(t, r.endOffset);
+        var c = clip(t.parentElement);
+        [].forEach.call(sr.getClientRects(), function (b) {
+          var x = { l: Math.max(b.left - 2, c.l), t: Math.max(b.top, c.t), r: Math.min(b.right + 2, c.r), b: Math.min(b.bottom, c.b) };
+          if (b.width > 1 && x.r - x.l > 2 && x.b - x.t > 2) lines.push(x);
+        });
+      }
+      /* pieces on the same line (a word in code, a bold one) become one */
+      lines.sort(function (a, b) { return a.t - b.t || a.l - b.l; });
+      lines = lines.reduce(function (out, x) {
+        var y = out[out.length - 1];
+        if (y && Math.min(y.b, x.b) - Math.max(y.t, x.t) > Math.min(y.b - y.t, x.b - x.t) / 2) { y.l = Math.min(y.l, x.l); y.r = Math.max(y.r, x.r); y.t = Math.min(y.t, x.t); y.b = Math.max(y.b, x.b); }
+        else out.push(x);
+        return out;
+      }, []);
+      lines.forEach(function (x) { x.l -= pr.left; x.r -= pr.left; x.t -= pr.top; x.b -= pr.top; });
+    }
+    var have = hlLayer.children;
+    while (have.length > lines.length) hlLayer.removeChild(have[have.length - 1]);
+    lines.forEach(function (x, i) {
+      var el = have[i];
+      if (!el) { el = document.createElement('i'); el.className = 'in'; hlLayer.appendChild(el); requestAnimationFrame(function () { el.classList.remove('in'); }); }
+      el.style.cssText = 'left:' + x.l + 'px;top:' + x.t + 'px;width:' + (x.r - x.l) + 'px;height:' + (x.b - x.t) + 'px';
+    });
+  }
+  document.addEventListener('scroll', function () { if (selOn) hlDraw(); }, true);
+  /* copied (Command+C, or Copy from the menu): the highlight brightens for a beat, so you know it went */
+  document.addEventListener('copy', function () {
+    if (!selOn) return;
+    hlLayer.classList.remove('copied'); void hlLayer.offsetWidth; hlLayer.classList.add('copied');
+  });
+  hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
+  /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
+  document.addEventListener('keydown', function (e) {
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
+  }, true);
   function cursor(x, y) {
-    ptrAt = [x, y];
+    ptrAt = [x, y]; sweep(x, y); if (lastSt === 'switch') markList();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -2448,7 +2581,7 @@
       /* the keys, like the list's: every setting can be changed without the mouse */
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
       '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
-    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; paintFocus(); } }); });
+    box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
       var on = b.getAttribute('aria-checked') !== 'true';
@@ -2608,7 +2741,7 @@
     paintFocus();
   }
   /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
-  var setFocus = 0, appsAt = 0, liveNext = false;
+  var setFocus = 0, appsAt = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
   /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
   function flashLive() {
     var r = q('.set').querySelectorAll('.s-row')[3];
@@ -2617,7 +2750,7 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-white/[0.06]', i === setFocus && !appsOpen && !notOpen && !showOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen); });
     var sitems = box.querySelectorAll('.s-sitem');
     showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
     sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
@@ -2630,7 +2763,7 @@
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
   function settingsKey(k) {
-    keyPtr = ptrAt.slice();
+    keyPtr = ptrAt.slice(); setKb = true;
     var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
     if (appsOpen) {
@@ -2710,10 +2843,10 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', newSession: 'new' }[snap.phase], snap); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -2764,6 +2897,7 @@
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
     if (m.type === 'newSession') { devNew(m); return; }
+    if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
@@ -2924,6 +3058,9 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
+      hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
+      tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
@@ -2985,6 +3122,14 @@
         if (o.stay && snap && (snap.phase === 'switcher' || snap.phase === 'open' || snap.phase === 'settings')) { apply(Object.assign({}, snap, { update: base.update, timerToken: Math.random() })); return; }
         apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: base.update }));
       },
+      /* the card that says what is new, on the first start after an update; `o.long` is a long list, `o.plain` a release with only a headline */
+      whatsNew: function (o) {
+        o = o || {}; d0(); window.perchDev.updStop(); actGone = {};
+        var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
+        var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
+        apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
+          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets } }));
+      },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
         var me = ++updTok, at = function (ms, f) { setTimeout(function () { if (me === updTok) f(); }, ms); }, sc = document.getElementById('scene'), D = window.perchDev, t = 0;
@@ -2992,7 +3137,7 @@
         at(t, function () { D.update('restarting', { fresh: false }); });
         at(t + 2300, function () { sc.style.transition = 'opacity .25s'; sc.style.opacity = '0'; });
         at(t + 3700, function () { D.update(null); sc.style.opacity = '1'; });
-        at(t + 4400, function () { D.update('updated', { fresh: false }); });
+        at(t + 4400, function () { D.whatsNew(); });
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
@@ -3101,6 +3246,8 @@
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
       if (ph === 'newSession') { if (e.target && e.target.classList && e.target.classList.contains('nw-in')) return; if (newKey(e)) e.preventDefault(); return; }
+      /* Got it on the what's new card: Command+Option+Return, a key that never types into anything behind the card (the app registers it only while the card shows) */
+      if (ph === 'whatsnew' && e.metaKey && e.altKey && e.key === 'Enter') { e.preventDefault(); post({ type: 'whatsnew', action: 'done' }); return; }
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
       if (ph === 'onboarding' && !(devSc && devSc.recording) && (e.key === 'c' || e.key === 'C') && onbStep === 3) { e.preventDefault(); onbKey('change'); return; }
       if (ph === 'onboarding' && (arrows[e.key] || e.key === 'Enter' || e.key === 's' || e.key === 'S')) { e.preventDefault(); onbKey(arrows[e.key] || (e.key === 'Enter' ? 'enter' : 'skip')); return; }

@@ -165,10 +165,10 @@ import Testing
         #expect(away.recall(ids: ["a", "b"], now: t0.addingTimeInterval(PutAway.keeps)) == nil)
         #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(10)) == nil)   // archived, or off the list
     }
-    @Test func theListComesBackWithItsFilterOnTheSameRow() {
+    @Test func theListComesBackWithItsFilterOnItsTopRow() {
         let away = PutAway(phase: .switcher, session: "c", query: "web", at: t0)!
         #expect(away.query == "web"); #expect(!away.replying)
-        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: 2))
+        #expect(away.recall(ids: ["a", "b", "c"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: nil))   // top row, whatever row it was on
         // its row has gone: the list still comes back, on its top row
         #expect(away.recall(ids: ["a"], now: t0.addingTimeInterval(5)) == .reopen(.switcher, selected: nil))
         #expect(away.recall(ids: ["a", "c"], now: t0.addingTimeInterval(PutAway.keeps + 1)) == nil)
@@ -220,5 +220,21 @@ import Testing
         let away = PutAway(phase: .open, session: "b", at: Date())!
         m.send(away.recall(ids: ["a", "b", "c"], now: Date())!)
         #expect(m.phase == .open); #expect(m.selected == 1)
+    }
+
+    @Test func whatsNewConfirmedGoesOnToTheList() {
+        var m = NotchMachine(projectCount: 3); m.send(.openWhatsNew)
+        #expect(m.phase == .whatsNew)
+        m.send(.confirm); #expect(m.phase == .switcher); #expect(m.selected == 0)
+    }
+    @Test func whatsNewDismissedGoesAway() {
+        var m = NotchMachine(projectCount: 3); m.send(.openWhatsNew); m.send(.dismiss)
+        #expect(m.phase == .idle)
+    }
+    @Test func whatsNewOnlyOpensFromRest() {
+        var m = NotchMachine(projectCount: 3); m.send(.openSwitcher); m.send(.openWhatsNew)
+        #expect(m.phase == .switcher)   // something is up: it waits
+        var e = NotchMachine(projectCount: 0); e.send(.openWhatsNew); e.send(.confirm)
+        #expect(e.phase == .switcher)   // an empty list says so, as when asked for
     }
 }
