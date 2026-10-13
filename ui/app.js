@@ -1182,10 +1182,11 @@
   };
   function actKind(p) {
     if (p.update) return 'update';
+    if (p.access) return 'access';
     if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
     return p.status.kind === 'attention' ? 'need' : 'done';
   }
-  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
+  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.access ? 'access|' + p.access.phase + '|' + (p.access.since || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
   /* what you can do from here, as [action, label, key]; the first one is the main one */
   function actButtons(p, k) {
     var a = p.ask;
@@ -1219,6 +1220,7 @@
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
+    if (k === 'access') { renderAccess(p.access); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
@@ -1284,6 +1286,28 @@
     var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
     if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
     var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
+    actGlide();
+  }
+  /* Accessibility Perch had, gone: an update signed another way (macOS ties the grant to the signature) or a switch turned off
+     in System Settings. The notch says it once, at a quiet moment, in the same row as an update: the character, Needs access
+     in orange, one line on what waits, and Allow for the mouse (it opens by itself, so no keys). Allow clears the stale switch
+     and opens System Settings; the row waits there until the switch is on, says Allowed and folds away. */
+  function accP(a) { return { id: 'perch-access', name: 'Perch', topic: 'Perch', app: 'perch', access: a, status: { kind: 'idle', text: 'Accessibility', app: 'perch' } }; }
+  function renderAccess(a) {
+    var ph = a.phase;
+    var words = { lost: 'Needs access', asked: 'Turn it on', granted: 'Allowed' }[ph];
+    var mark = ph === 'granted' ? Ring('done') : ph === 'asked' ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var line = ph === 'lost' ? (a.afterUpdate ? 'macOS asks again after an update. Command+Option and replies wait.' : 'Accessibility is off. Command+Option and replies wait until it is on.')
+      : ph === 'asked' ? 'Turn Perch on in System Settings, under Accessibility.' : '';
+    var btn = function (x, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + x + '"><span class="act-bl">' + label + '</span></button>'; };
+    var btns = '', keys = ['gone'];
+    if (ph === 'lost') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Allow', true); }
+    if (ph === 'asked') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Open System Settings'); }
+    act.keys = keys;
+    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), 'awake') + '<span class="act-n"><span class="mq-in">Perch</span></span></span>' +
+      '<span class="act-r"><span class="act-s' + (ph === 'granted' ? ' ok' : ph === 'asked' ? ' mu' : '') + '">' + words + '</span>' + mark + '</span>' +
+      (line ? '<div class="act-body fail" data-h="32"><span dir="auto" class="act-t">' + esc(line) + '</span></div>' : '') + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
     actGlide();
   }
   /* A name that does not fit, beside the camera or on the row below, reads itself out as a list row does: after a moment it
@@ -1468,6 +1492,17 @@
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
     if (act.mode === 'sent') return;
+    /* Accessibility gone: said when nothing else is on the notch, and a session's news goes first. Once said (it folded, or
+       Later) Swift stops sending it until it is lost again. Waiting for the switch it stays; Allowed folds away. */
+    var ax = s.access, ap = ax && accP(ax), akey = ap && actKey(ap);
+    var axShowing = act.mode === 'full' && act.p && act.p.access;
+    if (ap && !s.quiet && !actGone[akey] && !arrived && !landed && (axShowing || !need.length) && (axShowing || act.mode !== 'full')) {
+      var same = axShowing && act.p.access.phase === ax.phase;
+      setAct('full', ap, true);
+      if (!same) { clearTimeout(actTimer); if (ax.phase === 'lost') actLater(12000); else if (ax.phase === 'granted') actLater(3500); }
+      return;
+    }
+    if (axShowing) { clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true); }
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1485,18 +1520,21 @@
   /* it has said its piece: whatever still waits on you stays as wings */
   function actSettle() {
     if (!snap) return;
-    if (act.p && (actErr(act.p) || act.p.update)) actGone[actKey(act.p)] = 1;   /* said once */
+    if (act.p && act.p.access && act.p.access.phase === 'lost') post({ type: 'access', action: 'said' });
+    if (act.p && (actErr(act.p) || act.p.update || act.p.access)) actGone[actKey(act.p)] = 1;   /* said once */
     var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
   function actDo(a) {
     var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
     if (a === 'gone') {
       if (p.update) { updNotes = false; post({ type: 'update', action: 'later' }); }
+      if (p.access) post({ type: 'access', action: 'said' });
       actGone[actKey(p)] = 1; clearTimeout(actTimer);
       if (act.kind === 'done') post({ type: 'activitySeen', id: p.id });
       actSettle(); return;
     }
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
+    if (a === 'axallow') { clearTimeout(actTimer); post({ type: 'access', action: 'allow' }); return; }   /* the row stays: it waits for the switch */
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     var m = null;
     if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
@@ -1671,19 +1709,39 @@
   var wnSig = '';
   /* Got it. WebKit sometimes never turns a press and release into a click on this card, which opens by itself, often under
      a pointer resting on the notch; so Swift also passes on each release over the card (wnUp) and the page checks what is there. */
-  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); });
-  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); }
+  /* Allow on the card, once however it arrives (a click, a release Swift passes on, or both) */
+  var wnAxAt = 0;
+  function wnAllow() { if (Date.now() - wnAxAt < 1500) return; wnAxAt = Date.now(); post({ type: 'access', action: 'allow' }); }
+  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (e.target.closest('.wn-ax')) wnAllow(); });
+  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (el && el.closest('.wn-ax')) wnAllow(); }
+  /* The update that lost Accessibility (a build signed another way) says so on its own What's new card, under the lines: one row
+     with the orange ring, what waits, and Allow. Pressed, it waits for the switch in System Settings; on, it turns green. Got it
+     stays the card's main button either way: Settings keeps the row for later. */
+  function wnAccess(ax) {
+    if (!ax) return '';
+    var on = ax === 'granted', asked = ax === 'asked';
+    var mark = on ? Ring('done') : asked ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var title = on ? 'Accessibility is on' : asked ? 'Turn Perch on in System Settings' : 'Allow Accessibility again';
+    var sub = on ? 'Command+Option and replies work again.' : asked ? 'Under Privacy & Security, Accessibility.' : 'macOS asks once more after this update. Until then Command+Option and replies wait.';
+    return '<div class="wn-a rv mx-4 mt-2 flex items-center gap-2.5 rounded-lg bg-black/[0.18] py-2 pl-3 pr-2" style="--i:3">' + mark +
+      '<div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-[17px]">' + title + '</div><div class="text-xs leading-4 text-muted-foreground">' + sub + '</div></div>' +
+      (on ? '' : Button('ghost', asked ? 'Open' : 'Allow', '', 'wn-ax flex-none bg-white/[0.08] text-foreground')) + '</div>';
+  }
   function whatsNew(w) {
     if (!w) return;
-    var sig = JSON.stringify(w); if (sig === wnSig) return; wnSig = sig;
+    var sig = JSON.stringify(w); if (sig === wnSig) return;
+    /* only the Accessibility row changed (Allow pressed, the switch turned on): that row alone, the list keeps its scroll */
+    var was = wnSig; wnSig = sig;
+    var a0 = q('.wn-a'), bare = function (x) { var o = JSON.parse(x); delete o.access; return JSON.stringify(o); };
+    if (was && a0 && w.access && bare(was) === bare(sig)) { a0.outerHTML = wnAccess(w.access); return; }
     var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
     var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
       return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
     }).join('') + '</div>' : '';
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
-      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list +
-      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:3">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
+      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
     var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
@@ -2576,7 +2634,7 @@
       srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
     ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : o.accessWas ? 'needs access again' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
@@ -2906,7 +2964,22 @@
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
     if (m.type === 'newSession') { devNew(m); return; }
-    if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    if (m.type === 'whatsnew') { base.access = null; window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    /* Allow: System Settings opens (here, a line says so), the switch is turned on a few seconds later */
+    if (m.type === 'access') {
+      var nowA = document.getElementById('now'), D2 = window.perchDev;
+      if (m.action === 'said') { base.access = null; return; }
+      if (m.action !== 'allow' || !snap) return;
+      var k2 = ++updTok, onCard = snap.phase === 'whatsnew', set = function (ph) {
+        if (k2 !== updTok) return;
+        if (onCard) { if (!snap || snap.phase !== 'whatsnew') return; var c = JSON.parse(JSON.stringify(snap)); c.whatsNew.access = ph; c.timerToken = Math.random(); apply(c); }
+        else { base.access = { phase: ph, afterUpdate: false, since: 1 }; D2.access(ph, { fresh: false }); }
+      };
+      set('asked'); if (nowA) nowA.textContent = 'System Settings opens on Accessibility, with a fresh switch for Perch';
+      setTimeout(function () { if (k2 !== updTok) return; set('granted'); if (nowA) nowA.textContent = 'You turn Perch on'; }, 3800);
+      if (!onCard) setTimeout(function () { if (k2 === updTok) base.access = null; }, 4000);
+      return;
+    }
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
@@ -3137,7 +3210,16 @@
         var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
         var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
         apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
-          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets } }));
+          whatsNew: o.ga ? { version: '1.0', headline: 'Perch 1.0, signed by Apple', bullets: ['Perch is now signed with an Apple Developer ID', 'Updates install without macOS asking about an unknown developer'], access: o.access || null }
+            : { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets, access: o.access || null } }));
+      },
+      /* Accessibility Perch had, gone: `phase` is lost, asked (Allow was pressed, System Settings is open) or granted; null takes it away.
+         `o.afterUpdate`: an update brought it about (only when What's new did not say it already). */
+      access: function (phase, o) {
+        o = o || {}; d0(); if (o.fresh !== false) { window.perchDev.updStop(); actGone = {}; clearTimeout(actTimer); if (act.p && act.p.access) act.mode = ''; }   /* a fresh start runs its own clock */
+        base.access = phase ? { phase: phase, afterUpdate: !!o.afterUpdate, since: 1 } : null;
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
+        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: null, access: base.access }));
       },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
@@ -3150,7 +3232,7 @@
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
-      updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
+      updStop: function () { updTok++; base.access = null; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
