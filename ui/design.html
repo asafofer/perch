@@ -158,6 +158,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
+  /* a Motion scenario's timeline: at(ms, caption, f) runs f after ms, unless another scenario started since */
+  function motionAt() { var me = charRun; return function (ms, label, f) { setTimeout(function () { if (me !== charRun) return; if (label) now.textContent = label; f(); }, ms); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
@@ -426,6 +428,79 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Nothing to pick up yet', 'An empty list says how to start one.', function () { d.empty(false); }],
       ['Settings: its shortcut', 'Command+Option+N has its own row under Open Perch, with Change, since Finder uses the same keys for New Smart Folder.', function () { d.settings(); }]
     ]],
+    /* the small motions from transitions.dev (app.js iconSwap, swapText, morphText, crossIn): each plays a moment over the real UI */
+    ['Motion', [
+      ['A card’s status changes', 'The session on an open card finishes, asks for your OK, then works again: the words swap in place and the spinner shrinks away or grows in, while the grey line beside them stays still.', function () {
+        var at = motionAt(), run = { status: { kind: 'running', text: 'Codex is working', app: 'codex' }, ask: null, attention: false };
+        d.variant(1, run);
+        at(1600, 'It finishes', function () { d.variant(1, { status: { kind: 'done', text: 'Finished', app: 'codex' }, ask: null, attention: false, fresh: true }); });
+        at(3400, 'It asks for your OK', function () { d.variant(1, { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, ask: Object.assign({}, P0.ask, { title: 'Codex wants to run a command' }) }); });
+        at(5200, 'It works again', function () { d.variant(1, run); });
+      }],
+      ['The next session’s card', 'Moving to another session’s card: what changed cross-blurs where it is, and a new app’s icon shrinks away as the other grows in.', function () {
+        var at = motionAt(); d.variant(1, {});
+        at(1500, 'The next session', function () { d.variant(2, {}); });
+        at(3200, 'And back', function () { d.variant(1, {}); });
+      }],
+      ['Reply opens and closes', 'R on a card: the buttons go up and blur away, then the reply field comes up from below; Esc brings the buttons back the same way.', function () {
+        var at = motionAt(); d.project(1); d.show('open');
+        at(1300, 'R: the reply field', function () { window.perch.replyMenu(true); });
+        at(3000, 'Esc: the buttons', function () { window.perch.replyMenu(false); });
+        at(4400, 'R again', function () { window.perch.replyMenu(true); });
+      }],
+      ['A row’s mark changes', 'The list stays open while sessions change: a spinner turns into a check, and a check into the prompt of a command waiting for your OK. Each old mark shrinks away as the new one grows in.', function () {
+        var at = motionAt(), done = { status: { kind: 'done', text: 'Finished', app: 'codex' }, fresh: true };
+        d.listChange({});
+        at(1300, 'Install guide finishes', function () { d.listChange({ 2: done }); });
+        at(2900, 'and wants to run a command', function () { d.listChange({ 2: { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, section: 'Today', ask: Object.assign({}, P0.ask) } }); });
+        at(4500, 'and works again', function () { d.listChange({}); });
+      }],
+      ['The list sorts itself again', 'A session starts needing you while the list is open: its row glides up under a new Needs you header, and the rows it passed glide down. Then it is answered and goes back.', function () {
+        var at = motionAt(), asks = { 7: { attention: true, status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, ask: Object.assign({}, P0.ask, { title: 'Codex wants to run a command' }) } };
+        d.listChange({});
+        at(1300, 'Rate limiter asks for your OK', function () { d.listChange(asks); });
+        at(3300, 'Answered: back where it was', function () { d.listChange({}); });
+        at(5000, 'And again', function () { d.listChange(asks); });
+      }],
+      ['Moving through the list', 'Down and up move one highlight that slides from row to row, rather than fading off one row and onto the next.', function () {
+        var at = motionAt(); d.listChange({});
+        [1, 2, 3, 4, 3, 2, 1, 0].forEach(function (k, i) { at(1000 + i * 450, i < 4 ? 'Down' : 'Up', function () { var rows = [].slice.call(document.querySelectorAll('.s-l .row')); if (rows[k]) d.listChange({}, +rows[k].dataset.i); }); });
+      }],
+      ['A new session’s row', 'Starting… becomes Started with the paper plane: “Start” stays and only the ending changes. Another that never starts says so, then folds away.', function () {
+        var at = motionAt(), row = function (k) { return { 0: { pending: k, topic: 'Add a dark mode to Settings', status: { kind: 'running', text: 'Starting', app: 'claude' }, attention: false, ask: null } }; };
+        d.listChange(row('starting'), 2);
+        at(1400, 'Started', function () { d.listChange(row('started'), 2); });
+        at(3000, 'Another one: Starting…', function () { d.listChange(row('starting'), 2); });
+        at(4400, 'It never starts', function () { d.listChange(row('failed'), 2); });
+        at(6200, 'and folds away', function () { d.listChange(row('gone'), 2); });
+      }],
+      ['Questions in a row', 'Three questions; the first takes any answers, each check drawing itself in (or wiped away when you take it back). On to the next: only the number in “Question 1 of 3” changes while the question and its answers cross-blur.', function () {
+        var at = motionAt(), key = function (k) { return function () { window.perch.askKey(k); }; };
+        d.variant(3, { status: CLAUDE_ASKS.status, attention: true, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'Claude asked you something', subject: 'Which checks should run first?', answerable: true, questions: [
+          Q('Which checks should run first?', 'Checks', [['Unit tests', 'About two minutes'], ['UI snapshots', 'Needs the simulator'], ['Lint']], true),
+          Q('Where should the build go?', 'Build', [['TestFlight'], ['A zip on GitHub'], ['Both']]),
+          Q('Bump the version to?', 'Version', [['0.3.15'], ['0.4.0'], ['Keep 0.3.14']])] } });
+        at(1200, '1: Unit tests', key('1')); at(1900, '2: UI snapshots', key('2')); at(2700, '2 again: taken back', key('2'));
+        at(3700, 'On to the next question', key('next')); at(5400, 'And back', key('back'));
+      }],
+      ['Settings menus and switches', 'The Apps menu grows out of its button and fades out a little quicker; a switch travels with a small second settle.', function () {
+        var at = motionAt(), click = function (sel) { return function () { var b = document.querySelector(sel); if (b) b.click(); }; };
+        d.settings();
+        at(1200, 'Apps opens', click('.s-apptrig')); at(2700, 'and closes', function () { document.body.click(); });
+        at(3800, 'A switch', click('.p-set .s-sw')); at(5000, 'and back', click('.p-set .s-sw'));
+      }],
+      ['The steps of a new session', 'Each step slides in from the right as you go on, and from the left as you go back.', function () {
+        var at = motionAt(), key = function (k) { return function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }; };
+        d.newSession();
+        at(1300, 'Return: on to the folder', key('Enter')); at(2600, 'Return: on to the prompt', key('Enter'));
+        at(4200, 'Esc: back to the folder', function () { var t = document.querySelector('.nw-in'); if (t) t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+      }],
+      ['The gear under the pointer', 'The gear and the close button at the top of a card light up the moment the pointer reaches them, as other buttons do (they used to arrive late and slowly).', function () {
+        var at = motionAt(); d.project(1); d.show('open');
+        var gear = function (on) { return function () { var g = document.querySelector('.p-open .x-gear'); if (g) g.classList.toggle('hv', on); }; };
+        [0, 1, 2].forEach(function (i) { at(1200 + i * 1400, 'On the gear', gear(true)); at(1900 + i * 1400, 'Off', gear(false)); });
+      }]
+    ]],
     ['Moving between sessions', [
       ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
       ['Into the details and back', 'Right opens the card of the row you are on: the character leans in toward the card, eyes on its title, then blinks. Left goes back and it leans back, eyes on the row you came from. The card and list themselves move as they always have. Plays it twice; then try Right and Left.', function () { d.fx('details'); }]
@@ -632,6 +707,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Selecting text': '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
     'Acting on it': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
     'New session': '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+    'Motion': '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
     'Moving between sessions': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
     'While you work': '<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>',
     'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
