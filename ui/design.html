@@ -252,7 +252,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onCard(dx, dy) { return function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = document.getElementById('desk').getBoundingClientRect(); return [r.left - dr.left + r.width / 2 + dx, r.top - dr.top + dy]; }; }
   /* near the field's right end, so the file does not hide what the field says */
   function onField() { var w = document.querySelector('.r-in').getBoundingClientRect().width; return deskPoint(document.querySelector('.r-in'), w / 2 - 46, 0); }
-  function onChosen() { return deskPoint(document.querySelector('.nw .nrow.bg-accent'), 40, 0); }
+  function onRow(name) { return function () { var r = [].filter.call(document.querySelectorAll('.nw .nrow'), function (x) { return (x.querySelector('.nm') || {}).textContent === name; })[0]; return deskPoint(r, 30, 0); }; }
   function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
@@ -432,15 +432,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ]);
         }, 900);
       }],
-      ['A file dropped while choosing', 'Dropped while the folder is still being chosen: the card goes on to the prompt with what is chosen so far, the file attached and the caret in the field. The chips along the top still change the agent or the folder.', function () {
+      ['A file dropped while choosing', 'A file dragged over the folders: the row under it lights up and says Drop to start. Dropped there, that folder is chosen and the card goes on to the prompt, the file attached and the caret in the field. Off the rows, the folder you had chosen comes back. The agents take a file the same way.', function () {
         d.project(1); d.newSession({ step: 'project' });
         setTimeout(function () {
           fileDrag('/Users/you/Desktop/crash-log.txt', [
             [null, 500, 'Choosing the folder, with a file on the desktop'],
             ['pick', 750, 'You take it'],
-            [onChosen, 1400, 'Dragging it onto the card: the character watches the file'],
-            [null, 700],
-            ['drop', 1800, 'Dropped: on to the prompt, the file attached, the caret in the field']
+            [onRow('price-scraper'), 1400, 'Over a folder: it lights up and says Drop to start'],
+            [null, 600],
+            [onRow('perch'), 900, 'Over another'],
+            [null, 900, 'Release to start in perch'],
+            ['drop', 1800, 'Dropped: perch is chosen, the file attached, the caret in the field']
           ]);
         }, 900);
       }],

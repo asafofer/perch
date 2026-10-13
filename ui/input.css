@@ -465,3 +465,6 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 /* a row of attachments scrolls sideways with no bar (app.js attChips) */
 .r-att, .nw-att { scrollbar-width: none; overscroll-behavior: contain; }
 .r-att::-webkit-scrollbar, .nw-att::-webkit-scrollbar { display: none; }
+/* a file over a new session's agent or folder: that row says Drop to start (app.js nwDropRow) */
+.nw .nrow.dz .nw-rt { display: none; }
+.nw .nrow.dz .nw-dz { display: inline; }

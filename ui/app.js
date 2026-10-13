@@ -1110,6 +1110,8 @@
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
   var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
+  /* what a row says while a file is over it (nwDropRow) */
+  var NW_DZ = '<span class="nw-dz hidden flex-none text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -1168,19 +1170,19 @@
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="nw-rt flex flex-none items-center gap-2"><span class="text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else if (nw.step === 'project') {
       var rows = nwRows();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
         var on = i === nw.proj ? ' bg-accent' : '';
         if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span></div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="nw-rt flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span>' + NW_DZ + '</div>';
         if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
           '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
-          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
+          '<span dir="ltr" class="nw-rt min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
       /* the field is a box: the files attached along its top (nwPaths), then your words */
@@ -1313,8 +1315,9 @@
   /* Files dropped on the card or pasted from Finder go into the prompt as their paths, as on a reply. Dropped while the
      agent or the folder is still being chosen, the card goes on to the prompt with what is chosen so far (the chips
      change it). Over the card the field lights up, more so with the file right on it, and the character watches. */
-  var nwDrop = 0, nwHint = '';
+  var nwDrop = 0, nwHint = '', nwDropWas = null;
   function nwPaths(list) {
+    nwDropWas = null;   /* dropped on a row: that row is the choice */
     if (nwDrop) nwDragOver(0);
     if (nw.step !== 'prompt') nwTo('prompt');
     var ta = q('.nw-in'); if (!ta) return;
@@ -1328,10 +1331,24 @@
     attChips(box, nw.files, function (i) { nw.files.splice(i, 1); nwAtt(); var ta = q('.nw-in'); if (ta) ta.focus({ preventScroll: true }); });
     var ta = q('.nw-in'); if (ta) nwGrow(ta);
   }
+  /* A file over the agents or the folders: the row under it lights up and says Drop to start, and a drop there picks it
+     and goes on to the prompt with the file attached. Off the rows (or gone), the row you had chosen comes back.
+     Choose a folder... takes no file. */
+  function nwDropRow(x, y) {
+    var el = x == null ? null : document.elementFromPoint(x, y), row = el && el.closest ? el.closest('.nw .nrow') : null, i = row ? +row.dataset.i : -1;
+    if (i >= 0 && nw.step === 'project' && (nwRows()[i] || {}).pick) i = -1;
+    var cur = nw.step === 'app' ? nw.app : nw.proj;
+    if (x != null && nwDropWas == null) nwDropWas = cur;
+    var to = i >= 0 ? i : nwDropWas;
+    if (to != null && to !== cur) nwPick(to, true);
+    q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('dz', +r.dataset.i === i); });
+    if (x == null) nwDropWas = null;
+  }
   function nwDragOver(n, x, y) {
     var ta = q('.nw-in'), fb = q('.nw-box'), was = nwDrop; nwDrop = n;
     if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
     if (n) lookAt(ta || q('.nw'), 60);
+    if (nw.step !== 'prompt') nwDropRow(n ? x : null, y);
     if (ta) {
       var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
       fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
