@@ -2,9 +2,9 @@ import XCTest
 @testable import PerchCore
 
 final class WarpTabsTests: XCTestCase {
-    let home = "/Users/asaf"
+    let home = "/Users/you"
     func tab(_ title: String, _ text: String = "") -> WarpTabs.Reading { .init(title: title, text: text) }
-    func best(_ tabs: [WarpTabs.Reading], cwd: String = "/Users/asaf/Documents/perch", hints: [String] = []) -> Int? {
+    func best(_ tabs: [WarpTabs.Reading], cwd: String = "/Users/you/Documents/perch", hints: [String] = []) -> Int? {
         WarpTabs.best(tabs, cwd: cwd, home: home, hints: hints)
     }
 
@@ -36,11 +36,11 @@ final class WarpTabsTests: XCTestCase {
     }
 
     func testNothingLinksATab() {
-        XCTAssertNil(best([tab("zsh"), tab("vim", "hello")], cwd: "/Users/asaf/code/token"))
+        XCTAssertNil(best([tab("zsh"), tab("vim", "hello")], cwd: "/Users/you/code/token"))
         XCTAssertNil(best([]))
     }
 
     func testTiesGoToTheFirst() {
-        XCTAssertEqual(best([tab("a perch"), tab("b perch")], cwd: "/Users/asaf/perch"), 0)
+        XCTAssertEqual(best([tab("a perch"), tab("b perch")], cwd: "/Users/you/perch"), 0)
     }
 }

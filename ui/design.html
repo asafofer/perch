@@ -303,12 +303,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         at(700, function () { window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Bring it back for desktop only, and keep this poster for phones:'; r.dispatchEvent(new Event('input')); });
         at(2800, function () { now.textContent = 'A click in Finder: the card makes way, your words are kept'; d.show('idle'); });
         at(4600, function () { now.textContent = 'Command+Option: back as you left it'; d.show('open', false, true); window.perch.replyMenu(true); });
-        at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
+        at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/you/Desktop/hero-poster-1440.png']); });
       }],
       ['A file dragged onto the card', 'A file from the desktop, dragged slowly. Over the card the pointer gains a green plus (macOS draws it when the place takes the file), the reply opens for it, its field lights up and says what a drop does, more so with the file right on it, and the character looks on wide-eyed, its eyes on the file. Dragged off, it all goes back. Brought back and dropped on the field: the path goes in and the character hops.', function () {
         d.project(1); d.show('open', false, true);
         setTimeout(function () {
-          fileDrag('/Users/asaf/Desktop/hero-poster.png', [
+          fileDrag('/Users/you/Desktop/hero-poster.png', [
             [null, 500, 'A file on the desktop'],
             ['pick', 750, 'You take it'],
             [onCard(-70, 115), 1300, 'Dragging it onto the card'],
@@ -326,7 +326,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['A file dragged onto a reply', 'While you write, a file dragged onto the card lights the field, more so right on it; dropped, its path goes in after your words.', function () {
         reply(true)();
         setTimeout(function () {
-          fileDrag('/Users/asaf/Desktop/invoice-scan.png', [
+          fileDrag('/Users/you/Desktop/invoice-scan.png', [
             [null, 500, 'Writing a reply, with a file on the desktop'],
             ['pick', 750, 'You take it'],
             [onCard(40, 110), 1200, 'Dragging it onto the card'],
