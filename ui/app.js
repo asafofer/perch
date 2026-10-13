@@ -92,6 +92,86 @@
   /* The arc turns inside its own drawing, around its own centre (12, 12). Turning the whole icon with CSS made it wobble
      wherever it sat on a fraction of a pixel (beside a project name of any width): it circled a centre a little off its own. */
   var STILL = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* ---- small motions from transitions.dev (their styles are in input.css). `still` puts the end state in at once. ---- */
+  var SMOOTH = 'cubic-bezier(.22,1,.36,1)';
+  /* icon swap: the new icon joins the slot small and blurred and sharpens while the old one shrinks away; the same icon again
+     is left alone, so a spinner keeps its turn */
+  function iconSwap(slot, html, still) {
+    var old = null;
+    [].slice.call(slot.children).forEach(function (c) { if (!c.classList.contains('t-icon')) c.remove(); else if (c.classList.contains('on')) old = c; });
+    if (old && old._h === html) return;
+    if (old) { old.classList.remove('on'); if (still || STILL) old.remove(); else setTimeout(function () { old.remove(); }, 260); }
+    if (!html) return;
+    var e = document.createElement('span'); e.className = 't-icon'; e._h = html; e.innerHTML = html;
+    slot.appendChild(e);
+    if (still || STILL || !old) { e.style.transition = 'none'; e.classList.add('on'); void e.offsetWidth; e.style.transition = ''; }
+    else { void e.offsetWidth; e.classList.add('on'); }
+  }
+  /* text states swap: the old words go up and blur away, the new ones come up from below */
+  function swapText(el, text, color, still) {
+    if (el._t === text && el._c === color) return;
+    var first = el._t == null; el._t = text; el._c = color; clearTimeout(el._sw);
+    var put = function () { el.textContent = text; el.style.color = color || ''; };
+    if (first || still || STILL) { el.classList.remove('is-exit', 'is-enter'); put(); return; }
+    el.classList.add('is-exit');
+    el._sw = setTimeout(function () { put(); el.classList.remove('is-exit'); el.classList.add('is-enter'); void el.offsetWidth; el.classList.remove('is-enter'); }, 150);
+  }
+  /* text morph: the letters both share stay where they are; only the rest cross-blurs, while its width eases */
+  function morphText(el, next, still) {
+    var prev = el._t != null ? el._t : el.textContent;
+    clearTimeout(el._sw); el.classList.remove('is-exit', 'is-enter');
+    if (prev === next) return;
+    el._t = next;
+    if (still || STILL) { el.textContent = next; return; }
+    var a = 0; while (a < prev.length && a < next.length && prev[a] === next[a]) a++;
+    var b = 0; while (b < prev.length - a && b < next.length - a && prev[prev.length - 1 - b] === next[next.length - 1 - b]) b++;
+    var swap = document.createElement('span'), out = document.createElement('span'), inn = document.createElement('span');
+    swap.className = 't-morph-swap'; out.className = 't-morph-old'; inn.className = 't-morph-new'; out.setAttribute('aria-hidden', 'true');
+    out.textContent = prev.slice(a, prev.length - b); inn.textContent = next.slice(a, next.length - b);
+    swap.appendChild(out); swap.appendChild(inn);
+    el.textContent = ''; el.appendChild(document.createTextNode(next.slice(0, a))); el.appendChild(swap); el.appendChild(document.createTextNode(next.slice(next.length - b)));
+    swap.style.width = out.getBoundingClientRect().width + 'px'; void swap.offsetWidth;
+    swap.classList.add('is-morphing'); swap.style.width = inn.getBoundingClientRect().width + 'px';
+    el._sw = setTimeout(function () { if (el._t === next) el.textContent = next; }, 280);
+  }
+  /* text swap soft, for whole blocks: a copy of what was there stays where it was and fades out while the new words fade in,
+     so nothing beside them moves. `seen` is taken before the change, `crossIn` after it. */
+  function crossSeen(box, sels) {
+    var br = box.getBoundingClientRect();
+    return sels.map(function (s) {
+      var el = box.querySelector(s); if (!el) return null;
+      var r = el.getBoundingClientRect(), g = null;
+      if (el.offsetParent && r.width && r.height) {
+        g = el.cloneNode(true); g.removeAttribute('title');
+        /* the copy keeps its own look (it comes after the real one, so q() still finds the real one) but none of the names
+           inside it answer, and it takes no part in the rise or the glide (.rv) */
+        g.classList.remove('rv');
+        [].slice.call(g.querySelectorAll('[class]')).forEach(function (x) {
+          x.setAttribute('class', (x.getAttribute('class') || '').split(/\s+/).filter(function (c) { return c && !/^(rv|nw|nrow)$|^(o|x|nw)-/.test(c); }).join(' '));
+        });
+        g.classList.add('xb-ghost');
+        g.style.left = (r.left - br.left) + 'px'; g.style.top = (r.top - br.top) + 'px'; g.style.width = r.width + 'px'; g.style.height = r.height + 'px';
+      }
+      return { el: el, html: el.innerHTML, shown: !!g, g: g };
+    }).filter(Boolean);
+  }
+  function crossIn(box, seen, icon) {
+    if (STILL) return;
+    seen.forEach(function (x) {
+      var el = x.el, now = !!el.offsetParent, isIcon = el === icon;
+      if (x.html === el.innerHTML && x.shown === now) return;
+      /* an icon also shrinks and grows (icon swap); words only blur, so a block's own glide (settleCard) keeps its transform */
+      var d = isIcon ? 250 : 200, on = { opacity: 1, filter: 'blur(0)' }, off = { opacity: 0, filter: 'blur(2px)' };
+      if (isIcon) { on.transform = 'none'; off.transform = 'scale(.25)'; }
+      if (x.g) {
+        box.appendChild(x.g);
+        var g = x.g, gone = function () { g.remove(); };
+        g.animate([on, off], { duration: d, easing: 'ease-in-out', fill: 'forwards' }).onfinish = gone;
+        setTimeout(gone, d + 120);   /* the timer finishes it even when animations are paused */
+      }
+      if (now) el.animate([off, on], { duration: d, easing: 'ease-in-out' });
+    });
+  }
   function Spinner(cls, style) { return '<svg class="flex-none ' + (cls || 'size-3') + '" viewBox="0 0 24 24" fill="none" stroke="' + COLORS.running + '" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"' + (style ? ' style="' + style + '"' : '') + '><path d="M12 3a9 9 0 1 1-9 9">' + (STILL ? '' : '<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>') + '</path></svg>'; }
   /* what a session's status is, in words: the card's top line and each row of the list. `short` is the list's version. */
   function phrase(p, short) {
@@ -338,10 +418,12 @@
     if (!was) return;
     if (!n.offsetParent || n.dataset.s !== 'open' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { was.style.display = 'none'; return; }
     was.style.position = 'absolute'; was.style.left = was.style.right = '10px'; was.style.top = '0';
-    var out = was._out = was.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 150, easing: 'cubic-bezier(.4,0,1,1)' });
+    /* transitions.dev text states swap: the old row goes up and blurs away, then the new one comes up from below (it is there
+       at once, out of sight, so a field in it can take the caret) */
+    var out = was._out = was.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-4px)', filter: 'blur(2px)' }], { duration: 150, easing: 'ease-in-out' });
     var done = function () { if (was._out !== out) return; was._out = null; out.cancel(); was.style.display = 'none'; was.style.position = was.style.left = was.style.right = was.style.top = ''; };
     out.onfinish = done; setTimeout(done, 220);   /* the timer finishes it even when animations are paused */
-    el.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 70, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    el.animate([{ opacity: 0, transform: 'translateY(4px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 150, delay: 150, easing: 'ease-in-out', fill: 'backwards' });
   }
   function snoozeMenu(open, quiet) {
     footer(open ? fSnz : fMain);
@@ -534,7 +616,7 @@
     if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    status(Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention }));
+    status({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
@@ -554,7 +636,7 @@
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
   function readQuestion(p, a) {
     var n = a.questions.length, qn = a.questions[0];
-    status(Phrase({ t: n > 1 ? 'Question 1 of ' + n : 'Asked you something', c: COLORS.attention }));
+    status({ t: n > 1 ? 'Question 1 of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
@@ -569,50 +651,78 @@
     q('.o-nx').style.display = 'none';
     setWords(q('.o-acts'), Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
+  function drawCheck(i, on) {
+    var b = q('.o-ask [data-i="' + i + '"]'), mark = b && b.lastElementChild, path = mark && mark.querySelector('path');
+    if (STILL || !path || !path.getTotalLength) return;
+    var len = String(Math.ceil(path.getTotalLength()) + 1);
+    if (on) path.animate([{ strokeDasharray: len, strokeDashoffset: len }, { strokeDasharray: len, strokeDashoffset: '0' }], { duration: 350, easing: SMOOTH });
+    else {
+      mark.animate([{ color: COLORS.done }, { color: COLORS.done }], { duration: 150 });   /* already drawn clear: keep it green while it goes */
+      path.animate([{ strokeDasharray: len, strokeDashoffset: '0' }, { strokeDasharray: len, strokeDashoffset: len }], { duration: 150, easing: SMOOTH });
+    }
+  }
   function askKey(k) {
     var a = asking.p && asking.p.ask; if (!a || !a.questions || !a.questions.length) return;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
-    var redraw = function () {
-      questionCard(asking.p, a); if (snap) layout(lastSt, snap);
-      if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) [q('.o-h'), q('.o-ask')].forEach(function (el) { el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.2,.9,.3,1)' }); });
+    /* the next (or the last) question cross-blurs into place and its count changes only its number; a pick on a question
+       with several answers draws its check in (transitions.dev checkbox check), or wipes it away */
+    var redraw = function (how, pick, on) {
+      var pane = q('.p-open'), seen = how === 'step' && !STILL ? crossSeen(pane, ['.o-h', '.o-ask']) : [];
+      cardMove = 'live'; questionCard(asking.p, a); cardMove = '';
+      if (snap) layout(lastSt, snap);
+      crossIn(pane, seen);
+      if (how === 'pick') drawCheck(pick, on);
     };
     var forward = function () {
-      if (asking.step < n - 1) { asking.step++; redraw(); return; }
+      if (asking.step < n - 1) { asking.step++; redraw('step'); return; }
       var answers = {}; a.questions.forEach(function (x, i) { answers[x.text] = asking.picks[i].join(', '); });
       post({ type: 'answer', answers: answers });
     };
     if (/^[1-9]$/.test(k)) {
       var o = qn.options[+k - 1]; if (!o) return;
-      if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw(); }
+      if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
       else { asking.picks[asking.step] = [o]; forward(); }
-    } else if (k === 'back') { if (asking.step) { asking.step--; redraw(); } }
+    } else if (k === 'back') { if (asking.step) { asking.step--; redraw('step'); } }
     else if (k === 'next') { if (picks.length) forward(); }
     else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
   }
 
   /* The card's edge springs to a new height (input.css, .n), but the words inside reflow at once, so what sits below
-     them would jump. Each block glides from where it was on the same spring instead; on another session's card the new
-     words also settle in. */
+     them would jump. Each block glides from where it was on the same spring instead. On another session's card, each piece
+     that changed cross-blurs: the old words fade out where they were while the new ones fade in (crossIn), and a new app's
+     icon shrinks away as the other grows in. The buttons stay put. */
   var cardId = null, iconKey = '';
+  var CARD_WORDS = ['.o-app', '.o-name', '.o-sub', '.o-st', '.o-h', '.o-c', '.o-ask', '.o-x'];
   function settleCard(change, fresh) {
-    var els = [].slice.call(q('.p-open').querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
-    var said = els.map(function (el) { return el.textContent; }), icon = q('.o-app'), iconWas = iconKey;
+    var pane = q('.p-open'), els = [].slice.call(pane.querySelectorAll('.rv')), was = els.map(function (el) { return el.offsetParent ? el.getBoundingClientRect().top : null; });
+    var seen = fresh && !STILL ? crossSeen(pane, CARD_WORDS) : [];
     change();
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (STILL) return;
+    crossIn(pane, seen, q('.o-app'));
     els.forEach(function (el, i) {
       if (!el.offsetParent) return;
       var dy = was[i] == null ? 0 : was[i] - el.getBoundingClientRect().top;
       if (Math.abs(dy) > .5) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 600, delay: 50, easing: 'cubic-bezier(.3,1.5,.45,1)', fill: 'backwards' });
-      /* only words that changed settle in; the buttons and the corner icons stay put */
-      /* the app icon stays as it is when the next session is in the same app: only the words beside it settle in */
-      var tgt = el.contains(icon) && iconKey === iconWas ? icon.nextElementSibling : el;
-      if (fresh && !el.querySelector('.f-main') && el.textContent !== said[i]) tgt.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 280, delay: i * 30, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
     });
   }
 
-  /* the card's status; drawn again only when it changes, so its spinner keeps turning */
-  function status(html, title) {
-    var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
+  /* the card's status (a phrase: words, colour, spinner); its spinner is drawn again only when it changes, so it keeps turning.
+     On a card that stays open (cardMove 'live') a change moves: the spinner shrinks away or grows in, the words swap, and
+     "Question 1 of 3" to "2 of 3" changes only its number. Opening, or another session's card, puts it in at once. */
+  var cardMove = '';
+  function status(ph, title) {
+    var st = q('.o-st');
+    if (!st._built) { st.innerHTML = '<span class="st-ic t-ic"></span><span class="st-t t-swap"></span>'; st._built = true; }
+    var ic = st.firstChild, w = st.lastChild, still = cardMove !== 'live';
+    if (still) ic.style.transition = 'none';
+    ic.classList.toggle('has', !!ph.spin);
+    if (still) { void ic.offsetWidth; ic.style.transition = ''; }
+    iconSwap(ic, ph.spin ? Spinner('size-3', glow(COLORS.running)) : '', still);
+    w.classList.toggle('text-muted-foreground', !ph.c);
+    var count = /^Question \d+ of \d+$/;
+    if (!still && count.test(w._t || '') && count.test(ph.t) && w._c === ph.c) morphText(w, ph.t);
+    else swapText(w, ph.t, ph.c, still);
+    st.title = title || '';
   }
   /* Words are put in only when they change: the snapshot comes again every refresh, and new nodes would drop a selection
      you are making in them. Written by anything else meanwhile (a question's card), they are put in again. */
@@ -629,7 +739,7 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    status(Phrase(ph), p.status.text);
+    status(ph, p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
@@ -731,21 +841,50 @@
      project goes, how it is going (`pending`): Starting with a spinner, Started with the paper plane once Perch sees the
      session, Didn't start in orange if it never comes. It cannot be opened until it is a real session. */
   var listPend = {};
+  function pendWord(k, app) { return { confirm: 'Confirm in ' + agentShort(app), starting: 'Starting\u2026', started: 'Started' }[k] || 'Didn\u2019t start'; }
   function pendHtml(k, app) {
-    if (k === 'confirm') return '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Confirm in ' + esc(agentShort(app)) + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
+    var w = '<span class="pw-t">' + esc(pendWord(k, app)) + '</span>', small = function (m) { return m.replace('size-4', 'size-[13px]'); };
+    if (k === 'confirm') return '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">' + w + small(Ring('need')) + '</span>';
     /* starting, the shimmering title already says it is on its way: the word alone, no spinner */
-    return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026</span>'
-      : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
-      : '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
+    return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">' + w + '</span>'
+      : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">' + w + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
+      : '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">' + w + small(Ring('need')) + '</span>';
   }
-  /* its words slide in and its mark arrives as the notch line's do (renderSent): the plane flies in from below left, a failure's ring pops */
-  function pendIn(el, k) {
+  /* the word changes in place, keeping the letters it shares (Starting to Started, transitions.dev text morph), and the colour
+     follows; its mark arrives as the notch line's do (renderSent): the plane flies in from below left, a failure's ring pops */
+  function pendIn(el, k, from, app) {
     if (STILL || !el || !el.animate) return;
-    el.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    var t = el.querySelector('.pw-t');
+    if (t && from) { t.textContent = pendWord(from, app); t._t = null; morphText(t, pendWord(k, app)); }
+    if (from) el.animate([{ color: from === 'starting' ? 'rgb(161, 161, 170)' : COLORS.attention }, { color: getComputedStyle(el).color }], { duration: 180, easing: SMOOTH });
     var mark = el.querySelector('svg'); if (!mark || k === 'starting') return;
     if (k === 'failed' || k === 'confirm') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
     else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
+  /* a row that goes folds shut through a grid row (transitions.dev accordion): the list is laid out at the start and the end,
+     not on every frame as a height would be */
+  function foldAway(r) {
+    var wrap = document.createElement('div'), inner = document.createElement('div');
+    wrap.style.cssText = 'display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ' + SMOOTH;
+    inner.style.cssText = 'min-height:0;overflow:hidden;transition:opacity .25s ' + SMOOTH + ',filter .25s ' + SMOOTH;
+    r.parentNode.insertBefore(wrap, r); wrap.appendChild(inner); inner.appendChild(r);
+    void wrap.offsetHeight;
+    wrap.style.gridTemplateRows = '0fr'; inner.style.opacity = '0'; inner.style.filter = 'blur(2px)';
+  }
+  /* the list's choice: one highlight slides from row to row (transitions.dev tabs sliding); opening the list puts it in place */
+  var listTyped = '', listKeys = [];
+  function selPill(row, still) {
+    var el = selPill.el;
+    if (!row) { el.classList.remove('on'); return; }
+    var at = row.offsetTop + ':' + row.offsetHeight; if (at === selPill.at && !still) return;
+    var first = !selPill.at || still || !el.classList.contains('on');
+    selPill.at = at;
+    if (first) el.classList.add('snap');
+    el.style.transform = 'translateY(' + row.offsetTop + 'px)'; el.style.height = row.offsetHeight + 'px';
+    if (first) { void el.offsetWidth; el.classList.remove('snap'); }
+    el.classList.add('on');
+  }
+  selPill.el = document.createElement('div'); selPill.el.className = 'sel-pill'; selPill.el.setAttribute('aria-hidden', 'true');
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
@@ -775,18 +914,33 @@
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
       if (p.pending) first = p.topic;
       var still = p.pending === 'starting' || p.pending === 'confirm';
-      if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
-      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
+      if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '" data-k="s:' + esc(name) + '">' + esc(name) + '</div>'; sec = name; }
+      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '" data-k="' + esc(p.id) + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true">' + esc(first) + '</span>' : '') + '</span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
-        '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
+        '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
         (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
+    /* The list stays open and sorts itself again (a session starts needing you): the rows glide to their new places and a new
+       section header fades in, and each row keeps its mark so a change of mark still moves (no transitions.dev recipe: its
+       timing for a change of place). Typing, or a row coming or going, just redraws. */
+    var live = lastSt === 'switch' && !STILL, keys = rows.map(function (k) { return s.projects[k].id; }), glide = null, marks = {};
     if (html !== listSig) {
+      if (live && typed === listTyped && keys.slice().sort().join('\n') === listKeys.slice().sort().join('\n') && keys.join('\n') !== listKeys.join('\n')) {
+        glide = {}; sl.querySelectorAll('[data-k]').forEach(function (e) { glide[e.dataset.k] = e.getBoundingClientRect().top; });
+      }
+      if (live) sl.querySelectorAll('.row .rk').forEach(function (rk) { if (rk.dataset.m != null) marks[rk.closest('.row').dataset.k] = rk.dataset.m; });
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
+      sl.insertBefore(selPill.el, sl.firstChild); selPill.at = null;
+      sl.querySelectorAll('.row .rk').forEach(function (rk) { var m = marks[rk.closest('.row').dataset.k]; if (m != null) { iconSwap(rk, m, true); rk.dataset.m = m; } });
+      if (glide) sl.querySelectorAll('[data-k]').forEach(function (e) {
+        var was = glide[e.dataset.k], dy = was == null ? 0 : was - e.getBoundingClientRect().top;
+        if (was == null) e.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 250, delay: 120, easing: SMOOTH, fill: 'backwards' });
+        else if (Math.abs(dy) > .5) e.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 300, easing: SMOOTH });
+      });
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
         var starting = !!s.projects[+r.dataset.i].pending;   /* not `pend`: that is the pointer's pick, above */
@@ -800,6 +954,7 @@
           if (i === (pend >= 0 ? pend : lastSel)) return;
           pend = ptrPick = i; clearTimeout(pendT); pendT = setTimeout(function () { pend = -1; }, 800);
           sl.querySelectorAll('.row').forEach(function (x) { x.classList.toggle('bg-accent', x === r); });
+          selPill(r);
           post({ type: 'pick', index: i });
         };
         r.onmouseleave = function () { hovered = null; marquee(sl.querySelector('.row.bg-accent')); markList(); };
@@ -813,8 +968,12 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      if (rk && rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
+      /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
+         turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
+      if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
     });
+    selPill(sel, !live);
+    listTyped = typed; listKeys = keys;
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel && cs !== ptrPick) {
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
@@ -827,9 +986,9 @@
       if (!now || now === was) return;
       listPend[p.id] = now;
       var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
-      if (now === 'started' || now === 'failed' || now === 'confirm') pendIn(r.querySelector('.pw'), now);
+      if (now === 'started' || now === 'failed' || now === 'confirm') pendIn(r.querySelector('.pw'), now, was, p.app);
       if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
-      if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+      if (now === 'gone') foldAway(r);
     });
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
@@ -901,7 +1060,7 @@
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'];
+  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -969,7 +1128,18 @@
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
+    /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
+       page side by side) */
+    var by = nwSlide; nwSlide = 0;   /* taken once: a draw again from inside this one (an answer to what it posts) does not slide */
+    var slid = by && !STILL ? crossSeen(q('.p-ns'), ['.nw'])[0] : null;
     box.innerHTML = html;
+    if (slid && slid.g) {
+      var dx = by > 0 ? 8 : -8, g = slid.g, gone = function () { g.remove(); };
+      q('.p-ns').appendChild(g);
+      g.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateX(' + (-dx) + 'px)', filter: 'blur(3px)' }], { duration: 250, easing: SMOOTH, fill: 'forwards' }).onfinish = gone;
+      setTimeout(gone, 370);   /* the timer finishes it even when animations are paused */
+      box.animate([{ opacity: 0, transform: 'translateX(' + dx + 'px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: SMOOTH });
+    }
     var l = q('.nw-l'); if (l) { l.onscroll = function () { nwEdges(l); }; setTimeout(function () { nwEdges(l); }, 0); }
     box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
     box.querySelectorAll('.nrow').forEach(function (r) {
@@ -1015,6 +1185,7 @@
   function nwTo(step) {
     /* leaving the agents: the one you chose keeps its place in the whole list */
     if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    nwSlide = NW_STEPS.indexOf(step) - NW_STEPS.indexOf(nw.step);
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
   function nwNext() {
@@ -1710,7 +1881,9 @@
       if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
     } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
+    cardMove = st === 'open' && lastSt === 'open' && p ? (p.id !== cardId ? 'flip' : 'live') : '';
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
+    cardMove = '';
     if (st !== 'open') orbFor('');
     if (flipped) setTimeout(function () { switched(p); }, 0);   /* after layout sets its face */
     cardId = st === 'open' && p ? p.id : null;
@@ -2527,8 +2700,9 @@
 
   /* ---- settings, inside the notch ---- */
   var setLast = null, setSig = '';
-  /* a switch changes in place so it slides; redrawing it would just snap to the new state */
+  /* a switch changes in place so it slides, with a double settle (.sw.is-init); redrawing it would just snap to the new state */
   function setSw(b, on) {
+    if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
     b.setAttribute('aria-checked', String(on));   /* .sw in input.css draws it from this */
   }
   function swHtml(on, key, label) {
@@ -2630,7 +2804,7 @@
         '<span class="flex size-3.5 flex-none items-center">' + (x.enabled ? svg('check', 'size-3.5') : '') + '</span></button>';
     }).join('');
     return '<span class="s-apps"><button aria-haspopup="menu" aria-expanded="' + appsOpen + '" aria-label="Apps Perch reads" class="s-apptrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (appsOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-appmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[196px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (appsOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+      '<span role="menu" class="s-appmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[196px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (appsOpen ? ' is-open' : '') + '">' + items + '</span></span>';
   }
   function bindApps(box) {
     var trig = box.querySelector('.s-apptrig');
@@ -2641,13 +2815,21 @@
     });
   }
   /* opens or closes the menu in place; a click anywhere else on the card closes it */
+  /* a Settings menu grows out of its button and fades in, and fades out a little quicker (transitions.dev menu dropdown) */
+  function dropMenu(m, open) {
+    clearTimeout(m._t);
+    if (open) { m.classList.remove('is-closing'); m.classList.add('is-open'); return; }
+    if (!m.classList.contains('is-open')) return;
+    m.classList.remove('is-open'); m.classList.add('is-closing');
+    m._t = setTimeout(function () { m.classList.remove('is-closing'); }, 150);
+  }
   function appsMenu(open) {
     if (open && notOpen) notifyMenu(false);
     if (open && showOpen) showMenu(false);
     appsOpen = open; if (open) appsAt = 0;
     var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
     if (!m) return;
-    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    dropMenu(m, open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     paintFocus();
   }
@@ -2665,7 +2847,7 @@
         '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
     }).join('');
     return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (notOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+      '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (notOpen ? ' is-open' : '') + '">' + items + '</span></span>';
   }
   function bindNotify(box) {
     var trig = box.querySelector('.s-notrig');
@@ -2681,7 +2863,7 @@
     notOpen = open; if (open) notAt = 0;
     var box = q('.set'), m = box && box.querySelector('.s-notmenu'), t = box && box.querySelector('.s-notrig');
     if (!m) return;
-    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    dropMenu(m, open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     paintFocus();
   }
@@ -2709,7 +2891,7 @@
       '<button role="menuitemcheckbox" aria-checked="' + !!o.hoverExternal + '" data-k="hover" data-i="' + all.length + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
       '<span class="flex-1 truncate">Hover opens on external displays</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
     return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
-      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] ' + (showOpen ? 'flex' : 'hidden') + '">' + items + '</span></span>';
+      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (showOpen ? ' is-open' : '') + '" data-origin="bottom-right">' + items + '</span></span>';
   }
   /* what the menu shows, so it is drawn again only when that changes: not for opening or closing it (Swift sends
      Settings every half second while sessions are written, and a redraw would drop it back under the notch) and not
@@ -2717,9 +2899,11 @@
   function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal]); }
   /* it opens upward but never under the notch: when it would, it slides down over its own row */
   function showClamp(m) {
-    m.style.transform = '';
-    var pane = showOpen && m.closest('.pane');
-    if (pane) { var over = pane.getBoundingClientRect().top + 38 - m.getBoundingClientRect().top; if (over > 0) m.style.transform = 'translateY(' + Math.ceil(over) + 'px)'; }
+    /* its own translate, so the grow from its corner (.t-drop, a transform) still runs; measured unscaled: it grows from its bottom edge */
+    if (!showOpen) return;   /* closing, it fades out where it is */
+    m.style.translate = '';
+    var pane = m.closest('.pane');
+    if (pane) { var over = pane.getBoundingClientRect().top + 38 - (m.getBoundingClientRect().bottom - m.offsetHeight); if (over > 0) m.style.translate = '0 ' + Math.ceil(over) + 'px'; }
   }
   function bindShow(box) {
     var trig = box.querySelector('.s-showtrig');
@@ -2744,7 +2928,7 @@
     var box = q('.set'), m = box && box.querySelector('.s-showmenu'), t = box && box.querySelector('.s-showtrig');
     if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem[role=menuitemradio]')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
     if (!m) return;
-    m.classList.toggle('hidden', !open); m.classList.toggle('flex', open);
+    dropMenu(m, open);
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     showClamp(m);
     paintFocus();
@@ -3055,6 +3239,15 @@
       });
     }
     window.perchDev = {
+      /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
+         index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
+      listChange: function (over, sel) {
+        clearTimeout(autoTimer);
+        var keep = P; P = P.map(function (x, k) { return over && over[k] ? Object.assign({}, x, over[k]) : x; });
+        var shown = devShown();
+        apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'switcher', autoCollapse: false, shown: shown, selected: sel == null ? shown[0] : sel, timerToken: Math.random() }));
+        P = keep;
+      },
       /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
       newSession: function (o) {
         o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
