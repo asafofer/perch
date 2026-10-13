@@ -2,7 +2,7 @@
 # The disk image people open to install Perch: build/Perch.dmg. Its window shows the Perch icon, an arrow and the Applications
 # folder, on the picture in Resources/dmg (drawn from ui/install/background.html, see scripts/render-dmg-background.mjs).
 # Needs build/Perch.app (./scripts/package.sh makes it) and a logged-in desktop: Finder lays the window out, which takes a few seconds.
-# Not a Sparkle update: updates come from the zip. The release carries both (scripts/release.sh).
+# Not a Sparkle update: updates come from the zip. A release carries both.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 APP=build/Perch.app OUT=build/Perch.dmg NAME=Perch

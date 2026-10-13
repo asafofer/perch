@@ -28,7 +28,7 @@ cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
 # What each release says about itself, for the What's new card on the first start after an update.
 cp -R release-notes "$APP/Contents/Resources/release-notes"
-# A release is signed with the Developer ID certificate when this Mac has one (it is then notarized, see release.sh).
+# A release build is signed with the Developer ID certificate when this Mac has one.
 # Anything else uses the stable local "Perch Dev" certificate, so macOS remembers privacy permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
 DEVID=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)
