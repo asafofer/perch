@@ -11,6 +11,10 @@ updates:
     groups:
       ui:
         patterns: ["*"]
+    # Tailwind 4 is a migration (CSS config, renamed classes), not a bump: done by hand when wanted
+    ignore:
+      - dependency-name: tailwindcss
+        update-types: ["version-update:semver-major"]
   # Sparkle: an update here changes how installed copies update themselves, so read its release notes before merging
   - package-ecosystem: swift
     directory: /
