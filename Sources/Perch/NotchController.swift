@@ -971,6 +971,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
+        Clipboard.letGo(prompt)
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
         let fromList = machine.newFrom == .switcher && !go
         let back = pickBack ?? WhereYouWere.now(); pickBack = nil
@@ -1041,7 +1042,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard starting?.state == "starting" || starting?.state == "confirm" else { return }
         startingTicker?.invalidate(); startingTicker = nil
         starting?.state = ok ? "started" : "failed"
-        if !ok { NSLog("Perch: the new session did not show up") }
+        if !ok { NSLog("Perch: the new session did not show up"); if let t = starting?.prompt { Clipboard.keep(t) } }
         // You were on its row: once it is a real row, you are on that one.
         if ok, pendingPicked, let id = starting?.found, let i = projects.firstIndex(where: { $0.id == id }) {
             pendingPicked = false; machine.send(.projectsChanged(count: projects.count, selected: i))
@@ -1252,6 +1253,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `pid`: the session to answer, when it is not the one on the card.
     private func reply(_ text: String, to pid: String? = nil, closeAfter: Double = 0.78) {
         guard let i = projectIndex(pid) else { return }
+        Clipboard.letGo(text)
         // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
         let p = projects[i]
@@ -1721,9 +1723,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
-                    // A file copied in Finder pastes as its path, into the prompt (on to it from an earlier step), as on a reply.
-                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-                        self.addPaths(urls.map(\.path)); return nil
+                    // A file copied in Finder, or a picture on the clipboard (a screenshot), is attached, into the prompt (on to it from an earlier step), as on a reply.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
@@ -1735,9 +1737,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
-                    // A file copied in Finder pastes as its path, not its name.
-                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-                        self.addPaths(urls.map(\.path)); return nil
+                    // A file copied in Finder is attached by its path; a picture on the clipboard (a screenshot) is saved and attached the same way.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
