@@ -1255,6 +1255,9 @@
   function nwTo(step) {
     /* leaving the agents: the one you chose keeps its place in the whole list */
     if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    /* and leaving the folders: the one you chose keeps its place too, rather than whatever row the narrowed one sat at
+       (it was No project, then the app's own choice: a typed "perch" started in another folder) */
+    if (nw.step === 'project' && step !== 'project' && nw.q) { var f = nwRows()[nw.proj]; nw.q = ''; var fi = nwRows().indexOf(f); nw.proj = fi < 0 ? 0 : fi; }
     nwSlide = NW_STEPS.indexOf(step) - NW_STEPS.indexOf(nw.step);
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
