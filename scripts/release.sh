@@ -13,8 +13,18 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resourc
 # A release goes to everyone who has Perch: the tests must pass first.
 swift test
 ./scripts/package.sh
+# A release is notarized, so it opens on anyone's Mac without Gatekeeper's warning. That needs the Developer ID certificate
+# (run.sh picks it for a release) and notarytool's stored credentials (see notarize.sh). PERCH_UNNOTARIZED=1 releases without it.
+DEVID=$(codesign -dvv build/Perch.app 2>&1 | sed -n 's/^Authority=\(Developer ID Application:.*\)/\1/p')
+if [ -n "$DEVID" ]; then
+  ./scripts/notarize.sh build/Perch.app
+  # the zip Sparkle updates from carries the stapled ticket
+  rm -f build/Perch.zip && ditto -c -k --norsrc --keepParent build/Perch.app build/Perch.zip
+elif [ "${PERCH_UNNOTARIZED:-}" = 1 ]; then echo "Not notarized (PERCH_UNNOTARIZED=1): people will have to allow Perch in System Settings, Privacy & Security."
+else echo "No Developer ID certificate on this Mac, so this release could not be notarized. Set PERCH_UNNOTARIZED=1 to release it anyway."; exit 1; fi
 # The disk image is for the first install (a window to drag Perch to Applications); updates come from the zip, so it stays out of build/appcast.
 ./scripts/make-dmg.sh
+if [ -n "$DEVID" ]; then codesign --force --sign "$DEVID" --timestamp build/Perch.dmg && ./scripts/notarize.sh build/Perch.dmg; fi
 [ -x "$BIN/generate_appcast" ] || { echo "Sparkle tools missing: run swift build once"; exit 1; }
 rm -rf build/appcast && mkdir -p build/appcast
 cp build/Perch.zip "build/appcast/Perch-$VERSION.zip"
