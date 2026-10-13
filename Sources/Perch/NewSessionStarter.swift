@@ -59,6 +59,9 @@ enum NewSessionStarter {
             AXUIElementSetMessagingTimeout(ax, 1)
             AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
             let windows = (attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+            // The question comes first: while it shows, the app hides its message field, which is not the words leaving it.
+            let asking = asksTrust(windows)
+            if !asked, asking { asked = true; NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() } }
             let field = windows.lazy.compactMap { w in first(in: w, { role($0) == "AXTextArea" && classes($0).contains("ProseMirror") && squash(value($0)) == want }) }.first
             if asked, let a = trust.take() {
                 let title = a == .trust ? trustTitles : ["Cancel", "Don't trust", "Don\u{2019}t trust"]
@@ -71,18 +74,17 @@ enum NewSessionStarter {
             if let field {
                 sawField = true
                 // Asked to trust and answered in the app, not from the notch: the rest is yours there.
-                if asked, !trusted, !asksTrust(windows) { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
-                if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asksTrust(windows) {
+                if asked, !trusted, !asking { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
+                if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
                     if wait(3, { squash(value(field)).isEmpty ? true : nil }) == nil { NSLog("Perch: the new session's field still holds the words after Send") }
                     NSLog("Perch: started a new session in \(bundle)")
                     return true
                 }
-            } else if sawField, !asked {
+            } else if sawField, !asked, !asking {
                 // The words left the field without Perch: sent by you, or the page changed. The scan says which.
                 NSLog("Perch: the new session's words left the field"); return false
             }
-            if !asked, asksTrust(windows) { asked = true; NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() } }
         }
         NSLog("Perch: new session not sent (\(sawField ? "no Send to press" : "its words never showed in the field"))")
         return false
