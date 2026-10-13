@@ -547,13 +547,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             return p.applying(l)
         }
         let since = newsSince
-        return urgent(withLive.map { $0.settled(since: since) })
+        let settled = withLive.map { $0.settled(since: since) }
+        // Seen is what is not fresh: looked at here, or in front of you in the Claude app, since it changed.
+        let looked = Dictionary(settled.compactMap { p in isFresh(p) ? nil : p.lastActive.map { (p.id, $0.timeIntervalSince1970) } }, uniquingKeysWith: max)
+        return urgent(Project.movedOn(settled, seen: looked))
     }
 
-    /// Asking you first, then what finished since you looked, then what is working, then the rest; newest first in each.
+    /// What changed since you looked first: asking you, then finished. Then a question you have seen, what is working, the rest;
+    /// newest first in each. A question you already saw never leads over a session that just finished.
     private func urgent(_ list: [Project]) -> [Project] {
         func rank(_ p: Project) -> Int {
-            switch p.status.kind { case "attention": 0; case "running": 2; case "done": isNews(p) ? 1 : 3; default: 3 }
+            switch p.status.kind { case "attention": isFresh(p) ? 0 : 2; case "running": 3; case "done": isNews(p) ? 1 : 4; default: 4 }
         }
         return list.enumerated().sorted { a, b in
             let ra = rank(a.element), rb = rank(b.element)
