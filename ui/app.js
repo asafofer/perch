@@ -516,7 +516,7 @@
     var r = rIn.getBoundingClientRect();
     var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
     rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
-    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
     if (!n && was) {
       if (dropOpened) { dropOpened = false; replyMenu(false, true); }
       if (snap) layout('open', snap);   /* its face goes back to the session's */
@@ -1357,7 +1357,7 @@
     if (ta) {
       var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
       fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
-      ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+      ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
     }
     if (!n && was && snap) layout('ns', snap);   /* its face goes back */
   }
