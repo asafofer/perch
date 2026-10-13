@@ -5,8 +5,8 @@
 <h1 align="center">Perch</h1>
 
 <p align="center">
-  <strong>Where you left off, in the notch.</strong><br>
-  For people who run several Claude Code, Codex, OpenCode and pi sessions at once.
+  <strong>The fastest way back to your agents.</strong><br>
+  Perch lives in your Mac’s notch. See what your coding agents did, answer them, jump back in.
 </p>
 
 <p align="center">
