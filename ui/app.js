@@ -2008,7 +2008,7 @@
     if (st === 'set') {
       settingsApply(s.settings);
       if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
+    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; dfOpen = false; }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     cardMove = st === 'open' && lastSt === 'open' && p ? (p.id !== cardId ? 'flip' : 'live') : '';
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -3472,6 +3472,7 @@
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
         if (o && o.newDefault !== undefined) devDefault = o.newDefault;
+        if (!keep) dfOpen = false;   /* a scenario's Settings opens with its menus shut, as the app's does */
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
