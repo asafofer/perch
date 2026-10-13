@@ -1113,7 +1113,7 @@
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+          '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(x.name) + '</span>' + (x.id === nw.o.preferred ? '<span class="flex-none text-xs text-muted-foreground">Default</span>' : '') + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else if (nw.step === 'project') {
       var rows = nwRows();
@@ -2737,7 +2737,7 @@
       scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
     /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
     var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
-    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
+    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', dfHtml(o)).replace('<div class="', '<div class="s-dfrow relative ');
     var rows = [
       scRow,
       newRow,
@@ -2776,7 +2776,7 @@
       if (b.dataset.k === 'login') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
     }; });
-    bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
+    bindApps(box); bindNotify(box); bindShow(box); bindDf(box); bindUpdSlot(box, snap);
     var sb0 = box.querySelector('.s-show'); if (sb0) { sb0._k = showKey(o); showClamp(sb0.querySelector('.s-showmenu')); }
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
@@ -2828,6 +2828,7 @@
     m._t = setTimeout(function () { m.classList.remove('is-closing'); }, 150);
   }
   function appsMenu(open) {
+    if (open && dfOpen) dfMenu(false);
     if (open && notOpen) notifyMenu(false);
     if (open && showOpen) showMenu(false);
     appsOpen = open; if (open) appsAt = 0;
@@ -2837,7 +2838,47 @@
     t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
     paintFocus();
   }
-  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); if (showOpen && !e.target.closest('.s-show')) showMenu(false); });
+  /* New session starts in: a default agent, or the session you are on (else the one you used last). With a default, every
+     new session starts on it, and another agent is one you choose by hand on the card. The menu opens down, as Apps does. */
+  var dfOpen = false, dfAt = 0;
+  function dfChoices(o) { return [{ id: '', name: 'Session you\u2019re on' }].concat(o.newApps || []); }
+  function dfHtml(o) {
+    var all = dfChoices(o), cur = all.filter(function (x) { return x.id === (o.newDefault || ''); })[0] || all[0];
+    var items = all.map(function (x, i) {
+      var y = x.id === cur.id;
+      return (i === 1 ? '<span class="mx-2 my-1 block h-px"></span>' : '') +
+        '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-ditem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
+        (x.id ? '<span class="flex-none">' + AppOf(x, 'size-4') + '</span>' : '') + '<span class="flex-1 truncate">' + esc(x.name) + '</span>' +
+        (x.id ? '<span class="text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' : '') +
+        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
+    }).join('');
+    return '<span class="s-df"><button aria-haspopup="menu" aria-expanded="' + dfOpen + '" aria-label="The agent a new session starts on" title="Starts on" class="s-dftrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (dfOpen ? ' bg-white/[0.08]' : '') + '">' +
+      (cur.id ? AppOf(cur, 'size-4') : '') + '<span class="truncate">' + esc(cur.name) + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
+      '<span role="menu" class="s-dfmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[248px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (dfOpen ? ' is-open' : '') + '">' + items + '</span></span>';
+  }
+  function dfKey(o) { return JSON.stringify([o.newDefault || '', o.newApps || []]); }
+  function bindDf(box) {
+    var trig = box.querySelector('.s-dftrig');
+    if (trig) trig.onclick = function (e) { e.stopPropagation(); dfMenu(!dfOpen); };
+    box.querySelectorAll('.s-ditem').forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); dfMenu(false); post({ type: 'setting', key: 'newDefault', value: b.dataset.k }); };
+      b.onmouseenter = function () { if (ptrMoved()) { dfAt = +b.dataset.i; paintFocus(); } };
+    });
+    var d = box.querySelector('.s-df'); if (d && setLast) d._k = dfKey(setLast);
+  }
+  function dfMenu(open) {
+    if (open && appsOpen) appsMenu(false);
+    if (open && notOpen) notifyMenu(false);
+    if (open && showOpen) showMenu(false);
+    dfOpen = open;
+    var box = q('.set'), m = box && box.querySelector('.s-dfmenu'), t = box && box.querySelector('.s-dftrig');
+    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-ditem')); dfAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
+    if (!m) return;
+    dropMenu(m, open);
+    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
+    paintFocus();
+  }
+  document.addEventListener('click', function (e) { if (dfOpen && !e.target.closest('.s-df')) dfMenu(false); if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); if (showOpen && !e.target.closest('.s-show')) showMenu(false); });
   /* Notify me about: the marks of the moments the notch announces and a chevron; it opens a menu with a check for each, as Apps does */
   var notOpen = false, notAt = 0;
   function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
@@ -2862,6 +2903,7 @@
     });
   }
   function notifyMenu(open) {
+    if (open && dfOpen) dfMenu(false);
     if (open && appsOpen) appsMenu(false);
     if (open && showOpen) showMenu(false);
     notOpen = open; if (open) notAt = 0;
@@ -2926,6 +2968,7 @@
     });
   }
   function showMenu(open) {
+    if (open && dfOpen) dfMenu(false);
     if (open && appsOpen) appsMenu(false);
     if (open && notOpen) notifyMenu(false);
     showOpen = open;
@@ -2947,7 +2990,10 @@
   function paintFocus() {
     var box = q('.set'), rows = box.querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen && !dfOpen); });
+    var ditems = box.querySelectorAll('.s-ditem');
+    dfAt = Math.max(0, Math.min(dfAt, ditems.length - 1));
+    ditems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', dfOpen && i === dfAt); });
     var sitems = box.querySelectorAll('.s-sitem');
     showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
     sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
@@ -2984,6 +3030,13 @@
       else if (k === 'esc' || k === 'left') showMenu(false);
       return;
     }
+    if (dfOpen) {
+      var di = box.querySelectorAll('.s-ditem');
+      if (k === 'down' || k === 'up') { dfAt = (dfAt + (k === 'down' ? 1 : -1) + di.length) % di.length; paintFocus(); }
+      else if (k === 'enter' && di[dfAt]) di[dfAt].click();
+      else if (k === 'esc' || k === 'left') dfMenu(false);
+      return;
+    }
     if (k === 'esc') { post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
@@ -2992,6 +3045,8 @@
     var nt = row.querySelector('.s-notrig');
     if (nt && (k === 'right' || k === 'enter')) { notifyMenu(true); return; }
     if (row.querySelector('.s-showtrig') && (k === 'right' || k === 'enter')) { showMenu(true); return; }
+    /* New session: Return changes its shortcut, as the row's keys do; Right opens what it starts on */
+    if (row.querySelector('.s-dftrig') && k === 'right') { dfMenu(true); return; }
     if (k === 'left' || k === 'right') {
       var d = k === 'right' ? 1 : -1;
       /* on a row that has no sideways choice, Left goes back to where Settings came from */
@@ -3016,6 +3071,8 @@
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
+      var df = box.querySelector('.s-df');
+      if (df && df._k !== dfKey(o)) { df.outerHTML = dfHtml(o); bindDf(box); paintFocus(); }
       var sw2 = box.querySelector('.s-show'), skey = showKey(o);
       if (sw2 && sw2._k !== skey) { sw2.outerHTML = showHtml(o); sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); showClamp(sw2.querySelector('.s-showmenu')); paintFocus(); }
       else if (sw2) {
@@ -3121,8 +3178,8 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
-    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true), newApps: NEW_APPS, newDefault: devDefault }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'newDefault') devDefault = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
@@ -3182,6 +3239,8 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     /* the new session flow: the agents on this Mac and the folders sessions ran in, newest first */
+    /* the agent chosen in Settings as where new sessions start ('' follows the session you are on) */
+    var devDefault = '';
     var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code' }, { id: 'codex', app: 'codex', name: 'Codex' },
       { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode' }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
     var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
@@ -3191,7 +3250,7 @@
     function newFrom(p) {
       var agent = !p ? 'claude' : p.app === 'claude' ? (p.via ? 'claude-code' : 'claude') : p.app;
       var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
-      return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
+      return { apps: NEW_APPS, projects: NEW_DIRS, agent: devDefault || agent, project: dir ? dir.name : 'perch', preferred: devDefault || null };
     }
     var devNewRun = 0;
     function devNew(m) {
@@ -3273,10 +3332,11 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
+        if (o && o.newDefault !== undefined) devDefault = o.newDefault;
         if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newApps: NEW_APPS, newDefault: devDefault }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */

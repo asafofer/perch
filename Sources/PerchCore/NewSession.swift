@@ -71,15 +71,17 @@ public enum NewSession {
     }
 
     /// What it starts on: the session you are looking at (the row you were on, or the session in front of you), else the
-    /// agent and folder you started with last, else the first agent and the newest folder.
-    public static func defaults(looking: Project?, lastChoice: String?, lastFolder: String?, choices: [Choice], folders: [Folder]) -> (choice: String?, folder: String?) {
+    /// agent and folder you started with last, else the first agent and the newest folder. A default agent chosen in
+    /// Settings (`preferred`) is always the agent while it is on this Mac: any other is chosen by hand each time.
+    public static func defaults(looking: Project?, lastChoice: String?, lastFolder: String?, choices: [Choice], folders: [Folder], preferred: String? = nil) -> (choice: String?, folder: String?) {
         let ids = Set(choices.map(\.id)), paths = Set(folders.map(\.path))
+        let fixed = preferred.flatMap { ids.contains($0) ? $0 : nil }
         if let p = looking {
             let c = choiceId(for: p), f = p.cwd.map(root)
-            return (ids.contains(c) ? c : lastChoice.flatMap { ids.contains($0) ? $0 : nil } ?? choices.first?.id,
+            return (fixed ?? (ids.contains(c) ? c : lastChoice.flatMap { ids.contains($0) ? $0 : nil } ?? choices.first?.id),
                     f.flatMap { paths.contains($0) ? $0 : nil })
         }
-        return (lastChoice.flatMap { ids.contains($0) ? $0 : nil } ?? choices.first?.id,
+        return (fixed ?? lastChoice.flatMap { ids.contains($0) ? $0 : nil } ?? choices.first?.id,
                 lastFolder.flatMap { paths.contains($0) ? $0 : nil } ?? folders.first?.path)
     }
 

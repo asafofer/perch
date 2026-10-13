@@ -837,6 +837,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return NewSession.choices(claudeApp: ws.urlForApplication(withBundleIdentifier: Restorer.claudeApp) != nil,
                                   codexApp: ws.urlForApplication(withBundleIdentifier: Restorer.codexApp) != nil, commands: Self.commands)
     }
+    private func newApps(_ choices: [NewSession.Choice]) -> [UISnapshot.NewSession.App] {
+        let via = Terminals.keys[Terminals.preferred] ?? "terminal"
+        return choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) }
+    }
     private func newFolders() -> [NewSession.Folder] {
         let found = NewSession.folders(base)
         let picked = pickedFolders.filter { p in !found.contains { $0.path == p } }.map { NewSession.Folder(name: ($0 as NSString).lastPathComponent, path: $0, lastActive: nil) }
@@ -862,12 +866,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func newSessionState() -> UISnapshot.NewSession {
         let choices = newChoices(), folders = newFolders(), home = NSHomeDirectory()
-        let d = NewSession.defaults(looking: newLooking, lastChoice: Prefs.lastNewChoice, lastFolder: pickedFolders.first ?? Prefs.lastNewFolder, choices: choices, folders: folders)
-        let via = Terminals.keys[Terminals.preferred] ?? "terminal"
+        let d = NewSession.defaults(looking: newLooking, lastChoice: Prefs.lastNewChoice, lastFolder: pickedFolders.first ?? Prefs.lastNewFolder, choices: choices, folders: folders, preferred: Prefs.newDefault)
         return UISnapshot.NewSession(
-            apps: choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) },
+            apps: newApps(choices),
             projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },
-            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere")
+            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere",
+            preferred: Prefs.newDefault.flatMap { id in choices.contains { $0.id == id } ? id : nil })
     }
 
     /// Choose a folder…: the Mac's own picker. The folder becomes the session's, and the card goes on to the prompt.
@@ -1035,6 +1039,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
                 if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
                 if key == "hoverExternal", let on = body["value"] as? Bool { Prefs.hoverExternal = on }
+                if key == "newDefault", let id = body["value"] as? String { Prefs.newDefault = id.isEmpty ? nil : id }
                 if key == "showOn", let raw = body["value"] as? String {
                     let choice = ShowOn(raw: raw)
                     Prefs.showOn = choice
@@ -1366,6 +1371,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState(),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
+                                   newDefault: Prefs.newDefault ?? "", newApps: newApps(newChoices()),
                                    back: machine.settingsFrom != nil)
     }
     /// The connected displays, then a chosen one that is not connected, under the name it had when chosen.
