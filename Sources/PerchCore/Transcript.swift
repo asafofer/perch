@@ -594,6 +594,18 @@ extension Project {
 
     /// A "needs you" only guessed (as `settled`) that you have seen, and since then you looked at a later change in another
     /// session: you moved on, so it is history. `seen` is each session's last change you saw (seconds since 1970).
+    /// Each session's last change you saw (seconds since 1970), for `movedOn`: what was marked seen, or its last change when it is
+    /// not fresh (in front of you in the Claude app since). A session that changed since you looked keeps what you saw of it before:
+    /// a session at work changes on every tool call, and without that the question you left would come back with each one.
+    public static func lastSeen(_ list: [Project], seen: [String: Double], fresh: (Project) -> Bool) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for p in list {
+            let t = max(seen[p.id] ?? 0, fresh(p) ? 0 : p.lastActive?.timeIntervalSince1970 ?? 0)
+            if t > 0 { out[p.id] = max(out[p.id] ?? 0, t) }
+        }
+        return out
+    }
+
     public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
         list.map { p in
             guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
