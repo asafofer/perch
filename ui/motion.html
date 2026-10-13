@@ -112,8 +112,10 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 .t-morph-swap.is-morphing .t-morph-old{opacity:0;filter:blur(var(--text-morph-blur))}
 .t-morph-swap.is-morphing .t-morph-new{opacity:1;filter:blur(0)}
 /* text swap soft (34); a wrapping block keeps its wrap and lets go of the width */
-.t-text-soft{display:inline-grid;justify-items:start;transition:width var(--text-soft-resize-dur) var(--text-soft-resize-ease)}
+.t-text-soft{display:inline-grid;grid-template-columns:minmax(0,1fr);justify-items:var(--text-soft-align,start);transition:width var(--text-soft-resize-dur) var(--text-soft-resize-ease)}
 .t-text-soft.blk{display:grid}
+/* a value aligned to the right, like the card's status, keeps its right edge (the recipe's --text-soft-align: end) */
+.st .t-text-soft{--text-soft-align:end}
 .t-text-soft > span{grid-area:1/1;white-space:pre;transition:filter var(--text-soft-dur) var(--text-soft-ease),opacity var(--text-soft-dur) var(--text-soft-ease)}
 .t-text-soft.blk > span{white-space:normal}
 .t-text-soft-new{opacity:0;filter:blur(var(--text-soft-blur))}
