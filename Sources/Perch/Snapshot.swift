@@ -115,7 +115,7 @@ struct UISnapshot: Encodable {
     let settings: Settings?
     let character: Character
     let onboarding: Onboarding?
-    let selected: Int
+    var selected: Int
     let autoCollapse: Bool
     let timerToken: Int
     let screen: Screen

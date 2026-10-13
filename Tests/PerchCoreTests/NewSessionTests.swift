@@ -70,6 +70,8 @@ import Testing
         let list = [old, codex, elsewhere, fresh]
         #expect(NewSession.started(in: list, choice: choice, folder: "/u/perch", since: t, known: ["old"])?.id == "new")
         #expect(NewSession.started(in: [old, codex, elsewhere], choice: choice, folder: "/u/perch", since: t, known: ["old"]) == nil)
+        // asked to confirm, where another folder can be picked: a new one of that agent counts wherever it runs
+        #expect(NewSession.started(in: [old, codex, elsewhere], choice: choice, folder: "/u/perch", since: t, known: ["old"], anyFolder: true)?.id == "el")
         // with an id, only that one
         let pi = session("p", app: "pi", terminal: true, cwd: "/u", started: t, sessionId: "s1")
         let piChoice = NewSession.Choice(id: "pi", agent: "pi", terminal: true, name: "pi")

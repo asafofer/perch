@@ -101,11 +101,13 @@ public enum NewSession {
 
     /// The new session, once the scan finds it: one Perch had not seen before, of that agent, run where it was asked for
     /// (in its app or a terminal), in that folder (or a worktree of it), and begun after it was started. With an id, only that one.
-    public static func started(in projects: [Project], choice: Choice, folder: String?, since: Date, known: Set<String>, sessionId: String? = nil) -> Project? {
+    /// anyFolder: the app asked you to confirm first, where you can also pick another folder, so a new session of that
+    /// agent begun since counts wherever it runs.
+    public static func started(in projects: [Project], choice: Choice, folder: String?, since: Date, known: Set<String>, sessionId: String? = nil, anyFolder: Bool = false) -> Project? {
         projects.first { p in
             if let sessionId { return p.sessionId == sessionId }
             guard !known.contains(p.id), p.app == choice.agent, p.terminal == choice.terminal else { return false }
-            if let folder, let cwd = p.cwd, root(cwd) != folder { return false }
+            if !anyFolder, let folder, let cwd = p.cwd, root(cwd) != folder { return false }
             let began = p.startedAt ?? p.lastActive ?? .distantPast
             return began >= since.addingTimeInterval(-5)
         }
