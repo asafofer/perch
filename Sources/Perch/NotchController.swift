@@ -1474,7 +1474,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
-                                   showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState(),
+                                   showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
                                    back: machine.settingsFrom != nil)
     }
@@ -1612,12 +1612,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var shortcutPicks = 0
     private var shortcutRefusals = 0
 
-    private func shortcutState() -> UISnapshot.ShortcutState {
-        let new = recordingFor == "new", s = new ? Prefs.newShortcut : Prefs.openShortcut
+    /// The recorder's shortcut, or `which` one: Settings' Open Perch row always shows Open Perch's, so a New session
+    /// shortcut just recorded neither shows its keys there nor springs it.
+    private func shortcutState(_ which: String? = nil) -> UISnapshot.ShortcutState {
+        let w = which ?? recordingFor, mine = w == recordingFor
+        let new = w == "new", s = new ? Prefs.newShortcut : Prefs.openShortcut
         var works = true, why = ""
         if s.kind == .tap, !AXIsProcessTrusted() { works = false; why = "A tap needs Accessibility. Allow it, or record a key combo." }
         else if s.kind == .combo, (new ? newComboWorks?() : openComboWorks?()) == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: new ? s != Prefs.standardNew : !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks, which: recordingFor)
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: new ? s != Prefs.standardNew : !s.isStandard, recording: mine && recorder != nil, error: mine ? shortcutError : "", tried: mine && shortcutTried, saved: mine && shortcutSaved, works: works, why: why,
+                                       attempt: mine ? shortcutAttempt : [], refusals: mine ? shortcutRefusals : 0, pending: mine ? shortcutPending : [], picks: mine ? shortcutPicks : 0, which: w)
     }
     /// Which shortcut the recorder page records: "open" or "new" (New session's, from its row in Settings).
     private var recordingFor = "open"
