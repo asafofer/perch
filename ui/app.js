@@ -449,16 +449,23 @@
   rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
   /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
   function addPaths(list) {
-    if (lastSt !== 'open' || !list || !list.length) return;
+    if (!list || !list.length) return;
+    if (lastSt === 'ns') return nwPaths(list);
+    if (lastSt !== 'open') return;
     if (dropping) dropped();
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
-    var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
+    var e = putPaths(rIn, list); setTimeout(function () { caretAt(e); }, 40);
+  }
+  /* the paths go in where the caret is (at the end when the field is not in use), a space either side, so you type on
+     right after them; where the caret lands after them */
+  function putPaths(el, list) {
+    var v = el.value, mine = document.activeElement === el, a = mine ? el.selectionStart : v.length, b = mine ? el.selectionEnd : v.length;
     var t = list.join(' ');
     if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
-    if (b < v.length && !/\s/.test(v.charAt(b))) t += ' ';
-    rIn.value = v.slice(0, a) + t + v.slice(b);
-    rIn.dispatchEvent(new Event('input'));
-    var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
+    if (!/\s/.test(v.charAt(b))) t += ' ';
+    el.value = v.slice(0, a) + t + v.slice(b);
+    el.dispatchEvent(new Event('input'));
+    return a + t.length;
   }
   /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
      it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
@@ -466,6 +473,7 @@
      and hops. */
   var dropping = 0, dropOpened = false;
   function dragOver(n, x, y) {
+    if (lastSt === 'ns') return nwDragOver(n, x, y);
     if (lastSt !== 'open') return;
     if (n && !dropping) {
       if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
@@ -764,7 +772,9 @@
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
       if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      /* your own words quoted back (You said: / You asked:): the label is grey, so what is quoted reads first */
+      var you = /^(You said|You asked):\s*/.exec(did);
+      if (did) { setWords(h, you ? '<span class="text-muted-foreground">' + esc(you[1]) + '</span> ' + md(did.slice(you[0].length)) : md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
       else setWords(h, said ? '' : md(p.headline));
       setWords(c, ''); setWords(box, '');
     }
@@ -1085,6 +1095,16 @@
   function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'The folder picked in Claude', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
   function newApply(o, entering) {
+    /* While it is open, what you are choosing holds still: a scan that finds activity elsewhere (another folder moving to
+       the top, an agent found) would move the rows under you, change the folder chosen, or redraw the field and its caret
+       as you type. Only a list that was empty (the first scan not yet done) is filled in. */
+    if (!entering) {
+      var had = (nw.o && nw.o.projects) || [];
+      if (had.length || !(o.projects || []).length) return;
+      nw.o = o;
+      if (nw.step === 'app') { var fi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; }); nw.proj = fi < 0 ? 0 : fi; }
+      return newRender();
+    }
     nw.o = o;
     if (entering) {
       var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
@@ -1148,7 +1168,7 @@
     box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
     box.querySelectorAll('.nrow').forEach(function (r) {
       r.onclick = function () { nwPick(+r.dataset.i); nwNext(); };
-      r.onmouseenter = function () { if (!ptrMoved()) return; nwPick(+r.dataset.i, true); };
+      r.onmouseenter = function () { if (!ptrMoved() || nwDrop) return; nwPick(+r.dataset.i, true); };   /* a file dragged across the rows chooses nothing */
     });
     var ta = q('.nw-in');
     if (ta) {
@@ -1249,6 +1269,30 @@
   function nwPicked(name, path) {
     var o = nw.o || {}; o.projects = (o.projects || []).filter(function (p) { return p.path !== path; });
     o.projects.unshift({ name: name, path: path, away: '' }); nw.o = o; nw.q = ''; nw.proj = 1; nwTo('prompt');
+  }
+  /* Files dropped on the card or pasted from Finder go into the prompt as their paths, as on a reply. Dropped while the
+     agent or the folder is still being chosen, the card goes on to the prompt with what is chosen so far (the chips
+     change it). Over the card the field lights up, more so with the file right on it, and the character watches. */
+  var nwDrop = 0, nwHint = '';
+  function nwPaths(list) {
+    if (nwDrop) nwDragOver(0);
+    if (nw.step !== 'prompt') nwTo('prompt');
+    var ta = q('.nw-in'); if (!ta) return;
+    var e = putPaths(ta, list);
+    setTimeout(function () { ta.focus({ preventScroll: true }); ta.setSelectionRange(e, e); }, 40);
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!nwDrop && snap && lastSt === 'ns') layout('ns', snap); }, 1100);
+  }
+  function nwDragOver(n, x, y) {
+    var ta = q('.nw-in'), was = nwDrop; nwDrop = n;
+    if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
+    if (n) lookAt(ta || q('.nw'), 60);
+    if (ta) {
+      var r = ta.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+      ta.classList.toggle('drop', !!n); ta.classList.toggle('on', on);
+      ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    }
+    if (!n && was && snap) layout('ns', snap);   /* its face goes back */
   }
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
@@ -1895,7 +1939,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else nw.on = false;
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -3040,7 +3084,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3150,7 +3194,7 @@
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
-      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You asked: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
+      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You said: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', via: 'terminal', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       /* the other agents: OpenCode at work in Ghostty, and pi in a herdr pane (herdr shown in Ghostty) */

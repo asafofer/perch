@@ -128,8 +128,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         config.userContentController = controller
         web = CardWebView(frame: .zero, configuration: config)
         super.init()
-        // A card that offers Reply: one asking you something has no field to drop into.
+        // A card that offers Reply (one asking you something has no field to drop into), or a new session's prompt.
         web.takesFiles = { [weak self] in
+            if self?.machine.phase == .newSession { return true }
             guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }
             return self.projects[self.machine.selected].ask == nil
         }
@@ -137,7 +138,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             self?.web.evaluateJavaScript("window.perch && window.perch.dragOver(\(n), \(at.x), \(at.y))", completionHandler: nil)
         }
         web.onFiles = { [weak self] paths in
-            guard let self, self.machine.phase == .open else { return false }
+            guard let self, self.machine.phase == .open || self.machine.phase == .newSession else { return false }
             // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.
             self.addPaths(paths); self.panel.makeKey(); return true
         }
@@ -1614,6 +1615,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
+                    // A file copied in Finder pastes as its path, into the prompt (on to it from an earlier step), as on a reply.
+                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+                        self.addPaths(urls.map(\.path)); return nil
+                    }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
                 return e
@@ -1793,9 +1798,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
     /// click outside, so the card makes way rather than cover that app's window. Not during onboarding (you go to System
-    /// Settings in the middle of it), nor while a reply is typed or on its way.
+    /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
+    /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.

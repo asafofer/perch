@@ -287,6 +287,13 @@ public struct GitInfo: Equatable, Sendable {
 }
 
 public enum Recap {
+    /// Your own last message, quoted: "You asked" only when it asks something (a sentence ending in a question mark),
+    /// otherwise "You said".
+    public static func youSaid(_ text: String) -> String {
+        let asks = text.range(of: #"\?+(\s|$|["”’')\]])"#, options: .regularExpression) != nil
+        return "\(asks ? "You asked" : "You said"): “\(clip(text, 120))”"
+    }
+
     /// A plain, honest recap built from the transcript and git alone. No model call.
     public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
@@ -298,12 +305,12 @@ public enum Recap {
         // With no sentence worth showing: what it did if it changed something, the answer as written if it only answered.
         let reply = outcome(d.lastAssistantFull ?? d.lastAssistantText)
         let fallback = d.work.changedSomething ? did(d.work) ?? answer(d.lastAssistantText) : answer(d.lastAssistantText) ?? did(d.work)
-        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
         let working = status.kind == .running
-        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? settled
+        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? settled
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,

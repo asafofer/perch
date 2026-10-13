@@ -164,7 +164,7 @@ import Foundation
         ])
         #expect(d.step == nil); #expect(d.narration == nil)
         let p = Recap.project(digest: { var x = d; x.cwd = "/Users/a/site"; return x }(), git: nil, now: Date(), quietFor: 5)!
-        #expect(p.context == "You asked: “now the list please”")
+        #expect(p.context == "You said: “now the list please”")
     }
     @Test func stepsReadAsWhatItIsDoing() {
         #expect(Activity.step(tool: "Edit", input: ["file_path": "/a/b/app.js"]) == "Editing app.js")
@@ -357,7 +357,7 @@ import Foundation
     }
     @Test func withNoOutcomeTheCardFallsBackToYourAsk() {
         let p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: Date())!   // "Done. Want a table next?"
-        #expect(p.context == "You asked: “make the sign centred”")
+        #expect(p.context == "You said: “make the sign centred”")
     }
     @Test func theAgentNarratingItsOwnPlanIsNotYourNextStep() {
         var d = TranscriptParser.digest(lines: lines)

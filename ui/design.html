@@ -213,7 +213,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var at = start.slice(), over = false, was = false;
     var put = function (e, p) { e.style.left = p[0] + 'px'; e.style.top = p[1] + 'px'; };
     put(file, start); put(ghost, start); ghost.style.display = 'none'; put(cur, [start[0] - 60, start[1] - 30]);
-    var card = function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = desk.getBoundingClientRect(); return document.querySelector('#scene .n').dataset.s === 'open' ? { l: r.left - dr.left, t: r.top - dr.top, r: r.right - dr.left, b: r.bottom - dr.top } : null; };
+    var card = function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = desk.getBoundingClientRect(); return ['open', 'ns'].indexOf(document.querySelector('#scene .n').dataset.s) >= 0 ? { l: r.left - dr.left, t: r.top - dr.top, r: r.right - dr.left, b: r.bottom - dr.top } : null; };
     var frame = function () {
       put(ghost, at); put(cur, at);
       var c = card(), on = !!c && at[0] > c.l && at[0] < c.r && at[1] > c.t && at[1] < c.b;
@@ -252,6 +252,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onCard(dx, dy) { return function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = document.getElementById('desk').getBoundingClientRect(); return [r.left - dr.left + r.width / 2 + dx, r.top - dr.top + dy]; }; }
   /* near the field's right end, so the file does not hide what the field says */
   function onField() { var w = document.querySelector('.r-in').getBoundingClientRect().width; return deskPoint(document.querySelector('.r-in'), w / 2 - 46, 0); }
+  function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
@@ -282,6 +283,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: '48m ago' }); }],
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
       ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }],
+      ['Your words: you said', 'When the agent left nothing to quote, the card shows your own last message. It says You said, in grey, so your words read first; You asked only for a question.', function () { d.variant(1, { topic: 'Test Perch shimmer', headline: '', context: 'You said: \u201cPerch shimmer test. Reply with just ok, use no tools.\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
+      ['Your words: you asked', 'Your last message was a question (a sentence ending in a question mark): You asked.', function () { d.variant(1, { topic: 'Hero jump on Safari', headline: '', context: 'You asked: \u201cwhy does the hero jump on Safari when the poster loads?\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
       ['Working, a long title', 'A title that runs long has its whole line: the status sits on the grey line under it, at the right.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
     ['More agents', [
@@ -416,6 +419,44 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Choose a folder…', 'The Mac’s folder picker; the folder you pick is the session’s, and you go on to the prompt.', function () { d.project(1); d.newSession({ step: 'project' }); setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', metaKey: true, bubbles: true })); }, 700); }],
       ['The prompt', 'The two choices sit along the top as chips, and where it opens at the right. Return starts it and leaves you where you are; Command+Return starts it and takes you there. Shift+Return is a new line.', function () { d.project(1); d.newSession({ step: 'prompt' }); }],
       ['The prompt, typed', 'A longer prompt grows the field, up to six lines, then it scrolls.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' }); }],
+      ['A file dropped on the prompt', 'A file dragged onto the card while you write the prompt: the field lights up, more so right on it, and the character watches the file. Dropped, its path goes in where the caret is. A file pasted from Finder goes in the same way.', function () {
+        d.project(1); d.newSession({ step: 'prompt', text: 'Use this as the hero poster:' });
+        setTimeout(function () {
+          fileDrag('/Users/you/Desktop/hero-poster.png', [
+            [null, 500, 'Writing the prompt, with a file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onPrompt, 1500, 'Dragging it onto the prompt: it lights up, the character watches the file'],
+            [null, 900, 'Right on it: release to add its path'],
+            ['drop', 1500, 'Dropped: its path goes in after your words']
+          ]);
+        }, 900);
+      }],
+      ['A file dropped while choosing', 'Dropped while the folder is still being chosen: the card goes on to the prompt with what is chosen so far, the path already in it. The chips along the top still change the agent or the folder.', function () {
+        d.project(1); d.newSession({ step: 'project' });
+        setTimeout(function () {
+          fileDrag('/Users/you/Desktop/crash-log.txt', [
+            [null, 500, 'Choosing the folder, with a file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onCard(40, 90), 1400, 'Dragging it onto the card: the character watches the file'],
+            [null, 700],
+            ['drop', 1800, 'Dropped: on to the prompt, its path in the field and the caret after it']
+          ]);
+        }, 900);
+      }],
+      ['A file pasted', 'A file copied in Finder and pasted with Command+V goes in as its path, as a drop does: here while the folder is still being chosen, so the card goes on to the prompt, the caret after the path.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'project' }); now.textContent = 'Choosing the folder, a file copied in Finder';
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+V: its path, in the prompt'; window.perch.paths(['/Users/you/Desktop/crash-log.txt']); }, 1600);
+      }],
+      ['Nothing moves while you choose', 'While the card is open, activity elsewhere changes nothing on it: here landing-page gets a new session and would move to the top, but the rows stay where they are and the folder you are on stays chosen. The next time you open it, the list is fresh.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'project' });
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'You are on a folder'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); }, 900);
+        setTimeout(function () {
+          if (me !== charRun) return; now.textContent = 'A session in landing-page did something: nothing moves';
+          var s = window.perch._snap(); if (!s || s.phase !== 'newSession') return;
+          var o = JSON.parse(JSON.stringify(s.newSession)); o.projects.unshift({ name: 'landing-page', path: '/Users/you/Code/landing-page', label: '~/Code/landing-page', away: 'now' });
+          window.perch.apply(Object.assign({}, s, { newSession: o, timerToken: Math.random() }));
+        }, 2400);
+      }],
       ['Started, from the list', 'Return puts you straight back in the list, the new session already a row at the top of Today. Its title is grey with a light passing through it, as the card shows a step at work, and it says Starting. Once Perch sees the session: Started with the paper plane, then an ordinary row.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
       ['Started, a long title', 'Lit, a title too long for the row reads itself out, and the passing light goes with the words rather than leaving a second copy behind.', function () {
         d.listChange({ 0: { pending: 'starting', topic: 'Move the settings card onto the shared panel geometry and measure every row again', status: { kind: 'running', text: 'Starting', app: 'claude' }, attention: false, ask: null } }, 0);
