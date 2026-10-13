@@ -1091,8 +1091,9 @@
       nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
       var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
-      /* a draft waiting: straight back to it, as you left it */
-      nw.step = nw.text ? 'prompt' : 'app';
+      /* a draft waiting: straight back to it, as you left it. With a default agent (Settings) there is nothing to ask: it
+         opens on the folder, the agent a chip at the top; the chip or Left goes back to choose another. */
+      nw.step = nw.text ? 'prompt' : o.preferred && o.preferred === o.agent && ai >= 0 ? 'project' : 'app';
     }
     newRender(entering);
   }
