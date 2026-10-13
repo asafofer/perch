@@ -40,6 +40,19 @@ import Testing
         #expect(none.choice == "pi"); #expect(none.folder == "/u/site")   // a folder no longer offered: the newest
     }
 
+    @Test func aDefaultAgentWinsOverTheSessionYouAreLookingAtAndWhatYouUsedLast() {
+        let choices = NewSession.choices(claudeApp: true, codexApp: true, commands: ["claude", "pi"])
+        let folders = [NewSession.Folder(name: "site", path: "/u/site", lastActive: nil), NewSession.Folder(name: "perch", path: "/u/perch", lastActive: nil)]
+        let looking = session("x", app: "claude", terminal: true, cwd: "/u/perch")
+        let d = NewSession.defaults(looking: looking, lastChoice: "pi", lastFolder: "/u/site", choices: choices, folders: folders, preferred: "codex")
+        #expect(d.choice == "codex"); #expect(d.folder == "/u/perch")   // the folder still follows what you are on
+        let none = NewSession.defaults(looking: nil, lastChoice: "pi", lastFolder: "/u/site", choices: choices, folders: folders, preferred: "codex")
+        #expect(none.choice == "codex")
+        // a default no longer on this Mac: as if there were none
+        let gone = NewSession.defaults(looking: looking, lastChoice: "pi", lastFolder: nil, choices: choices, folders: folders, preferred: "opencode")
+        #expect(gone.choice == "claude-code")
+    }
+
     @Test func commandsCarryThePromptQuotedAndAnIdWhereTheAgentTakesOne() {
         #expect(NewSession.command(agent: "claude", prompt: "fix it's header", sessionId: "abc") == "claude --session-id abc 'fix it'\\''s header'")
         #expect(NewSession.command(agent: "codex", prompt: "go") == "codex 'go'")

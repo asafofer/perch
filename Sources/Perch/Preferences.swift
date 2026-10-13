@@ -26,6 +26,9 @@ enum Prefs {
     /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).
     static var lastNewChoice: String? { get { d.string(forKey: "new.choice") } set { d.set(newValue, forKey: "new.choice") } }
     static var lastNewFolder: String? { get { d.string(forKey: "new.folder") } set { d.set(newValue, forKey: "new.folder") } }
+    /// The agent every new session starts on (a NewSession.Choice id), chosen in Settings; nil starts on the session you
+    /// are on, else the one you used last.
+    static var newDefault: String? { get { d.string(forKey: "new.default") } set { d.set(newValue, forKey: "new.default") } }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or

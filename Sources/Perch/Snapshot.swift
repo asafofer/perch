@@ -51,6 +51,8 @@ struct UISnapshot: Encodable {
         let project: String?
         /// "list" when opened from the list (it goes back there), "anywhere" otherwise.
         let from: String
+        /// The default agent chosen in Settings, if any: its row says Default.
+        var preferred: String? = nil
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -92,6 +94,8 @@ struct UISnapshot: Encodable {
         let showOn: String; let displays: [Display]
         let shortcut: ShortcutState
         var newShortcut: NewShortcut? = nil
+        /// The agent a new session starts on ("" for the session you are on) and the agents to choose from, as the new session card lists them.
+        var newDefault = ""; var newApps: [NewSession.App] = []
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
     var newSession: NewSession?
