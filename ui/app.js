@@ -891,6 +891,9 @@
   function nwAgent() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
   function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
   function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
+  /* No project, as each agent takes it. The Claude app cannot be asked for a chat without a folder: given none, it uses
+     the folder it was last in, or starts a chat when it has none, so its row says that rather than promise no folder. */
+  function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'Its last folder, or a new chat', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
   function newApply(o, entering) {
     nw.o = o;
@@ -911,7 +914,7 @@
     /* along the top: the choices made so far as chips, then this step's question (or what you typed to narrow the folders) */
     var crumbs = '';
     if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
-    if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? 'No project' : f.name) + '</span>');
+    if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? nwNone(a)[2] : f.name) + '</span>');
     var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
     var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
@@ -928,7 +931,7 @@
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
         var on = i === nw.proj ? ' bg-accent' : '';
         if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">No project</span><span class="flex-none text-xs text-muted-foreground">' + (a.via ? 'Starts in your home folder' : 'A chat with no folder') + '</span></div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span></div>';
         if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
           '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
@@ -1009,7 +1012,7 @@
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
     post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
   }
-  function nwLineP(a, f) { return { id: 'new-session', name: f.none ? 'No project' : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
+  function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
   function nwStarted(ok, app) {
