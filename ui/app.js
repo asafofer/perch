@@ -1289,17 +1289,13 @@
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
   function nwStarted(ok, app) {
     /* the app asks you to trust the folder first: the line says to confirm there, and waits */
-    /* the app asks to trust the folder: the line gives way to the request Swift sends next (Trust or Cancel, from the
-       notch); from the list, the list closes for it, since the app has the keyboard now */
     if (ok === 'confirm') {
-      /* each start asks afresh: an answer to an earlier one (the same folder, say) does not put this one away */
-      Object.keys(actGone).forEach(function (k) { if (k.indexOf('new-session|') === 0) delete actGone[k]; });
-      if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { clearTimeout(sentT); sent = null; setAct('', null); }
-      return;
-    }
-    if (ok === 'cancelled') {
-      if (nw.last || nw.lastFiles.length) { nw.text = nw.last; nw.files = nw.lastFiles; }
-      nw.last = ''; nw.lastFiles = [];
+      if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+      /* asked before the card had folded into its line: the line, when it comes, says it */
+      if (sentNext && sentNext.p.id === 'new-session') { sentNext.words = 'Confirm in ' + app; sentNext.asks = true; return; }
+      /* started from the list: the app has the keyboard now, so the list (Swift closes it next) folds into that same line */
+      var pr = lastSt === 'switch' && snap && snap.projects.filter(function (x) { return x.pending === 'starting' || x.pending === 'confirm'; })[0];
+      if (pr) sentNext = { p: { id: 'new-session', name: pr.name, topic: '', app: pr.app, via: pr.via, status: { kind: 'running', text: 'Starting', app: pr.app } }, words: 'Confirm in ' + app, at: Date.now(), pending: true, asks: true };
       return;
     }
     if (!ok && (nw.last || nw.lastFiles.length)) { nw.text = nw.last; nw.files = nw.lastFiles; }
@@ -1481,11 +1477,11 @@
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
   var MARK = {
-    done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need'), trust: Ring('question')
+    done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
   function actKind(p) {
     if (p.update) return 'update';
-    if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan', trust: 'trust' }[p.ask.kind] || 'need';
+    if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
     return p.status.kind === 'attention' ? 'need' : 'done';
   }
   function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
@@ -1494,15 +1490,13 @@
     var a = p.ask;
     if (k === 'done') return [['pick', goLabel(p), '\u21a9'], ['reply', 'Reply', 'R']];
     if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'A'], ['deny', 'Deny', 'X']];
-    /* a new session's app asks to trust its folder: Perch presses the app's own button for the one you choose */
-    if (a && a.answerable && a.kind === 'trust') return [['trust', 'Trust', 'T'], ['cancel', 'Cancel', 'X']];
     var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
     if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
     if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
     return [['pick', goLabel(p), '\u21a9']];
   }
   function actWords(p, k) {
-    return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'trust' ? 'Trust folder?' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
+    return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
   /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
      is already there moves (the pointer would lose it). */
@@ -1524,7 +1518,7 @@
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
-    if (k === 'run' || k === 'trust') body = '<span dir="ltr" class="act-cmd">' + esc(a.subject || (k === 'trust' ? 'this folder' : 'a command')) + '</span>';
+    if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
@@ -1708,7 +1702,7 @@
   }
   function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
-  function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan' || p.ask.kind === 'trust'); }
+  function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
     if (blocking(p)) return false;
     var k = actKey(p), t = actSeen[k] || (actSeen[k] = Date.now());
@@ -1750,11 +1744,6 @@
     var now = { need: everyHeard.map(actKey), done: everyDone.map(function (p) { return p.id; }) };
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
-    /* a new session's app asks to trust its folder: the request is said, not the Starting line it may have come before */
-    if (s.projects.some(function (p) { return p.id === 'new-session' && p.ask && p.ask.kind === 'trust'; })) {
-      if (sentNext && sentNext.p.id === 'new-session') sentNext = null;
-      if (act.mode === 'sent' && act.p && act.p.id === 'new-session' && sent && sent.pending) { clearTimeout(sentT); sent = null; setAct('', null, true); }
-    }
     /* an answer just given on the card: the card closes into the line that says it went */
     if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending, sn.asks); return; }
     sentNext = null;
@@ -1809,7 +1798,7 @@
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     var m = null;
-    if (a === 'allow' || a === 'deny' || a === 'trust' || a === 'cancel') m = { type: 'activityAnswer', id: p.id, choice: a };
+    if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
     else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
     actGone[actKey(p)] = 1; clearTimeout(actTimer);
@@ -1819,8 +1808,7 @@
     act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id]; sentBase = actKnown;
     if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
     post(m);
-    /* trusted, the session goes on starting (Started once Perch sees it); cancelled, nothing is sent and your words wait */
-    setTimeout(function () { actPressing = false; if (a === 'trust' || a === 'cancel') { if (a === 'trust') sentShow(p, 'Starting', true, true, '', true); else sentShow(p, '', false, false, 'Cancelled'); if (snap) layout(lastSt, snap); } else sentShow(p, sentWords(m)); }   /* the request has gone from the snapshot already: the notch is sized again for the line */, actPressing ? 170 : 0);
+    setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
   }
   /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
      right with a check, and goes after a moment (whatever still waits on you stays as wings). An answer on the card says
@@ -3267,7 +3255,6 @@
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
-    if (m.type === 'activityAnswer' && m.id === 'new-session' && devTrust) { devTrustAnswer(m.choice); return; }
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
@@ -3331,25 +3318,6 @@
       return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
     }
     var devNewRun = 0;
-    /* the app asks to trust the folder: the notch shows it as a request, Trust or Cancel */
-    var devTrust = null;
-    function devTrustAsk(a, name, folder, row) {
-      var who = agentShort(a.app), nowEl = document.getElementById('now');
-      var t = { id: 'new-session', name: name, app: a.app, topic: row.topic, branch: '', away: '0m', at: '', headline: '', context: '', next: '', attention: true, fresh: true, line: '',
-        status: { kind: 'attention', text: who + ' asks to trust ' + name, app: a.app }, ask: { kind: 'trust', title: who + ' asks to trust ' + name, subject: folder || '~', questions: [], answerable: true } };
-      devTrust = { row: row };
-      nwStarted('confirm', who);
-      apply(Object.assign({}, base, { phase: 'idle', character: charNow, projects: P.concat([t]), timerToken: Math.random() }));
-      if (nowEl) nowEl.textContent = who + ' asks to trust the folder: the notch asks you, Trust (Command+Option+T) or Cancel';
-    }
-    function devTrustAnswer(choice) {
-      var row = devTrust.row, nowEl = document.getElementById('now'); devTrust = null;
-      apply(Object.assign({}, base, { phase: 'idle', character: charNow, projects: P, timerToken: Math.random() }));
-      if (choice === 'cancel') { nwStarted('cancelled'); if (nowEl) nowEl.textContent = 'Cancelled: Perch pressed Cancel there, nothing was sent, your words wait as the draft'; return; }
-      if (nowEl) nowEl.textContent = 'Trusted: Perch pressed Trust workspace there, then Send, and put you back';
-      var k = devNewRun;
-      setTimeout(function () { if (k !== devNewRun) return; P.unshift(row); nwStarted(true); apply(Object.assign({}, base, { phase: 'idle', character: charNow, projects: P, timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'Perch sees the session: Started'; }, 1600);
-    }
     function devNew(m) {
       var D = window.perchDev, nowEl = document.getElementById('now');
       if (!m.action) { D.newSession(m.from === 'anywhere' ? { from: 'anywhere' } : {}); return; }
@@ -3379,7 +3347,19 @@
           if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
         });
         /* the app asks you to confirm the folder: it has the keyboard now, so the list folds into the line that says so */
-        if (D.newConfirms) { later(close + 1200, function () { P.splice(P.indexOf(pend), 1); devTrustAsk(a, name, m.folder, row); }); return; }
+        if (D.newConfirms) {
+          later(close + 1200, function () {
+            pend.pending = 'confirm'; relist(); nwStarted('confirm', agentShort(a.app));
+            apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = agentShort(a.app) + ' asks you to trust the folder: the list folds into the line that says so';
+          });
+          later(close + 5200, function () {
+            P[P.indexOf(pend)] = row; nwStarted(true);
+            apply(Object.assign({}, snap, { projects: P, timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = 'Confirmed there: Perch sees the session, Started';
+          });
+          return;
+        }
         later(close + 1500, function () {
           pend.pending = fail ? 'failed' : 'started'; relist();
           if (fail) nwStarted(false); else nwStarted(true);
@@ -3393,7 +3373,6 @@
         return;
       }
       /* from anywhere: the card folds into one line, Starting, then Started (or Didn't start) */
-      if (D.newConfirms) { later(close, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); later(close + 1200, function () { devTrustAsk(a, name, m.folder, row); }); return; }
       later(close, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'The card folds into one line: Starting\u2026'; });
       later(close + 1700, function () {
         if (!fail) P.unshift(row);

@@ -732,7 +732,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         sent.proactive = proactiveOpen
         if machine.phase == .newSession { sent.newSession = newSessionState() }
         if machine.phase == .switcher, let st = starting, st.fromList, listQuery.isEmpty { pendingRow(st, into: &sent) }
-        if machine.phase == .idle, let st = starting, st.state == "confirm" { sent.projects.append(trustRequest(st)) }
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         tookKeysForAsk = askTakesKeys
@@ -996,28 +995,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// The app asks to trust the new session's folder: on the notch it is a request like a command waiting for your OK,
-    /// Trust or Cancel, and Perch presses the app's own button for the one you choose (`NewSessionStarter.trust`).
-    private func trustRequest(_ st: Starting) -> UISnapshot.UIProject {
-        let home = NSHomeDirectory(), path = st.folder.map { $0.hasPrefix(home) ? "~" + $0.dropFirst(home.count) : $0 } ?? "this folder"
-        let app = st.choice.agent == "codex" ? "Codex" : "Claude", folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
-        return UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.title, app: st.choice.agent,
-                                    attention: true, fresh: true, line: "", status: .init(kind: "attention", text: "\(app) asks to trust \(folder)", app: st.choice.agent), steps: [],
-                                    ask: .init(kind: "trust", title: "\(app) asks to trust \(folder)", subject: path, questions: [], answerable: true, why: nil), now: nil,
-                                    via: nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: nil)
-    }
-    /// Trust or Cancel from the notch. Trusted, it goes on starting; cancelled, nothing is sent and your words wait.
-    private func answerTrust(_ choice: String) {
-        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch trust: \(choice), starting \(starting?.state ?? "none")") }
-        guard starting?.state == "confirm" else { return }
-        NewSessionStarter.trust.answer(choice == "trust" ? .trust : .cancel)
-        if choice == "trust" { starting?.state = "starting"; push(); return }
-        startingTicker?.invalidate(); startingTicker = nil
-        starting = nil
-        web.evaluateJavaScript("window.perch && window.perch.newStarted('cancelled')", completionHandler: nil)
-        push()
-    }
-
     /// In the list: a row for the session from the moment you press Return, at the top of Today. Once the scan finds it,
     /// its real row says Started instead.
     /// The row you are on in the list is the one being started: the arrows reach it like any other, Return brings
@@ -1162,7 +1139,6 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "activityPick":
             if let id = body["id"] as? String, machine.phase == .idle, let i = projects.firstIndex(where: { $0.id == id }) { pickUp(i) }
         case "activityAnswer":
-            if body["id"] as? String == "new-session", let c = body["choice"] as? String { answerTrust(c); break }
             if let id = body["id"] as? String, let i = projects.firstIndex(where: { $0.id == id }) {
                 if let a = body["answers"] as? [String: String] { answer("", answers: a, at: i) } else if let c = body["choice"] as? String { answer(c, at: i) }
             }
