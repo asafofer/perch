@@ -535,39 +535,39 @@
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
     status(Phrase({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention }));
-    var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
+    var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
-    var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
-    q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
+    var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
+    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
       return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
-    }).join('') + '</div>';
+    }).join('') + '</div>');
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
-    q('.o-acts').innerHTML = (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
-      (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go'));
+    setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
+      (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go')));
   }
   /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
   function readQuestion(p, a) {
     var n = a.questions.length, qn = a.questions[0];
     status(Phrase({ t: n > 1 ? 'Question 1 of ' + n : 'Asked you something', c: COLORS.attention }));
-    var h = q('.o-h'); h.innerHTML = esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : ''); h.title = qn.text; h.classList.add('line-clamp-2');
+    var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';
-    var c = q('.o-c'); c.textContent = ''; c.style.display = 'none';
+    var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
     /* four choices with their notes and the reason would not fit the panel: past three, the labels alone */
     var terse = qn.options.length > 3;
-    q('.o-ask').innerHTML = '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
+    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
       var rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = terse ? '' : qn.notes[i] || '';
       return '<div class="flex w-full items-start gap-2.5 px-2 py-[3px]"><span class="grid size-4 flex-none place-items-center"><span class="size-1.5 rounded-full bg-white/25"></span></span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span></div>';
-    }).join('') + '</div>' + (a.why ? '<div class="mt-3 text-[11px] leading-[14px] text-muted-foreground/70">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : '');
+    }).join('') + '</div>' + (a.why ? '<div class="mt-3 text-[11px] leading-[14px] text-muted-foreground/70">' + esc(a.why).replace('Settings', '<span data-act="live" role="link" class="cursor-pointer underline underline-offset-2 hover:text-foreground">Settings</span>') + '</div>' : ''));
     q('.o-nx').style.display = 'none';
-    q('.o-acts').innerHTML = Flip() + Act('default', goLabel(p), ENTER, 'go');
+    setWords(q('.o-acts'), Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   function askKey(k) {
     var a = asking.p && asking.p.ask; if (!a || !a.questions || !a.questions.length) return;
@@ -617,9 +617,11 @@
   /* Words are put in only when they change: the snapshot comes again every refresh, and new nodes would drop a selection
      you are making in them. Written by anything else meanwhile (a question's card), they are put in again. */
   function setWords(el, html) {
-    if (el._put === html && el.innerHTML === el._was) return;
-    el.innerHTML = html; el._put = html; el._was = el.innerHTML;
+    if (el._put === html && unHv(el.innerHTML) === el._was) return;
+    el.innerHTML = html; el._put = html; el._was = unHv(el.innerHTML);
   }
+  /* The pointer's mark (hoverAt) is not a change: a button under the pointer is the last thing to draw again. */
+  function unHv(h) { return h.replace(/ class="([^"]*)"/g, function (m, c) { c = c.split(/\s+/).filter(function (x) { return x && x !== 'hv'; }).join(' '); return c ? ' class="' + c + '"' : ''; }); }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -631,7 +633,7 @@
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
-    sub.innerHTML = proj; sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -648,7 +650,7 @@
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
-      if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
+      if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
       if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
       else setWords(h, said ? '' : md(p.headline));
       setWords(c, ''); setWords(box, '');
@@ -667,9 +669,9 @@
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
     setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
-    q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
+    setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go');
+      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -787,9 +789,9 @@
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
-        var pend = !!s.projects[+r.dataset.i].pending;
-        r.onclick = function () { if (!pend) post({ type: 'details', index: +r.dataset.i }); };
-        r.ondblclick = function () { if (!pend) post({ type: 'choose', index: +r.dataset.i }); };
+        var starting = !!s.projects[+r.dataset.i].pending;   /* not `pend`: that is the pointer's pick, above */
+        r.onclick = function () { if (!starting) post({ type: 'details', index: +r.dataset.i }); };
+        r.ondblclick = function () { if (!starting) post({ type: 'choose', index: +r.dataset.i }); };
         r.onmouseenter = function () {
           hovered = r; marquee(r);
           var i = +r.dataset.i;
@@ -1735,7 +1737,7 @@
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
     if (selOn || st !== 'open') selCheck();
-    if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
+    if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); ptrFresh = true; markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
     var sk = [s.screen.hasNotch, s.screen.notchW, s.screen.notchH].join('|');
@@ -1836,6 +1838,10 @@
   /* Where the pointer is, and where it was at the last arrow key. A row that slides or is redrawn under a still pointer gets a
      mouseenter too (here and from WebKit); that must not pull the keyboard's choice back to the pointer. Only a pointer that moved does. */
   var ptrAt = [-1, -1], keyPtr = null;
+  /* Just opened: where the pointer was is from the last time anything showed, so the first place it is reported is where it
+     rests, not a move. Without this, a list opening under a resting pointer lit the row beneath it instead of the top one. */
+  var ptrFresh = false;
+  function ptrSeen(x, y) { if (ptrFresh) { ptrFresh = false; keyPtr = [x, y]; } ptrAt = [x, y]; }
   function ptrMoved() { return !keyPtr || keyPtr[0] !== ptrAt[0] || keyPtr[1] !== ptrAt[1]; }
   /* The pointer is sampled, not followed: a quick pass skips rows, and a skipped row never gets its mouseenter. Walk the
      line from the last sample to this one and give each list or settings row it crossed a brief flash (.crossed, in input.css),
@@ -1856,7 +1862,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrAt = [e.clientX, e.clientY]; sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -1940,7 +1946,7 @@
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
-    ptrAt = [x, y]; sweep(x, y); if (lastSt === 'switch') markList();
+    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);

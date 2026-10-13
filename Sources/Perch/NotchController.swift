@@ -68,7 +68,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         openedByHover = false; proactiveOpen = false; openedAt = Date(); leftCardAt = nil; prepareToShow(); send(.openWhatsNew)
     }
-    func whatsNewDone() { if machine.phase == .whatsNew { send(.confirm) } }
+    /// Got it goes on to the list, lit on its top row as when the list is opened.
+    func whatsNewDone() { if machine.phase == .whatsNew { send(.confirm); selectTopRow() } }
     var canUpdate = false
     /// Nothing on screen and nothing half written: a safe moment for an update to restart Perch.
     var isQuiet: Bool { machine.phase == .idle && drafts.values.allSatisfy { $0.isEmpty } }
@@ -330,17 +331,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return true
     }
     func toggleSwitcher() {
-        let fromIdle = machine.phase == .idle
+        let fromIdle = machine.phase == .idle || machine.phase == .whatsNew
         openedByHover = false; proactiveOpen = false; prepareToShow()
         send(.openSwitcher)
         // Opened by itself, the list starts on its top row: what needs you, or what you touched last. (Closed, the machine
         // keeps no selection, so this comes once it is open.)
-        if fromIdle, machine.phase == .switcher, let top = ListFilter.ordered(projects, "", now: Date()).first {
-            machine.send(.projectsChanged(count: projects.count, selected: top)); push()
-        }
+        if fromIdle { selectTopRow() }
         refreshProjects()
     }
     func confirm() { send(.confirm) }
+    private func selectTopRow() {
+        guard machine.phase == .switcher, let top = ListFilter.ordered(projects, "", now: Date()).first else { return }
+        machine.send(.projectsChanged(count: projects.count, selected: top)); push()
+    }
 
     /// The desktop behind snapshots: a wallpaper (Raycast's, for the README) seen from the top of the screen.
     var snapshotWallpaper: NSImage?
