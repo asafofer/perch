@@ -892,8 +892,8 @@
   function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
   function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
   /* No project, as each agent takes it. The Claude app cannot be asked for a chat without a folder: given none, it uses
-     the folder it was last in, or starts a chat when it has none, so its row says that rather than promise no folder. */
-  function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'Its last folder, or a new chat', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
+     the folder picked in its own new-session screen (and makes the session a worktree there), so its row says that. */
+  function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'The folder picked in Claude', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
   function newApply(o, entering) {
     nw.o = o;
