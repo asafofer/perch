@@ -147,6 +147,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var r = document.createRange(), s = at(a), e = at(b); r.setStart(s[0], s[1]); r.setEnd(e[0], e[1]);
     getSelection().removeAllRanges(); getSelection().addRange(r);
   }
+  /* the same, word by word from `from`, as a drag would grow it, starting after `delay` ms */
+  function selectSlowly(me, sel, from, to, delay) {
+    setTimeout(function () {
+      var el = document.querySelector(sel); if (!el || me !== charRun) return;
+      var all = el.textContent, a = all.indexOf(from), b = all.indexOf(to, a) + to.length, ends = [], re = /\S+/g, m;
+      re.lastIndex = a; while ((m = re.exec(all)) && m.index < b) ends.push(all.slice(a, Math.min(b, m.index + m[0].length)));
+      ends.forEach(function (upTo, i) { setTimeout(function () { if (me === charRun) selectWords(sel, upTo); }, i * 70); });
+    }, delay);
+  }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
@@ -288,13 +297,30 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Acting on it', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
-      ['Words selected on the card', 'What the agent said can be selected and copied with Command+C (the title, buttons and the rest of the notch cannot). The highlight is the character\u2019s colour. While words are selected the card stays open: the pointer can leave it and a card Perch opened by itself does not count down; a click elsewhere or Esc still closes it.', function () {
-        var me = charRun; d.project(1); d.show('open', false, true);
-        setTimeout(function () { if (me === charRun) selectWords('.o-h', 'The hero now fits', 'phone width'); }, 900);
+      ['Words selected on the card', 'What the agent said can be selected and copied with Command+C (the title, buttons and the rest of the notch cannot). The highlight is drawn by Perch: a soft, rounded piece per line in the character\u2019s colour lifted toward white, fading in as the drag reaches each line. While words are selected the card stays open: the pointer can leave it and a card Perch opened by itself does not count down; a click elsewhere or Esc still closes it.', function () {
+        var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
+        selectSlowly(me, '.o-h', 'The hero now fits', 'slowed the page.', 900);
       }],
-      ['Words selected in the reply', 'The agent\u2019s message above the reply can be selected too, your own bubble with it, and Command+C copies it. Typing goes back into the field.', function () {
-        var me = charRun; reply(false)();
-        setTimeout(function () { if (me === charRun) { document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'I left the poster', 'look at.'); } }, 1300);
+      ['Words selected in the reply', 'The agent\u2019s message above the reply can be selected too, your own bubble with it, across lists, code and paragraphs; Command+C copies it. The highlight follows the message as it scrolls, cut at its edges. Typing goes back into the field.', function () {
+        var me = ++charRun; d.hl(); reply(false)();
+        setTimeout(function () { if (me === charRun) document.querySelector('.r-in').blur(); }, 1250);
+        selectSlowly(me, '.o-said-in', 'The headline wraps', 'something to look at.', 1300);
+      }],
+      ['Words copied', 'Command+C (or Copy from the right-click menu): the highlight brightens for a beat and settles back, so you know it went. Nothing else moves. Plays on a loop.', function () {
+        var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
+        setTimeout(function () { if (me === charRun) selectWords('.o-h', 'The hero now fits', 'phone width'); }, 900);
+        (function loop() { setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+C'; document.dispatchEvent(new Event('copy')); loop(); }, 1800); })();
+      }],
+      ['Highlight in every colour', 'The highlight takes the character\u2019s colour, lifted toward white so it reads the same on all seven (Saffron would go olive on black). Steps through them, then back to Saffron.', function () {
+        var me = ++charRun, cols = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3'], ['Saffron', '#F5B83D']];
+        d.hl(); reply(false)();
+        setTimeout(function () { if (me !== charRun) return; document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'The headline wraps', 'something to look at.'); }, 1300);
+        cols.forEach(function (c, i) { setTimeout(function () { if (me !== charRun) return; now.textContent = c[0]; d.tint(c[1]); }, 1500 + i * 1300); });
+      }],
+      ['System highlight, for comparison', 'The same selection with the system\u2019s own highlight, as before: a flat block in the character\u2019s colour, square corners, no fade, nothing on copy. Shown only to compare.', function () {
+        var me = ++charRun; d.hl('native'); reply(false)();
+        setTimeout(function () { if (me !== charRun) return; document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'The headline wraps', 'something to look at.'); }, 1300);
+        (function back() { setTimeout(function () { if (me === charRun) back(); else d.hl(); }, 300); })();
       }],
       ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
         var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };

@@ -249,7 +249,7 @@
     var flushText = function () { if (text.length) out += '<p dir="auto" class="my-2">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
     var flushItems = function () {
       if (items.length) out += '<ul class="my-2 flex flex-col gap-0.5">' + items.map(function (it) {
-        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
+        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="md-mk flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
       }).join('') + '</ul>';
       items = []; stack = [];
     };
@@ -1620,8 +1620,60 @@
     var on = !!(el && lastSt === 'open' && document.activeElement !== rIn && q('.p-open').contains(el) && el.getClientRects().length && String(s).trim());
     if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
     if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
+    hlDraw();
   }
   document.addEventListener('selectionchange', selCheck);
+  /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
+     them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
+     highlight stays underneath, hidden, and is what gets copied. */
+  var hlLayer = document.createElement('div'); hlLayer.className = 'hl'; hlLayer.setAttribute('aria-hidden', 'true'); q('.p-open').appendChild(hlLayer);
+  function hlDraw() {
+    var s = window.getSelection(), lines = [];
+    if (selOn && document.documentElement.dataset.hl !== 'native' && s.rangeCount) {
+      var r = s.getRangeAt(0), pr = q('.p-open').getBoundingClientRect(), clips = new Map();
+      var clip = function (el) {
+        if (clips.has(el)) return clips.get(el);
+        var c = el.classList.contains('p-open') || !el.parentElement ? { l: -1e4, t: -1e4, r: 1e4, b: 1e4 } : clip(el.parentElement), cs = getComputedStyle(el);
+        if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') { var b = el.getBoundingClientRect(); c = { l: Math.max(c.l, b.left), t: Math.max(c.t, b.top), r: Math.min(c.r, b.right), b: Math.min(c.b, b.bottom) }; }
+        clips.set(el, c); return c;
+      };
+      var root = r.commonAncestorContainer, w = document.createTreeWalker(root.nodeType === 1 ? root : root.parentNode, NodeFilter.SHOW_TEXT), t;
+      while ((t = w.nextNode())) {
+        if (!r.intersectsNode(t) || !t.parentElement.closest('.p-open') || t.parentElement.closest('.shine, button, .md-mk')) continue;   /* a list's marker is copied, not lit */
+        var sr = document.createRange(); sr.selectNodeContents(t);
+        if (t === r.startContainer) sr.setStart(t, r.startOffset);
+        if (t === r.endContainer) sr.setEnd(t, r.endOffset);
+        var c = clip(t.parentElement);
+        [].forEach.call(sr.getClientRects(), function (b) {
+          var x = { l: Math.max(b.left - 2, c.l), t: Math.max(b.top, c.t), r: Math.min(b.right + 2, c.r), b: Math.min(b.bottom, c.b) };
+          if (b.width > 1 && x.r - x.l > 2 && x.b - x.t > 2) lines.push(x);
+        });
+      }
+      /* pieces on the same line (a word in code, a bold one) become one */
+      lines.sort(function (a, b) { return a.t - b.t || a.l - b.l; });
+      lines = lines.reduce(function (out, x) {
+        var y = out[out.length - 1];
+        if (y && Math.min(y.b, x.b) - Math.max(y.t, x.t) > Math.min(y.b - y.t, x.b - x.t) / 2) { y.l = Math.min(y.l, x.l); y.r = Math.max(y.r, x.r); y.t = Math.min(y.t, x.t); y.b = Math.max(y.b, x.b); }
+        else out.push(x);
+        return out;
+      }, []);
+      lines.forEach(function (x) { x.l -= pr.left; x.r -= pr.left; x.t -= pr.top; x.b -= pr.top; });
+    }
+    var have = hlLayer.children;
+    while (have.length > lines.length) hlLayer.removeChild(have[have.length - 1]);
+    lines.forEach(function (x, i) {
+      var el = have[i];
+      if (!el) { el = document.createElement('i'); el.className = 'in'; hlLayer.appendChild(el); requestAnimationFrame(function () { el.classList.remove('in'); }); }
+      el.style.cssText = 'left:' + x.l + 'px;top:' + x.t + 'px;width:' + (x.r - x.l) + 'px;height:' + (x.b - x.t) + 'px';
+    });
+  }
+  document.addEventListener('scroll', function () { if (selOn) hlDraw(); }, true);
+  /* copied (Command+C, or Copy from the menu): the highlight brightens for a beat, so you know it went */
+  document.addEventListener('copy', function () {
+    if (!selOn) return;
+    hlLayer.classList.remove('copied'); void hlLayer.offsetWidth; hlLayer.classList.add('copied');
+  });
+  hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
   /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
   document.addEventListener('keydown', function (e) {
     if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
@@ -2669,6 +2721,9 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
+      hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
+      tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
