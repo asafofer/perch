@@ -1144,9 +1144,12 @@
     }
     nw.o = o;
     if (entering) {
-      var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
+      /* a draft waiting comes back with the agent and folder it was written for, not the defaults of where you are now */
+      var kept = (nw.text || nw.files.length) && nw.kept, agent = kept ? kept.app : o.agent;
+      var ai = nwApps().findIndex(function (a) { return a.id === agent; });
       nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
-      var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
+      var pi = nwRows().findIndex(function (r) { return kept ? (kept.none ? r.none : !r.none && !r.pick && r.path === kept.path) : !r.none && !r.pick && r.name === o.project; });
+      if (pi < 0 && kept) pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
       /* a draft waiting: straight back to it, as you left it */
       nw.step = nw.text || nw.files.length ? 'prompt' : 'app';
@@ -2003,7 +2006,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { nw.on = false; nwDrop = 0; }
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -3497,7 +3500,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; repFiles = {}; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
