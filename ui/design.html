@@ -81,6 +81,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd .menu button:hover,.dd .menu button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
 .dd .menu button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 12%,transparent)}
 .dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
+/* the category menu: a search on top, the list under it scrolls; typed, it lists the scenarios that match in every category */
+.dd .dd-q{display:block;width:100%;box-sizing:border-box;font:400 13px Inter,sans-serif;color:var(--pg-fg);background:color-mix(in srgb,var(--pg-fg) 6%,transparent);border:0;border-radius:7px;padding:7px 10px;margin:0 0 5px;outline:none;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.dd .dd-q:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.dd .dd-q::placeholder{color:var(--pg-muted)}
+.dd .dd-list{max-height:min(380px,55vh);overflow-y:auto;overscroll-behavior:contain;min-width:280px}
+.dd .dd-list button[hidden]{display:none}
+.dd .dd-list .in{margin-left:auto;padding-left:12px;font-weight:400;font-size:12px;color:var(--pg-muted);white-space:nowrap}
+.dd .dd-none{padding:8px 10px;font-size:13px;color:var(--pg-muted)}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden],.sc[hidden],.dd[hidden]{display:none}
@@ -820,18 +828,49 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
   var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
   var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
-  var tabs = document.createElement('div'); tabs.className = 'menu'; tabs.setAttribute('role', 'listbox'); dd.appendChild(tabs);
+  var menu = document.createElement('div'); menu.className = 'menu'; dd.appendChild(menu);
+  var ddq = document.createElement('input'); ddq.className = 'dd-q'; ddq.placeholder = 'Search scenarios'; ddq.setAttribute('aria-label', 'Search scenarios'); ddq.spellcheck = false; menu.appendChild(ddq);
+  var tabs = document.createElement('div'); tabs.className = 'dd-list'; tabs.setAttribute('role', 'listbox'); menu.appendChild(tabs);
+  var hits = document.createElement('div'); tabs.appendChild(hits);
+  var none = document.createElement('div'); none.className = 'dd-none'; none.textContent = 'Nothing matches'; none.hidden = true;
+  menu.onclick = function (e) { e.stopPropagation(); };
   var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-  function ddOpen(o) { dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o)); }
+  function ddOpen(o) {
+    dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o));
+    if (o) { ddq.value = ''; ddSearch(); setTimeout(function () { ddq.focus(); var cur = tabs.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }, 0); }
+  }
+  /* typed: the categories whose name matches, then every scenario whose name or words match, with its category beside it */
+  function ddSearch() {
+    var t = ddq.value.trim().toLowerCase();
+    [].forEach.call(tabs.querySelectorAll(':scope > button'), function (b, k) { b.hidden = !!t && GROUPS[k][0].toLowerCase().indexOf(t) < 0; b.classList.remove('at'); });
+    hits.innerHTML = '';
+    if (t) GROUPS.forEach(function (g, gi) { g[1].forEach(function (sc, si) {
+      if ((sc[0] + ' ' + sc[1]).toLowerCase().indexOf(t) < 0) return;
+      var b = document.createElement('button'); b.setAttribute('role', 'option');
+      b.innerHTML = '<span>' + sc[0] + '</span><span class="in">' + g[0] + '</span>';
+      b.onclick = function () { showTab(gi); ddOpen(false); boxes[gi].children[si].click(); boxes[gi].children[si].scrollIntoView({ block: 'nearest' }); };
+      hits.appendChild(b);
+    }); });
+    var shown = ddItems(); none.hidden = shown.length > 0; if (shown[0] && t) shown[0].classList.add('at');
+  }
+  function ddItems() { return [].slice.call(tabs.querySelectorAll('button')).filter(function (b) { return !b.hidden; }); }
+  ddq.addEventListener('input', ddSearch);
   ddb.onclick = function (e) { e.stopPropagation(); ddOpen(!dd.classList.contains('open')); };
   document.addEventListener('click', function () { ddOpen(false); });
-  document.addEventListener('keydown', function (e) {
+  /* while the menu is open it has every key, before anything else hears it: the notch's own (numbers, N, Esc) would act on
+     the card behind, and a scenario playing may have put the caret in a field of its own */
+  window.addEventListener('keydown', function (e) {
     if (!dd.classList.contains('open')) return;
+    if (document.activeElement !== ddq && !e.metaKey && !e.ctrlKey && (e.key.length === 1 || e.key === 'Backspace')) ddq.focus();
+    e.stopPropagation(); ddKey(e);
+  }, true);
+  function ddKey(e) {
     if (e.key === 'Escape') { ddOpen(false); return; }
-    var items = [].slice.call(tabs.children), at = items.findIndex(function (t) { return t.classList.contains('at'); });
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].classList.add('at'); }
+    var items = ddItems(), at = items.findIndex(function (t) { return t.classList.contains('at'); });
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); var to = items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]; to.classList.add('at'); to.scrollIntoView({ block: 'nearest' }); }
     else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
-  });
+  }
   var boxes = [];
   /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
   var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
@@ -863,11 +902,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function showTab(i) {
     curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
-    tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
+    tabs.querySelectorAll(':scope > button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
+  /* each category's scenarios in alphabetical order */
+  GROUPS.forEach(function (g) { g[1].sort(function (a, b) { return a[0].localeCompare(b[0], 'en', { sensitivity: 'base', numeric: true }); }); });
   GROUPS.forEach(function (g, gi) {
-    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.appendChild(t);
+    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.insertBefore(t, hits);
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
@@ -879,7 +920,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  /* it opens on what changed last, Accessibility lost after an update; the first scenario there is the newest */
+  tabs.appendChild(none);
+  /* it opens on what changed last, Accessibility lost after an update */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Accessibility') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 

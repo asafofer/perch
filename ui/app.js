@@ -2336,7 +2336,7 @@
   hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
   /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
   document.addEventListener('keydown', function (e) {
-    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || (document.activeElement && document.activeElement.tagName === 'INPUT') || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
