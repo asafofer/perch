@@ -757,6 +757,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
         if old == .switcher { pendingPicked = false }
+        // Done setting up a new session: the app you were in is the one in front again.
+        if old == .newSession, new != .newSession {
+            if NSApp.isActive, let app = newFrontFrom, !app.isTerminated { app.activate() }
+            newFrontFrom = nil; pickBack = nil
+        }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
             if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
@@ -798,8 +803,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // It opened by itself: no keyboard, so nothing typed behind it lands here. Its key is a global one, only while it shows.
             timer?.cancel(); panel.allowsKey = false; panel.ignoresMouseEvents = false; onWhatsNewKey?(true)
         case .newSession:
-            // Asked for, so it takes the keyboard: the prompt is typed here.
+            // Asked for, so it takes the keyboard: the prompt is typed here. Perch is the app in front meanwhile, so what
+            // pastes into the app in front (Raycast's clipboard history, Paste to Perch) lands in the prompt. Where you were
+            // is kept for after (pickBack), as the panel alone never took it from that app.
             timer?.cancel()
+            if !NSApp.isActive { newFrontFrom = NSWorkspace.shared.frontmostApplication; if pickBack == nil { pickBack = WhereYouWere.now() }; NSApp.activate(ignoringOtherApps: true) }
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
         case .restoring:
             timer?.cancel()
@@ -884,8 +892,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var pickingUntil = Date.distantPast
     /// Where you were before the picker made Perch the app in front: where a session started after it puts you back.
     private var pickBack: WhereYouWere?
+    /// The app in front when a new session was opened, given the front back when it closes.
+    private var newFrontFrom: NSRunningApplication?
     private func chooseFolder() {
-        pickBack = WhereYouWere.now()
+        if pickBack == nil { pickBack = WhereYouWere.now() }
         pickingUntil = .distantFuture
         let p = NSOpenPanel()
         p.canChooseDirectories = true; p.canChooseFiles = false; p.allowsMultipleSelection = false; p.prompt = "Choose"
