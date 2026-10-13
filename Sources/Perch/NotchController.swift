@@ -527,8 +527,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let next = decorate(list).enumerated().sorted { (place[$0.element.id] ?? 1000 + $0.offset) < (place[$1.element.id] ?? 1000 + $1.offset) }.map(\.element)
         guard next != projects else { return }
         let keep = projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
+        // The row you were on has left (a new session pushed the oldest off the list): you are on the one now drawn
+        // where it was, not thrown back to the top.
+        let now = Date(), slot = ListFilter.ordered(projects, listQuery, now: now).firstIndex(of: machine.selected)
         projects = next
-        machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? 0))
+        let shownNow = ListFilter.ordered(next, listQuery, now: now)
+        let stand = slot.flatMap { shownNow.isEmpty ? nil : shownNow[min($0, shownNow.count - 1)] }
+        machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? stand ?? 0))
         noteSeen()
         push()
     }
