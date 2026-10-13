@@ -150,6 +150,8 @@ h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
 .before .sw{transition:background-color .2s}
 .before .sw > i{transition:left .2s cubic-bezier(.3,1.3,.5,1)}
 .before .sw[aria-checked="true"] > i{left:12px}
+/* Perch's own .sw now moves the knob with translate (and a settle on .is-init): the Before side is the old left-based switch alone */
+.before .sw > i,.before .sw[aria-checked="true"] > i{translate:0 0;animation:none}
 .after .sw,.after .sw > i{transition:none}
 .after .sw > i,.after .sw[aria-checked="true"] > i{left:2px;translate:0 0}
 .after .sw[aria-checked="true"] > i{translate:var(--toggle-travel) 0}

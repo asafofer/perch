@@ -47,7 +47,8 @@ ui/                 The interface, plain JS and Tailwind v3 (shadcn-style classe
                       webkit.messageHandlers.perch. A browser-only dev harness (window.perchDev) runs it with sample data.
   input.css           Tailwind plus the notch, glow and character styles.
   orbs.js             Thinking Orbs (thinkingorbs.com, MIT), vendored as a plain script: the orb beside a working step.
-  design.html         The design page. Scenarios for every state.
+  design.html         The design page. Scenarios for every state; the Motion category plays each small motion.
+  motion.html         Before and after of each motion taken from transitions.dev, the page they were approved on.
 ```
 
 Data flow: Swift decides state (`NotchMachine`), builds a `UISnapshot`, calls `window.perch.apply(json)`. The page draws and posts events (`confirm`, `snooze`, `reply`, `settings`, `onb`, `character`, `source`, `setting`, ...). Handle new events in `NotchController.userContentController`.
@@ -105,6 +106,7 @@ Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`), with no Apple
 - `ui/app.js` is kept ASCII-only (non-ASCII as `\uXXXX`) because the file is loaded without a charset in places. After editing, check: `python3 -c "print(all(ord(c)<128 for c in open('ui/app.js').read()))"`.
 - WebKit sends a card hovered open no pointer moves until it is clicked. Perch passes the pointer to the page (`cursor`), which marks what is under it `.hv` (`hoverAt`). Tailwind's `hover:` also matches `.hv`; a hand-written `:hover` rule in `input.css` needs a `.hv` twin.
 - JS name clashes are silent: a second `var COLORS` once broke status colours. Check names before adding globals.
+- Words or a mark that change in place go through the motion helpers at the top of `app.js` (`iconSwap`, `swapText`, `morphText`, `crossSeen`/`crossIn`, from transitions.dev; their styles end `input.css`). The snapshot comes again every refresh, so set each piece once per snapshot with its final value: setting a placeholder first and then the real words makes them swap on every refresh.
 - Browsers cache `dist/ui.css` and `app.js` hard. In the design page, reload with `fetch(url, {cache: 'reload'})` after rebuilding CSS (`cd ui && npm run build`).
 - Tailwind classes are generated from strings in `app.js`. Rebuild CSS after adding classes.
 - macOS TCC permissions are tied to the code signature. Without the "Perch Dev" certificate the app is signed ad hoc and macOS asks again after every build.
