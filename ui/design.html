@@ -474,6 +474,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         at(4400, 'It never starts', function () { d.listChange(row('failed'), 2); });
         at(6200, 'and folds away', function () { d.listChange(row('gone'), 2); });
       }],
+      ['A new session’s row, a long title', 'Lit, a title too long for the row reads itself out, and the passing light goes with the words rather than leaving a second copy behind.', function () {
+        d.listChange({ 0: { pending: 'starting', topic: 'Move the settings card onto the shared panel geometry and measure every row again', status: { kind: 'running', text: 'Starting', app: 'claude' }, attention: false, ask: null } }, 0);
+      }],
       ['Questions in a row', 'Three questions; the first takes any answers, each check drawing itself in (or wiped away when you take it back). On to the next: only the number in “Question 1 of 3” changes while the question and its answers cross-blur.', function () {
         var at = motionAt(), key = function (k) { return function () { window.perch.askKey(k); }; };
         d.variant(3, { status: CLAUDE_ASKS.status, attention: true, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'Claude asked you something', subject: 'Which checks should run first?', answerable: true, questions: [
