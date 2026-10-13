@@ -2603,6 +2603,7 @@
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
+    if (o.accessibility) axAsked = false;   /* on now: if it is ever lost again, the row starts over at Allow */
     var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
     /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
     var segOf = function (key, vals, name) {
@@ -2670,7 +2671,7 @@
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
     on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
+    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn Perch on there at once */
     on('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
     on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
@@ -2878,9 +2879,9 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
@@ -3012,7 +3013,13 @@
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
-    if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
+    /* Allow in Settings: System Settings opens, the row says turn Perch on there, and the switch comes on a few seconds later */
+    if (m.type === 'onb' && !s.onboarding) {
+      if (m.action !== 'accessibility' || !s.settings) return;
+      var k3 = ++updTok; s.timerToken = Math.random(); apply(s);
+      setTimeout(function () { if (k3 !== updTok || !snap || snap.phase !== 'settings') return; var s3 = JSON.parse(JSON.stringify(snap)); s3.settings.accessibility = true; s3.settings.shortcut = devScOut(true); s3.timerToken = Math.random(); apply(s3); }, 3800);
+      return;
+    }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
@@ -3149,7 +3156,7 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
+        if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); axAsked = false; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));

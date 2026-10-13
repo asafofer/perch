@@ -105,6 +105,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
+/* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
+:root:not(.rec) .desk:has(.n[data-s=set]),:root:not(.rec) .desk:has(.n[data-s=onb]){height:452px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 .rec.play .now{display:block}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
