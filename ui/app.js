@@ -32,6 +32,11 @@
     pointer: '<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>',
     access: '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
     login: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',
+    /* the new session flow (Lucide) */
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
@@ -53,14 +58,14 @@
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
-  var MARKS = { codex: 'data:image/png;base64,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' };
+  /* Claude's own icon too, the one Claude.app ships, so no page ever draws a stand-in for it */
+  var MARKS = { claude: 'data:image/png;base64,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', codex: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAOFElEQVR42u1bW2wc5RU+/z+zN1/jS0icOHHixCQpJCGFJIQmEBVIqasikKjoA+ItlUgfaJ8q3qhUFdEn+gB9iNRKfQIV2grRBBqCzEVNQoFEDRSnuZBLc/V1vfZ6d2dn/p7zX3b+Xez1jmOnleo/OprZGc/Mf75zznfO+WcCsDAWxsJYGAvj/3ewm72BEIJns9mlsVisA6XN9/0mPJxAcVH4HM0zQCmi5B3HGfM8bwjlal1d3TXGWPBfAaBQKGzHyTzBOd+NP9cgEItwMuxWWA2fJfBRo7h7FqUPwXg9Ho8fuyUug4pvCYLgzzgHT0wx8Ny8SZXh0ZxobvOt/D58WPpWKDtLYNIYgvui6FRzjKKb/Rxj/GXcbcIHkRv+zxCZNZ8mDMmXaa5zygFkea08IOI3z7rMTHzuwUAA5Dafz/84mUy+ctMAjIyMbGlubv4ASadhtsobagwEAagUp2M0Vz4PYBAI6BHj6XT6/paWluPV/tapdvL555/nDz300H5k+ztnozwpyZiA8UkGwxmA4TSDkVGUMQ5j4wATeDzvKTPEYyFQcxESCELcdd1OnPurfX19YlYeMDQ0tAMR/JCAMgCYTEcPqZb1OCo+WQC4dIPB+CgHL4uJ3FdeYJ7K0ANiWC0k6wAaFwXQ0SYgFcd70x9INzEaMTwmtOewEv+Y/cp5aABo10cP3tXW1nZkunm61QBIpVJP4s0dZNaym0+1X+6CAKPjAj4/5YAYY1D0lLLM0VYm/UCJh7hOpAHSQxyGRwWs7gxkWBR9pZTrCoijJGPqvkHw9edPNQ8yGFrfIR3w55HIIYDuH9+9e/cvEMmlURifFBzPCThy1AE2hBbC+o2R5VBR5odbML/1vpdDGWeQwfC4+m8Gly8xuHKFwbVrHAbRgzI5BVx9qrrnVXIB/m0ScfgdhoEfKQSOHDmyatu2bSfwJs22B8yMgID3PuDgX+WQSuhEy9SDJCfw8qcStoEmyGKgwsQXSooonq+8hHy1vhmgc0UAm9YG6BWsKnGS0ZADaJs+duzYXTt27DgfKQQ6OjqWIXpN5Eq1eoCD/nTuEsDgaQ7LcbJkfcFKYVxifgOI3OpQp62j44JrMefo2hyG0fXrADcwVAaHAb691ZcgBFWmRnMnHUgX/BkNAMz77VTb18r+SjEBX37OoV4WThU+pgEQ2guMR5Tmr5UlxYVWvgSC+a2B+BIBdhGtB7cHIcLTZwNGukQmQXSfxmpEV57jBQxgers6wGFi1IE6VDBXCNMaswDg2gvkfkUQCqsekKEhrNqBLGoIFD3t+OcOdHUIuH0lhkswPQC2LpEAIPKYie3J5ScmAT7t53D9ggP+ECqFbj/JQra3HEApj+JwCwzrb0z2I30kB5AnCS10DM8HXJ1HfOHjExy6O4t42dR8YKXsZGQA8CK3qvI4keExAW/2uTB8gUOioHK6yzXvMcu6IlTY0WKAKAPBqhiN8gWtbAHPFbgiRpkh8VkXr3AYQD5Y0jZ1JWnVC25kACh2qrl9FlPda++4cPkshzqyDt7JKaq8yllF/GsAzDnHBkIDxplVMlseYJT3uBKfKwAoLxXyANew0FraLqrWdNV0cWstLW3l6XaHjnLoP4WpjsDASbm+VlArQ3FLaY2s7PCw9SRxKr3BAkBeC0pBmQapKNIABI4CIIAwRabHQiKt9NZa6gU3ivIGgCsDAB9+5sh9aRWdww1T0xVLbwPo6QY4dQZT14BS1KQ1bgFlgGAWCEKHgQTBWJwrUCUHmDqhqLxLtcMzz33WHlDuTgI+Q9LLZJksdAKLsSXguI3j8d7vAKzoAFi/DuC3r2FWmNShYOV3E/vcChsOYZnsa+YPNPkR+8t9oZifIzM21Imb6iQjA+AhM51G0nNRSRbTSAdh7yLBcJQC46h0eyvA3XcBHP4bPqyixykVQXo/zIVKSZP65CFHFVaBAYcAQIklhQTPnyUAvJYQCFdcBJIfsn+GSQA4AuBg98ZpH7eg97M4m6Mn1fXU7m7bBNDWrmI5METGdWwzleKI7PKoUA5lEq/Pacmj0jmUfIEWORTx5XEOBZQMAvyXj2KQmRCy7bbnWuuqVeRla69IwqTitnBrm0gBnLwAcHlAWbIOf3/rm9ozXC3WfuBaoEAoMv/r/oCeW/BodQr3UYooAcqJLzgc/MiV7fe8eEC5OygOoDKUowKOa0ksFPIOUvbolyo8aF1gUw/AyuX4m4ogV3kPgUVbGUoGFEcTHbfiX6dFSYIo1Jv5RRVOAu/9Hnael2/ocnw+ACi5FP5L4KQXNQjVhOgen08hCQThHDYvZ66oGKeqcfudeM4obwCLh7/pnAHH3jI37CrL+lhNvEODDInZQS9QZBRl0ZZHSYO0S4sT3ct9KObDY8Kq480+DUqN10bUXClnN9ZpJR1L6QqRIZVQXuTGlUiv0oBJAF0NNNd9BT7n1HkOheItSIMCu6+NPUU42h/DPMyAV/T2TOdy8pBFqPCm1YrIqEzuP6/YOxZTHWHJZZm1hmg1QzK7kNvTUlpRuX5gCWUFrvPmEDZj1IDVJSwLzFUaDGtqvVawWMDd6zz46J9xaZlS+tLrfPR3pOjWzQD1SUVkVDx90h/m/tLSmPEaXRBUAip0uiOydPxyMCRf6GKoKMlZyExkDD/nlaDZdRH2XXcV4NowlsMX3TCv616frN9FRVCX6t+pFH7/E0yPWeSGpC6adIubiBGnlAMIVhtNGWBwVK0vcO0NQvcdpjQmkKj44qzc+PMSAkbR1iYG9/QU4NPjroxbZqzPVYxu/0a4Atx/DuCLf6HrJxR7g64H6jE9/uB+9Kg2q5KcYvwDr3/n70pRur/Q4RPohRW6Z+uiAOIxIUN0zivBqZaeY1jWjQ5xGL2u1upK1kNpqAdoacKcrdPVux+o4kVWeGRBXylxG17X3oJp0it3fSiPKuhcTOSriqFSm81CHqHtmk4fYs48lMLTLz0LrMAYFLJ6aZmFHjCZxm7xXawA78ZaAF3/HFownlRkSN5SjCkWv3gJzx8HWL1CKWuvHNkAnEDvmZgIew0IygmysUnAnWuUa0V9ZzmrEDB84OLVRbRsXpS/AiMlDr2NBcpflaXjKVWwmNwvt/rJbxwAWVuY+sDRdYQhU6E7Tdu6QjcE5EmU+h7YVIClbdHd/6YBaG0NJJkVJ8tTjzANDaicT5Yv5W6tPHPCFWK6nuuKksdCtzYgyKxiL53p+1N1uHFDEXZtKUhintNuMNCvYKZzKSpJO7EgakL3Gx1gylpB2BkKyyvkGyFjWccqhnj4xsixi6MpAGAWANL70Ku2bC7C93dOQnMd052oqKpL1EXRYjXkCIAl6HZ3bCrC++/EsD9QOdkUKSDCwgisFyKSuBzrVZmp6Iz1zTFmAcDDhZIYKr58lYD7thZg6/o8tNZzTLOsau1TTZdpASgWTbE7/YjjRPc8jKnw4xjkRvVBX4lk+6CczEok51gWdkJQTJnLKj1A5/qVGwQ88t083L7Cg8WN9CKV3g/MHPfVdJkWgHw+P16toFAExeCOHh96H8vD679PhKsSvupnTTiACMGAioxR5gkVW2a9RCGy29BdQMLLYdZxUHGuCp8qrG9St61LzQBks1n6FG3a5Vbz3Dj672OP5CAzzuDt1+PgT6p6vqyWDyoAsNKdncuFVjywMoEslxHQhtsE7LzXgySlA832tSQ80oF0idwNXrp06Sqim+EzsCsp0ZTi8NQTk/DUvhwsXqU6P7lg4YeFD9XutJAhGxoNSiDC9UQDmFkNkctfnlr0oF5iz6MFWLvSr/oq7OsvbhzykAzpEvn1OLpPvre394l4PL4EUZzyYwTzm6PEMRbXdHlwxz0eNC1jWKNz+Y5fpkL0szqs+lo71bcARJYlUmRhW2s8oZQFdEt9X28Rnv7hJDQkua41yj/SsLf2SCQSFP+nnn322V+fPXvWi/yFyODg4CttbW3PZDKZmmsDD9vAPCbo0SyDoTSHsTGOnSGD+roAUqkA/viHFBx6NQbehOoNqJhy7MUUrTzleAcZf+f3PHj6ySx0tDDJ9lFGY2MjfeXym/b29n2zKoTOnTv3RnNz848wDJxa3hKTdeIul1VbyhWwpDFA9/atz1kAntk7ARs2JuDtPyXg/En16Qwdd0z7izNKNAJ0rw/gwd487LwnDy2p6MpT6KL1fdKh6pyrnVy1alXyxIkTbyIID9fqBTMNH02bRy+5kWFw6mwMTp9yYeCqIxc7k2jxJct8WNvjQc9qSnUIBrK940Qvccn6Y2NjhzZv3vzo+fPnc7MCgMbhw4fv37Vr10FEs87zvDkBQWggish+nhS1gELrBjEpDEtbVlOOn+bbBnolnu3r6+vds2fP+7P2APM3p0+f/tnatWtfmMCWLNLnMjXyhjCo2KtFsxzE/PX19XDmzJnnenp6XpwpW9b6qOSFCxdeWLFixU9yuRzMlSfM9SDLJ5NJSuEvdXV1PYeHcjNat9ZFIJRUf3//T7u7u59D96qfD2+Y7SDCa2hoINKb+Oqrr365bt26l/DwZC21Eo8QtpPr169/8eDBg4+PjIy8i2gHSI70LaH8GotY/lb8dwHzHHomPZvmgLVKQHN66623Hkflf1Wr8lE8oPKa5gMHDuzauHHjoziBezHuVqIVGnFSjGKw1hXZaFwhdBbxydL0mXwG9y+m0+mjJ0+efBOLNvqiNR1tUXz2/2PEXBfDVNm6d+/eZegdHS0tLW1YfTWgRRL0hSkKnyPl6T8F+IVCIU+NDVp7CMPx6v79+69gihsG9X4Voip/MwDMdI/5igVR47GFsTAWxsJYGLWM/wAUZOkdnTv2tgAAAABJRU5ErkJggg==' };
   function iconOf(k) { return icons[k] || MARKS[k]; }
   function App(k, c) {
     if (iconOf(k)) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + iconOf(k) + '" alt="">';
     /* stand-ins for the design page; the app has the real icons. pi has no app, and OpenCode's app is optional: both draw
        their own published marks (pi.dev's logo, opencode.ai's), not ours. */
     var g = {
-      claude: ['#D97757', '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/><path d="M7.4 7.4l9.2 9.2"/><path d="M16.6 7.4l-9.2 9.2"/></g>'],
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
@@ -213,8 +218,11 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><span class="flex items-baseline gap-1.5">' + Kbd('esc') + 'Close</span></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
     '</div></div>' +
+    /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
+    '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -512,6 +520,7 @@
   scene.querySelectorAll('.x-back').forEach(function (b) { b.onclick = function () { post({ type: 'back' }); }; });
   scene.querySelectorAll('.x-list').forEach(function (b) { b.onclick = function () { post({ type: 'switcher' }); }; });
   scene.querySelectorAll('.x-gear').forEach(function (b) { b.onclick = function () { post({ type: 'settings' }); }; });
+  q('.x-new').onclick = function () { post({ type: 'newSession' }); };
   scene.querySelectorAll('.x-close').forEach(function (b) { b.onclick = function () { post({ type: 'dismiss' }); }; });
 
   /* ---- render ---- */
@@ -716,6 +725,25 @@
   });
   function sbUp() { if (!sbDrag) return; sbDrag = null; sb.classList.remove('drag'); sbar(true); }
   sb.addEventListener('pointerup', sbUp); sb.addEventListener('pointercancel', sbUp);
+  /* A session started from the list is a row from the moment you press Return: your words as its title, and where the
+     project goes, how it is going (`pending`): Starting with a spinner, Started with the paper plane once Perch sees the
+     session, Didn't start in orange if it never comes. It cannot be opened until it is a real session. */
+  var listPend = {};
+  function pendHtml(k, app) {
+    if (k === 'confirm') return '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Confirm in ' + esc(agentShort(app)) + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
+    /* starting, the shimmering title already says it is on its way: the word alone, no spinner */
+    return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026</span>'
+      : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
+      : '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Didn\u2019t start' + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
+  }
+  /* its words slide in and its mark arrives as the notch line's do (renderSent): the plane flies in from below left, a failure's ring pops */
+  function pendIn(el, k) {
+    if (STILL || !el || !el.animate) return;
+    el.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+    var mark = el.querySelector('svg'); if (!mark || k === 'starting') return;
+    if (k === 'failed' || k === 'confirm') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+    else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+  }
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     q('.s-ft').style.display = empty ? 'none' : '';
@@ -726,7 +754,7 @@
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match</div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2325\u2318N') + 'New session</span></div>';
       edges(); return;
     }
     if (empty) {
@@ -734,7 +762,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2325\u2318N') + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -743,21 +771,25 @@
     var sec = '';
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
+      if (p.pending) first = p.topic;
+      var still = p.pending === 'starting' || p.pending === 'confirm';
       if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true">' + esc(first) + '</span>' : '') + '</span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span></div>';
+        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
     if (html !== listSig) {
       listSig = html; hovered = null; lastSel = -1; marquee(null); sl.innerHTML = html; keyPtr = ptrAt.slice();   /* redrawn rows under a still pointer are not a choice */
       /* a row shows that session's card in the notch; Return (or the card's Open) opens it */
       sl.querySelectorAll('.row').forEach(function (r) {
-        r.onclick = function () { post({ type: 'details', index: +r.dataset.i }); };
-        r.ondblclick = function () { post({ type: 'choose', index: +r.dataset.i }); };
+        var pend = !!s.projects[+r.dataset.i].pending;
+        r.onclick = function () { if (!pend) post({ type: 'details', index: +r.dataset.i }); };
+        r.ondblclick = function () { if (!pend) post({ type: 'choose', index: +r.dataset.i }); };
         r.onmouseenter = function () {
           hovered = r; marquee(r);
           var i = +r.dataset.i;
@@ -777,8 +809,9 @@
     sl.querySelectorAll('.row').forEach(function (r) {
       var on = +r.dataset.i === cs; r.classList.toggle('bg-accent', on); if (on) sel = r;
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
+      if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      if (rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
+      if (rk && rk.dataset.m !== m) { rk.innerHTML = m; rk.dataset.m = m; }   /* not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its turn */
     });
     /* the chosen row stays in view, clear of the edge fades, as the arrows move past the fifth */
     if (sel && cs !== ptrPick) {
@@ -786,6 +819,16 @@
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
     }
+    /* a started row: it slides in once; each new state says itself; once real, its spinner and project fade in; gone, it folds away */
+    s.projects.forEach(function (p, k) {
+      var was = listPend[p.id], now = p.pending || (was && was !== 'real' ? 'real' : was);
+      if (!now || now === was) return;
+      listPend[p.id] = now;
+      var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
+      if (now === 'started' || now === 'failed' || now === 'confirm') pendIn(r.querySelector('.pw'), now);
+      if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
+      if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    });
     edges();
     /* whichever moved last reads out: the arrows' choice, or the row under the pointer */
     /* after layout has set its face */
@@ -848,6 +891,210 @@
       ], { duration: all, iterations: Infinity }));
     }, 1000);
   }
+  /* ---- a new session (Command+Option+N, from anywhere; or the list's New button): which agent, which folder or none, then what to ask ----
+     Three steps on one card, each a short list like the session list, so the keys are the same: Up and Down choose, Return
+     (or Right) goes on, Esc (or Left) goes back a step. The choices you made sit along the top as chips; press one to change
+     it. Swift sends the agents found on this Mac and the folders sessions ran in, newest first, and what to start on: the
+     agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
+     in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
+     takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
+  var NW_STEPS = ['app', 'project', 'prompt'];
+  function nwApps() { return (nw.o && nw.o.apps) || []; }
+  /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
+  function nwRows() {
+    var words = nw.q.toLowerCase().split(/\s+/).filter(Boolean), all = (nw.o && nw.o.projects) || [];
+    var hit = all.filter(function (p) { var hay = (p.name + ' ' + (p.label || p.path)).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    return (words.length ? [] : [{ none: true }]).concat(hit).concat([{ pick: true }]);
+  }
+  /* the agents, narrowed by what you typed on that step (by name or where it opens) */
+  function nwAppList() {
+    var words = nw.aq.toLowerCase().split(/\s+/).filter(Boolean);
+    return nwApps().filter(function (a) { var hay = (a.name + ' ' + nwWhere(a)).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+  }
+  function nwAgent() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
+  function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
+  function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
+  /* No project, as each agent takes it. The Claude app cannot be asked for a chat without a folder: given none, it uses
+     the folder picked in its own new-session screen (and makes the session a worktree there), so its row says that. */
+  function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'The folder picked in Claude', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
+  function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
+  function newApply(o, entering) {
+    nw.o = o;
+    if (entering) {
+      var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
+      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
+      var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
+      nw.proj = pi < 0 ? 0 : pi;
+      /* a draft waiting: straight back to it, as you left it */
+      nw.step = nw.text ? 'prompt' : 'app';
+    }
+    newRender(entering);
+  }
+  function nwChip(step, inner) { return '<button class="nw-chip flex h-6 min-w-0 flex-none cursor-pointer items-center gap-1.5 rounded-md bg-white/[0.07] px-1.5 text-[12.5px] font-medium transition-colors hover:bg-white/[0.12]" data-go="' + step + '">' + inner + '</button>'; }
+  function nwSep() { return '<svg class="size-3 flex-none text-muted-foreground/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'; }
+  function newRender(entering) {
+    var box = q('.nw'), a = nwAgent(), f = nwFolder(), html = '', at = NW_STEPS.indexOf(nw.step);
+    /* along the top: the choices made so far as chips, then this step's question (or what you typed to narrow the folders) */
+    var crumbs = '';
+    if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
+    if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? nwNone(a)[2] : f.name) + '</span>');
+    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
+    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
+    html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
+      (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
+      (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
+    if (nw.step === 'app') {
+      var apps = nwAppList();
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
+    } else if (nw.step === 'project') {
+      var rows = nwRows();
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
+        var on = i === nw.proj ? ' bg-accent' : '';
+        if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span></div>';
+        if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
+          '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
+          '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
+          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
+    } else {
+      html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
+        '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+        '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
+    }
+    box.innerHTML = html;
+    var l = q('.nw-l'); if (l) { l.onscroll = function () { nwEdges(l); }; setTimeout(function () { nwEdges(l); }, 0); }
+    box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
+    box.querySelectorAll('.nrow').forEach(function (r) {
+      r.onclick = function () { nwPick(+r.dataset.i); nwNext(); };
+      r.onmouseenter = function () { if (!ptrMoved()) return; nwPick(+r.dataset.i, true); };
+    });
+    var ta = q('.nw-in');
+    if (ta) {
+      ta.value = nw.text; nwGrow(ta);
+      ta.oninput = function () { nw.text = ta.value; nwGrow(ta); };
+      ta.onkeydown = function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
+      };
+      q('.nw-start').onclick = function () { nwStart(false); };
+      q('.nw-go').onclick = function () { nwStart(true); };
+      q('.nw-back').onclick = nwBack;
+      setTimeout(function () { ta.focus({ preventScroll: true }); var e = ta.value.length; ta.setSelectionRange(e, e); }, entering ? 260 : 0);
+    }
+    if (snap) layout('ns', snap);
+    nwShow(); nwSeen();
+  }
+  function nwHints() { return '<div class="flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground">' + [].map.call(arguments, function (h) { return '<span class="flex items-baseline gap-1.5">' + (h[0] === '\u2191\u2193' ? Keys('\u2191', '\u2193') : Kbd(h[0])) + h[1] + '</span>'; }).join('') + '</div>'; }
+  /* the chosen row stays in view, clear of the edge fades */
+  function nwShow() {
+    var sel = q('.nw .nrow.bg-accent'), l = q('.nw-l'), pad = 20; if (!sel || !l) return;
+    if (sel.offsetTop - pad < l.scrollTop) l.scrollTop = sel.offsetTop - pad;
+    else if (sel.offsetTop + sel.offsetHeight > l.scrollTop + l.clientHeight - pad) l.scrollTop = sel.offsetTop + sel.offsetHeight - l.clientHeight + pad;
+  }
+  function nwEdges(l) {
+    var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
+    l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
+  }
+  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
+  /* the character's eyes go to what you are choosing */
+  function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
+  function nwPick(i, quiet) {
+    if (nw.step === 'app') nw.app = i; else nw.proj = i;
+    q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('bg-accent', +r.dataset.i === i); });
+    if (!quiet) nwShow();
+    nwSeen();
+  }
+  function nwTo(step) {
+    /* leaving the agents: the one you chose keeps its place in the whole list */
+    if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
+  }
+  function nwNext() {
+    if (nw.step === 'app') { if (!nwAppList().length) return; return nwTo('project'); }
+    if (nw.step === 'project') { if (nwRows()[nw.proj].pick) { post({ type: 'newSession', action: 'chooseFolder' }); return; } return nwTo('prompt'); }
+  }
+  function nwBack() {
+    if (nw.step === 'prompt') return nwTo('project');
+    if (nw.step === 'project') return nwTo('app');
+    post({ type: 'back' });
+  }
+  /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
+     session shows in the list, working. Command+Return starts it and takes you there. */
+  function nwStart(go) {
+    var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
+    var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
+    nw.last = nw.text; nw.text = '';
+    /* from anywhere the words fly into the notch; from the list it is simply back, the new row already there and shimmering */
+    if (!go && from !== 'list') newFly(t);
+    /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
+    if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+  }
+  function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
+  /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
+     place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
+  function nwStarted(ok, app) {
+    /* the app asks you to trust the folder first: the line says to confirm there, and waits */
+    if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+    if (!ok && nw.last) nw.text = nw.last;
+    nw.last = '';
+    if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
+  }
+  function newFly(text) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var pane = q('.p-ns'), ta = q('.nw-in'), pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var rows = [].slice.call(q('.nw').children).reverse();
+    var gone = rows.map(function (el, i) { return el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }); });
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = text; pane.appendChild(b);
+    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + 6;
+    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
+    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = 2 - (y0 + b.offsetHeight / 2);
+    b.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
+      { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
+      { duration: 360, delay: 40, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = document.createElement('div'); ring.className = 'fly-ring'; ring.style.left = (CARD_W / 2 - 30) + 'px'; ring.style.top = '-28px'; ring.style.animationDelay = '370ms'; pane.appendChild(ring);
+    look(2.8, -1.6);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); }, 400);
+    n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
+    setTimeout(function () { gone.forEach(function (x) { x.cancel(); }); b.remove(); ring.remove(); }, SEND_CLOSE * 1000 + 600);
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!NATIVE || !snap || snap.phase !== 'newSession' || (e.target && e.target.classList && e.target.classList.contains('nw-in'))) return;
+    if (newKey(e)) e.preventDefault();
+  });
+  /* Swift: the folder chosen in the Mac's picker. It becomes the session's, and on to the prompt. */
+  function nwPicked(name, path) {
+    var o = nw.o || {}; o.projects = (o.projects || []).filter(function (p) { return p.path !== path; });
+    o.projects.unshift({ name: name, path: path, away: '' }); nw.o = o; nw.q = ''; nw.proj = 1; nwTo('prompt');
+  }
+  /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
+  function newKey(e) {
+    if (nw.step === 'prompt') { if (e.key === 'Escape') { nwBack(); return true; } return false; }
+    var max = nw.step === 'app' ? nwAppList().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && max) { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
+    if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
+    if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
+    if (e.key === 'ArrowLeft') { nwBack(); return true; }
+    if (nw.step === 'app' && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
+    if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
+    /* typing narrows the agents too (a number still picks one) */
+    if (nw.step === 'app' && (e.key === 'Backspace' || (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.aq)))) {
+      nw.aq = e.key === 'Backspace' ? nw.aq.slice(0, -1) : nw.aq + e.key; nw.app = 0; newRender(); return true;
+    }
+    if (nw.step === 'project' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.q)))) {
+      nw.q = e.key === 'Backspace' ? nw.q.slice(0, -1) : nw.q + e.key;
+      /* typing narrows to folders (No project steps aside) and lands on the first that matches */
+      nw.proj = 0;
+      newRender(); return true;
+    }
+    return false;
+  }
   /* the auto-dismiss countdown: the glow slowly settles, nothing else on the card moves */
   function bar(on) {
     var g = q('.glow'); g.style.transition = 'none'; g.style.opacity = '';
@@ -865,6 +1112,7 @@
     for (k = 0; k <= N; k++) { t = k / N * Math.PI / 2; pts.push([ix + r - r * Math.pow(Math.sin(t), e), y0 + r * Math.pow(Math.cos(t), e)]); }
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
+  var crHideT = 0;
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
@@ -897,7 +1145,14 @@
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
     var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
-    cr.style.opacity = (st === 'idle' && !news && !hello) || choosing ? 0 : 1;
+    var crHide = (st === 'idle' && !news && !hello) || choosing;
+    /* Put away with the card: it fades where it stands and only then takes its place beside the notch, unseen. Moving while
+       it faded, it slid off sideways, half there. */
+    if (crHide && st === 'idle' && cr.style.opacity !== '0' && !STILL) {
+      cr.style.transition = 'transform 0s .26s, width 0s .26s, height 0s .26s, opacity .24s'; clearTimeout(crHideT);
+      crHideT = setTimeout(function () { crHideT = 0; if (cr.style.transition !== 'none') cr.style.transition = ''; }, 320);
+    } else if (!crHide && crHideT) { clearTimeout(crHideT); crHideT = 0; cr.style.transition = ''; }   /* back before it settled: it moves as always */
+    cr.style.opacity = crHide ? 0 : 1;
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
@@ -933,7 +1188,7 @@
   function actButtons(p, k) {
     var a = p.ask;
     if (k === 'done') return [['pick', goLabel(p), '\u21a9'], ['reply', 'Reply', 'R']];
-    if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'Y'], ['deny', 'Deny', 'N']];
+    if (a && a.answerable && a.kind === 'permission') return [['allow', 'Allow', 'A'], ['deny', 'Deny', 'X']];
     var qn = a && a.answerable && a.kind === 'question' && a.questions && a.questions.length === 1 && a.questions[0];
     if (qn && !qn.multi && qn.options.length <= 3) return qn.options.map(function (o, i) { return ['pick' + (i + 1), o.replace(/\s*\(recommended\)\s*$/i, ''), String(i + 1), /\(recommended\)\s*$/i.test(o)]; });
     if (a && a.answerable) return [['open', 'Answer', '\u21a9']];
@@ -1189,7 +1444,7 @@
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
@@ -1276,15 +1531,18 @@
     sentLate[id] = Date.now();
     if (act.mode === 'sent' && act.p && act.p.id === id && sent && sent.ok) sentShow(act.p, '', false);
   }
-  function sentShow(p, words, ok, quiet) {
+  function sentShow(p, words, ok, quiet, failWords, pending, asks) {
     if (ok !== false && Date.now() - (sentLate[p.id] || 0) < 3000) ok = false;
-    if (ok === false) words = 'Didn\u2019t send';
+    if (ok === false) words = failWords || 'Didn\u2019t send';
     /* each answer is a line of its own (`n`), even for the same session with the same words; it folds out of the row only
        when that row is what shows now (`fold`), otherwise (a card closing, a row already put away) it is drawn afresh */
-    sent = { words: words, ok: ok !== false, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
+    sent = { words: words, ok: ok !== false, pending: !!pending && ok !== false, asks: !!asks, n: ++sentN, fold: (act.mode === 'full' || act.mode === 'sent') && !!act.p && act.p.id === p.id };
     clearTimeout(actTimer); clearTimeout(sentT);
     setAct('sent', p, quiet);
-    sentT = setTimeout(sentDone, sent.ok ? SENT_MS : 4500);
+    /* already the line for this session: setAct leaves it be, so its words change here (renderSent draws each line once) */
+    if (act.mode === 'sent') renderSent(act.p);
+    /* a line still waiting (Starting) stays until it is told how it went; never longer than 20 s */
+    sentT = setTimeout(sentDone, sent.asks ? 150000 : sent.pending ? 20000 : sent.ok ? SENT_MS : 4500);
   }
   /* The line has said its piece. Anything that arrived while it showed, or while the button lit before it (`sentBase` is what
      had been said when the answer was given), is said now, in full; whatever still waits on you stays as wings. */
@@ -1295,7 +1553,7 @@
     sentBase = null; setAct('', null, true); activity(snap, lastSt); layout(lastSt, snap);
   }
   function renderSent(p) {
-    var right = '<span dir="auto" class="act-s' + (sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.ok ? SentMark() : Ring('need'));
+    var right = '<span dir="auto" class="act-s' + (sent.asks ? '' : sent.pending ? ' mu' : sent.ok ? ' said' : '') + '">' + esc(sent.words) + '</span>' + (sent.asks ? Ring('need') : sent.pending ? Spinner('size-[15px]', glow(COLORS.running)) : sent.ok ? SentMark() : Ring('need'));
     var key = 'sent|' + sent.n;
     if (actEl._h === key) return;
     var r = actEl.querySelector('.act-r'), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1313,7 +1571,8 @@
     if (calm) return;
     var w = r.querySelector('.act-s'), mark = r.querySelector('svg');
     if (w) w.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, delay: 140 + lag, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-    if (!sent.ok) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
+    if (sent.pending && !sent.asks) return;
+    if (!sent.ok || sent.asks) { mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 200 + lag, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' }); return; }
     mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
@@ -1430,7 +1689,7 @@
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
-    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new' }[s.phase];
+    var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
@@ -1454,6 +1713,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else nw.on = false;
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -1903,7 +2163,7 @@
           : sc.tried ? '<span style="color:' + COLORS.done + '">That\u2019s it. This is your shortcut.</span>'
           : sc.saved ? 'Saved.'
           : needsAx ? 'A tap needs Accessibility. Record a key combo instead, or allow it in Settings.' : 'Press Record again to change it.';
-      return otitle(o, 'Open Perch with', 'Press the shortcut you want. Esc goes back.') +
+      return otitle(o, sc.which === 'new' ? 'Start a new session with' : 'Open Perch with', 'Press the shortcut you want. Esc goes back.') +
         oi(3, '<div class="o-sc-big mt-4 flex justify-center gap-1.5"' + (sc.recording ? ' data-rec="1"' : '') + '>' + shown + '</div>') +
         oi(4, '<p class="o-sc-hint mt-3 px-4 text-center text-xs leading-4 text-muted-foreground">' + note + '</p>') +
         ofoot(5, false, '', 'Done', 'next', (sc.recording ? '' : Button('ghost', 'Record again', Kbd('C'), 'o-sc" data-a="record')) + (sc.custom ? Button('ghost', 'Reset', '', 'o-scr') : ''));
@@ -2288,8 +2548,12 @@
     var sc = scOf(o.shortcut),
       /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
       scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+    /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
+    var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
+    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
     var rows = [
       scRow,
+      newRow,
       srow(slabel('Character', sh[1] + ', ' + colorName, 'cat'), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
       srow(slabel('Apps', '', 'grid'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
       /* which moments the notch announces (the list and the cards say all of them) */
@@ -2309,7 +2573,8 @@
       /* a build that can update says where it stands; a local test build has no updater and no row */
       srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
     ] : []).filter(Boolean);
-    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt) */
+    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt). New session's
+       row makes twelve at most (438 pt), so building it grows the panel by a row. */
     rows = rows.join('');
     var box = q('.set');
     box.innerHTML = '<div>' + rows + '</div>' +
@@ -2336,6 +2601,7 @@
     var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
+    on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
     on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
     on('.s-quit', function () { post({ type: 'quit' }); });
@@ -2577,10 +2843,10 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set' }[snap.phase], snap); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
 
   /* ---- bridge ---- */
   function post(m) {
@@ -2630,6 +2896,7 @@
     if (m.type === 'reply' && snap && snap.projects[snap.selected] && base.drafts) delete base.drafts[snap.projects[snap.selected].id];
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
+    if (m.type === 'newSession') { devNew(m); return; }
     if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
@@ -2670,7 +2937,7 @@
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
-    if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : 'open';
+    if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : snap.phase === 'newSession' ? (snap.newSession && snap.newSession.from === 'list' ? 'switcher' : 'idle') : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
   }
@@ -2717,10 +2984,80 @@
       return P.map(function (p, k) { return k; }).filter(function (k) { var hay = (P[k].name + ' ' + P[k].topic).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); })
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
+    /* the new session flow: the agents on this Mac and the folders sessions ran in, newest first */
+    var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code' }, { id: 'codex', app: 'codex', name: 'Codex' },
+      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode' }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
+    var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
+      ['website', '~/Code/website', '48m'], ['room-planner-prototype', '~/Documents/room-planner-prototype', '5h'], ['lukatz_website', '~/Code/lukatz_website', '1d'], ['spec-gap-finder', '~/Code/spec-gap-finder', '2d'], ['finance', '~/Documents/finance', '3d']]
+      .map(function (x) { return { name: x[0], path: x[1], away: x[2] }; });
+    /* it starts on the agent and folder of the session you are looking at: the row you were on, or the one in front of you */
+    function newFrom(p) {
+      var agent = !p ? 'claude' : p.app === 'claude' ? (p.via ? 'claude-code' : 'claude') : p.app;
+      var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
+      return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
+    }
+    var devNewRun = 0;
+    function devNew(m) {
+      var D = window.perchDev, nowEl = document.getElementById('now');
+      if (!m.action) { D.newSession(m.from === 'anywhere' ? { from: 'anywhere' } : {}); return; }
+      if (m.action === 'chooseFolder') {
+        if (nowEl) nowEl.textContent = 'macOS\u2019s folder picker opens; you pick ~/Code/landing-page';
+        setTimeout(function () {
+          if (!snap || snap.phase !== 'newSession') return;
+          var o = JSON.parse(JSON.stringify(snap.newSession)); o.projects.unshift({ name: 'landing-page', path: '~/Code/landing-page', away: '' });
+          nw.q = ''; nw.proj = 1; nw.step = 'prompt'; apply(Object.assign({}, snap, { newSession: o, timerToken: Math.random() }));
+        }, 1100);
+        return;
+      }
+      if (m.action !== 'start') return;
+      var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
+      var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
+      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
+      var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
+      /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
+      var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
+      if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
+      /* from the list: back to the list, where the new session is a row at once, Starting, then Started (or Didn't start) */
+      if (m.from === 'list') {
+        var keep = null, relist = function () { var sh = devShown(); base.selected = Math.max(0, P.indexOf(keep)); apply(Object.assign({}, base, { phase: 'switcher', character: charNow, autoCollapse: false, query: '', shown: sh, selected: base.selected, timerToken: Math.random() })); };
+        var pend = Object.assign({}, row, { pending: 'starting', status: { kind: 'running', text: 'Starting', app: a.app }, fresh: false, now: '' });
+        later(close, function () {
+          D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
+          if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
+        });
+        later(close + 1500, function () {
+          pend.pending = fail ? 'failed' : 'started'; relist();
+          if (fail) nwStarted(false); else nwStarted(true);
+          if (nowEl) nowEl.textContent = fail ? 'It never came: Didn\u2019t start. Your words wait for the next Command+Option+N' : 'Perch sees it: Started, the plane flies in';
+        });
+        later(close + 1500 + SENT_MS, function () {
+          if (fail) { pend.pending = 'gone'; relist(); later(360, function () { P.splice(P.indexOf(pend), 1); relist(); }); if (nowEl) nowEl.textContent = 'The row folds away'; return; }
+          P[P.indexOf(pend)] = row; relist();
+          if (nowEl) nowEl.textContent = 'An ordinary row now: working, in website';
+        });
+        return;
+      }
+      /* from anywhere: the card folds into one line, Starting, then Started (or Didn't start) */
+      later(close, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); if (nowEl) nowEl.textContent = 'The card folds into one line: Starting\u2026'; });
+      later(close + 1700, function () {
+        if (!fail) P.unshift(row);
+        nwStarted(!fail);
+        if (nowEl) nowEl.textContent = fail ? 'It never came: Didn\u2019t start, and your words wait for the next Command+Option+N' : 'Started: Perch sees the new session';
+      });
+    }
     window.perchDev = {
+      /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
+      newSession: function (o) {
+        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
+        if (o.text !== undefined) nw.text = o.text;
+        var front = P.filter(function (x) { return x.id === 'api'; })[0];
+        var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
+        apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
+        if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
+      },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
-      show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
       tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
@@ -2846,7 +3183,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
@@ -2902,8 +3239,13 @@
         scDone(mods.slice().sort(function (a, b) { return '\u2303\u2325\u21E7\u2318'.indexOf(a) - '\u2303\u2325\u21E7\u2318'.indexOf(b); }), 'tap');
       } else if (snap.phase === 'onboarding' && snap.onboarding.step === 3 && devSc.kind === 'tap' && mods.slice().sort().join('') === devSc.keys.slice().sort().join('')) devScSync({ tried: true });
     }, true);
+    /* Command+Option+N from anywhere, even with nothing open: a new session */
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey && e.altKey && e.code === 'KeyN' && snap && snap.phase !== 'onboarding' && snap.phase !== 'settings') { e.preventDefault(); e.stopImmediatePropagation(); post({ type: 'newSession', from: snap.phase === 'switcher' ? 'list' : 'anywhere' }); }
+    }, true);
     document.addEventListener('keydown', function (e) {
       var ph = snap && snap.phase; if (!ph || ph === 'idle') return;
+      if (ph === 'newSession') { if (e.target && e.target.classList && e.target.classList.contains('nw-in')) return; if (newKey(e)) e.preventDefault(); return; }
       /* Got it on the what's new card: Command+Option+Return, a key that never types into anything behind the card (the app registers it only while the card shows) */
       if (ph === 'whatsnew' && e.metaKey && e.altKey && e.key === 'Enter') { e.preventDefault(); post({ type: 'whatsnew', action: 'done' }); return; }
       var arrows = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };

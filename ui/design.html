@@ -385,6 +385,47 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
+    ['New session', [
+      ['The whole flow', 'From the list to a running session: Command+Option+N, pick the agent, pick the folder, type, Return. Plays it once; then try it yourself (Command+Option+N works from anywhere on this page, as it would on the Mac).', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); }, key = function (k, meta) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: meta ? 'KeyN' : '', metaKey: !!meta, altKey: !!meta, bubbles: true })); };
+        d.project(1); d.show('switcher');
+        at(1200, function () { now.textContent = 'Command+Option+N in the list'; key('n', true); });
+        at(2600, function () { now.textContent = 'Which agent: it starts on the one of the row you were on'; key('ArrowDown'); });
+        at(3400, function () { key('ArrowUp'); });
+        at(4200, function () { now.textContent = 'Return: on to the folder'; key('Enter'); });
+        at(5400, function () { now.textContent = 'Type to narrow the folders'; key('w'); });
+        at(5700, function () { key('e'); });
+        at(6000, function () { key('b'); });
+        at(7000, function () { now.textContent = 'Return: on to the prompt'; key('Enter'); });
+        at(8200, function () { now.textContent = 'What to ask'; var t = document.querySelector('.nw-in'), words = 'Add a dark mode toggle to the header and remember the choice', i = 0;
+          (function type() { if (me !== charRun || !t) return; i += 2; t.value = words.slice(0, i); t.dispatchEvent(new Event('input')); if (i < words.length) setTimeout(type, 28); })(); });
+        at(10600, function () { now.textContent = 'Return: it starts, and you are back in the list'; document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+      }],
+      ['From the list', 'The list\u2019s footer offers New session where Esc to close used to be: Command+Option+N, or a click. Esc still closes.', function () { d.project(1); d.show('switcher'); }],
+      ['From anywhere', 'Command+Option+N works with Perch closed too: it opens straight on a new session, starting on the agent and folder of the session in front of you (here Claude Code in api-server, in Ghostty).', function () {
+        var me = charRun; d.show('idle', true); now.textContent = 'Working in api-server, Perch closed';
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+Option+N'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', code: 'KeyN', metaKey: true, altKey: true, bubbles: true })); }, 1300);
+      }],
+      ['Choose the agent', 'Every agent on this Mac, with where it opens: the Claude and Codex apps, or the terminal you use for the others. It starts on the agent of the row you were on; a number picks one and goes on.', function () { d.project(1); d.newSession(); }],
+      ['Choose the agent, typed', 'Typing narrows the agents, by name or by where they open (\u201cghostty\u201d leaves the terminal ones); a number still picks one.', function () { d.project(1); d.newSession(); setTimeout(function () { ['c', 'o'].forEach(function (k, i) { setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }, i * 250); }); }, 500); }],
+      ['Choose the folder', 'The folders your sessions ran in, newest first, starting on the one of the row you were on. The first row is for no folder: the Claude app cannot be asked for that, so for Claude it reads Let Claude choose (the folder picked in Claude\u2019s own new-session screen); Codex starts a chat with no folder. Choose a folder… opens the Mac’s own picker. Press the agent’s chip to change it.', function () { d.project(1); d.newSession({ step: 'project' }); }],
+      ['Choose the folder, typed', 'Typing narrows the folders, by name or path, and lands on the first that matches.', function () { d.project(1); d.newSession({ step: 'project', q: 'code' }); }],
+      ['A terminal agent, no project', 'For an agent that runs in a terminal, No project starts it in your home folder.', function () { d.project(1); d.newSession({ agent: 'pi', step: 'project' }); }],
+      ['Choose a folder…', 'The Mac’s folder picker; the folder you pick is the session’s, and you go on to the prompt.', function () { d.project(1); d.newSession({ step: 'project' }); setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', metaKey: true, bubbles: true })); }, 700); }],
+      ['The prompt', 'The two choices sit along the top as chips, and where it opens at the right. Return starts it and leaves you where you are; Command+Return starts it and takes you there. Shift+Return is a new line.', function () { d.project(1); d.newSession({ step: 'prompt' }); }],
+      ['The prompt, typed', 'A longer prompt grows the field, up to six lines, then it scrolls.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' }); }],
+      ['Started, from the list', 'Return puts you straight back in the list, the new session already a row at the top of Today. Its title is grey with a light passing through it, as the card shows a step at work, and it says Starting. Once Perch sees the session: Started with the paper plane, then an ordinary row.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
+      ['Started, from anywhere', 'Opened with Command+Option+N from anywhere, the card folds into one line, like a reply\u2019s Sent: Starting\u2026 with a spinner until Perch sees the new session, then Started with a paper plane.', function () { d.newSession({ from: 'anywhere', step: 'prompt', text: 'Add a 429 test for the burst limit' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
+      ['Didn\u2019t start', 'The session never showed up: the line says Didn\u2019t start in orange, and your words wait as the draft for the next Command+Option+N.', function () {
+        var me = charRun; d.newFails = true; d.newSession({ from: 'anywhere', step: 'prompt', text: 'Add a 429 test for the burst limit' });
+        setTimeout(function () { if (me === charRun) document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900);
+        setTimeout(function () { if (me !== charRun) return; d.newFails = false; now.textContent = 'Command+Option+N: your words are still there'; d.newSession({ from: 'anywhere' }); }, 7600);
+      }],
+      ['Didn\u2019t start, in the list', 'From the list: the row says Didn\u2019t start in orange, holds a moment, then folds away. Your words wait as the draft.', function () { d.project(1); d.newFails = true; d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
+      ['A draft kept', 'Close it with words in the field and they wait: the next Command+Option+N opens on them, as you left them.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Bump the version to 0.4.0 and write the release notes' }); setTimeout(function () { now.textContent = 'Closed, the words kept'; d.show('idle'); }, 1400); setTimeout(function () { now.textContent = 'Command+Option+N: back on the draft'; d.newSession(); }, 2800); }],
+      ['Nothing to pick up yet', 'An empty list says how to start one.', function () { d.empty(false); }],
+      ['Settings: its shortcut', 'Command+Option+N has its own row under Open Perch, with Change, since Finder uses the same keys for New Smart Folder.', function () { d.settings(); }]
+    ]],
     ['Moving between sessions', [
       ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
       ['Into the details and back', 'Right opens the card of the row you are on: the character leans in toward the card, eyes on its title, then blinks. Left goes back and it leans back, eyes on the row you came from. The card and list themselves move as they always have. Plays it twice; then try Right and Left.', function () { d.fx('details'); }]
@@ -590,6 +631,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Reply formatting': '<path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
     'Selecting text': '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
     'Acting on it': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
+    'New session': '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
     'Moving between sessions': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
     'While you work': '<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>',
     'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
@@ -662,8 +704,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  /* it opens on what changed last, the disk image; the first scenario there is the newest */
-  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Installing') first = gi; });
+  /* it opens on what changed last, the new session flow; the first scenario there is the newest */
+  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'New session') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),

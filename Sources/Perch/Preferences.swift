@@ -23,6 +23,9 @@ enum Prefs {
         }
         set { d.set(Array(Set(Agent.all.map(\.id)).subtracting(newValue)), forKey: "sources.disabled") }
     }
+    /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).
+    static var lastNewChoice: String? { get { d.string(forKey: "new.choice") } set { d.set(newValue, forKey: "new.choice") } }
+    static var lastNewFolder: String? { get { d.string(forKey: "new.folder") } set { d.set(newValue, forKey: "new.folder") } }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or
@@ -65,6 +68,12 @@ enum Prefs {
     static var openShortcut: Shortcut {
         get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }
         set { if newValue.isStandard { d.removeObject(forKey: "shortcut.open") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.open") } }
+    }
+    /// What starts a new session from anywhere: Option+Command+N unless you recorded your own. Always a key combo.
+    static let standardNew = Shortcut.combo([.option, .command], keyCode: 45, name: "N")
+    static var newShortcut: Shortcut {
+        get { (d.data(forKey: "shortcut.new").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { $0.kind == .combo && Shortcut.problem($0) == nil ? $0 : nil } ?? standardNew }
+        set { if newValue == standardNew { d.removeObject(forKey: "shortcut.new") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.new") } }
     }
     /// Minutes away before the welcome card comes back. 20 by default.
     static var idleMinutes: Int {
