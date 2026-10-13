@@ -1,0 +1,15 @@
+name: Idea
+description: Something Perch could do. Please start here before building a feature.
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What gets in your way
+      description: The moment in your day where Perch falls short, in your own words. The problem matters more than a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like Perch to do

@@ -1,0 +1,17 @@
+name: PR description
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+jobs:
+  pr-body:
+    # Dependabot's PRs carry their own description
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Follows the PR template
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/body.md"
+          python3 .claude/hooks/pr-body-check.py "$RUNNER_TEMP/body.md"

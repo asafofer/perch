@@ -114,7 +114,7 @@ A native AppKit shell owns the notch panel, hotkeys and the hook socket. `PerchC
 
 ## Development
 
-Read [AGENTS.md](AGENTS.md) first: architecture, workflow, design rules and known pitfalls.
+Read [AGENTS.md](AGENTS.md) first: architecture, workflow, design rules and known pitfalls. [CONTRIBUTING.md](CONTRIBUTING.md) says how a change goes in and what CI checks.
 
 ```bash
 cd ui && npm install && cd ..           # once

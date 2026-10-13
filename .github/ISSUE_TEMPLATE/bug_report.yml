@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in Perch does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Perch did instead. A screenshot or a short screen recording helps a lot.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Perch version
+      description: In the menu bar menu, or Settings.
+      placeholder: "0.3.11"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 26.1, MacBook Pro M3"
+    validations:
+      required: true
+  - type: checkboxes
+    id: agents
+    attributes:
+      label: Agents involved
+      options:
+        - label: Claude app (Code)
+        - label: Codex app
+        - label: Claude Code in a terminal
+        - label: Codex in a terminal
+        - label: OpenCode
+        - label: pi
+        - label: Conductor
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal or multiplexer
+      placeholder: "Ghostty, iTerm2, Terminal, Warp, cmux, herdr..."
+  - type: dropdown
+    id: live
+    attributes:
+      label: Live status
+      description: Settings, Live status.
+      options: ["On", "Off", "Not sure"]
+  - type: textarea
+    id: dump
+    attributes:
+      label: What Perch sees (optional)
+      description: "Output of `/Applications/Perch.app/Contents/MacOS/Perch --dump`. It lists your project names and session titles: remove anything private before pasting."
+      render: text
