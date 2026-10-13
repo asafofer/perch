@@ -921,7 +921,7 @@
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '" data-k="' + esc(p.id) + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true">' + esc(first) + '</span>' : '') + '</span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
@@ -1038,16 +1038,17 @@
       /* the title if it is cut short, else the name; a right-to-left title glides the other way */
       var box = [row.querySelector('.nm'), row.querySelector('.tp')].filter(function (b) { return b && b.scrollWidth - b.clientWidth >= 4; })[0];
       if (!box || mq.el !== row) return;
-      var inner = box.querySelector('.mq-in'), rtl = getComputedStyle(box).direction === 'rtl';
+      /* a shimmering title has a second copy of its words on top (the shine): both read out together, or they come apart */
+      var inners = box.querySelectorAll('.mq-in'), rtl = getComputedStyle(box).direction === 'rtl';
       var over = box.scrollWidth - box.clientWidth + 14;   /* clear of the fade at the far edge */
       box.classList.add('mq-on'); if (rtl) box.classList.add('mq-rtl');
       var go = over / 45 * 1000, rest = 1600, back = 600, wait = 1400, all = go + rest + back + wait;
       var at = function (ms) { return ms / all; };
       var x = function (v) { return { transform: 'translateX(' + (rtl ? -v : v) + 'px)' }; };
-      mq.anims.push(inner.animate([
+      inners.forEach(function (inner) { mq.anims.push(inner.animate([
         Object.assign(x(0), { offset: 0, easing: 'cubic-bezier(.45,0,.55,1)' }), Object.assign(x(-over), { offset: at(go) }),
         Object.assign(x(-over), { offset: at(go + rest), easing: 'cubic-bezier(.4,0,.2,1)' }), Object.assign(x(0), { offset: at(go + rest + back) }), Object.assign(x(0), { offset: 1 })
-      ], { duration: all, iterations: Infinity }));
+      ], { duration: all, iterations: Infinity })); });
       /* the left edge fades in only while the text is away from its start */
       mq.anims.push(box.animate([
         { '--mql': '0px', offset: 0 }, { '--mql': '12px', offset: at(Math.min(300, go)) }, { '--mql': '12px', offset: at(go + rest) },

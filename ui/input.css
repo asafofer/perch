@@ -200,6 +200,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @property --mql { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .mq-on { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 .mq-on .mq-in { display: inline-block; }
+.mq-on > .shine { text-overflow: clip; }
 /* a reply sent to a terminal flies into the notch (app.js sendFly) */
 .fly { position: absolute; z-index: 20; max-width: 260px; padding: 4px 10px; border-radius: 12px 12px 12px 4px; background: rgba(255,255,255,.14);
   color: #fafafa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transform-origin: 50% 50%; }
