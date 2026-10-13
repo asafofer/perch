@@ -119,8 +119,8 @@
   /* text morph: the letters both share stay where they are; only the rest cross-blurs, while its width eases */
   function morphText(el, next, still) {
     var prev = el._t != null ? el._t : el.textContent;
+    if (prev === next) return;   /* the same words again (a refresh) leave a change under way to finish */
     clearTimeout(el._sw); el.classList.remove('is-exit', 'is-enter');
-    if (prev === next) return;
     el._t = next;
     if (still || STILL) { el.textContent = next; return; }
     var a = 0; while (a < prev.length && a < next.length && prev[a] === next[a]) a++;
@@ -620,9 +620,10 @@
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
-    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col">' + qn.options.map(function (o, i) {
+    /* the choices stand a little apart, so two picked ones read as two; each number sits level with its choice */
+    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
@@ -739,7 +740,9 @@
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
-    status(ph, p.status.text);
+    /* a question card says its own status (Question 1 of 3); setting the phrase first would swap the words back and forth on every refresh */
+    var asks = a && a.kind === 'question' && a.questions && a.questions.length && (a.answerable || a.questions[0].options.length);
+    if (!asks) status(ph, p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
