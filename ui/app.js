@@ -1111,7 +1111,7 @@
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
   var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
   /* what a row says while a file is over it (nwDropRow) */
-  var NW_DZ = '<span class="nw-dz hidden h-5 flex-none items-center rounded-md bg-primary px-1.5 text-[11.5px] font-medium text-primary-foreground">Drop to start</span>';
+  var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
