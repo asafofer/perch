@@ -79,6 +79,11 @@ enum NewSessionStarter {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
                     if wait(3, { squash(value(field)).isEmpty ? true : nil }) == nil { NSLog("Perch: the new session's field still holds the words after Send") }
                     NSLog("Perch: started a new session in \(bundle)")
+                    // Claude asks to trust the folder only now, on Send: a moment to see whether it does, then your answer.
+                    if !trusted, wait(2.5, { asksTrust(windowsOf(app)) ? true : nil }) != nil {
+                        NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() }
+                        return awaitTrust(in: app)
+                    }
                     return true
                 }
             } else if sawField, !asked, !asking {
@@ -89,6 +94,32 @@ enum NewSessionStarter {
         NSLog("Perch: new session not sent (\(sawField ? "no Send to press" : "its words never showed in the field"))")
         return false
     }
+    /// The app's windows, the question a new session asks among them.
+    private static func windowsOf(_ app: NSRunningApplication) -> [AXUIElement] {
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        return (attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+    }
+    /// Asked to trust after Send: your answer from the notch presses the app's own button (true: trusted, it goes on). The
+    /// question answered in the app, or never, is yours: true, and the scan says whether the session began.
+    private static func awaitTrust(in app: NSRunningApplication) -> Bool {
+        let began = Date()
+        while Date().timeIntervalSince(began) < 120 {
+            let windows = windowsOf(app)
+            guard asksTrust(windows) else { return true }
+            if let a = trust.take() {
+                let title = a == .trust ? trustTitles : ["Cancel", "Don't trust", "Don\u{2019}t trust"]
+                if let b = windows.lazy.compactMap({ w in first(in: w, { role($0) == "AXButton" && title.contains(string($0, kAXTitleAttribute)) && inTrustDialog($0) }) }).first {
+                    _ = AXUIElementPerformAction(b, kAXPressAction as CFString)
+                }
+                if a == .cancel { NSLog("Perch: the new session's folder was not trusted"); return false }
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return true
+    }
+
     /// The app asks whether to trust the folder (Claude: Trust workspace, Codex: Trust folder).
     private static let trustTitles = ["Trust workspace", "Trust folder"]
     private static func asksTrust(_ windows: [AXUIElement]) -> Bool {
