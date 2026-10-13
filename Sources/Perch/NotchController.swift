@@ -1836,6 +1836,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown], handler: { [weak self] _ in MainActor.assumeIsolated { self?.pressedElsewhere() } }) { mouseMonitors.append(g) }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp], handler: { [weak self] _ in MainActor.assumeIsolated { self?.releasedElsewhere() } }) { mouseMonitors.append(g) }
+        // What's new: a release over Got it counts even when WebKit makes no click of it (app.js wnUp).
+        if let l = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp, handler: { [weak self] e in
+            MainActor.assumeIsolated {
+                guard let self, self.machine.phase == .whatsNew, e.window === self.panel else { return }
+                let p = self.web.convert(e.locationInWindow, from: nil), y = self.web.isFlipped ? p.y : self.web.bounds.height - p.y
+                self.web.evaluateJavaScript("window.perch && window.perch.wnUp(\(p.x), \(y))", completionHandler: nil)
+            }
+            return e
+        }) { mouseMonitors.append(l) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
         if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
