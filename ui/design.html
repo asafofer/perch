@@ -137,6 +137,25 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var d = window.perchDev; if (!d) return;
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
+  /* selects the words `from` to `to` (found in the text) inside the element, as a drag across them would */
+  function selectWords(sel, from, to) {
+    var el = document.querySelector(sel); if (!el) return;
+    var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [], all = '', t;
+    while ((t = w.nextNode())) { nodes.push([t, all.length]); all += t.data; }
+    var a = all.indexOf(from), b = to ? all.indexOf(to, a) + to.length : a + from.length; if (a < 0 || b < a) return;
+    var at = function (i) { for (var k = nodes.length - 1; k >= 0; k--) if (nodes[k][1] <= i) return [nodes[k][0], i - nodes[k][1]]; };
+    var r = document.createRange(), s = at(a), e = at(b); r.setStart(s[0], s[1]); r.setEnd(e[0], e[1]);
+    getSelection().removeAllRanges(); getSelection().addRange(r);
+  }
+  /* the same, word by word from `from`, as a drag would grow it, starting after `delay` ms */
+  function selectSlowly(me, sel, from, to, delay) {
+    setTimeout(function () {
+      var el = document.querySelector(sel); if (!el || me !== charRun) return;
+      var all = el.textContent, a = all.indexOf(from), b = all.indexOf(to, a) + to.length, ends = [], re = /\S+/g, m;
+      re.lastIndex = a; while ((m = re.exec(all)) && m.index < b) ends.push(all.slice(a, Math.min(b, m.index + m[0].length)));
+      ends.forEach(function (upTo, i) { setTimeout(function () { if (me === charRun) selectWords(sel, upTo); }, i * 70); });
+    }, delay);
+  }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
@@ -158,7 +177,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   /* replies that list things: a bold line straight into bullets, numbers, nested items, a table after a list */
   var SAID_BULLETS = '**Options for the next release**\n- Serve the feed from somewhere that doesn’t cache for 5 minutes, such as a GitHub Pages site or a release asset URL.\n- Or leave it and have `release.sh` print “live in about 5 minutes”.\n\nI would take the first: it also makes the appcast faster for everyone.';
   var SAID_NUMBERS = 'The release goes out in this order:\n1. Bump the version and write `release-notes/0.4.0.md`\n2. Run `./scripts/release.sh --publish`\n3. Wait for the appcast to refresh, about 5 minutes\n4. Check that an older copy offers the update\n\nStep 3 is the slow one.';
-  var SAID_NESTED = '## What changed\n- The reply card\n  - Bullet and numbered lists now draw\n  - Nested items sit one step in\n    - and a third level too\n- The design page\n  - Four new scenarios under *Acting on it*\n- Tests: **all green**, nothing new to cover\n\nNext: open the PR.';
+  var SAID_NESTED = '## What changed\n- The reply card\n  - Bullet and numbered lists now draw\n  - Nested items sit one step in\n    - and a third level too\n- The design page\n  - Four new scenarios under *Reply formatting*\n- Tests: **all green**, nothing new to cover\n\nNext: open the PR.';
   var SAID_MIXED = '**Where September stands**\n- 41 of 43 invoices matched\n- Two are still open:\n  1. A Figma seat refund\n  2. A Linear credit note\n\n| Vendor | Matched |\n|---|---|\n| Hetzner | 100% |\n| Linear | 94% |\n| Figma | 75% |\n\nShould I book the two as credits against October?';
   var WIDE = 'Ran the load test against the new limiter, twelve runs. Every run held its limit:\n\n| Run | Requests | Allowed | Rejected (429) | p50 | p95 | p99 | Error rate | Notes |\n|---|---|---|---|---|---|---|---|---|\n' +
     '| 121 | 20,000 | 100% | 0 | 12 ms | 27 ms | 41 ms | 0.00% | cold start |\n' +
@@ -275,7 +294,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: the Apps menu', 'Return (or a click) opens it: a check for each agent and how many sessions it has. Up and Down move, Return switches one on or off, Esc or Left closes the menu.', function () { d.settings({ sources: FOUR }); setTimeout(function () { window.perch.setKey('down'); window.perch.setKey('down'); window.perch.setKey('enter'); }, 400); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
-    ['Acting on it', [
+    ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
       ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
@@ -318,16 +337,47 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ]);
         }, 1400);
       }],
+      ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
+      ['Reply: no Accessibility', 'Perch cannot type for you yet, so Send reads Allow and send. Return or a click asks for Accessibility, as Settings does, and keeps your words.', function () { d.noAccess(); reply(true)(); }],
+      ['Reply: waiting for access', 'System Settings is open on Accessibility. Your words stay in the field and go out the moment Perch is on. Esc goes back to the card and drops the wait. If it never comes on, they are copied and the session opens, as before.', function () { d.noAccess(true); reply(true)(); }],
+      ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
+    ]],
+    ['Reply formatting', [
       ['Reply: a bulleted list', 'A bold line straight into bullets, no blank line between. Quiet grey bullets, items that wrap line up under their words.', function () { d.variant(1, { said: SAID_BULLETS }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a numbered list', 'The agent\u2019s own numbers, in grey, aligned.', function () { d.variant(1, { said: SAID_NUMBERS }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: nested lists and a heading', 'Deeper indents sit one step in; a heading is a bold line; *italic* and **bold** inside items.', function () { d.variant(1, { said: SAID_NESTED }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a list, a numbered list inside it, and a table', 'Everything in one message: it scrolls, the table keeps its own window.', function () { d.variant(1, { said: SAID_MIXED }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a table', 'The agent answered with a table. No lines: the header in grey, a faint band on every other row, even numerals, numbers on the right.', function () { d.project(3); d.show('open', false, true); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
       ['Reply: a long, wide table', 'Taller and wider than the message: the table scrolls in its own window, both ways, its header staying put, and fades at the sides it goes on. Up and Down in the reply scroll the message and, when the table is in the way, its rows first.', function () { d.variant(7, { said: WIDE }); setTimeout(function () { window.perch.replyMenu(true); }, 700); }],
-      ['Reply to a terminal', 'Return sends it into its terminal tab: the card clears, the words shoot up into the notch and it swallows them with a green ripple, the character hops, and the card folds away.', function () { d.project(7); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); document.querySelector('.r-in').value = 'Add a test for the burst limit'; }, 700); }],
-      ['Reply: no Accessibility', 'Perch cannot type for you yet, so Send reads Allow and send. Return or a click asks for Accessibility, as Settings does, and keeps your words.', function () { d.noAccess(); reply(true)(); }],
-      ['Reply: waiting for access', 'System Settings is open on Accessibility. Your words stay in the field and go out the moment Perch is on. Esc goes back to the card and drops the wait. If it never comes on, they are copied and the session opens, as before.', function () { d.noAccess(true); reply(true)(); }],
-      ['Reply copied', 'When Perch could not type it, a word beside the notch says so.', function () { d.show('idle', true); setTimeout(function () { d.say('Reply copied'); }, 700); }],
+    ]],
+    ['Selecting text', [
+      ['Words selected on the card', 'What the agent said can be selected and copied with Command+C (the title, buttons and the rest of the notch cannot). The highlight is drawn by Perch: a soft, rounded piece per line in the character\u2019s colour lifted toward white, fading in as the drag reaches each line. While words are selected the card stays open: the pointer can leave it and a card Perch opened by itself does not count down; a click elsewhere or Esc still closes it.', function () {
+        var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
+        selectSlowly(me, '.o-h', 'The hero now fits', 'slowed the page.', 900);
+      }],
+      ['Words selected in the reply', 'The agent\u2019s message above the reply can be selected too, your own bubble with it, across lists, code and paragraphs; Command+C copies it. The highlight follows the message as it scrolls, cut at its edges. Typing goes back into the field.', function () {
+        var me = ++charRun; d.hl(); reply(false)();
+        setTimeout(function () { if (me === charRun) document.querySelector('.r-in').blur(); }, 1250);
+        selectSlowly(me, '.o-said-in', 'The headline wraps', 'something to look at.', 1300);
+      }],
+      ['Words copied', 'Command+C (or Copy from the right-click menu): the highlight brightens for a beat and settles back, so you know it went. Nothing else moves. Plays on a loop.', function () {
+        var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
+        setTimeout(function () { if (me === charRun) selectWords('.o-h', 'The hero now fits', 'phone width'); }, 900);
+        (function loop() { setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+C'; document.dispatchEvent(new Event('copy')); loop(); }, 1800); })();
+      }],
+      ['Highlight in every colour', 'The highlight takes the character\u2019s colour, lifted toward white so it reads the same on all seven (Saffron would go olive on black). Steps through them, then back to Saffron.', function () {
+        var me = ++charRun, cols = [['Saffron', '#F5B83D'], ['Peach', '#FF9E7A'], ['Rose', '#F48FB1'], ['Lilac', '#B9A2F5'], ['Sky', '#7DC4F5'], ['Mint', '#7FD9A8'], ['Cream', '#F2EAD3'], ['Saffron', '#F5B83D']];
+        d.hl(); reply(false)();
+        setTimeout(function () { if (me !== charRun) return; document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'The headline wraps', 'something to look at.'); }, 1300);
+        cols.forEach(function (c, i) { setTimeout(function () { if (me !== charRun) return; now.textContent = c[0]; d.tint(c[1]); }, 1500 + i * 1300); });
+      }],
+      ['System highlight, for comparison', 'The same selection with the system\u2019s own highlight, as before: a flat block in the character\u2019s colour, square corners, no fade, nothing on copy. Shown only to compare.', function () {
+        var me = ++charRun; d.hl('native'); reply(false)();
+        setTimeout(function () { if (me !== charRun) return; document.querySelector('.r-in').blur(); selectWords('.o-said-in', 'The headline wraps', 'something to look at.'); }, 1300);
+        (function back() { setTimeout(function () { if (me === charRun) back(); else d.hl(); }, 300); })();
+      }],
+    ]],
+    ['Acting on it', [
       ['Sessions', 'A card you open yourself says that Up and Down flip to the next session\u2019s card, where the welcome card offers Not now (N snoozes either way). Hidden when there is only one session.', function () { d.project(1); d.show('open', false, true); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.snoozeMenu(true); }, 700); }],
       ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
@@ -536,6 +586,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var TABICON = {
     'Coming back': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
     'More agents': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+    'Replying': '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+    'Reply formatting': '<path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+    'Selecting text': '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
     'Acting on it': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
     'Moving between sessions': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
     'While you work': '<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>',

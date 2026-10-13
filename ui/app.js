@@ -249,7 +249,7 @@
     var flushText = function () { if (text.length) out += '<p dir="auto" class="my-2">' + text.map(function (l) { return md(l); }).join('<br>') + '</p>'; text = []; };
     var flushItems = function () {
       if (items.length) out += '<ul class="my-2 flex flex-col gap-0.5">' + items.map(function (it) {
-        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
+        return '<li class="flex gap-2"' + (it.lvl ? ' style="margin-left:' + it.lvl * 16 + 'px"' : '') + '><span class="md-mk flex-none text-muted-foreground' + (it.num ? ' min-w-[1.1em] text-right tabular-nums' : '') + '">' + it.mark + '</span><span dir="auto" class="min-w-0">' + it.text.split('\n').map(function (l) { return md(l); }).join('<br>') + '</span></li>';
       }).join('') + '</ul>';
       items = []; stack = [];
     };
@@ -605,6 +605,12 @@
   function status(html, title) {
     var st = q('.o-st'); if (st.dataset.h !== html) { st.innerHTML = html; st.dataset.h = html; } st.title = title || '';
   }
+  /* Words are put in only when they change: the snapshot comes again every refresh, and new nodes would drop a selection
+     you are making in them. Written by anything else meanwhile (a question's card), they are put in again. */
+  function setWords(el, html) {
+    if (el._put === html && el.innerHTML === el._was) return;
+    el.innerHTML = html; el._put = html; el._was = el.innerHTML;
+  }
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
@@ -621,11 +627,11 @@
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
       /* what the agent is asking, and the means to answer it right here */
-      h.textContent = a.kind === 'question' ? a.subject : a.title;
-      c.textContent = a.kind === 'plan' ? a.subject : '';
-      box.innerHTML = a.kind === 'permission' && a.subject
+      setWords(h, esc(a.kind === 'question' ? a.subject : a.title));
+      setWords(c, a.kind === 'plan' ? esc(a.subject) : '');
+      setWords(box, a.kind === 'permission' && a.subject
         ? '<div dir="auto" class="mt-2 line-clamp-2 break-all rounded-md bg-white/[0.07] px-2.5 py-1.5 font-mono text-xs leading-[18px] text-foreground/90">' + esc(a.subject) + '</div>'
-        : '';
+        : '');
     } else {
       /* "You were creating a database." becomes the grey line under the title, "Creating a database"; a headline that only
          repeats the title is left out. What happened is the body, in white, two lines at most. */
@@ -634,9 +640,9 @@
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
       if (said) { sub.innerHTML = proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1)); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { h.innerHTML = md(did.charAt(0).toUpperCase() + did.slice(1)); h.classList.add('line-clamp-2'); }
-      else h.innerHTML = said ? '' : md(p.headline);
-      c.innerHTML = ''; box.innerHTML = '';
+      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      else setWords(h, said ? '' : md(p.headline));
+      setWords(c, ''); setWords(box, '');
     }
     c.style.display = c.innerHTML ? '' : 'none'; h.style.display = h.innerHTML ? '' : 'none';
     /* last line of defence: git housekeeping is never shown as a next step, whatever produced it (old cache included) */
@@ -650,7 +656,7 @@
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
-    q('.o-x').innerHTML = md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : '');   /* the light's copy of the words, markup and all */
+    setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
     q('.o-acts').innerHTML = a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
@@ -1468,6 +1474,7 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
        other display's notch, and nothing lingers on one that shows nothing at rest. A card opening there grows from its notch. */
@@ -1597,11 +1604,81 @@
     chain.slice().reverse().forEach(function (c) { if (hvEls.indexOf(c) < 0) { c.classList.add('hv'); c.dispatchEvent(new MouseEvent('mouseenter')); } });
     hvEls = chain;
     if (el) el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x, clientY: y }));
-    hand(!!el && getComputedStyle(el).cursor === 'pointer');
+    var cur = el ? getComputedStyle(el).cursor : '';
+    hand(cur === 'pointer', cur === 'text');
   }
   /* WebKit shows the hand only on a card with the keyboard; on one without, Swift shows it when the page says */
-  var handOn = false;
-  function hand(on) { if (on !== handOn) { handOn = on; post({ type: 'hand', on: on }); } }
+  var handOn = false, beamOn = false;
+  function hand(on, text) { text = !on && !!text; if (on !== handOn || text !== beamOn) { handOn = on; beamOn = text; post({ type: 'hand', on: on, text: text }); } }
+  /* Words selected on the card: Swift keeps the card open while they are (it would close as the pointer leaves, or when its
+     time is up) and sends Command+C to them. A selection on words no longer showing (the reply closed) or in the reply
+     field does not count, and goes when the card closes. */
+  var selOn = false;
+  function selCheck() {
+    var s = window.getSelection(), node = s && s.rangeCount && !s.isCollapsed ? s.anchorNode : null;
+    var el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var on = !!(el && lastSt === 'open' && document.activeElement !== rIn && q('.p-open').contains(el) && el.getClientRects().length && String(s).trim());
+    if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
+    if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
+    hlDraw();
+  }
+  document.addEventListener('selectionchange', selCheck);
+  /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
+     them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
+     highlight stays underneath, hidden, and is what gets copied. */
+  var hlLayer = document.createElement('div'); hlLayer.className = 'hl'; hlLayer.setAttribute('aria-hidden', 'true'); q('.p-open').appendChild(hlLayer);
+  function hlDraw() {
+    var s = window.getSelection(), lines = [];
+    if (selOn && document.documentElement.dataset.hl !== 'native' && s.rangeCount) {
+      var r = s.getRangeAt(0), pr = q('.p-open').getBoundingClientRect(), clips = new Map();
+      var clip = function (el) {
+        if (clips.has(el)) return clips.get(el);
+        var c = el.classList.contains('p-open') || !el.parentElement ? { l: -1e4, t: -1e4, r: 1e4, b: 1e4 } : clip(el.parentElement), cs = getComputedStyle(el);
+        if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') { var b = el.getBoundingClientRect(); c = { l: Math.max(c.l, b.left), t: Math.max(c.t, b.top), r: Math.min(c.r, b.right), b: Math.min(c.b, b.bottom) }; }
+        clips.set(el, c); return c;
+      };
+      var root = r.commonAncestorContainer, w = document.createTreeWalker(root.nodeType === 1 ? root : root.parentNode, NodeFilter.SHOW_TEXT), t;
+      while ((t = w.nextNode())) {
+        if (!r.intersectsNode(t) || !t.parentElement.closest('.p-open') || t.parentElement.closest('.shine, button, .md-mk')) continue;   /* a list's marker is copied, not lit */
+        var sr = document.createRange(); sr.selectNodeContents(t);
+        if (t === r.startContainer) sr.setStart(t, r.startOffset);
+        if (t === r.endContainer) sr.setEnd(t, r.endOffset);
+        var c = clip(t.parentElement);
+        [].forEach.call(sr.getClientRects(), function (b) {
+          var x = { l: Math.max(b.left - 2, c.l), t: Math.max(b.top, c.t), r: Math.min(b.right + 2, c.r), b: Math.min(b.bottom, c.b) };
+          if (b.width > 1 && x.r - x.l > 2 && x.b - x.t > 2) lines.push(x);
+        });
+      }
+      /* pieces on the same line (a word in code, a bold one) become one */
+      lines.sort(function (a, b) { return a.t - b.t || a.l - b.l; });
+      lines = lines.reduce(function (out, x) {
+        var y = out[out.length - 1];
+        if (y && Math.min(y.b, x.b) - Math.max(y.t, x.t) > Math.min(y.b - y.t, x.b - x.t) / 2) { y.l = Math.min(y.l, x.l); y.r = Math.max(y.r, x.r); y.t = Math.min(y.t, x.t); y.b = Math.max(y.b, x.b); }
+        else out.push(x);
+        return out;
+      }, []);
+      lines.forEach(function (x) { x.l -= pr.left; x.r -= pr.left; x.t -= pr.top; x.b -= pr.top; });
+    }
+    var have = hlLayer.children;
+    while (have.length > lines.length) hlLayer.removeChild(have[have.length - 1]);
+    lines.forEach(function (x, i) {
+      var el = have[i];
+      if (!el) { el = document.createElement('i'); el.className = 'in'; hlLayer.appendChild(el); requestAnimationFrame(function () { el.classList.remove('in'); }); }
+      el.style.cssText = 'left:' + x.l + 'px;top:' + x.t + 'px;width:' + (x.r - x.l) + 'px;height:' + (x.b - x.t) + 'px';
+    });
+  }
+  document.addEventListener('scroll', function () { if (selOn) hlDraw(); }, true);
+  /* copied (Command+C, or Copy from the menu): the highlight brightens for a beat, so you know it went */
+  document.addEventListener('copy', function () {
+    if (!selOn) return;
+    hlLayer.classList.remove('copied'); void hlLayer.offsetWidth; hlLayer.classList.add('copied');
+  });
+  hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
+  /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
+  document.addEventListener('keydown', function (e) {
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
+  }, true);
   function cursor(x, y) {
     ptrAt = [x, y]; sweep(x, y); if (lastSt === 'switch') markList();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
@@ -2644,6 +2721,9 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       show: function (ph, quiet, mine) { clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
+      hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
+      tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
       setNotch: function (has) {
         base.screen = has ? { hasNotch: true, notchW: 185, notchH: 32 } : { hasNotch: false, notchW: 0, notchH: 24 };
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
