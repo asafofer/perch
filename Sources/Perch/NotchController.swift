@@ -751,6 +751,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
+        if old == .switcher { pendingPicked = false }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
             if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
@@ -821,6 +822,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// seen), and how it is going: "starting", "started", "failed", "gone" (its row folding away).
     private struct Starting {
         let choice: NewSession.Choice, folder: String?, prompt: String, at: Date, known: Set<String>, sessionId: String?, fromList: Bool
+        /// What its row is called until it is found: your words without the attached files' paths.
+        var title = ""
         var state = "starting"
         var found: String?
     }
@@ -899,13 +902,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
     /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
-    private func startNewSession(_ id: String, folder: String?, prompt: String, go: Bool, close: Double) {
+    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
         let fromList = machine.newFrom == .switcher && !go
         let back = pickBack ?? WhereYouWere.now(); pickBack = nil
-        starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList)
+        starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList, title: title.flatMap { $0.isEmpty ? nil : $0 } ?? prompt)
         if go { send(.dismiss) }
         else if fromList { send(.started) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + close) { [weak self] in if self?.machine.phase == .newSession { self?.send(.started) } } }
@@ -936,6 +939,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    /// Return on the row of a session being started: the app or terminal it starts in comes forward (to confirm the folder
+    /// there, or watch it begin), and the list makes way for it.
+    private func showStarting() {
+        guard let st = starting else { return }
+        let bundle = st.choice.terminal ? Terminals.preferred : st.choice.agent == "codex" ? Restorer.codexApp : Restorer.claudeApp
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { return }
+        pendingPicked = false
+        send(.dismiss); putAway = nil
+        app.activate()
+    }
+
     /// The app asks you to trust the folder: the notch says to confirm there, and the wait is longer.
     private func startingAsks() {
         guard starting?.state == "starting" else { return }
@@ -959,25 +973,38 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         startingTicker?.invalidate(); startingTicker = nil
         starting?.state = ok ? "started" : "failed"
         if !ok { NSLog("Perch: the new session did not show up") }
+        // You were on its row: once it is a real row, you are on that one.
+        if ok, pendingPicked, let id = starting?.found, let i = projects.firstIndex(where: { $0.id == id }) {
+            pendingPicked = false; machine.send(.projectsChanged(count: projects.count, selected: i))
+        }
         web.evaluateJavaScript("window.perch && window.perch.newStarted(\(ok))", completionHandler: nil)
         push()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { [weak self] in
             guard let self else { return }
             if ok { self.starting = nil; self.push(); return }
             self.starting?.state = "gone"; self.push()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.starting = nil; self?.push() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.starting = nil; self?.pendingPicked = false; self?.push() }
         }
     }
 
     /// In the list: a row for the session from the moment you press Return, at the top of Today. Once the scan finds it,
     /// its real row says Started instead.
+    /// The row you are on in the list is the one being started: the arrows reach it like any other, Return brings
+    /// forward the app it starts in (where it may ask you to confirm), and it has no details.
+    private var pendingPicked = false
+    /// Whether the list shows a row for a session being started, and before which listed session (nil: at the end).
+    private var pendingSlot: (shown: Bool, before: Int?) {
+        guard machine.phase == .switcher, let st = starting, st.fromList, listQuery.isEmpty, st.state != "started" else { return (false, nil) }
+        let shown = ListFilter.ordered(projects, listQuery, now: Date())
+        return (true, shown.first { ListFilter.section(projects[$0], now: Date()) != .needsYou })
+    }
     private func pendingRow(_ st: Starting, into sent: inout UISnapshot) {
         if st.state == "started" {
             if let id = st.found, let i = sent.projects.firstIndex(where: { $0.id == id }) { sent.projects[i].pending = "started" }
             return
         }
         let folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
-        let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.prompt, app: st.choice.agent,
+        let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.title, app: st.choice.agent,
                                        attention: false, fresh: false, line: "", status: .init(kind: "running", text: "Starting", app: st.choice.agent), steps: [], ask: nil, now: nil,
                                        via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: st.state)
         sent.projects.append(row)
@@ -985,6 +1012,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let at = shown.firstIndex { sent.projects[$0].section != "Needs you" } ?? shown.count
         shown.insert(sent.projects.count - 1, at: at)
         sent.shown = shown
+        if pendingPicked { sent.selected = sent.projects.count - 1 }
     }
 
     // MARK: web view
@@ -999,7 +1027,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "answer":
             if let a = body["answers"] as? [String: String] { answer("", answers: a) }
             else if let c = body["choice"] as? String { answer(c) }
-        case "pick": if let i = body["index"] as? Int { send(.select(i)) }
+        case "pick":
+            guard let i = body["index"] as? Int else { break }
+            if i == projects.count, pendingSlot.shown { pendingPicked = true; push() } else { pendingPicked = false; send(.select(i)) }
         case "details": if let i = body["index"] as? Int { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
@@ -1024,7 +1054,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "newSession":
             switch body["action"] as? String {
-            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
             case "chooseFolder": chooseFolder()
             default: openNewSession()
             }
@@ -1682,6 +1712,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Nothing left to open or look at when nothing matches.
                 if [36, 76, 48, 124].contains(e.keyCode), !self.listMarked || ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
             }
+            // On the row of a session being started: Return brings its app forward, and it has no details.
+            if self.machine.phase == .switcher, self.pendingPicked, self.pendingSlot.shown, [36, 76, 48, 124].contains(e.keyCode) {
+                if e.keyCode == 36 || e.keyCode == 76 { self.showStarting() }
+                return nil
+            }
             if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
             case (36, _), (76, _): self.send(.confirm)
@@ -1716,10 +1751,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Up and down move through the rows that match, wrapping around.
     private func stepList(_ d: Int) {
-        let shown = ListFilter.ordered(projects, listQuery, now: Date())
-        guard !shown.isEmpty else { return }
-        let next = shown.firstIndex(of: machine.selected).map { shown[($0 + d + shown.count) % shown.count] } ?? shown[0]
-        machine.send(.projectsChanged(count: projects.count, selected: next))
+        // nil stands for the row of a session being started, where the list draws it
+        var order: [Int?] = ListFilter.ordered(projects, listQuery, now: Date())
+        let slot = pendingSlot
+        if slot.shown { order.insert(nil, at: slot.before.flatMap { b in order.firstIndex { $0 == b } } ?? order.count) }
+        guard !order.isEmpty else { return }
+        let here = pendingPicked && slot.shown ? order.firstIndex { $0 == nil } : order.firstIndex { $0 == machine.selected }
+        let next = here.map { order[($0 + d + order.count) % order.count] } ?? order[0]
+        pendingPicked = next == nil
+        if let next { machine.send(.projectsChanged(count: projects.count, selected: next)) }
         push()
     }
     private func stopKeys() { if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil } }

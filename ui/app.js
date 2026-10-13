@@ -1274,7 +1274,7 @@
     if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
@@ -3317,7 +3317,7 @@
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
-      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
+      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: (m.title || m.prompt).length > 70 ? (m.title || m.prompt).slice(0, 68) + '\u2026' : (m.title || m.prompt), app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
       var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
