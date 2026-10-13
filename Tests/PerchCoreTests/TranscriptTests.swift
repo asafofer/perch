@@ -114,6 +114,27 @@ import Foundation
         p.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
         #expect(p.settled(since: since).needsAttention)
     }
+    @Test func aQuestionYouSawAndLeftForAnotherSessionIsHistory() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "What broke, and where would you have wanted the red light?"
+        let at = Date().addingTimeInterval(-18 * 3600)
+        var asked = Recap.project(digest: d, git: nil, now: Date())!
+        asked.lastActive = at
+        var other = Recap.project(digest: TranscriptParser.digest(lines: lines.map { $0.replacingOccurrences(of: "\"s1\"", with: "\"s9\"") }), git: nil, now: Date())!
+        other.lastActive = Date()
+        #expect(asked.needsAttention); #expect(asked.id != other.id)
+        let seenBoth = [asked.id: at.timeIntervalSince1970, other.id: Date().timeIntervalSince1970]
+        // seen, then a later change seen in another session: you moved on
+        let moved = Project.movedOn([asked, other], seen: seenBoth)
+        #expect(!moved[0].needsAttention); #expect(moved[0].status.kind == "idle")
+        // never seen: still yours to answer
+        #expect(Project.movedOn([asked, other], seen: [other.id: Date().timeIntervalSince1970])[0].needsAttention)
+        // seen, but nothing seen since in another session
+        #expect(Project.movedOn([asked, other], seen: [asked.id: at.timeIntervalSince1970])[0].needsAttention)
+        // a request a hook reports still open never settles
+        asked.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
+        #expect(Project.movedOn([asked, other], seen: seenBoth)[0].needsAttention)
+    }
     @Test func aNumberInASentenceIsNotAList() {
         #expect(Recap.outcome("My recommendation is to start with item 1. It's cheap and quick.") == "My recommendation is to start with item 1. It's cheap and quick.")
         #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing. Cut the video.")

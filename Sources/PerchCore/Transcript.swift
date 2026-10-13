@@ -591,6 +591,16 @@ extension Project {
         p.ask = nil
         return p
     }
+
+    /// A "needs you" only guessed (as `settled`) that you have seen, and since then you looked at a later change in another
+    /// session: you moved on, so it is history. `seen` is each session's last change you saw (seconds since 1970).
+    public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
+        list.map { p in
+            guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
+                  list.contains(where: { $0.id != p.id && (seen[$0.id] ?? 0) > t + 1 }) else { return p }
+            return p.settled(since: .distantFuture)
+        }
+    }
 }
 
 public enum RelativeTime {
