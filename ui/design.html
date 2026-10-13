@@ -106,7 +106,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
-.rec.play .now{display:block}.rec.play .desk #hw{box-shadow:none}
+.rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
+.ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -855,9 +857,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     return hit;
   }).filter(Boolean);
   document.documentElement.classList.add('play');
+  /* each scene's title says what it shows, in a few words (a scenario named here keeps its own name otherwise) */
+  var TITLES = {
+    'A file dropped while choosing': 'Drop a file on a folder to start a session with it',
+    'Many files': 'Attachments are chips, on one line however many',
+    'Nothing moves while you choose': 'Other sessions working never move or change your pick',
+    'Started from the list, the app asks to confirm': 'Claude asks to trust the folder: the notch says so',
+    'A file dragged onto a reply': 'Files attach to a reply the same way',
+    'Your words: you said': 'Your own words read \u201cYou said\u201d, unless you asked',
+    'Your words: you asked': 'A question reads \u201cYou asked\u201d'
+  };
+  var ttl = document.createElement('div'); ttl.className = 'ttl'; document.getElementById('desk').appendChild(ttl);
   list.forEach(function (x, i) { setTimeout(function () {
+    ttl.textContent = TITLES[x.s[0]] || x.s[0];
     setDisplay(1); showTab(GROUPS.findIndex(function (g) { return g[0] === x.g; }));
-    run(x.b, x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0], x.s[2]);
+    var said = x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0];
+    run(x.b, said, x.s[2]);
+    if (now.textContent === said) now.textContent = '';   /* a scene with no steps of its own: its title says it */
   }, 300 + i * hold); });
 
 })();
