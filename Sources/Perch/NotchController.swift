@@ -961,13 +961,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         starting?.state = "confirm"
         let app = starting?.choice.agent == "codex" ? "Codex" : "Claude"
         web.evaluateJavaScript("window.perch && window.perch.newStarted('confirm', '\(app)')", completionHandler: nil)
+        // Started from the list: the app now has the keyboard and waits for you, so the list must not look as if it still
+        // listens. It folds into the line that says to confirm there, as a session started from anywhere does.
+        if machine.phase == .switcher, starting?.fromList == true { pendingPicked = false; send(.dismiss); putAway = nil }
         push()
     }
 
     /// After each scan: is the new session there yet? Given up after a while.
     private func checkStarted() {
         guard let st = starting, st.state == "starting" || st.state == "confirm" else { return }
-        if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId) {
+        if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId, anyFolder: st.state == "confirm") {
             starting?.found = p.id
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch new session: found \(p.id) in \(p.cwd ?? "-")") }
             finishStarting(true)

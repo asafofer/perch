@@ -1284,7 +1284,13 @@
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
   function nwStarted(ok, app) {
     /* the app asks you to trust the folder first: the line says to confirm there, and waits */
-    if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+    if (ok === 'confirm') {
+      if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+      /* started from the list: the app has the keyboard now, so the list (Swift closes it next) folds into that same line */
+      var pr = lastSt === 'switch' && snap && snap.projects.filter(function (x) { return x.pending === 'starting' || x.pending === 'confirm'; })[0];
+      if (pr) sentNext = { p: { id: 'new-session', name: pr.name, topic: '', app: pr.app, via: pr.via, status: { kind: 'running', text: 'Starting', app: pr.app } }, words: 'Confirm in ' + app, at: Date.now(), pending: true, asks: true };
+      return;
+    }
     if (!ok && (nw.last || nw.lastFiles.length)) { nw.text = nw.last; nw.files = nw.lastFiles; }
     nw.last = ''; nw.lastFiles = [];
     if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
@@ -1614,7 +1620,7 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
-    if (act.mode === 'sent') return [Math.ceil(Math.min(460, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went */
+    if (act.mode === 'sent') return [Math.ceil(Math.min(480, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went; as wide as the panel at most, so Confirm in Claude fits */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1732,7 +1738,7 @@
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending, sn.asks); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
@@ -3333,6 +3339,20 @@
           D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
           if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
         });
+        /* the app asks you to confirm the folder: it has the keyboard now, so the list folds into the line that says so */
+        if (D.newConfirms) {
+          later(close + 1200, function () {
+            pend.pending = 'confirm'; relist(); nwStarted('confirm', agentShort(a.app));
+            apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = agentShort(a.app) + ' asks you to trust the folder: the list folds into the line that says so';
+          });
+          later(close + 5200, function () {
+            P[P.indexOf(pend)] = row; nwStarted(true);
+            apply(Object.assign({}, snap, { projects: P, timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = 'Confirmed there: Perch sees the session, Started';
+          });
+          return;
+        }
         later(close + 1500, function () {
           pend.pending = fail ? 'failed' : 'started'; relist();
           if (fail) nwStarted(false); else nwStarted(true);
@@ -3500,7 +3520,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; window.perchDev.newConfirms = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
