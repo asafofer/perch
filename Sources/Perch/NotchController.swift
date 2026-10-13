@@ -757,6 +757,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
         if old == .switcher { pendingPicked = false }
+        if old == .open, new != .open { frontForReply(false) }
         // Done setting up a new session: the app you were in is the one in front again.
         if old == .newSession, new != .newSession {
             if NSApp.isActive, let app = newFrontFrom, !app.isTerminated { app.activate() }
@@ -892,6 +893,20 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var pickingUntil = Date.distantPast
     /// Where you were before the picker made Perch the app in front: where a session started after it puts you back.
     private var pickBack: WhereYouWere?
+    /// While a reply is open Perch is the app in front, as for a new session, so a launcher's paste lands in the field.
+    /// Where you were is from before that, for whatever puts you back after the reply goes.
+    private var replyFrontFrom: NSRunningApplication?, replyBack: WhereYouWere?
+    private func whereYouWere() -> WhereYouWere { replyBack ?? WhereYouWere.now() }
+    private func frontForReply(_ on: Bool) {
+        if on {
+            guard !NSApp.isActive else { return }
+            replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now()
+            NSApp.activate(ignoringOtherApps: true)
+        } else {
+            if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            replyFrontFrom = nil; replyBack = nil
+        }
+    }
     /// The app in front when a new session was opened, given the front back when it closes.
     private var newFrontFrom: NSRunningApplication?
     private func chooseFolder() {
@@ -1061,7 +1076,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
-            if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer(); cancelWaiting() }
+            if replyOpen { timer?.cancel(); frontForReply(true); panel.makeKey() } else { restartTimer(); cancelWaiting(); frontForReply(false) }
             push()
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
@@ -1207,7 +1222,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         drafts[p.id] = nil   // on its way; a fallback leaves it on the clipboard
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
-            let sentAt = Date(), back = WhereYouWere.now()
+            let sentAt = Date(), back = whereYouWere()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
@@ -1240,7 +1255,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !AXIsProcessTrusted() { waitForAccess(text, for: p); return }
         // A session in the Claude app takes the words in the background: its window never comes forward.
         if p.app == "claude", let id = p.desktopSessionId {
-            let cli = p.sessionId, topic = p.topic, back = WhereYouWere.now()
+            let cli = p.sessionId, topic = p.topic, back = whereYouWere()
             markSeen(p)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1318,7 +1333,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `send` false: paste only, leaving it with your draft for you to send (a draft was in the field).
     private func pasteReply(_ text: String, to pid: String? = nil, claudeShown: String? = nil, back: WhereYouWere? = nil, send: Bool = true) {
         guard let i = projectIndex(pid) else { return }
-        let back = back ?? WhereYouWere.now(), targetSession = projects[i].desktopSessionId
+        let back = back ?? whereYouWere(), targetSession = projects[i].desktopSessionId
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
