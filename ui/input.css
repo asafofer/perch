@@ -342,10 +342,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .p-open .o-x .shine, .p-open .o-ask button { user-select: none; -webkit-user-select: none; }
 /* The character's colour lifted toward white, so it reads the same on every colour (Saffron would go olive on black). */
 .perch { --hl: color-mix(in srgb, var(--cr) 62%, #fff); }
-.p-open ::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
+.p-open ::selection, .nw-in::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
 /* The highlight is drawn by the page (app.js `hlDraw`): one soft, rounded piece per line that fades in, screened over the
-   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. */
-html:not([data-hl=native]) .p-open ::selection { background: transparent; }
+   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. A field (the reply,
+   the new session's prompt) keeps the system's own, in the same colour: the page draws none there. */
+html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transparent; }
 .hl { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hl i { position: absolute; border-radius: 4px; background: var(--hl); opacity: .3; mix-blend-mode: screen; transition: opacity .12s; }
 .hl i.in { opacity: 0; }

@@ -1064,7 +1064,7 @@
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
   var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
+  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -1135,6 +1135,10 @@
     /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
        page side by side) */
     var by = nwSlide; nwSlide = 0;   /* taken once: a draw again from inside this one (an answer to what it posts) does not slide */
+    /* a refresh that changes nothing here leaves the card alone: drawn again, the prompt would lose what you selected in it
+       (a double or triple click, Command+A) and its caret would jump to the end */
+    if (!entering && !by && html === nwDrawn && box.firstChild) return;
+    nwDrawn = html;
     var slid = by && !STILL ? crossSeen(q('.p-ns'), ['.nw'])[0] : null;
     box.innerHTML = html;
     if (slid && slid.g) {
