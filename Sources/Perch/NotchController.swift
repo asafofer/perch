@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import WebKit
 import ServiceManagement
 import PerchCore
@@ -228,8 +229,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let want = machine.phase == .open && panel.isKeyWindow && !replyOpen && !asking && recorder == nil
         guard want != replyKeyOn else { return }
         replyKeyOn = want; onReplyKey?(want)
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key: \(want)") }
+    }
+    /// A reply brought back (Command+Option on a card put away mid-reply): opened through Perch's own R shortcut, pressed
+    /// for you, as only that lets Perch come to the front. Without the shortcut (a card without the keyboard), just opened.
+    private func openReplyInFront() {
+        updateReplyKey()
+        guard replyKeyOn, let src = CGEventSource(stateID: .hidSystemState) else {
+            web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil); return
+        }
+        for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(kVK_ANSI_R), keyDown: down)?.post(tap: .cghidEventTap) }
     }
     func replyKey() {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key pressed, active \(NSApp.isActive)") }
         guard machine.phase == .open, !replyOpen else { return }
         NSApp.activate(ignoringOtherApps: true)
         web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil)
@@ -343,7 +355,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         send(event)
         guard machine.phase != .idle else { return false }
         if machine.phase == .switcher, case .reopen(_, nil) = event { filterChanged() }   // its row has gone: the top one that matches
-        if away.replying { web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) }
+        if away.replying { openReplyInFront() }
         refreshProjects()
         return true
     }
