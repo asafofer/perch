@@ -33,12 +33,25 @@ enum NewSessionStarter {
         return pressSend(in: bundle, words: prompt, needsYou: needsYou)
     }
 
+    /// Your answer, from the notch, to the app asking to trust the new session's folder. Set on the main thread, taken
+    /// by the thread that drives the app.
+    final class Trust: @unchecked Sendable {
+        enum Answer { case trust, cancel }
+        private let lock = NSLock(); private var given: Answer?
+        func answer(_ a: Answer) { lock.lock(); given = a; lock.unlock() }
+        func take() -> Answer? { lock.lock(); defer { given = nil; lock.unlock() }; return given }
+        func reset() { lock.lock(); given = nil; lock.unlock() }
+    }
+    static let trust = Trust()
+
     /// Waits for the app's message field to hold exactly these words, then presses its Send. While the app asks you to
-    /// trust the folder it waits longer, and presses nothing but Send.
+    /// trust the folder it waits longer, for your answer on the notch: Perch presses the app's Trust workspace or Cancel
+    /// for you. Answered in the app itself, Perch never presses Send after it: a Cancel there stays a Cancel.
     private static func pressSend(in bundle: String, words: String, needsYou: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
-        var asked = false, sawField = false
+        var asked = false, sawField = false, trusted = false
+        trust.reset()
         while Date().timeIntervalSince(began) < (asked ? 120 : 20) {
             defer { Thread.sleep(forTimeInterval: 0.2) }
             guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { continue }
@@ -47,8 +60,18 @@ enum NewSessionStarter {
             AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
             let windows = (attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
             let field = windows.lazy.compactMap { w in first(in: w, { role($0) == "AXTextArea" && classes($0).contains("ProseMirror") && squash(value($0)) == want }) }.first
+            if asked, let a = trust.take() {
+                let title = a == .trust ? trustTitles : ["Cancel", "Don't trust", "Don\u{2019}t trust"]
+                if let b = windows.lazy.compactMap({ w in first(in: w, { role($0) == "AXButton" && title.contains(string($0, kAXTitleAttribute)) && inTrustDialog($0) }) }).first {
+                    _ = AXUIElementPerformAction(b, kAXPressAction as CFString)
+                }
+                if a == .cancel { NSLog("Perch: the new session's folder was not trusted; nothing sent"); return false }
+                trusted = true; continue
+            }
             if let field {
                 sawField = true
+                // Asked to trust and answered in the app, not from the notch: the rest is yours there.
+                if asked, !trusted, !asksTrust(windows) { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
                 if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asksTrust(windows) {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
                     if wait(3, { squash(value(field)).isEmpty ? true : nil }) == nil { NSLog("Perch: the new session's field still holds the words after Send") }
@@ -65,8 +88,20 @@ enum NewSessionStarter {
         return false
     }
     /// The app asks whether to trust the folder (Claude: Trust workspace, Codex: Trust folder).
+    private static let trustTitles = ["Trust workspace", "Trust folder"]
     private static func asksTrust(_ windows: [AXUIElement]) -> Bool {
-        windows.contains { w in first(in: w, { role($0) == "AXButton" && ["Trust workspace", "Trust folder"].contains(string($0, kAXTitleAttribute)) }) != nil }
+        windows.contains { w in first(in: w, { role($0) == "AXButton" && trustTitles.contains(string($0, kAXTitleAttribute)) }) != nil }
+    }
+    /// A button of the trust question itself (its Cancel, not some other Cancel in the window): one that shares a parent
+    /// with a Trust button, a few levels up.
+    private static func inTrustDialog(_ b: AXUIElement) -> Bool {
+        var box = b
+        for _ in 0..<4 {
+            guard let up = attr(box, kAXParentAttribute) else { return false }
+            box = up as! AXUIElement
+            if first(in: box, limit: 400, { role($0) == "AXButton" && trustTitles.contains(string($0, kAXTitleAttribute)) }) != nil { return true }
+        }
+        return false
     }
 
     /// Send sits beside the field, a few levels up.
