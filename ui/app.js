@@ -720,7 +720,10 @@
      project goes, how it is going (`pending`): Starting with a spinner, Started with the paper plane once Perch sees the
      session, Didn't start in orange if it never comes. It cannot be opened until it is a real session. */
   var listPend = {};
+  var startFx = 'shimmer';
   function pendHtml(k, app) {
+    /* shimmering, the title already says it is on its way: the word alone, no spinner */
+    if (k === 'starting' && startFx === 'shimmer') return '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026</span>';
     if (k === 'confirm') return '<span class="pw flex flex-none items-center gap-1.5 text-xs" style="color:' + COLORS.attention + '">Confirm in ' + esc(agentShort(app)) + Ring('need').replace('size-4', 'size-[13px]') + '</span>';
     return k === 'starting' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-muted-foreground">Starting\u2026' + Spinner('size-[13px]') + '</span>'
       : k === 'started' ? '<span class="pw flex flex-none items-center gap-1.5 text-xs text-foreground/90">Started' + SentMark().replace('size-[15px]', 'size-[13px]') + '</span>'
@@ -762,11 +765,12 @@
     var html = rows.map(function (k) {
       var p = s.projects[k], first = p.topic || p.name, second = p.topic ? p.name : '', name = sectionOf(p), head = '';
       if (p.pending) first = p.topic;
+      var still = p.pending === 'starting' || p.pending === 'confirm';
       if (name !== sec) { head = '<div class="s-sec' + (sec ? '' : ' first') + '">' + esc(name) + '</div>'; sec = name; }
-      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '">' +
+      return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (still && startFx === 'faded' ? ' pend-faded' : '') + '" data-i="' + k + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium"><span class="mq-in">' + esc(first) + '</span></span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still && startFx === 'shimmer' ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still && startFx === 'shimmer' ? '<span class="shine" aria-hidden="true">' + esc(first) + '</span>' : '') + '</span>' +
         '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk grid size-4 flex-none place-items-center"></span>' +
@@ -812,11 +816,8 @@
       if (!now || now === was) return;
       listPend[p.id] = now;
       var r = sl.querySelector('.row[data-i="' + k + '"]'); if (!r || STILL || !r.animate) return;
-      /* your words carried from the field land as its title (nwLandGo); the row opens up under them */
-      var landing = !was && now !== 'gone' && now !== 'real' && nwLand && Date.now() - nwLand.at < 3000;
-      if (landing) nwLandGo(r);
-      if (now === 'starting' || landing) r.animate([{ height: '0px', opacity: landing ? 1 : 0, transform: landing ? 'none' : 'translateY(-6px)', filter: landing ? 'none' : 'blur(3px)' }, { height: '36px', opacity: 1, transform: 'none', filter: 'none' }], { duration: landing ? 560 : 380, delay: landing ? 60 : 0, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' });
-      if (now === 'starting' || now === 'started' || now === 'failed' || now === 'confirm') { var pw = r.querySelector('.pw'); if (landing && pw && pw.animate && !STILL) pw.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 560 }); setTimeout(function () { pendIn(pw, now); }, landing ? 560 : 0); }
+      if (now === 'started' && was && startFx === 'faded') r.animate([{ opacity: .45 }, { opacity: 1 }], { duration: 420, easing: 'ease-out' });
+      if (now === 'started' || now === 'failed' || now === 'confirm') pendIn(r.querySelector('.pw'), now);
       if (now === 'real') r.lastChild.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 320, easing: 'ease-out' });
       if (now === 'gone') r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     });
@@ -1006,7 +1007,7 @@
     var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
     nw.last = nw.text; nw.text = '';
     /* from the list your words go straight back with you and land as the new row's title (nwLandGo); from anywhere they fly into the notch */
-    if (!go && from === 'list') nwLandPrep(t); else if (!go) newFly(t);
+    if (!go && from !== 'list') newFly(t);
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
     post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
@@ -2925,8 +2926,8 @@
         var keep = null, relist = function () { var sh = devShown(); base.selected = Math.max(0, P.indexOf(keep)); apply(Object.assign({}, base, { phase: 'switcher', character: charNow, autoCollapse: false, query: '', shown: sh, selected: base.selected, timerToken: Math.random() })); };
         var pend = Object.assign({}, row, { pending: 'starting', status: { kind: 'running', text: 'Starting', app: a.app }, fresh: false, now: '' });
         later(close, function () {
-          D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
-          if (nowEl) nowEl.textContent = 'Back in the list: the new session is a row at once, Starting\u2026';
+          D.show('switcher'); keep = startFx === 'selected' ? pend : P[base.selected]; P.unshift(pend); relist();
+          if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
         });
         later(close + 1500, function () {
           pend.pending = fail ? 'failed' : 'started'; relist();
@@ -3072,10 +3073,12 @@
         apply(Object.assign({}, base, { character: charNow, projects: calm, phase: 'idle', notifyOff: off || [], timerToken: Math.random() }));
         autoTimer = setTimeout(function () { apply(Object.assign({}, base, { character: charNow, projects: calm.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'idle', notifyOff: off || [], timerToken: Math.random() })); }, 900);
       },
+      /* how a row started from the list says it is on its way: 'shimmer', 'faded' or 'selected' */
+      startFx: function (v) { startFx = v; listSig = ''; },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; startFx = 'shimmer'; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
