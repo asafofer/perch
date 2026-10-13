@@ -2635,7 +2635,8 @@
       srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
     ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : o.accessWas ? 'needs access again' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      /* what is wrong in orange, as an update that failed says it, and Allow as a filled button: it is the one thing to do here */
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn Perch on there' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
