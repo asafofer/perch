@@ -15,6 +15,7 @@
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
+    doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
@@ -287,6 +288,8 @@
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
+      /* files for the reply, as chips over its field (attChips) */
+      '<div class="r-att rv hidden flex-wrap gap-1 pl-[47px] pr-[74px] mt-2" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
@@ -442,30 +445,44 @@
     var p = snap && snap.projects[snap.selected];
     /* the words you left in this session's reply are still there, the caret after them */
     if (open && p && p.id !== replyFor) { replyFor = p.id; rIn.value = (snap.drafts && snap.drafts[p.id]) || ''; }
+    repOn = !!open; repAtt();
     /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
     if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
   rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
-  /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
+  /* Files dropped on the card or pasted from Finder are attachments: a chip each (the file's name, its path on hover, an x
+     to take it off; Backspace in an empty field takes the last), opening the reply if need be. Sent, their paths follow
+     your words, quoted when they have spaces. A reply's files are kept with its session, as its words are. */
+  var repFiles = {}, repOn = false;
   function addPaths(list) {
     if (!list || !list.length) return;
     if (lastSt === 'ns') return nwPaths(list);
     if (lastSt !== 'open') return;
     if (dropping) dropped();
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
-    var e = putPaths(rIn, list); setTimeout(function () { caretAt(e); }, 40);
+    repFiles[replyFor] = addFiles(repFiles[replyFor] || [], list); repAtt();
+    setTimeout(function () { caretAt(rIn.value.length); }, 40);
   }
-  /* the paths go in where the caret is (at the end when the field is not in use), a space either side, so you type on
-     right after them; where the caret lands after them */
-  function putPaths(el, list) {
-    var v = el.value, mine = document.activeElement === el, a = mine ? el.selectionStart : v.length, b = mine ? el.selectionEnd : v.length;
-    var t = list.join(' ');
-    if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
-    if (!/\s/.test(v.charAt(b))) t += ' ';
-    el.value = v.slice(0, a) + t + v.slice(b);
-    el.dispatchEvent(new Event('input'));
-    return a + t.length;
+  function addFiles(had, list) { return had.concat(list.filter(function (x, i) { return had.indexOf(x) < 0 && list.indexOf(x) === i; })); }
+  function withFiles(t, files) {
+    var paths = (files || []).map(function (f) { return /[\s"']/.test(f) ? '"' + f.replace(/"/g, '\\"') + '"' : f; }).join(' ');
+    return paths ? (t ? t + ' ' : '') + paths : t;
+  }
+  function attChips(box, files, drop) {
+    box.innerHTML = files.map(function (f, i) {
+      var name = f.replace(/\/+$/, '').split('/').pop() || f;
+      return '<span class="att inline-flex h-[22px] min-w-0 max-w-full items-center gap-1 rounded-md bg-white/[0.09] pl-1.5 pr-0.5 text-[12px] leading-4 text-foreground/90" title="' + esc(f) + '">' +
+        svg('doc', 'size-3 flex-none text-muted-foreground') + '<span dir="auto" class="min-w-0 truncate">' + esc(name) + '</span>' +
+        '<button class="att-x grid size-4 flex-none cursor-pointer place-items-center rounded text-muted-foreground transition-colors hover:bg-white/[0.12] hover:text-foreground" data-i="' + i + '" aria-label="Remove ' + esc(name) + '">' + svg('x', 'size-2.5') + '</button></span>';
+    }).join('');
+    box.style.display = files.length ? 'flex' : 'none';
+    box.querySelectorAll('.att-x').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function (e) { e.stopPropagation(); drop(+b.dataset.i); }; });
+  }
+  function repAtt() {
+    var files = (replyFor && repFiles[replyFor]) || [];
+    attChips(q('.r-att'), repOn ? files : [], function (i) { files.splice(i, 1); repAtt(); rIn.focus({ preventScroll: true }); });
+    if (snap && lastSt === 'open') layout('open', snap);
   }
   /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
      it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
@@ -532,13 +549,13 @@
     set(); w.onscroll = set;
   }
   function sendReply() {
-    var t = rIn.value.trim(); if (!t) return;
+    var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
-    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
+    if (p && p.via && sendFly(t)) { delete repFiles[replyFor]; post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
     /* without Accessibility Perch asks for it first; your words stay here and go out once it is on */
     if (snap.canSend === false && !(p && p.via)) { if (!snap.allowing) post({ type: 'reply', text: t }); rIn.focus({ preventScroll: true }); return; }
-    replyMenu(false, true); post({ type: 'reply', text: t });
+    delete repFiles[replyFor]; replyMenu(false, true); post({ type: 'reply', text: t });
   }
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only your words are moving; then they
      shoot up into the notch as a bubble, stretching as they go, and the notch swallows them with a green ripple. The
@@ -598,7 +615,9 @@
     return hit || box;
   }
   rIn.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
+    var rf = repFiles[replyFor];
+    if (e.key === 'Backspace' && rf && rf.length && !rIn.selectionStart && !rIn.selectionEnd) { e.preventDefault(); rf.pop(); repAtt(); }
+    else if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
     else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
     /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
@@ -1073,7 +1092,7 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
   var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
@@ -1112,7 +1131,7 @@
       var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
       /* a draft waiting: straight back to it, as you left it */
-      nw.step = nw.text ? 'prompt' : 'app';
+      nw.step = nw.text || nw.files.length ? 'prompt' : 'app';
     }
     newRender(entering);
   }
@@ -1148,7 +1167,10 @@
           '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
-      html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
+      /* the field is a box: your words, and under them the files attached (nwPaths) */
+      html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
+        '<textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea>' +
+        '<div class="nw-att hidden flex-wrap gap-1 px-2 pb-2"></div></div></div>' +
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
@@ -1172,10 +1194,11 @@
     });
     var ta = q('.nw-in');
     if (ta) {
-      ta.value = nw.text; nwGrow(ta);
+      ta.value = nw.text; nwAtt();
       ta.oninput = function () { nw.text = ta.value; nwGrow(ta); };
       ta.onkeydown = function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
+        if (e.key === 'Backspace' && nw.files.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); nw.files.pop(); nwAtt(); }
+        else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
       };
       q('.nw-start').onclick = function () { nwStart(false); };
@@ -1197,7 +1220,8 @@
     var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
     l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
   }
-  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
+  /* three lines to write in; two with files under them, so the field is about the same height either way */
+  function nwGrow(ta) { var min = nw.files.length ? 44 : 68; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
@@ -1224,11 +1248,11 @@
   /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
      session shows in the list, working. Command+Return starts it and takes you there. */
   function nwStart(go) {
-    var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
+    var words = nw.text.trim(), t = withFiles(words, nw.files), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
     var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
-    nw.last = nw.text; nw.text = '';
+    nw.last = nw.text; nw.text = ''; nw.lastFiles = nw.files; nw.files = [];
     /* from anywhere the words fly into the notch; from the list it is simply back, the new row already there and shimmering */
-    if (!go && from !== 'list') newFly(t);
+    if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
     post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
@@ -1239,8 +1263,8 @@
   function nwStarted(ok, app) {
     /* the app asks you to trust the folder first: the line says to confirm there, and waits */
     if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
-    if (!ok && nw.last) nw.text = nw.last;
-    nw.last = '';
+    if (!ok && (nw.last || nw.lastFiles.length)) { nw.text = nw.last; nw.files = nw.lastFiles; }
+    nw.last = ''; nw.lastFiles = [];
     if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
   }
   function newFly(text) {
@@ -1278,18 +1302,23 @@
     if (nwDrop) nwDragOver(0);
     if (nw.step !== 'prompt') nwTo('prompt');
     var ta = q('.nw-in'); if (!ta) return;
-    var e = putPaths(ta, list);
-    setTimeout(function () { ta.focus({ preventScroll: true }); ta.setSelectionRange(e, e); }, 40);
+    nw.files = addFiles(nw.files, list); nwAtt();
+    setTimeout(function () { var e = ta.value.length; ta.focus({ preventScroll: true }); ta.setSelectionRange(e, e); }, 40);
     var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
     setTimeout(function () { if (!nwDrop && snap && lastSt === 'ns') layout('ns', snap); }, 1100);
   }
+  function nwAtt() {
+    var box = q('.nw-att'); if (!box) return;
+    attChips(box, nw.files, function (i) { nw.files.splice(i, 1); nwAtt(); var ta = q('.nw-in'); if (ta) ta.focus({ preventScroll: true }); });
+    var ta = q('.nw-in'); if (ta) nwGrow(ta);
+  }
   function nwDragOver(n, x, y) {
-    var ta = q('.nw-in'), was = nwDrop; nwDrop = n;
+    var ta = q('.nw-in'), fb = q('.nw-box'), was = nwDrop; nwDrop = n;
     if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
     if (n) lookAt(ta || q('.nw'), 60);
     if (ta) {
-      var r = ta.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
-      ta.classList.toggle('drop', !!n); ta.classList.toggle('on', on);
+      var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+      fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
       ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
     }
     if (!n && was && snap) layout('ns', snap);   /* its face goes back */
@@ -3433,7 +3462,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; repFiles = {}; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
