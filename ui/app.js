@@ -3256,21 +3256,21 @@
     var devNewRun = 0;
     function devNew(m) {
       var D = window.perchDev, nowEl = document.getElementById('now');
+      var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       if (!m.action) { D.newSession(m.from === 'anywhere' ? { from: 'anywhere' } : {}); return; }
       if (m.action === 'chooseFolder') {
         if (nowEl) nowEl.textContent = 'macOS\u2019s folder picker opens; you pick ~/Code/landing-page';
-        setTimeout(function () {
+        later(1100, function () {
           if (!snap || snap.phase !== 'newSession') return;
           var o = JSON.parse(JSON.stringify(snap.newSession)); o.projects.unshift({ name: 'landing-page', path: '~/Code/landing-page', away: '' });
           nw.q = ''; nw.proj = 1; nw.step = 'prompt'; apply(Object.assign({}, snap, { newSession: o, timerToken: Math.random() }));
-        }, 1100);
+        });
         return;
       }
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
       var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
-      var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
       var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
       if (m.go) { later(0, function () { apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() })); }); if (nowEl) nowEl.textContent = (a.via ? 'Ghostty' : agentShort(a.app)) + ' comes forward on the new session, your words sent'; return; }
@@ -3449,6 +3449,8 @@
       },
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
+      /* the default agent from Settings ('' for none); every scenario starts without one */
+      newDefault: function (id) { devDefault = id || ''; },
       /* each scenario starts with no replies left typed */
       clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
