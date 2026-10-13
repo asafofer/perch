@@ -28,6 +28,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   Shortcut            The shortcut that opens Perch: a tap of two or more modifiers (default Command+Option) or a key combo; the rules (what is refused and why), ModifierTap (a tap counts only when pressed from nothing with no other modifier or key, keys other apps' hotkeys take counted by the system's key-down counter, so another app's Command+Option+Shift+L never opens Perch) and ShortcutRecorder, which turns key events into a recording. Recorded from Settings (Change opens a full-card page, `onbOpen` step 3 only) or onboarding step 3; HotkeyService applies it and pauses every Perch hotkey while recording.
   ScreenTarget        Which screen Perch opens on (ShowOn: the mouse's, the active window's, or a display by its UUID), with fallbacks to the mouse; window-list rects to Cocoa's.
   NewSession          Starting a session from the notch: the agents on this Mac (Choice), the folders to offer, what it starts on, a terminal agent's command, and which scanned session is the new one (started).
+  InstalledCopy       A test build's way back (its menu's Back to installed Perch): which other copy is the installed one.
   Place               Where a running agent lives (herdr pane, cmux surface, tab) from its environment; which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
