@@ -289,7 +289,7 @@
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
-      '<div class="r-att rv hidden flex-wrap gap-1 pl-[47px] pr-[74px] mt-2" style="--i:4"></div>' +
+      '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
@@ -469,15 +469,31 @@
     var paths = (files || []).map(function (f) { return /[\s"']/.test(f) ? '"' + f.replace(/"/g, '\\"') + '"' : f; }).join(' ');
     return paths ? (t ? t + ' ' : '') + paths : t;
   }
+  /* One line of chips, however many: more than fit scroll sideways, the edges fading where there is more, and the one
+     just added scrolled into view. Each wears the file's own icon as Finder shows it, a picture a thumbnail of itself
+     (Swift sends them a moment after the files, fileIcons); the design page has stand-ins by kind (file.png, ...). */
+  var fileIcons = {};
+  function fileIcon(f) {
+    var ext = /\/$/.test(f) || !/\.[^./]+$/.test(f) ? 'folder' : f.split('.').pop().toLowerCase();
+    return fileIcons[f] || icons['file.' + ext];
+  }
   function attChips(box, files, drop) {
+    var had = box.children.length;
     box.innerHTML = files.map(function (f, i) {
-      var name = f.replace(/\/+$/, '').split('/').pop() || f;
-      return '<span class="att inline-flex h-[22px] min-w-0 max-w-full items-center gap-1 rounded-md bg-white/[0.09] pl-1.5 pr-0.5 text-[12px] leading-4 text-foreground/90" title="' + esc(f) + '">' +
-        svg('doc', 'size-3 flex-none text-muted-foreground') + '<span dir="auto" class="min-w-0 truncate">' + esc(name) + '</span>' +
+      var name = f.replace(/\/+$/, '').split('/').pop() || f, ic = fileIcon(f);
+      return '<span class="att inline-flex h-[22px] max-w-[168px] flex-none items-center gap-1 rounded-md bg-white/[0.09] pl-1 pr-0.5 text-[12px] leading-4 text-foreground/90" title="' + esc(f) + '">' +
+        (ic ? '<img class="size-4 flex-none rounded-[3px] object-cover" src="' + ic + '" alt="">' : svg('doc', 'size-3 flex-none text-muted-foreground')) +
+        '<span dir="auto" class="min-w-0 truncate">' + esc(name) + '</span>' +
         '<button class="att-x grid size-4 flex-none cursor-pointer place-items-center rounded text-muted-foreground transition-colors hover:bg-white/[0.12] hover:text-foreground" data-i="' + i + '" aria-label="Remove ' + esc(name) + '">' + svg('x', 'size-2.5') + '</button></span>';
     }).join('');
     box.style.display = files.length ? 'flex' : 'none';
     box.querySelectorAll('.att-x').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function (e) { e.stopPropagation(); drop(+b.dataset.i); }; });
+    if (files.length > had) box.scrollLeft = box.scrollWidth;
+    attEdges(box); box.onscroll = function () { attEdges(box); };
+  }
+  function attEdges(box) {
+    var l = box.scrollLeft > 1, r = box.scrollLeft + box.clientWidth < box.scrollWidth - 1;
+    box.style.webkitMaskImage = box.style.maskImage = l || r ? 'linear-gradient(90deg, ' + (l ? 'transparent, #000 20px' : '#000, #000') + ', ' + (r ? '#000 calc(100% - 20px), transparent' : '#000') + ')' : '';
   }
   function repAtt() {
     var files = (replyFor && repFiles[replyFor]) || [];
@@ -1167,10 +1183,10 @@
           '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
-      /* the field is a box: your words, and under them the files attached (nwPaths) */
+      /* the field is a box: the files attached along its top (nwPaths), then your words */
       html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
-        '<textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea>' +
-        '<div class="nw-att hidden flex-wrap gap-1 px-2 pb-2"></div></div></div>' +
+        '<div class="nw-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
+        '<textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div></div>' +
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
@@ -1220,7 +1236,7 @@
     var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
     l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
   }
-  /* three lines to write in; two with files under them, so the field is about the same height either way */
+  /* three lines to write in; two with files over them, so the field is about the same height either way */
   function nwGrow(ta) { var min = nw.files.length ? 44 : 68; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
@@ -3113,7 +3129,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });

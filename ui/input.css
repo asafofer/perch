@@ -462,3 +462,6 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .p-switch .s-l .row.bg-accent:not(.crossed) { background-color: transparent; }
 .p-switch .s-l .row { position: relative; }
 @media (prefers-reduced-motion: reduce) { .sel-pill { transition: opacity .01ms; } }
+/* a row of attachments scrolls sideways with no bar (app.js attChips) */
+.r-att, .nw-att { scrollbar-width: none; overscroll-behavior: contain; }
+.r-att::-webkit-scrollbar, .nw-att::-webkit-scrollbar { display: none; }

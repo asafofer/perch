@@ -22,7 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The design page draws stand-in icons; this writes this Mac's real ones next to it (git ignores the file).
         if let i = args.firstIndex(of: "--design-icons") {
             let out = URL(fileURLWithPath: i + 1 < args.count ? args[i + 1] : "ui/icons.local.json")
-            do { try JSONSerialization.data(withJSONObject: AppIcons.all(), options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
+            let icons = AppIcons.all().merging(AppIcons.designFiles(wallpaper: out.deletingLastPathComponent().appendingPathComponent("wallpapers/blue-distortion-1.webp"))) { a, _ in a }
+            do { try JSONSerialization.data(withJSONObject: icons, options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
             catch { print("could not write \(out.path): \(error)") }
             exit(0)
         }

@@ -1336,10 +1336,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// Files dropped on the card or pasted from Finder: their paths go into the reply, which opens for them if it can.
+    /// Files dropped on the card or pasted from Finder: attached to the reply (which opens for them if it can) or the new
+    /// session's prompt. Their icons follow a moment later, read off the main thread (a picture is a thumbnail of it).
     private func addPaths(_ paths: [String]) {
         guard let data = try? JSONEncoder().encode(paths), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.paths(\(json))", completionHandler: nil)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var icons: [String: String] = [:]
+            for p in paths { icons[p] = AppIcons.file(p) }
+            guard let data = try? JSONEncoder().encode(icons), let json = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.web.evaluateJavaScript("window.perch && window.perch.fileIcons(\(json))", completionHandler: nil) } }
+        }
     }
 
     /// A word beside the notch once the card has closed, when something did not go as you would expect.

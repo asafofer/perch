@@ -444,9 +444,16 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
           ]);
         }, 900);
       }],
-      ['Files attached', 'Two files on the prompt: each a chip under the words, its name cut short when long, the whole path on hover. The x takes one off.', function () {
-        var me = charRun; d.project(1); d.newSession({ step: 'prompt', text: 'Compare these two posters and keep the lighter one for phones' });
-        setTimeout(function () { if (me !== charRun) return; window.perch.paths(['/Users/you/Desktop/hero-poster.png', '/Users/you/Desktop/hero poster (dark, 1440 wide) final.png']); }, 700);
+      ['Files attached', 'Two files on the prompt: a chip each along the top of the field, with the file\u2019s own icon as Finder shows it (a picture, a thumbnail of itself), its name cut short when long, the whole path on hover. The x takes one off.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'prompt', text: 'Compare the poster with the brief and keep what the brief asks for' });
+        setTimeout(function () { if (me !== charRun) return; window.perch.paths(['/Users/you/Desktop/hero-poster.png', '/Users/you/Documents/Landing page brief (final, v3).pdf']); }, 700);
+      }],
+      ['Many files', 'However many, the chips stay on one line: the ones that do not fit scroll sideways, the edge fading where there is more, and the one just added scrolls into view. The field never grows for them.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.project(1); d.newSession({ step: 'prompt', text: 'Go through these and list what is still missing for the launch' });
+        var files = ['/Users/you/Desktop/hero-poster.png', '/Users/you/Documents/launch-brief.pdf', '/Users/you/Code/website/notes.md', '/Users/you/Code/website/src/Hero.swift', '/Users/you/Downloads/analytics-export.csv', '/Users/you/Desktop/walkthrough.mov', '/Users/you/Code/website/assets/', '/Users/you/Downloads/press-kit.zip'];
+        files.forEach(function (f, i) { at(700 + i * 450, function () { now.textContent = (i + 1) + (i ? ' files' : ' file'); window.perch.paths([f]); }); });
+        at(700 + files.length * 450 + 900, function () { now.textContent = 'Scrolled back to the start: the far edge fades where there is more'; var b = document.querySelector('.nw-att'); b.scrollTo({ left: 0, behavior: 'smooth' }); });
       }],
       ['A file pasted', 'A file copied in Finder and pasted with Command+V is attached, as a drop is: here while the folder is still being chosen, so the card goes on to the prompt, the caret in the field.', function () {
         var me = charRun; d.project(1); d.newSession({ step: 'project' }); now.textContent = 'Choosing the folder, a file copied in Finder';
