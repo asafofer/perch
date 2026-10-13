@@ -13,7 +13,7 @@
   <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-black?logo=apple&logoColor=white">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-required-black">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
-  <img alt="Status: internal" src="https://img.shields.io/badge/status-internal-lightgrey">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
 </p>
 
 <p align="center">
@@ -57,7 +57,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 | Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time, right-click Perch and choose **Open**. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
+**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time macOS says it can't check Perch: open System Settings, Privacy & Security, scroll down and choose **Open Anyway** beside Perch. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 

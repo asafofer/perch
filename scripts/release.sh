@@ -36,7 +36,7 @@ curl -fsSL "https://raw.githubusercontent.com/$REPO/main/appcast.xml" -o build/a
 echo "Ready: build/appcast/Perch-$VERSION.zip, build/Perch.dmg and appcast.xml (version $VERSION, build $(git rev-list --count HEAD))"
 [ "${1:-}" = "--publish" ] || { echo "Not published. Run again with --publish."; exit 0; }
 gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" build/Perch.dmg --repo "$REPO" --title "Perch $VERSION" --notes "Perch $VERSION"
-# The source repo's Releases page says the same, with what is new, so it never falls behind (the zip there is for people with access; updates come from $REPO).
+# The source repo's Releases page says the same, with what is new, so it never falls behind (updates come from $REPO).
 NOTES="Perch $VERSION"; [ -f "release-notes/$VERSION.md" ] && NOTES="$(cat "release-notes/$VERSION.md")"
 gh release create "v$VERSION" "build/appcast/Perch-$VERSION.zip" build/Perch.dmg --repo "$SOURCE_REPO" --target "$(git rev-parse HEAD)" --title "Perch $VERSION" --notes "$NOTES" || echo "The release in $SOURCE_REPO was not made (the one in $REPO is): make it by hand."
 # appcast.xml goes to the repo's main branch through the contents API: the feed is read from there.
