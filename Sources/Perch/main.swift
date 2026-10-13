@@ -91,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Reply is Command+R, the rest Command+Option and a key.
             for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
         }
+        c.onReplyKey = { [hotkeys] on in if on { hotkeys.register(keyCode: kVK_ANSI_R, modifiers: 0, id: 40) { c.replyKey() } } else { hotkeys.unregister(id: 40) } }
         hotkeys.onChordTap = { c.chordTap() }
         hotkeys.apply(Prefs.openShortcut)
         c.openComboWorks = { [hotkeys] in hotkeys.openCombo }

@@ -218,6 +218,22 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var activitySize = CGSize.zero
     /// Registers the Command+Option keys its buttons answer to, and drops them when it goes.
     var onActivityKeys: (([String]) -> Void)?
+    /// R on a card that has the keyboard is a Perch shortcut while it shows (`replyKeyOn`), not only a key in the panel:
+    /// macOS lets an app come to the front right after its own shortcut, and the reply needs Perch in front so a
+    /// launcher's paste (Raycast's clipboard) lands in it.
+    var onReplyKey: ((Bool) -> Void)?
+    private var replyKeyOn = false
+    private func updateReplyKey() {
+        let asking = projects.indices.contains(machine.selected) && projects[machine.selected].ask != nil
+        let want = machine.phase == .open && panel.isKeyWindow && !replyOpen && !asking && recorder == nil
+        guard want != replyKeyOn else { return }
+        replyKeyOn = want; onReplyKey?(want)
+    }
+    func replyKey() {
+        guard machine.phase == .open, !replyOpen else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil)
+    }
     func playActivityDemo() { web.evaluateJavaScript("window.perch && window.perch.actDemo()", completionHandler: nil) }
     func activityKey(_ name: String) { web.evaluateJavaScript("window.perch && window.perch.actKey('\(name)')", completionHandler: nil) }
 
@@ -711,6 +727,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func push() {
+        updateReplyKey()
         trackViewing()
         guard ready else { return }
         let away = awaySinceForCard, now = Date()
@@ -901,8 +918,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if on {
             guard !NSApp.isActive else { return }
             replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now()
+            // macOS lets an app come forward by itself only right after its own shortcut; a key in the panel is not that.
+            // Asked through Launch Services, as opening it from Finder would, it does come forward (Perch shows nothing
+            // when opened again).
             NSApp.activate(ignoringOtherApps: true)
+            let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
+            NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
+                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen { self.panel.makeKey() } } }
+            }
         } else {
+            guard replyFrontFrom != nil else { return }
             if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
             replyFrontFrom = nil; replyBack = nil
         }
@@ -1921,6 +1946,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func installMouseMonitors() {
         startCursorPolling()
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.updateReplyKey() } }
+        }
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.makeWay() }
         }
