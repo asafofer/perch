@@ -135,6 +135,26 @@ import Foundation
         asked.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
         #expect(Project.movedOn([asked, other], seen: seenBoth)[0].needsAttention)
     }
+    @Test func aSessionAtWorkKeepsTheQuestionYouLeftAsHistory() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "What broke, and where would you have wanted the red light?"
+        let at = Date().addingTimeInterval(-3600)
+        var asked = Recap.project(digest: d, git: nil, now: Date())!
+        asked.lastActive = at
+        var working = Recap.project(digest: TranscriptParser.digest(lines: lines.map { $0.replacingOccurrences(of: "\"s1\"", with: "\"s9\"") }), git: nil, now: Date())!
+        let looked = Date().addingTimeInterval(-60)
+        working.lastActive = looked
+        let seen = [asked.id: at.timeIntervalSince1970, working.id: looked.timeIntervalSince1970]
+        #expect(!Project.movedOn([asked, working], seen: Project.lastSeen([asked, working], seen: seen, fresh: { _ in false }))[0].needsAttention)
+        // a tool call moves the session you are in past what you saw of it: what you saw still counts, so the question stays history
+        working.lastActive = Date()
+        let fresh: (Project) -> Bool = { $0.id == working.id }
+        let mid = Project.lastSeen([asked, working], seen: seen, fresh: fresh)
+        #expect(mid[working.id] == looked.timeIntervalSince1970)
+        #expect(!Project.movedOn([asked, working], seen: mid)[0].needsAttention)
+        // seen but not marked yet (in front of you in the Claude app): its last change counts
+        #expect(Project.lastSeen([working], seen: [:], fresh: { _ in false })[working.id] == working.lastActive!.timeIntervalSince1970)
+    }
     @Test func aNumberInASentenceIsNotAList() {
         #expect(Recap.outcome("My recommendation is to start with item 1. It's cheap and quick.") == "My recommendation is to start with item 1. It's cheap and quick.")
         #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing. Cut the video.")

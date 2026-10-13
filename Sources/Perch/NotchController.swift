@@ -582,9 +582,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         let since = newsSince
         let settled = withLive.map { $0.settled(since: since) }
-        // Seen is what is not fresh: looked at here, or in front of you in the Claude app, since it changed.
-        let looked = Dictionary(settled.compactMap { p in isFresh(p) ? nil : p.lastActive.map { (p.id, $0.timeIntervalSince1970) } }, uniquingKeysWith: max)
-        return urgent(Project.movedOn(settled, seen: looked))
+        // Seen: looked at here, or in front of you in the Claude app since it changed. A session that changed since keeps what you saw of it.
+        return urgent(Project.movedOn(settled, seen: Project.lastSeen(settled, seen: seen, fresh: isFresh)))
     }
 
     /// What changed since you looked first: asking you, then finished. Then a question you have seen, what is working, the rest;
