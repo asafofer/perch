@@ -245,10 +245,12 @@ extension Project {
         // A question the transcript shows open that the hooks never reported, and that came after their last word (a hook that
         // did not fire in Bypass permissions mode): it stands. The tool's own result, a hook after it, is what ends it.
         if live.kind != .asking, let q = ask, let at = q.transcriptAt, live.at <= at { return self }
+        // The turn that left work in the background ended (the Stop hook), but the work did not: still at work.
+        let kind: LiveStatus.Kind = live.kind == .finished && waiting ? .working : live.kind
         let who = Agent.of(app).short
         let status: AgentStatus
         var next = self.next, context = self.context
-        switch live.kind {
+        switch kind {
         case .working: status = AgentStatus(kind: .running, text: "\(Agent.of(app).name) is working", app: app); next = ""
         case .asking:
             let a = live.asks.last
@@ -262,8 +264,8 @@ extension Project {
         var p = self
         p.agents = [status]; p.next = next; p.context = context
         p.lastActive = max(lastActive ?? live.at, live.at)
-        p.ask = live.kind == .asking ? live.asks.last : nil
-        p.now = live.kind == .working ? now : nil
+        p.ask = kind == .asking ? live.asks.last : nil
+        p.now = kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p
     }

@@ -94,6 +94,19 @@ import Foundation
         #expect(p.applying(LiveStatus(kind: .failed, at: Date())).status.text == "Claude stopped on an error")
     }
 
+    /// The turn that started helpers in the background ends (Stop), and the helpers go on: Claude Code says so with no hook,
+    /// so what the transcript knows stands.
+    @Test func aStopWithWorkLeftInTheBackgroundIsNotDone() {
+        var p = Project(id: "s", name: "rizz", branch: nil, away: "1m", at: "", headline: "H.", context: "Started helpers for M4, M5 and M8.", next: "", topic: "", app: "claude",
+                        agents: [AgentStatus(kind: .running, text: "Claude Code is working")], steps: [])
+        p.waiting = true; p.now = "Waiting on 3 helpers"
+        var stop = LiveStatus(kind: .finished, at: Date()); stop.outcome = "Started helpers for M4, M5 and M8."
+        let still = p.applying(stop)
+        #expect(still.status.kind == "running"); #expect(still.now == "Waiting on 3 helpers"); #expect(still.context == "Started helpers for M4, M5 and M8.")
+        p.waiting = false
+        #expect(p.applying(stop).status.kind == "done")
+    }
+
     /// Stop in the Claude app sends no hook: the last one said working. The transcript's interruption, after it, wins.
     @Test func aStopInTheAppBeatsTheLastHook() {
         let lines = [
