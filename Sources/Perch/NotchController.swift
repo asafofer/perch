@@ -322,7 +322,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func traceFocus(_ bid: String, _ r: (sure: Set<String>, maybe: Set<String>)) {
         guard ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil else { return }
         let line = "\(bid) looking \(focus.fresh(for: bid)?.looking.spots.sorted() ?? []) unknown=\(focus.fresh(for: bid)?.looking.unknown ?? true) sure=\(r.sure.sorted()) maybe=\(r.maybe.sorted()) live=\(projects.compactMap { p in p.spot.map { "\(p.sessionId?.prefix(8) ?? "?") \($0.suffix(12))" } })"
-        if line != traced { traced = line; NSLog("Perch in: \(line)") }
+        if line != traced { traced = line; NSLog("%@", "Perch in: \(line)") }   // tmux panes are %N: never part of the format
     }
     /// A second apart while the app in front is one Perch can read, so a switch is seen before anything arrives.
     private func startWatchingFocus() {

@@ -269,7 +269,7 @@ enum Terminals {
         do { try p.run() } catch { return nil }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch: \((path as NSString).lastPathComponent) \(args.joined(separator: " ")) -> \(p.terminationStatus)") }
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("%@", "Perch: \((path as NSString).lastPathComponent) \(args.joined(separator: " ")) -> \(p.terminationStatus)") }
         return p.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
     }
 
