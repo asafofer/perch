@@ -61,22 +61,25 @@ import Foundation
     }
 
     @Test func tmuxSaysWhichPaneIsWhereAndWhichClientShowsIt() {
+        // As tmux 3.6 prints it: a tab in the format comes out as "_", so the fields are spaced and the session, the one
+        // that may hold spaces, comes last.
         let out = """
-            P\t%0\t/dev/ttys004\tmain
-            P\t%3\t/dev/ttys007\twork
-            P\t%3\t/dev/ttys007\twork-linked
-            P\t%5\t/dev/ttys009\tside
-            C\t812\t/dev/ttys002\tmain\t1760430000
-            C\t990\t/dev/ttys011\twork\t1760420000
+            P %0 /dev/ttys004 main
+            P %3 /dev/ttys007 my work
+            P %3 /dev/ttys007 work-linked
+            P %5 /dev/ttys009 side
+            C 812 /dev/ttys002 1760430000 main
+            C 990 /dev/ttys011 1760420000 my work
             """
         let s = TmuxServer.parse(out)
-        #expect(s.panes["%3"] == TmuxServer.Pane(tty: "/dev/ttys007", sessions: ["work", "work-linked"]))
+        #expect(s.panes["%3"] == TmuxServer.Pane(tty: "/dev/ttys007", sessions: ["my work", "work-linked"]))
         #expect(s.clients.count == 2)
+        #expect(s.clients.last == TmuxServer.Client(pid: 990, tty: "/dev/ttys011", session: "my work", activity: 1760420000))
         // The client already on the pane's session, though another was used since.
         #expect(s.viewer(of: "%3")?.pid == 990)
         // No client on its session: the one used last, which tmux moves there.
         #expect(s.viewer(of: "%5")?.pid == 812)
-        #expect(TmuxServer.parse("P\t%0\t/dev/ttys004\tmain\n").viewer(of: "%0") == nil)
+        #expect(TmuxServer.parse("P %0 /dev/ttys004 main\n").viewer(of: "%0") == nil)
         #expect(TmuxServer.parse("").panes.isEmpty)
     }
 

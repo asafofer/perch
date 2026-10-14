@@ -46,19 +46,20 @@ public struct TmuxServer: Equatable, Sendable {
     public var clients: [Client] = []
     public init(panes: [String: Pane] = [:], clients: [Client] = []) { self.panes = panes; self.clients = clients }
 
-    /// The arguments of one call that lists both, a line each, tagged P or C.
-    public static let listing = ["list-panes", "-a", "-F", "P\t#{pane_id}\t#{pane_tty}\t#{session_name}", ";",
-                                 "list-clients", "-F", "C\t#{client_pid}\t#{client_tty}\t#{session_name}\t#{client_activity}"]
+    /// The arguments of one call that lists both, a line each, tagged P or C. Fields are spaced, since tmux prints a tab in
+    /// a format as "_"; the session's name, the only one that may hold a space, comes last.
+    public static let listing = ["list-panes", "-a", "-F", "P #{pane_id} #{pane_tty} #{session_name}", ";",
+                                 "list-clients", "-F", "C #{client_pid} #{client_tty} #{client_activity} #{session_name}"]
 
     public static func parse(_ out: String) -> TmuxServer {
         var s = TmuxServer()
         for line in out.split(whereSeparator: \.isNewline) {
-            let f = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-            if f.count >= 4, f[0] == "P" {
+            let fields = { (n: Int) in line.split(separator: " ", maxSplits: n - 1, omittingEmptySubsequences: false).map(String.init) }
+            if line.hasPrefix("P "), case let f = fields(4), f.count == 4 {
                 if s.panes[f[1]] == nil { s.panes[f[1]] = Pane(tty: f[2], sessions: []) }
                 s.panes[f[1]]?.sessions.append(f[3])
-            } else if f.count >= 5, f[0] == "C", let pid = Int32(f[1]) {
-                s.clients.append(Client(pid: pid, tty: f[2], session: f[3], activity: Int(f[4]) ?? 0))
+            } else if line.hasPrefix("C "), case let f = fields(5), f.count == 5, let pid = Int32(f[1]) {
+                s.clients.append(Client(pid: pid, tty: f[2], session: f[4], activity: Int(f[3]) ?? 0))
             }
         }
         return s
