@@ -3218,8 +3218,7 @@
         var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
         var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
         apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
-          whatsNew: o.ga ? { version: '1.0', headline: 'Perch 1.0, signed by Apple', bullets: ['Perch is now signed with an Apple Developer ID', 'Updates install without macOS asking about an unknown developer'], access: o.access || null }
-            : { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets, access: o.access || null } }));
+          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: o.access ? bullets.slice(0, 2) : bullets, access: o.access || null } }));
       },
       /* Accessibility Perch had, gone: `phase` is lost, asked (Allow was pressed, System Settings is open) or granted; null takes it away.
          `o.afterUpdate`: an update brought it about (only when What's new did not say it already). */
