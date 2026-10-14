@@ -1517,7 +1517,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// macOS ties Accessibility to the code signature: an update signed another way drops it without a word, and the
     /// Command+Option tap and replies to Claude stop. Perch reads it every two seconds, remembers that it had it, and says once
     /// per loss that it is gone (AccessLoss): on the update's own What's new card, or in a notch row at a quiet moment.
-    private var access = AccessLoss(had: Prefs.accessHad, hadOn: Prefs.accessHadOn, said: Prefs.accessSaid)
+    private var access = AccessLoss.seeded(had: Prefs.accessHad, hadOn: Prefs.accessHadOn, said: Prefs.accessSaid, onboarded: Prefs.onboarded)
     private static let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
     private let launchedAt = Date()
     /// What's new showed the loss, so it says Accessibility is on once it is, and closing it counts as said.

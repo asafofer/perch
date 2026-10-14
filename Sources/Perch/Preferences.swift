@@ -25,7 +25,8 @@ enum Prefs {
     }
     /// Accessibility Perch had (AccessLoss): whether it ever had it, the build that last had it (a loss on another build came
     /// with an update), and whether this loss was said, so a relaunch does not say it again.
-    static var accessHad: Bool { get { d.bool(forKey: "access.had") } set { d.set(newValue, forKey: "access.had") } }
+    /// nil on an install from before it was kept (AccessLoss.seeded).
+    static var accessHad: Bool? { get { d.object(forKey: "access.had") as? Bool } set { d.set(newValue, forKey: "access.had") } }
     static var accessHadOn: String? { get { d.string(forKey: "access.hadOn") } set { d.set(newValue, forKey: "access.hadOn") } }
     static var accessSaid: Bool { get { d.bool(forKey: "access.said") } set { d.set(newValue, forKey: "access.said") } }
     /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).

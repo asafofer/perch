@@ -27,6 +27,15 @@ public struct AccessLoss: Equatable, Sendable {
 
     public init(had: Bool, hadOn: String?, said: Bool) { self.had = had; self.hadOn = hadOn; self.said = said }
 
+    /// From what is kept. An install from before Perch kept `had` (nil) that finished setup has had its chance to allow
+    /// Accessibility, so it counts as having had it on an earlier build: a first update signed another way is then a loss
+    /// that came with the update, and What's new carries it. A fresh install (not set up) has not had it. Someone who skipped
+    /// Accessibility in setup reads needs access again, which is accepted. Once a reading comes in, the real values are kept.
+    public static func seeded(had: Bool?, hadOn: String?, said: Bool, onboarded: Bool) -> AccessLoss {
+        guard let had else { return AccessLoss(had: onboarded, hadOn: onboarded ? "" : nil, said: false) }
+        return AccessLoss(had: had, hadOn: hadOn, said: said)
+    }
+
     /// A reading of AXIsProcessTrusted() on `build`. Returns true when it turned on (the tap and the hotkeys need starting again).
     @discardableResult
     public mutating func observe(trusted t: Bool, build: String, now: Date) -> Bool {

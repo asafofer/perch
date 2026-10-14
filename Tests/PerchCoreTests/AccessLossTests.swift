@@ -89,6 +89,35 @@ import Testing
         #expect(on)
         #expect(a.row(now: t0) == nil)
     }
+    @Test func anInstallFromBeforeTheFlagLosesItOnTheUpdate() {
+        // set up on an earlier build that never kept `had`, updated to one signed another way
+        var a = AccessLoss.seeded(had: nil, hadOn: nil, said: false, onboarded: true)
+        a.observe(trusted: false, build: "201", now: t0)
+        #expect(a.lost)
+        #expect(a.afterUpdate(build: "201"))
+        #expect(a.card(carried: false) == .lost)
+    }
+    @Test func anInstallFromBeforeTheFlagStillTrustedShowsNothing() {
+        var a = AccessLoss.seeded(had: nil, hadOn: nil, said: false, onboarded: true)
+        let on = a.observe(trusted: true, build: "201", now: t0)
+        #expect(!on)
+        #expect(!a.lost && a.had && a.hadOn == "201")
+        #expect(a.row(now: t0) == nil)
+        #expect(a.card(carried: false) == nil)
+    }
+    @Test func aFreshInstallShowsNothing() {
+        var a = AccessLoss.seeded(had: nil, hadOn: nil, said: false, onboarded: false)
+        a.observe(trusted: false, build: "201", now: t0)
+        #expect(!a.lost)
+        #expect(a.row(now: t0) == nil)
+        #expect(a.card(carried: false) == nil)
+    }
+    @Test func keptValuesWinOverSeeding() {
+        let a = AccessLoss.seeded(had: false, hadOn: nil, said: false, onboarded: true)
+        #expect(!a.had)
+        let b = AccessLoss.seeded(had: true, hadOn: "200", said: true, onboarded: true)
+        #expect(b.had && b.hadOn == "200" && b.said)
+    }
     @Test func allowDoesNothingWhenNotLost() {
         var a = AccessLoss(had: true, hadOn: "200", said: false)
         a.observe(trusted: true, build: "200", now: t0)
