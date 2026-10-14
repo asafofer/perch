@@ -28,13 +28,23 @@ cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
 # What each release says about itself, for the What's new card on the first start after an update.
 cp -R release-notes "$APP/Contents/Resources/release-notes"
-# Sign with the stable local "Perch Dev" certificate when it exists, so macOS remembers privacy permissions across rebuilds.
+# A release build is signed with the Developer ID certificate when this Mac has one.
+# Anything else uses the stable local "Perch Dev" certificate, so macOS remembers privacy permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
-if security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then SIGN="Perch Dev"; else SIGN=-; fi
-# Inside out: Sparkle's helpers, then its framework, then the app. If the certificate refuses, fall back to ad hoc.
-sign() { codesign --force --sign "$SIGN" "$@" >/dev/null 2>&1 || codesign --force --sign - "$@" >/dev/null 2>&1; }
+DEVID=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)
+if [ "$CONFIG" = release ] && [ -n "$DEVID" ]; then SIGN="$DEVID"
+elif security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then SIGN="Perch Dev"; else SIGN=-; fi
+# A Developer ID build runs with the hardened runtime and a timestamp, as notarization needs. A "Perch Dev" build cannot:
+# its certificate has no team, and the hardened runtime then refuses to load Sparkle ("different Team IDs").
+FLAGS=(); [ "$SIGN" = "$DEVID" ] && FLAGS=(--options runtime --timestamp)
+# Inside out: Sparkle's helpers, then its framework, then the app. If "Perch Dev" refuses, fall back to ad hoc; a Developer ID signature never does.
+sign() {
+  if [ "$SIGN" = "$DEVID" ]; then codesign --force --sign "$SIGN" ${FLAGS[@]+"${FLAGS[@]}"} "$@"
+  else codesign --force --sign "$SIGN" ${FLAGS[@]+"${FLAGS[@]}"} "$@" >/dev/null 2>&1 || codesign --force --sign - "$@" >/dev/null 2>&1; fi
+}
 SPK="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
-sign "$SPK/Autoupdate"; sign "$SPK/Updater.app"; sign "$APP/Contents/Frameworks/Sparkle.framework"; sign "$APP"
+sign "$SPK/Autoupdate"; sign "$SPK/Updater.app"; sign "$APP/Contents/Frameworks/Sparkle.framework"
+sign --entitlements Resources/Perch.entitlements "$APP"
 if [ "${1:-}" = "--package-only" ]; then exit 0; fi
 # The design page's real app icons, from this Mac. Leaves a running Perch alone.
 if [ "${1:-}" = "--design-icons" ]; then "$APP/Contents/MacOS/Perch" --design-icons ui/icons.local.json; exit 0; fi

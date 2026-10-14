@@ -22,7 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The design page draws stand-in icons; this writes this Mac's real ones next to it (git ignores the file).
         if let i = args.firstIndex(of: "--design-icons") {
             let out = URL(fileURLWithPath: i + 1 < args.count ? args[i + 1] : "ui/icons.local.json")
-            do { try JSONSerialization.data(withJSONObject: AppIcons.all(), options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
+            let icons = AppIcons.all().merging(AppIcons.designFiles(wallpaper: out.deletingLastPathComponent().appendingPathComponent("wallpapers/blue-distortion-1.webp"))) { a, _ in a }
+            do { try JSONSerialization.data(withJSONObject: icons, options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
             catch { print("could not write \(out.path): \(error)") }
             exit(0)
         }
@@ -90,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Reply is Command+R, the rest Command+Option and a key.
             for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
         }
+        c.onReplyKey = { [hotkeys] on in if on { hotkeys.register(keyCode: kVK_ANSI_R, modifiers: 0, id: 40) { c.replyKey() } } else { hotkeys.unregister(id: 40) } }
         hotkeys.onChordTap = { c.chordTap() }
         hotkeys.apply(Prefs.openShortcut)
         c.openComboWorks = { [hotkeys] in hotkeys.openCombo }
@@ -172,6 +174,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.button?.title = " TEST"
             item.button?.toolTip = "Test build: \(test)"
             let line = menu.addItem(withTitle: "Test build: \(test)", action: nil, keyEquivalent: ""); line.isEnabled = false
+            // and the way back to the copy you use every day, in one click
+            if let installed = installedCopy() {
+                let version = Bundle(url: installed)?.infoDictionary?["CFBundleShortVersionString"] as? String
+                let back = menu.addItem(withTitle: "Back to installed Perch" + (version.map { " \($0)" } ?? ""), action: #selector(backToInstalled), keyEquivalent: "")
+                back.target = self; back.representedObject = installed
+            }
             menu.addItem(.separator())
         }
         menu.addItem(withTitle: "Where was I", action: #selector(showWelcome), keyEquivalent: "").target = self
@@ -193,6 +201,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showOnboarding() { controller?.startOnboarding() }
     @objc private func openSystemSettings() { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app")) }
     @objc private func quit() { NSApp.terminate(nil) }
+    private func installedCopy() -> URL? {
+        let found = Bundle.main.bundleIdentifier.map { NSWorkspace.shared.urlsForApplications(withBundleIdentifier: $0) } ?? []
+        return InstalledCopy.pick(found + [URL(fileURLWithPath: "/Applications/Perch.app")].filter { FileManager.default.fileExists(atPath: $0.path) }, running: Bundle.main.bundleURL)
+    }
+    /// Quits this test build and opens the installed copy once it has gone: both have the same bundle id, so opening it while
+    /// this one runs would only bring this one forward, and two copies would fight over the hotkeys and the hook socket.
+    @objc private func backToInstalled(_ sender: NSMenuItem) {
+        guard let app = sender.representedObject as? URL else { return }
+        let wait = Process()
+        wait.executableURL = URL(fileURLWithPath: "/bin/sh")
+        wait.arguments = ["-c", "while kill -0 \(getpid()) 2>/dev/null; do sleep 0.1; done; /usr/bin/open -n \"$1\"", "sh", app.path]
+        do { try wait.run() } catch { return }
+        NSApp.terminate(nil)
+    }
 }
 
 MainActor.assumeIsolated {

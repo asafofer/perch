@@ -287,6 +287,13 @@ public struct GitInfo: Equatable, Sendable {
 }
 
 public enum Recap {
+    /// Your own last message, quoted: "You asked" only when it asks something (a sentence ending in a question mark),
+    /// otherwise "You said".
+    public static func youSaid(_ text: String) -> String {
+        let asks = text.range(of: #"\?+(\s|$|["”’')\]])"#, options: .regularExpression) != nil
+        return "\(asks ? "You asked" : "You said"): “\(clip(text, 120))”"
+    }
+
     /// A plain, honest recap built from the transcript and git alone. No model call.
     public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil) -> Project? {
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
@@ -298,12 +305,12 @@ public enum Recap {
         // With no sentence worth showing: what it did if it changed something, the answer as written if it only answered.
         let reply = outcome(d.lastAssistantFull ?? d.lastAssistantText)
         let fallback = d.work.changedSomething ? did(d.work) ?? answer(d.lastAssistantText) : answer(d.lastAssistantText) ?? did(d.work)
-        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
         let working = status.kind == .running
-        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? settled
+        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? settled
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,
@@ -590,6 +597,28 @@ extension Project {
         p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         p.ask = nil
         return p
+    }
+
+    /// A "needs you" only guessed (as `settled`) that you have seen, and since then you looked at a later change in another
+    /// session: you moved on, so it is history. `seen` is each session's last change you saw (seconds since 1970).
+    /// Each session's last change you saw (seconds since 1970), for `movedOn`: what was marked seen, or its last change when it is
+    /// not fresh (in front of you in the Claude app since). A session that changed since you looked keeps what you saw of it before:
+    /// a session at work changes on every tool call, and without that the question you left would come back with each one.
+    public static func lastSeen(_ list: [Project], seen: [String: Double], fresh: (Project) -> Bool) -> [String: Double] {
+        var out: [String: Double] = [:]
+        for p in list {
+            let t = max(seen[p.id] ?? 0, fresh(p) ? 0 : p.lastActive?.timeIntervalSince1970 ?? 0)
+            if t > 0 { out[p.id] = max(out[p.id] ?? 0, t) }
+        }
+        return out
+    }
+
+    public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
+        list.map { p in
+            guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
+                  list.contains(where: { $0.id != p.id && (seen[$0.id] ?? 0) > t + 1 }) else { return p }
+            return p.settled(since: .distantFuture)
+        }
     }
 }
 

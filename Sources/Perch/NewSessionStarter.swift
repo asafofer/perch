@@ -30,15 +30,17 @@ enum NewSessionStarter {
         guard let url = c.url else { return false }
         let bundle = choice.agent == "codex" ? Restorer.codexApp : Restorer.claudeApp
         DispatchQueue.main.sync { _ = NSWorkspace.shared.open(url) }
-        return pressSend(in: bundle, words: prompt, needsYou: needsYou)
+        return pressSend(in: bundle, words: prompt, folder: folder.map { ($0 as NSString).lastPathComponent }, needsYou: needsYou)
     }
 
-    /// Waits for the app's message field to hold exactly these words, then presses its Send. While the app asks you to
-    /// trust the folder it waits longer, and presses nothing but Send.
-    private static func pressSend(in bundle: String, words: String, needsYou: @escaping @Sendable () -> Void) -> Bool {
+    /// Waits for the app's message field to hold exactly these words, then presses its Send. When the app asks you to
+    /// trust the folder, the answer is yours, in the app (the notch says Confirm in Claude), and Perch never presses Send
+    /// after it: a Cancel there stays a Cancel. (Trust pressed through Accessibility is not taken as yours: Claude then
+    /// starts the session with no folder.)
+    private static func pressSend(in bundle: String, words: String, folder: String?, needsYou: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
-        var asked = false, sawField = false
+        var asked = false, sawField = false, folderBy: Date?
         while Date().timeIntervalSince(began) < (asked ? 120 : 20) {
             defer { Thread.sleep(forTimeInterval: 0.2) }
             guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { continue }
@@ -46,29 +48,74 @@ enum NewSessionStarter {
             AXUIElementSetMessagingTimeout(ax, 1)
             AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
             let windows = (attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+            // The question comes first: while it shows, the app hides its message field, which is not the words leaving it.
+            let asking = asksTrust(windows)
+            if !asked, asking { asked = true; NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() } }
             let field = windows.lazy.compactMap { w in first(in: w, { role($0) == "AXTextArea" && classes($0).contains("ProseMirror") && squash(value($0)) == want }) }.first
             if let field {
                 sawField = true
-                if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asksTrust(windows) {
+                // Asked to trust and answered: the rest is yours there.
+                if asked, !asking { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
+                // Never into another folder than the one you chose: Claude's own folder menu by the field must name it
+                // (after a trust question it can take a moment). Not there in a few seconds, Send is left to you.
+                if let folder, bundle == Restorer.claudeApp, !asking {
+                    let shown = folderMenus(near: field)
+                    if !shown.contains(folder) {
+                        if folderBy == nil { folderBy = Date().addingTimeInterval(6) }
+                        if Date() < folderBy! { continue }
+                        NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you"); return false
+                    }
+                }
+                if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
                     if wait(3, { squash(value(field)).isEmpty ? true : nil }) == nil { NSLog("Perch: the new session's field still holds the words after Send") }
                     NSLog("Perch: started a new session in \(bundle)")
+                    // Claude asks to trust the folder only now, on Send: a moment to see whether it does, then your answer.
+                    if wait(2.5, { asksTrust(windowsOf(app)) ? true : nil }) != nil {
+                        NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() }
+                        return awaitTrust(in: app)
+                    }
                     return true
                 }
-            } else if sawField, !asked {
+            } else if sawField, !asked, !asking {
                 // The words left the field without Perch: sent by you, or the page changed. The scan says which.
                 NSLog("Perch: the new session's words left the field"); return false
             }
-            if !asked, asksTrust(windows) { asked = true; NSLog("Perch: \(bundle) asks to trust the folder"); DispatchQueue.main.async { needsYou() } }
         }
         NSLog("Perch: new session not sent (\(sawField ? "no Send to press" : "its words never showed in the field"))")
         return false
     }
-    /// The app asks whether to trust the folder (Claude: Trust workspace, Codex: Trust folder).
-    private static func asksTrust(_ windows: [AXUIElement]) -> Bool {
-        windows.contains { w in first(in: w, { role($0) == "AXButton" && ["Trust workspace", "Trust folder"].contains(string($0, kAXTitleAttribute)) }) != nil }
+    /// The titles of the menus by the message field (Claude: Local, the folder, ...), a few levels up from it.
+    private static func folderMenus(near field: AXUIElement) -> [String] {
+        var box = field
+        for _ in 0..<7 { guard let up = attr(box, kAXParentAttribute) else { break }; box = up as! AXUIElement }
+        var out: [String] = [], stack = [box], seen = 0
+        while let e = stack.popLast(), seen < 600 {
+            seen += 1
+            if role(e) == "AXPopUpButton" { let t = string(e, kAXTitleAttribute); if !t.isEmpty { out.append(t) } }
+            stack.append(contentsOf: (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+        }
+        return out
+    }
+    /// The app's windows, the question a new session asks among them.
+    private static func windowsOf(_ app: NSRunningApplication) -> [AXUIElement] {
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        return (attr(ax, kAXWindowsAttribute) as? [AXUIElement]) ?? []
+    }
+    /// Asked to trust after Send: the answer is yours, in the app. Waits for it (it goes on by itself once trusted), at
+    /// most two minutes; the scan says whether the session began.
+    private static func awaitTrust(in app: NSRunningApplication) -> Bool {
+        let began = Date()
+        while Date().timeIntervalSince(began) < 120, asksTrust(windowsOf(app)) { Thread.sleep(forTimeInterval: 0.3) }
+        return true
     }
 
+    /// The app asks whether to trust the folder (Claude: Trust workspace, Codex: Trust folder).
+    private static let trustTitles = ["Trust workspace", "Trust folder"]
+    private static func asksTrust(_ windows: [AXUIElement]) -> Bool {
+        windows.contains { w in first(in: w, { role($0) == "AXButton" && trustTitles.contains(string($0, kAXTitleAttribute)) }) != nil }
+    }
     /// Send sits beside the field, a few levels up.
     private static func sendButton(near field: AXUIElement) -> AXUIElement? {
         var box = field

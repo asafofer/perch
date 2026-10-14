@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/asafofer/perch/security/advisories/new
+    about: Privately, so it can be fixed before anyone else knows.

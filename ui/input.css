@@ -43,8 +43,11 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new, .n[data-s=ns] .p-ns { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
-.rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: all .12s; }
-.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv, .n[data-s=ns] .p-ns .rv { opacity: 1; transform: none; filter: none; transition: all .4s cubic-bezier(.2,.9,.3,1); transition-delay: calc(.08s + var(--i,0) * .045s); }
+.rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: opacity .12s, transform .12s, filter .12s, color .15s, background-color .15s; }
+/* the rise names what it moves: a hover colour on a button that rises (the gear, the close) answers at once, not late and slow */
+.n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv, .n[data-s=ns] .p-ns .rv { opacity: 1; transform: none; filter: none;
+  transition: opacity .4s cubic-bezier(.2,.9,.3,1), transform .4s cubic-bezier(.2,.9,.3,1), filter .4s cubic-bezier(.2,.9,.3,1), color .15s, background-color .15s;
+  transition-delay: calc(.08s + var(--i,0) * .045s), calc(.08s + var(--i,0) * .045s), calc(.08s + var(--i,0) * .045s), 0s, 0s; }
 .notouch { transition: none !important; }
 /* moved to another display: everything takes its place there at once (app.js apply) */
 #scene[data-moved="1"], #scene[data-moved="1"] *, #scene[data-moved="1"] *::before, #scene[data-moved="1"] *::after { transition: none !important; }
@@ -197,14 +200,20 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @property --mql { syntax: '<length>'; inherits: false; initial-value: 0px; }
 .mq-on { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 .mq-on .mq-in { display: inline-block; }
+.mq-on > .shine { text-overflow: clip; }
 /* a reply sent to a terminal flies into the notch (app.js sendFly) */
 .fly { position: absolute; z-index: 20; max-width: 260px; padding: 4px 10px; border-radius: 12px 12px 12px 4px; background: rgba(255,255,255,.14);
   color: #fafafa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transform-origin: 50% 50%; }
 /* switches: narrow, in the character's colour when on; the knob keeps a hairline so it reads on Cream */
 .sw { position: relative; width: 26px; height: 16px; flex: none; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; transition: background-color .2s; }
 .sw[aria-checked="true"] { background: var(--cr); }
-.sw > i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 .5px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.3); transition: left .2s cubic-bezier(.3,1.3,.5,1); }
-.sw[aria-checked="true"] > i { left: 12px; }
+.sw > i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 .5px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.3); translate: 0 0; }
+.sw[aria-checked="true"] > i { translate: 10px 0; }
+/* a switch flipped in place (app.js setSw) travels with a double settle (transitions.dev toggle); one drawn already on or off just is */
+.sw.is-init[aria-checked="true"] > i { animation: sw-on .35s cubic-bezier(.34,1.35,.64,1) both; }
+.sw.is-init[aria-checked="false"] > i { animation: sw-off .35s cubic-bezier(.34,1.35,.64,1) both; }
+@keyframes sw-on { 0% { translate: 0 0; } 55% { translate: 11px 0; } 100% { translate: 10px 0; } }
+@keyframes sw-off { 0% { translate: 10px 0; } 55% { translate: -1px 0; } 100% { translate: 0 0; } }
 .mq-on.mq-rtl { -webkit-mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
 /* the caret after what you typed in the list */
 .s-caret { display: inline-block; width: 1.5px; height: 15px; margin-left: 1px; vertical-align: -2px; background: currentColor; border-radius: 1px; animation: caret 1.1s steps(1) infinite; }
@@ -333,10 +342,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .p-open .o-x .shine, .p-open .o-ask button { user-select: none; -webkit-user-select: none; }
 /* The character's colour lifted toward white, so it reads the same on every colour (Saffron would go olive on black). */
 .perch { --hl: color-mix(in srgb, var(--cr) 62%, #fff); }
-.p-open ::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
+.p-open ::selection, .nw-in::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
 /* The highlight is drawn by the page (app.js `hlDraw`): one soft, rounded piece per line that fades in, screened over the
-   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. */
-html:not([data-hl=native]) .p-open ::selection { background: transparent; }
+   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. A field (the reply,
+   the new session's prompt) keeps the system's own, in the same colour: the page draws none there. */
+html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transparent; }
 .hl { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hl i { position: absolute; border-radius: 4px; background: var(--hl); opacity: .3; mix-blend-mode: screen; transition: opacity .12s; }
 .hl i.in { opacity: 0; }
@@ -353,12 +363,12 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .o-said-in { scrollbar-width: none; overscroll-behavior: contain; }
 .o-said-in::-webkit-scrollbar { display: none; }
 .o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
-/* a file dragged over the card (app.js dragOver): the reply field lights up as where it goes */
-.f-rep .r-in.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
-.f-rep .r-in.drop::placeholder { color: rgba(255, 255, 255, .62); }
+/* a file dragged over the card (app.js dragOver, nwDragOver): the reply field, or the new session's prompt, lights up as where it goes */
+.f-rep .r-in.drop, .p-ns .nw-box.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
+.f-rep .r-in.drop::placeholder, .p-ns .nw-box.drop .nw-in::placeholder { color: rgba(255, 255, 255, .62); }
 /* and the file right on it: ready to let go */
-.f-rep .r-in.drop.on { background-color: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .75); }
-.f-rep .r-in.drop.on::placeholder { color: rgba(255, 255, 255, .9); }
+.f-rep .r-in.drop.on, .p-ns .nw-box.drop.on { background-color: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .75); }
+.f-rep .r-in.drop.on::placeholder, .p-ns .nw-box.drop.on .nw-in::placeholder { color: rgba(255, 255, 255, .9); }
 .md-code { color: var(--cr, hsl(var(--foreground))); }
 .o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
 /* a table in what the agent said (app.js mdTable): no lines. The header in grey, a faint band on every other row, even
@@ -411,3 +421,55 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .kcap.bad { color: #E9A877; background: rgba(233,168,119,.14); box-shadow: inset 0 0 0 1px rgba(233,168,119,.45), 0 2px 0 rgba(233,168,119,.12); }
 /* a text button at the right of a Settings row: its words end where a switch does, and its hover box reaches the row's edge */
 .s-gr { margin-right: -8px; }
+
+/* ---- motion from transitions.dev (free to use in a product; its LICENSE): their values, changed here only where a comment says so ---- */
+:root { --ease-smooth-out: cubic-bezier(.22,1,.36,1); }
+/* icon swap: icons share one cell; the one showing is sharp, a leaving or arriving one small and blurred (app.js iconSwap) */
+.t-ic { display: inline-grid; place-items: center; }
+.t-ic > * { grid-area: 1 / 1; }
+.t-icon { display: grid; opacity: 0; filter: blur(2px); transform: scale(.25); transition: opacity .25s ease-in-out, filter .25s ease-in-out, transform .25s ease-in-out; }
+.t-icon.on { opacity: 1; filter: none; transform: none; }
+/* the card's status: its words, not its spinner, set the line it sits on, so the grey line beside it never moves (it did by
+   1.5 px whenever the spinner came or went); the spinner's room opens and closes with it */
+.o-st { gap: 0; }
+.o-st .st-t { align-self: baseline; display: inline-block; }
+.o-st .st-ic { width: 0; margin-right: 0; justify-items: end; transition: width .25s ease-in-out, margin-right .25s ease-in-out; }
+.o-st .st-ic.has { width: 12px; margin-right: 6px; }
+/* text states swap: out up with a blur, then in from below (app.js swapText) */
+.t-swap { transition: transform .15s ease-in-out, filter .15s ease-in-out, opacity .15s ease-in-out; }
+.t-swap.is-exit { transform: translateY(-4px); filter: blur(2px); opacity: 0; }
+.t-swap.is-enter { transform: translateY(4px); filter: blur(2px); opacity: 0; transition: none; }
+/* text morph: shared letters stay, the rest cross-blurs while its width eases (app.js morphText) */
+.t-morph-swap { display: inline-grid; vertical-align: bottom; justify-items: start; transition: width .24s var(--ease-smooth-out); }
+.t-morph-swap > span { grid-area: 1 / 1; white-space: pre; transition: opacity .18s var(--ease-smooth-out), filter .18s var(--ease-smooth-out); }
+.t-morph-new { opacity: 0; filter: blur(2px); }
+.t-morph-swap.is-morphing .t-morph-old { opacity: 0; filter: blur(2px); }
+.t-morph-swap.is-morphing .t-morph-new { opacity: 1; filter: none; }
+/* the words a card had, fading out where they were while the new ones fade in (app.js crossBlur, text swap soft) */
+.xb-ghost { position: absolute !important; margin: 0 !important; pointer-events: none; z-index: 1; }
+/* menu dropdown: grows out of its button (app.js dropMenu); closed it is out of the way and out of reach */
+.t-drop { transform-origin: top right; transform: scale(.97); opacity: 0; pointer-events: none; visibility: hidden;
+  transition: transform .25s var(--ease-smooth-out), opacity .25s var(--ease-smooth-out), visibility 0s .25s; }
+.t-drop[data-origin="bottom-right"] { transform-origin: bottom right; }
+.t-drop.is-open { transform: none; opacity: 1; pointer-events: auto; visibility: visible; transition-delay: 0s; }
+.t-drop.is-closing { transform: scale(.99); opacity: 0; visibility: visible; transition: transform .15s var(--ease-smooth-out), opacity .15s var(--ease-smooth-out); }
+/* the list's choice: one highlight that slides from row to row (transitions.dev tabs sliding, app.js selPill); the rows' own goes */
+.s-l { position: relative; }
+.sel-pill { position: absolute; left: 6px; right: 6px; top: 0; height: 36px; border-radius: 6px; background: hsl(var(--accent)); pointer-events: none; opacity: 0;
+  transition: transform .25s var(--ease-smooth-out), height .25s var(--ease-smooth-out), opacity .13s; }
+.sel-pill.on { opacity: 1; }
+.sel-pill.snap { transition: none; }
+.p-switch.nomark .sel-pill { opacity: 0; transition-duration: .2s; }
+.p-switch .s-l .row.bg-accent:not(.crossed) { background-color: transparent; }
+.p-switch .s-l .row { position: relative; }
+@media (prefers-reduced-motion: reduce) { .sel-pill { transition: opacity .01ms; } }
+/* a row of attachments scrolls sideways with no bar (app.js attChips) */
+.r-att, .nw-att { scrollbar-width: none; overscroll-behavior: contain; }
+.r-att::-webkit-scrollbar, .nw-att::-webkit-scrollbar { display: none; }
+/* a file over a new session's agent or folder: that row says Drop to start (app.js nwDropRow) */
+/* the whole card says it takes the file, and the row under it is lit a step brighter than a chosen row */
+.nw.dropping .nw-right { display: none; }
+.nw.dropping .nw-dhint { display: inline; }
+.nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
+.nw .nrow.dz .nw-rt { display: none; }
+.nw .nrow.dz .nw-dz { display: inline-flex; }

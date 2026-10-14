@@ -1,0 +1,26 @@
+name: UI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: app.js is ASCII only (it is loaded without a charset in places)
+        run: |
+          if LC_ALL=C grep -nP '[^\x00-\x7F]' ui/app.js; then echo "::error::ui/app.js has non-ASCII on the lines above: write those characters as \uXXXX"; exit 1; fi
+      - name: The scripts parse
+        run: for f in ui/app.js ui/orbs.js; do node --check "$f"; done
+      - name: The committed CSS matches a fresh build
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
+          git diff --exit-code dist/ui.css || { echo "::error::ui/dist/ui.css is out of date: run cd ui && npm run build, and commit it"; exit 1; }

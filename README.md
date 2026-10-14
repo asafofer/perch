@@ -5,18 +5,19 @@
 <h1 align="center">Perch</h1>
 
 <p align="center">
-  <strong>Where you left off, in the notch.</strong><br>
-  For people who run several Claude Code, Codex, OpenCode and pi sessions at once.
+  <strong>The fastest way back to your agents.</strong><br>
+  Perch lives in your Mac’s notch. See what your coding agents did, answer them, jump back in.
 </p>
 
 <p align="center">
   <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-black?logo=apple&logoColor=white">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-required-black">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
-  <img alt="Status: internal" src="https://img.shields.io/badge/status-internal-lightgrey">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
 </p>
 
 <p align="center">
+  <a href="https://perchapp.dev">perchapp.dev</a> ·
   <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
   <a href="#shortcuts">Shortcuts</a> ·
@@ -56,7 +57,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 | Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time, right-click Perch and choose **Open**. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
+**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time macOS says it can't check Perch: open System Settings, Privacy & Security, scroll down and choose **Open Anyway** beside Perch. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 
@@ -113,7 +114,7 @@ A native AppKit shell owns the notch panel, hotkeys and the hook socket. `PerchC
 
 ## Development
 
-Read [AGENTS.md](AGENTS.md) first: architecture, workflow, design rules and known pitfalls.
+Read [AGENTS.md](AGENTS.md) first: architecture, workflow, design rules and known pitfalls. [CONTRIBUTING.md](CONTRIBUTING.md) says how a change goes in and what CI checks.
 
 ```bash
 cd ui && npm install && cd ..           # once
@@ -143,12 +144,11 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 </details>
 
 <details>
-<summary><strong>Release tooling</strong></summary>
+<summary><strong>More scripts</strong></summary>
 
 | Script | What it does |
 |---|---|
 | `./scripts/package.sh` | Builds a release and writes `build/Perch.zip` for sharing. |
-| `./scripts/release.sh` | Builds, signs the update with Perch's Sparkle key and writes the appcast; `--publish` pushes it to the releases repo. |
 | `./scripts/make-icon.sh` | Renders `docs/assets/icon.svg` into the app icon and `icon.png`. |
 | `./scripts/record.sh` | Films the design page's sample flow into `docs/assets/perch.gif`. Needs `ffmpeg`; headless. |
 | `./scripts/agents-demo.sh` | herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux, for trying Perch live. |
@@ -163,4 +163,8 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Credits
 
-Wallpapers by [Raycast](https://www.raycast.com/wallpapers). The working orb is [Thinking Orbs](https://thinkingorbs.com) by Yogesh (MIT). Set in [Inter](https://rsms.me/inter/).
+Wallpapers by [Raycast](https://www.raycast.com/wallpapers). The working orb is [Thinking Orbs](https://thinkingorbs.com) by Yogesh (MIT). Set in [Inter](https://rsms.me/inter/) (SIL Open Font License 1.1, `ui/dist/fonts/OFL.txt`).
+
+## License
+
+[MIT](LICENSE).

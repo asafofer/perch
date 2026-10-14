@@ -108,7 +108,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
 :root:not(.rec) .desk:has(.n[data-s=set]),:root:not(.rec) .desk:has(.n[data-s=onb]){height:452px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
-.rec.play .now{display:block}.rec.play .desk #hw{box-shadow:none}
+.rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+/* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
+.ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
 </style>
@@ -160,6 +162,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
+  /* a Motion scenario's timeline: at(ms, caption, f) runs f after ms, unless another scenario started since */
+  function motionAt() { var me = charRun; return function (ms, label, f) { setTimeout(function () { if (me !== charRun) return; if (label) now.textContent = label; f(); }, ms); }; }
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
@@ -213,7 +217,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var at = start.slice(), over = false, was = false;
     var put = function (e, p) { e.style.left = p[0] + 'px'; e.style.top = p[1] + 'px'; };
     put(file, start); put(ghost, start); ghost.style.display = 'none'; put(cur, [start[0] - 60, start[1] - 30]);
-    var card = function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = desk.getBoundingClientRect(); return document.querySelector('#scene .n').dataset.s === 'open' ? { l: r.left - dr.left, t: r.top - dr.top, r: r.right - dr.left, b: r.bottom - dr.top } : null; };
+    var card = function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = desk.getBoundingClientRect(); return ['open', 'ns'].indexOf(document.querySelector('#scene .n').dataset.s) >= 0 ? { l: r.left - dr.left, t: r.top - dr.top, r: r.right - dr.left, b: r.bottom - dr.top } : null; };
     var frame = function () {
       put(ghost, at); put(cur, at);
       var c = card(), on = !!c && at[0] > c.l && at[0] < c.r && at[1] > c.t && at[1] < c.b;
@@ -252,6 +256,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onCard(dx, dy) { return function () { var n = document.querySelector('#scene .n'), r = n.getBoundingClientRect(), dr = document.getElementById('desk').getBoundingClientRect(); return [r.left - dr.left + r.width / 2 + dx, r.top - dr.top + dy]; }; }
   /* near the field's right end, so the file does not hide what the field says */
   function onField() { var w = document.querySelector('.r-in').getBoundingClientRect().width; return deskPoint(document.querySelector('.r-in'), w / 2 - 46, 0); }
+  function onRow(name) { return function () { var r = [].filter.call(document.querySelectorAll('.nw .nrow'), function (x) { return (x.querySelector('.nm') || {}).textContent === name; })[0]; return deskPoint(r, 30, 0); }; }
+  function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
@@ -282,6 +288,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Finished, already seen', 'No green, just its age. Perch would not speak up for this.', function () { d.variant(1, { fresh: false, line: '48m ago' }); }],
       ['Stopped on an error', 'The turn ended on an API error.', function () { d.variant(1, { status: { kind: 'attention', text: 'Claude stopped on an error', app: 'claude' }, attention: true, fresh: true, next: '' }); }],
       ['Working', 'Codex is mid-run: what it says it is doing, and on the Now row the step it is on.', function () { d.project(2); d.show('open'); }],
+      ['Your words: you said', 'When the agent left nothing to quote, the card shows your own last message. It says You said, in grey, so your words read first; You asked only for a question.', function () { d.variant(1, { topic: 'Test Perch shimmer', headline: '', context: 'You said: \u201cPerch shimmer test. Reply with just ok, use no tools.\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
+      ['Your words: you asked', 'Your last message was a question (a sentence ending in a question mark): You asked.', function () { d.variant(1, { topic: 'Hero jump on Safari', headline: '', context: 'You asked: \u201cwhy does the hero jump on Safari when the poster loads?\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
       ['Working, a long title', 'A title that runs long has its whole line: the status sits on the grey line under it, at the right.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
     ['More agents', [
@@ -299,18 +307,18 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
       ['Reply: typed', 'Return sends. Esc goes back to the card and keeps your words: R brings them back.', reply(true)],
-      ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, goes in as its path.', function () {
+      ['Reply: kept while you look away', 'You start a reply, then click in Finder to copy a path: the card makes way and keeps your words. Command+Option within five minutes brings it back as you left it, reply open, words in place, caret after them. A file pasted from Finder, or dropped on the card, is attached as a chip over the field.', function () {
         var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
         d.project(1); d.show('open', false, true);
         at(700, function () { window.perch.replyMenu(true); var r = document.querySelector('.r-in'); r.value = 'Bring it back for desktop only, and keep this poster for phones:'; r.dispatchEvent(new Event('input')); });
         at(2800, function () { now.textContent = 'A click in Finder: the card makes way, your words are kept'; d.show('idle'); });
         at(4600, function () { now.textContent = 'Command+Option: back as you left it'; d.show('open', false, true); window.perch.replyMenu(true); });
-        at(6600, function () { now.textContent = 'A file pasted from Finder goes in as its path'; window.perch.paths(['/Users/asaf/Desktop/hero-poster-1440.png']); });
+        at(6600, function () { now.textContent = 'A file pasted from Finder is attached: a chip over the field'; window.perch.paths(['/Users/you/Desktop/hero-poster-1440.png']); });
       }],
-      ['A file dragged onto the card', 'A file from the desktop, dragged slowly. Over the card the pointer gains a green plus (macOS draws it when the place takes the file), the reply opens for it, its field lights up and says what a drop does, more so with the file right on it, and the character looks on wide-eyed, its eyes on the file. Dragged off, it all goes back. Brought back and dropped on the field: the path goes in and the character hops.', function () {
+      ['A file dragged onto the card', 'A file from the desktop, dragged slowly. Over the card the pointer gains a green plus (macOS draws it when the place takes the file), the reply opens for it, its field lights up and says what a drop does, more so with the file right on it, and the character looks on wide-eyed, its eyes on the file. Dragged off, it all goes back. Brought back and dropped on the field: it is attached, a chip over the field, and the character hops.', function () {
         d.project(1); d.show('open', false, true);
         setTimeout(function () {
-          fileDrag('/Users/asaf/Desktop/hero-poster.png', [
+          fileDrag('/Users/you/Desktop/hero-poster.png', [
             [null, 500, 'A file on the desktop'],
             ['pick', 750, 'You take it'],
             [onCard(-70, 115), 1300, 'Dragging it onto the card'],
@@ -320,22 +328,22 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
             [null, 900, 'Off the card: it all goes back'],
             [onCard(-20, 120), 1200, 'Back onto the card'],
             [onField, 800, 'Onto the reply field'],
-            [null, 1100, 'Right on the field: release to add its path'],
-            ['drop', 1500, 'Dropped: its path goes in, and the character hops']
+            [null, 1100, 'Right on the field: release to attach it'],
+            ['drop', 1500, 'Dropped: attached as a chip over the field, and the character hops']
           ]);
         }, 700);
       }],
-      ['A file dragged onto a reply', 'While you write, a file dragged onto the card lights the field, more so right on it; dropped, its path goes in after your words.', function () {
+      ['A file dragged onto a reply', 'While you write, a file dragged onto the card lights the field, more so right on it; dropped, it is attached: a chip over the field, its name and an x to take it off. Sent, its path follows your words.', function () {
         reply(true)();
         setTimeout(function () {
-          fileDrag('/Users/asaf/Desktop/invoice-scan.png', [
+          fileDrag('/Users/you/Desktop/invoice-scan.png', [
             [null, 500, 'Writing a reply, with a file on the desktop'],
             ['pick', 750, 'You take it'],
             [onCard(40, 110), 1200, 'Dragging it onto the card'],
             [null, 700, 'Over the card: the field lights up, the character watches the file'],
             [onField, 800, 'Onto the reply field'],
-            [null, 1100, 'Right on the field: release to add its path'],
-            ['drop', 1500, 'Dropped: its path goes in after your words']
+            [null, 1100, 'Right on the field: release to attach it'],
+            ['drop', 1500, 'Dropped: attached, a chip over the field']
           ]);
         }, 1400);
       }],
@@ -361,6 +369,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         var me = ++charRun; d.hl(); reply(false)();
         setTimeout(function () { if (me === charRun) document.querySelector('.r-in').blur(); }, 1250);
         selectSlowly(me, '.o-said-in', 'The headline wraps', 'something to look at.', 1300);
+      }],
+      ['Words selected in the reply field', 'What you write can be selected as in any field: Command+A takes all of it, a double click a word, a triple click the line. The field keeps the system’s own highlight, in the character’s colour like the card’s.', function () {
+        var at = motionAt(), r = function () { return document.querySelector('.r-in'); }, word = function (w) { var i = r().value.indexOf(w); r().focus(); r().setSelectionRange(i, i + w.length); };
+        reply(true)();
+        at(1500, 'Command+A: all of it', function () { r().focus(); r().select(); });
+        at(3100, 'Double click: a word', function () { word('vendor'); });
+        at(4700, 'Triple click: the whole line', function () { r().focus(); r().select(); });
+      }],
+      ['Words selected in the prompt', 'The same in a new session’s prompt: Command+A, a double click on a word, a triple click on a paragraph. A refresh (a session elsewhere moving on) leaves what you selected, and the caret, where they were.', function () {
+        var at = motionAt(), t = function () { return document.querySelector('.nw-in'); }, pick = function (a, b) { var v = t().value, i = v.indexOf(a); t().focus(); t().setSelectionRange(i, b ? v.indexOf(b, i) + b.length : i + a.length); };
+        d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' });
+        at(1200, 'Command+A: all of it', function () { t().focus(); t().select(); });
+        at(2800, 'A refresh comes: the selection stays', function () { d.setNotch(!document.getElementById('desk').classList.contains('ext')); });
+        at(4400, 'Double click: a word', function () { pick('poster'); });
+        at(6000, 'Triple click: the paragraph', function () { pick('Reserve', '1440.'); });
       }],
       ['Words copied', 'Command+C (or Copy from the right-click menu): the highlight brightens for a beat and settles back, so you know it went. Nothing else moves. Plays on a loop.', function () {
         var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
@@ -416,7 +439,62 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Choose a folder…', 'The Mac’s folder picker; the folder you pick is the session’s, and you go on to the prompt.', function () { d.project(1); d.newSession({ step: 'project' }); setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', metaKey: true, bubbles: true })); }, 700); }],
       ['The prompt', 'The two choices sit along the top as chips, and where it opens at the right. Return starts it and leaves you where you are; Command+Return starts it and takes you there. Shift+Return is a new line.', function () { d.project(1); d.newSession({ step: 'prompt' }); }],
       ['The prompt, typed', 'A longer prompt grows the field, up to six lines, then it scrolls.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' }); }],
+      ['A file dropped on the prompt', 'A file dragged onto the card while you write the prompt: the field lights up, more so right on it, and the character watches the file. Dropped, it is attached: a chip under your words with its name (the path on hover) and an x to take it off; Backspace in an empty field takes the last. Sent, its path follows your words. A file pasted from Finder is attached the same way.', function () {
+        d.project(1); d.newSession({ step: 'prompt', text: 'Use this as the hero poster:' });
+        setTimeout(function () {
+          fileDrag('/Users/you/Desktop/hero-poster.png', [
+            [null, 500, 'Writing the prompt, with a file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onPrompt, 1500, 'Dragging it onto the prompt: it lights up, the character watches the file'],
+            [null, 900, 'Right on it: release to attach it'],
+            ['drop', 1500, 'Dropped: attached, a chip under your words']
+          ]);
+        }, 900);
+      }],
+      ['A file dropped while choosing', 'A file dragged over the folders: the row under it lights up and says Drop to start. Dropped there, that folder is chosen and the card goes on to the prompt, the file attached and the caret in the field. Off the rows, the folder you had chosen comes back. The agents take a file the same way.', function () {
+        d.project(1); d.newSession({ step: 'project' });
+        setTimeout(function () {
+          fileDrag('/Users/you/Desktop/crash-log.txt', [
+            [null, 500, 'Choosing the folder, with a file on the desktop'],
+            ['pick', 750, 'You take it'],
+            [onRow('price-scraper'), 1400, 'Over a folder: it lights up and says Drop to start'],
+            [null, 600],
+            [onRow('perch'), 900, 'Over another'],
+            [null, 900, 'Release to start in perch'],
+            ['drop', 1800, 'Dropped: perch is chosen, the file attached, the caret in the field']
+          ]);
+        }, 900);
+      }],
+      ['Files attached', 'Two files on the prompt: a chip each along the top of the field, with the file\u2019s own icon as Finder shows it (a picture, a thumbnail of itself), its name cut short when long, the whole path on hover. The x takes one off.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'prompt', text: 'Compare the poster with the brief and keep what the brief asks for' });
+        setTimeout(function () { if (me !== charRun) return; window.perch.paths(['/Users/you/Desktop/hero-poster.png', '/Users/you/Documents/Landing page brief (final, v3).pdf']); }, 700);
+      }],
+      ['Many files', 'However many, the chips stay on one line: the ones that do not fit scroll sideways, the edge fading where there is more, and the one just added scrolls into view. The field never grows for them.', function () {
+        var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.project(1); d.newSession({ step: 'prompt', text: 'Go through these and list what is still missing for the launch' });
+        var files = ['/Users/you/Desktop/hero-poster.png', '/Users/you/Documents/launch-brief.pdf', '/Users/you/Code/website/notes.md', '/Users/you/Code/website/src/Hero.swift', '/Users/you/Downloads/analytics-export.csv', '/Users/you/Desktop/walkthrough.mov', '/Users/you/Code/website/assets/', '/Users/you/Downloads/press-kit.zip'];
+        files.forEach(function (f, i) { at(700 + i * 450, function () { now.textContent = (i + 1) + (i ? ' files' : ' file'); window.perch.paths([f]); }); });
+        at(700 + files.length * 450 + 900, function () { now.textContent = 'Scrolled back to the start: the far edge fades where there is more'; var b = document.querySelector('.nw-att'); b.scrollTo({ left: 0, behavior: 'smooth' }); });
+      }],
+      ['A file pasted', 'A file copied in Finder and pasted with Command+V is attached, as a drop is: here while the folder is still being chosen, so the card goes on to the prompt, the caret in the field.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'project' }); now.textContent = 'Choosing the folder, a file copied in Finder';
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+V: attached, on to the prompt'; window.perch.paths(['/Users/you/Desktop/crash-log.txt']); }, 1600);
+      }],
+      ['Nothing moves while you choose', 'While the card is open, activity elsewhere changes nothing on it: here landing-page gets a new session and would move to the top, but the rows stay where they are and the folder you are on stays chosen. The next time you open it, the list is fresh.', function () {
+        var me = charRun; d.project(1); d.newSession({ step: 'project' });
+        setTimeout(function () { if (me !== charRun) return; now.textContent = 'You are on a folder'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); }, 900);
+        setTimeout(function () {
+          if (me !== charRun) return; now.textContent = 'A session in landing-page did something: nothing moves';
+          var s = window.perch._snap(); if (!s || s.phase !== 'newSession') return;
+          var o = JSON.parse(JSON.stringify(s.newSession)); o.projects.unshift({ name: 'landing-page', path: '/Users/you/Code/landing-page', label: '~/Code/landing-page', away: 'now' });
+          window.perch.apply(Object.assign({}, s, { newSession: o, timerToken: Math.random() }));
+        }, 2400);
+      }],
       ['Started, from the list', 'Return puts you straight back in the list, the new session already a row at the top of Today. Its title is grey with a light passing through it, as the card shows a step at work, and it says Starting. Once Perch sees the session: Started with the paper plane, then an ordinary row.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
+      ['Started, a long title', 'Lit, a title too long for the row reads itself out, and the passing light goes with the words rather than leaving a second copy behind.', function () {
+        d.listChange({ 0: { pending: 'starting', topic: 'Move the settings card onto the shared panel geometry and measure every row again', status: { kind: 'running', text: 'Starting', app: 'claude' }, attention: false, ask: null } }, 0);
+      }],
+      ['Started from the list, the app asks to confirm', 'Claude asks you to trust the folder before it starts: it has come forward with the keyboard, so the list does not stay up as if it still listened. It folds into the line that says Confirm in Claude; once you have, the line says Started. Pick another folder there and Perch still finds the session.', function () { d.project(1); d.newConfirms = true; d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
       ['Started, from anywhere', 'Opened with Command+Option+N from anywhere, the card folds into one line, like a reply\u2019s Sent: Starting\u2026 with a spinner until Perch sees the new session, then Started with a paper plane.', function () { d.newSession({ from: 'anywhere', step: 'prompt', text: 'Add a 429 test for the burst limit' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
       ['Didn\u2019t start', 'The session never showed up: the line says Didn\u2019t start in orange, and your words wait as the draft for the next Command+Option+N.', function () {
         var me = charRun; d.newFails = true; d.newSession({ from: 'anywhere', step: 'prompt', text: 'Add a 429 test for the burst limit' });
@@ -426,7 +504,81 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Didn\u2019t start, in the list', 'From the list: the row says Didn\u2019t start in orange, holds a moment, then folds away. Your words wait as the draft.', function () { d.project(1); d.newFails = true; d.newSession({ step: 'prompt', text: 'Add a dark mode toggle to the header and remember the choice' }); setTimeout(function () { document.querySelector('.nw-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 900); }],
       ['A draft kept', 'Close it with words in the field and they wait: the next Command+Option+N opens on them, as you left them.', function () { d.project(1); d.newSession({ step: 'prompt', text: 'Bump the version to 0.4.0 and write the release notes' }); setTimeout(function () { now.textContent = 'Closed, the words kept'; d.show('idle'); }, 1400); setTimeout(function () { now.textContent = 'Command+Option+N: back on the draft'; d.newSession(); }, 2800); }],
       ['Nothing to pick up yet', 'An empty list says how to start one.', function () { d.empty(false); }],
-      ['Settings: its shortcut', 'Command+Option+N has its own row under Open Perch, with Change, since Finder uses the same keys for New Smart Folder.', function () { d.settings(); }]
+      ['Settings: its shortcut', 'Command+Option+N has its own row under Open Perch, with Change, since Finder uses the same keys for New Smart Folder.', function () { d.settings(); }],
+      ['Settings: change its shortcut', 'Change on the New session row opens the recorder for that shortcut: Start a new session with, and Option+Command+N as it is now. A tap is refused here, since New session needs a key. Done or Esc goes back, the Open Perch row as it was.', function () { var me = charRun; d.settings(); setTimeout(function () { if (me === charRun) document.querySelector('.set button.s-nsc').click(); }, 500); }]
+    ]],
+    /* the small motions from transitions.dev (app.js iconSwap, swapText, morphText, crossIn): each plays a moment over the real UI */
+    ['Motion', [
+      ['A card’s status changes', 'The session on an open card finishes, asks for your OK, then works again: the words swap in place and the spinner shrinks away or grows in, while the grey line beside them stays still.', function () {
+        var at = motionAt(), run = { status: { kind: 'running', text: 'Codex is working', app: 'codex' }, ask: null, attention: false };
+        d.variant(1, run);
+        at(1600, 'It finishes', function () { d.variant(1, { status: { kind: 'done', text: 'Finished', app: 'codex' }, ask: null, attention: false, fresh: true }); });
+        at(3400, 'It asks for your OK', function () { d.variant(1, { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, ask: Object.assign({}, P0.ask, { title: 'Codex wants to run a command' }) }); });
+        at(5200, 'It works again', function () { d.variant(1, run); });
+      }],
+      ['The next session’s card', 'Moving to another session’s card: what changed cross-blurs where it is, and a new app’s icon shrinks away as the other grows in.', function () {
+        var at = motionAt(); d.variant(1, {});
+        at(1500, 'The next session', function () { d.variant(2, {}); });
+        at(3200, 'And back', function () { d.variant(1, {}); });
+      }],
+      ['Reply opens and closes', 'R on a card: the buttons go up and blur away, then the reply field comes up from below; Esc brings the buttons back the same way.', function () {
+        var at = motionAt(); d.project(1); d.show('open');
+        at(1300, 'R: the reply field', function () { window.perch.replyMenu(true); });
+        at(3000, 'Esc: the buttons', function () { window.perch.replyMenu(false); });
+        at(4400, 'R again', function () { window.perch.replyMenu(true); });
+      }],
+      ['A row’s mark changes', 'The list stays open while sessions change: a spinner turns into a check, and a check into the prompt of a command waiting for your OK. Each old mark shrinks away as the new one grows in.', function () {
+        var at = motionAt(), done = { status: { kind: 'done', text: 'Finished', app: 'codex' }, fresh: true };
+        d.listChange({});
+        at(1300, 'Install guide finishes', function () { d.listChange({ 2: done }); });
+        at(2900, 'and wants to run a command', function () { d.listChange({ 2: { status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, attention: true, section: 'Today', ask: Object.assign({}, P0.ask) } }); });
+        at(4500, 'and works again', function () { d.listChange({}); });
+      }],
+      ['The list sorts itself again', 'A session starts needing you while the list is open: its row glides up under a new Needs you header, and the rows it passed glide down. Then it is answered and goes back.', function () {
+        var at = motionAt(), asks = { 7: { attention: true, status: { kind: 'attention', text: 'Codex wants to run a command', app: 'codex' }, ask: Object.assign({}, P0.ask, { title: 'Codex wants to run a command' }) } };
+        d.listChange({});
+        at(1300, 'Rate limiter asks for your OK', function () { d.listChange(asks); });
+        at(3300, 'Answered: back where it was', function () { d.listChange({}); });
+        at(5000, 'And again', function () { d.listChange(asks); });
+      }],
+      ['Moving through the list', 'Down and up move one highlight that slides from row to row, rather than fading off one row and onto the next.', function () {
+        var at = motionAt(); d.listChange({});
+        [1, 2, 3, 4, 3, 2, 1, 0].forEach(function (k, i) { at(1000 + i * 450, i < 4 ? 'Down' : 'Up', function () { var rows = [].slice.call(document.querySelectorAll('.s-l .row')); if (rows[k]) d.listChange({}, +rows[k].dataset.i); }); });
+      }],
+      ['A new session’s row', 'Starting… becomes Started with the paper plane: “Start” stays and only the ending changes. Another that never starts says so, then folds away.', function () {
+        var at = motionAt(), row = function (k) { return { 0: { pending: k, topic: 'Add a dark mode to Settings', status: { kind: 'running', text: 'Starting', app: 'claude' }, attention: false, ask: null } }; };
+        d.listChange(row('starting'), 2);
+        at(1400, 'Started', function () { d.listChange(row('started'), 2); });
+        at(3000, 'Another one: Starting…', function () { d.listChange(row('starting'), 2); });
+        at(4400, 'It never starts', function () { d.listChange(row('failed'), 2); });
+        at(6200, 'and folds away', function () { d.listChange(row('gone'), 2); });
+      }],
+      ['Questions in a row', 'Three questions; the first takes any answers, each check drawing itself in (or wiped away when you take it back). On to the next: only the number in “Question 1 of 3” changes while the question and its answers cross-blur.', function () {
+        var at = motionAt(), key = function (k) { return function () { window.perch.askKey(k); }; };
+        d.variant(3, { status: CLAUDE_ASKS.status, attention: true, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'Claude asked you something', subject: 'Which checks should run first?', answerable: true, questions: [
+          Q('Which checks should run first?', 'Checks', [['Unit tests', 'About two minutes'], ['UI snapshots', 'Needs the simulator'], ['Lint']], true),
+          Q('Where should the build go?', 'Build', [['TestFlight'], ['A zip on GitHub'], ['Both']]),
+          Q('Bump the version to?', 'Version', [['0.3.15'], ['0.4.0'], ['Keep 0.3.14']])] } });
+        at(1200, '1: Unit tests', key('1')); at(1900, '2: UI snapshots', key('2')); at(2700, '2 again: taken back', key('2'));
+        at(3700, 'On to the next question', key('next')); at(5400, 'And back', key('back'));
+      }],
+      ['Settings menus and switches', 'The Apps menu grows out of its button and fades out a little quicker; a switch travels with a small second settle.', function () {
+        var at = motionAt(), click = function (sel) { return function () { var b = document.querySelector(sel); if (b) b.click(); }; };
+        d.settings();
+        at(1200, 'Apps opens', click('.s-apptrig')); at(2700, 'and closes', function () { document.body.click(); });
+        at(3800, 'A switch', click('.p-set .s-sw')); at(5000, 'and back', click('.p-set .s-sw'));
+      }],
+      ['The steps of a new session', 'Each step slides in from the right as you go on, and from the left as you go back.', function () {
+        var at = motionAt(), key = function (k) { return function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }; };
+        d.newSession();
+        at(1300, 'Return: on to the folder', key('Enter')); at(2600, 'Return: on to the prompt', key('Enter'));
+        at(4200, 'Esc: back to the folder', function () { var t = document.querySelector('.nw-in'); if (t) t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+      }],
+      ['The gear under the pointer', 'The gear and the close button at the top of a card light up the moment the pointer reaches them, as other buttons do (they used to arrive late and slowly).', function () {
+        var at = motionAt(); d.project(1); d.show('open');
+        var gear = function (on) { return function () { var g = document.querySelector('.p-open .x-gear'); if (g) g.classList.toggle('hv', on); }; };
+        [0, 1, 2].forEach(function (i) { at(1200 + i * 1400, 'On the gear', gear(true)); at(1900 + i * 1400, 'Off', gear(false)); });
+      }]
     ]],
     ['Moving between sessions', [
       ['Watch, in the list', 'Its eyes go to the row you are on, and when you stop there it blinks. Its face is that session\u2019s: wide-eyed if it needs you, with a start as you arrive; a happy squint if it finished. Type to filter and it reads along. A held arrow only moves its eyes. Plays six moves; then try Up, Down and typing.', function () { d.fx('list'); }],
@@ -648,6 +800,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Selecting text': '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
     'Acting on it': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
     'New session': '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+    'Motion': '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
     'Moving between sessions': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
     'While you work': '<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/>',
     'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
@@ -737,9 +890,23 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     return hit;
   }).filter(Boolean);
   document.documentElement.classList.add('play');
+  /* each scene's title says what it shows, in a few words (a scenario named here keeps its own name otherwise) */
+  var TITLES = {
+    'A file dropped while choosing': 'Drop a file on a folder to start a session with it',
+    'Many files': 'Attachments are chips, on one line however many',
+    'Nothing moves while you choose': 'Other sessions working never move or change your pick',
+    'Started from the list, the app asks to confirm': 'Claude asks to trust the folder: the notch says so',
+    'A file dragged onto a reply': 'Files attach to a reply the same way',
+    'Your words: you said': 'Your own words read \u201cYou said\u201d, unless you asked',
+    'Your words: you asked': 'A question reads \u201cYou asked\u201d'
+  };
+  var ttl = document.createElement('div'); ttl.className = 'ttl'; document.getElementById('desk').appendChild(ttl);
   list.forEach(function (x, i) { setTimeout(function () {
+    ttl.textContent = TITLES[x.s[0]] || x.s[0];
     setDisplay(1); showTab(GROUPS.findIndex(function (g) { return g[0] === x.g; }));
-    run(x.b, x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0], x.s[2]);
+    var said = x.s[0].indexOf(x.g) === 0 ? x.s[0] : x.g + ': ' + x.s[0];
+    run(x.b, said, x.s[2]);
+    if (now.textContent === said) now.textContent = '';   /* a scene with no steps of its own: its title says it */
   }, 300 + i * hold); });
 
 })();

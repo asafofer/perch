@@ -114,6 +114,47 @@ import Foundation
         p.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
         #expect(p.settled(since: since).needsAttention)
     }
+    @Test func aQuestionYouSawAndLeftForAnotherSessionIsHistory() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "What broke, and where would you have wanted the red light?"
+        let at = Date().addingTimeInterval(-18 * 3600)
+        var asked = Recap.project(digest: d, git: nil, now: Date())!
+        asked.lastActive = at
+        var other = Recap.project(digest: TranscriptParser.digest(lines: lines.map { $0.replacingOccurrences(of: "\"s1\"", with: "\"s9\"") }), git: nil, now: Date())!
+        other.lastActive = Date()
+        #expect(asked.needsAttention); #expect(asked.id != other.id)
+        let seenBoth = [asked.id: at.timeIntervalSince1970, other.id: Date().timeIntervalSince1970]
+        // seen, then a later change seen in another session: you moved on
+        let moved = Project.movedOn([asked, other], seen: seenBoth)
+        #expect(!moved[0].needsAttention); #expect(moved[0].status.kind == "idle")
+        // never seen: still yours to answer
+        #expect(Project.movedOn([asked, other], seen: [other.id: Date().timeIntervalSince1970])[0].needsAttention)
+        // seen, but nothing seen since in another session
+        #expect(Project.movedOn([asked, other], seen: [asked.id: at.timeIntervalSince1970])[0].needsAttention)
+        // a request a hook reports still open never settles
+        asked.ask = Ask(id: "a", agent: "claude", tool: "Bash", input: ["command": "ls"])
+        #expect(Project.movedOn([asked, other], seen: seenBoth)[0].needsAttention)
+    }
+    @Test func aSessionAtWorkKeepsTheQuestionYouLeftAsHistory() {
+        var d = TranscriptParser.digest(lines: lines)
+        d.lastAssistantText = "What broke, and where would you have wanted the red light?"
+        let at = Date().addingTimeInterval(-3600)
+        var asked = Recap.project(digest: d, git: nil, now: Date())!
+        asked.lastActive = at
+        var working = Recap.project(digest: TranscriptParser.digest(lines: lines.map { $0.replacingOccurrences(of: "\"s1\"", with: "\"s9\"") }), git: nil, now: Date())!
+        let looked = Date().addingTimeInterval(-60)
+        working.lastActive = looked
+        let seen = [asked.id: at.timeIntervalSince1970, working.id: looked.timeIntervalSince1970]
+        #expect(!Project.movedOn([asked, working], seen: Project.lastSeen([asked, working], seen: seen, fresh: { _ in false }))[0].needsAttention)
+        // a tool call moves the session you are in past what you saw of it: what you saw still counts, so the question stays history
+        working.lastActive = Date()
+        let fresh: (Project) -> Bool = { $0.id == working.id }
+        let mid = Project.lastSeen([asked, working], seen: seen, fresh: fresh)
+        #expect(mid[working.id] == looked.timeIntervalSince1970)
+        #expect(!Project.movedOn([asked, working], seen: mid)[0].needsAttention)
+        // seen but not marked yet (in front of you in the Claude app): its last change counts
+        #expect(Project.lastSeen([working], seen: [:], fresh: { _ in false })[working.id] == working.lastActive!.timeIntervalSince1970)
+    }
     @Test func aNumberInASentenceIsNotAList() {
         #expect(Recap.outcome("My recommendation is to start with item 1. It's cheap and quick.") == "My recommendation is to start with item 1. It's cheap and quick.")
         #expect(Recap.outcome("Done.\n1. Fixed the hero spacing\n2. Cut the video") == "Fixed the hero spacing. Cut the video.")
@@ -143,7 +184,7 @@ import Foundation
         ])
         #expect(d.step == nil); #expect(d.narration == nil)
         let p = Recap.project(digest: { var x = d; x.cwd = "/Users/a/site"; return x }(), git: nil, now: Date(), quietFor: 5)!
-        #expect(p.context == "You asked: “now the list please”")
+        #expect(p.context == "You said: “now the list please”")
     }
     @Test func stepsReadAsWhatItIsDoing() {
         #expect(Activity.step(tool: "Edit", input: ["file_path": "/a/b/app.js"]) == "Editing app.js")
@@ -336,7 +377,7 @@ import Foundation
     }
     @Test func withNoOutcomeTheCardFallsBackToYourAsk() {
         let p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: Date())!   // "Done. Want a table next?"
-        #expect(p.context == "You asked: “make the sign centred”")
+        #expect(p.context == "You said: “make the sign centred”")
     }
     @Test func theAgentNarratingItsOwnPlanIsNotYourNextStep() {
         var d = TranscriptParser.digest(lines: lines)

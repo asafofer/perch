@@ -1,0 +1,813 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perch Motion</title>
+<link rel="stylesheet" href="dist/ui.css">
+<style>
+/* Before and after for each motion fix from the transitions.dev review. "Before" copies Perch's numbers as they are in
+   app.js and input.css; "After" is the transitions.dev recipe, at its own values. Both sides run on one clock. */
+:root{--pg-bg:#F2F3F1;--pg-fg:#141816;--pg-muted:#5E6762;--pg-line:#D8DDD9;--pg-card:#FAFBFA;--pg-chip:#E6E9E7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;--pg-chip:#1D2320;color-scheme:dark}}
+:root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;--pg-chip:#1D2320;color-scheme:dark}
+html,body{overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;background:var(--pg-bg)!important;color:var(--pg-fg);margin:0;cursor:auto}
+body{font-family:Inter,-apple-system,system-ui,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:28px 16px 72px;display:flex;flex-direction:column;gap:34px}
+h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
+.sub{margin:8px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:70ch}
+.bar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 0;background:var(--pg-bg)}
+.seg{display:inline-flex;padding:2px;border-radius:8px;background:var(--pg-chip)}
+.seg button,.btn{font:500 12.5px/1 Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--pg-card);box-shadow:0 0 0 1px var(--pg-line)}
+.btn{background:var(--pg-chip)}
+.btn:hover{background:var(--pg-line)}
+.lbl{font-size:12.5px;color:var(--pg-muted)}
+section{display:flex;flex-direction:column;gap:10px}
+.head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2{font:600 15px/1.25 Inter,sans-serif;letter-spacing:-.01em;margin:0}
+.where{font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--pg-muted)}
+.head .btn{margin-left:auto;padding:5px 9px}
+.why{margin:0;font-size:13.5px;line-height:1.55;color:var(--pg-muted);max-width:76ch}
+.why b{color:var(--pg-fg);font-weight:600}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.pair{grid-template-columns:1fr}}
+.side{display:flex;flex-direction:column;gap:6px;min-width:0}
+.side .tag{font-size:12px;font-weight:500;color:var(--pg-muted)}
+.side .tag i{font-style:normal;color:var(--pg-fg)}
+/* a piece of desktop: the notch hangs from the top of it */
+.stage{position:relative;height:var(--h,150px);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);
+  background:#0b0d14 url(wallpapers/blue-distortion-1.webp) center 12%/cover no-repeat;display:flex;justify-content:center;align-items:flex-start}
+.stage.red{background-image:url(wallpapers/red-distortion-1.webp)}
+.stage.chroma{background-image:url(wallpapers/chromatic-dark-1.webp)}
+.skip{font-size:13px;color:var(--pg-muted);line-height:1.6;margin:0;padding-left:18px}
+
+/* ---- Perch's own look, by hand (the page does not load app.js) ---- */
+.pc{--fg:#fafafa;--mut:#a1a1aa;--acc:#1c1c1f;width:min(372px,calc(100% - 20px));background:#000;color:var(--fg);border-radius:0 0 22px 22px;
+  padding:8px 0 8px;font:13px/18px Inter,sans-serif;letter-spacing:-.005em;box-shadow:0 10px 30px rgba(0,0,0,.35);-webkit-font-smoothing:antialiased;position:relative}
+.pc .mut{color:var(--mut)}
+.row{display:flex;height:36px;align-items:center;gap:8px;padding:0 6px;margin:0 8px;border-radius:6px;font-size:14px}
+.row .nm{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .tm{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.row .rt{display:flex;align-items:center;gap:8px;flex:none;max-width:38%}
+.row .tp{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk{display:grid;width:16px;height:16px;place-items:center;flex:none}
+.rk > *,.ai > *{grid-area:1/1}
+.app{width:20px;height:20px;border-radius:5px;flex:none;background:#27272a;display:block}
+.app.big{width:34px;height:34px;border-radius:8px}
+.sec{padding:6px 16px 3px;font-size:11.5px;line-height:16px;font-weight:500;color:rgba(161,161,170,.8)}
+.ct{display:flex;align-items:center;gap:11px;padding:4px 16px 0}
+.ct .nm{font-size:14px;font-weight:600;line-height:19px;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct .sb{display:flex;align-items:baseline;gap:8px;min-width:0}
+.ct .sb p{margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--mut)}
+.st{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;flex:none}
+.st .ic{display:inline-grid;place-items:center}
+.st .ic > *{grid-area:1/1}
+/* after: the words, not the spinner, set the line the status sits on, so nothing beside it moves; the spinner's room opens and closes with it */
+.after .st{gap:0}
+.after .st .t-text-swap{align-self:baseline}
+.after .st .ic{width:0;margin-right:0;justify-items:end;transition:width var(--icon-swap-dur) var(--icon-swap-ease),margin-right var(--icon-swap-dur) var(--icon-swap-ease)}
+.after .st .ic.has{width:12px;margin-right:6px}
+.body{margin:10px 16px 0;font-size:13px;line-height:18px}
+.ft{position:relative;height:36px;margin-top:8px;padding:0 10px}
+.ft > div{display:flex;height:36px;align-items:center;gap:2px}
+.b{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg);white-space:nowrap}
+.b.d{background:#fafafa;color:#0a0a0a}
+.k{display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 3px;border-radius:4px;font-size:10.5px;background:rgba(255,255,255,.1);color:var(--mut)}
+.b.d .k{background:rgba(0,0,0,.08);color:#52525b}
+.in{flex:1;min-width:0;height:28px;border-radius:6px;background:rgba(255,255,255,.1);display:flex;align-items:center;padding:0 9px;color:var(--mut);font-size:13px}
+.gear{position:absolute;right:10px;top:7px;width:18px;height:18px;border-radius:6px;display:grid;place-items:center;color:var(--mut);cursor:pointer;z-index:2}
+.srow{display:flex;height:30px;align-items:center;gap:8px;padding:0 16px;font-size:13px}
+.srow > span:first-child{flex:1}
+.pw{display:flex;align-items:center;gap:6px;font-size:12px;flex:none}
+
+/* the passing light on a starting row: input.css .shimmer, as it is */
+.shimmer{position:relative;color:rgba(161,161,170,.75)!important}
+.shimmer > .shine{position:absolute;inset:0;color:#fff;white-space:nowrap;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 32%,#000 50%,transparent 68%);mask-image:linear-gradient(90deg,transparent 32%,#000 50%,transparent 68%);
+  -webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-repeat:repeat-x;mask-repeat:repeat-x;animation:shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite}
+@keyframes shimmer{from{-webkit-mask-position:113.4% 0;mask-position:113.4% 0}to{-webkit-mask-position:-53.3% 0;mask-position:-53.3% 0}}
+
+/* ---- transitions.dev recipes, at their own values ---- */
+:root{
+  --icon-swap-dur:250ms;--icon-swap-blur:2px;--icon-swap-start-scale:.25;--icon-swap-ease:ease-in-out;
+  --text-swap-dur:150ms;--text-swap-translate-y:4px;--text-swap-blur:2px;--text-swap-ease:ease-in-out;
+  --text-morph-dur:180ms;--text-morph-resize-dur:240ms;--text-morph-blur:2px;--text-morph-ease:cubic-bezier(.22,1,.36,1);
+  --text-soft-dur:200ms;--text-soft-blur:2px;--text-soft-ease:ease-in-out;--text-soft-resize-dur:240ms;--text-soft-resize-ease:cubic-bezier(.22,1,.36,1);
+  --acc-collapse:250ms;--acc-ease:cubic-bezier(.22,1,.36,1);
+  --toggle-dur:350ms;--toggle-travel:10px;--toggle-ov1:1px;--toggle-ov2:0px;--toggle-ease:cubic-bezier(.34,1.35,.64,1);
+}
+/* icon swap (09): every icon in one grid cell; the one showing is sharp, the rest small and blurred */
+.t-icon{transition:opacity var(--icon-swap-dur) var(--icon-swap-ease),filter var(--icon-swap-dur) var(--icon-swap-ease),transform var(--icon-swap-dur) var(--icon-swap-ease);
+  opacity:0;filter:blur(var(--icon-swap-blur));transform:scale(var(--icon-swap-start-scale));display:grid}
+.t-icon.on{opacity:1;filter:blur(0);transform:scale(1)}
+/* text states swap (04) */
+.t-text-swap{display:inline-block;transform:translateY(0);filter:blur(0);opacity:1;
+  transition:transform var(--text-swap-dur) var(--text-swap-ease),filter var(--text-swap-dur) var(--text-swap-ease),opacity var(--text-swap-dur) var(--text-swap-ease),color var(--text-swap-dur) var(--text-swap-ease)}
+.t-text-swap.is-exit{transform:translateY(calc(var(--text-swap-translate-y) * -1));filter:blur(var(--text-swap-blur));opacity:0}
+.t-text-swap.is-enter-start{transform:translateY(var(--text-swap-translate-y));filter:blur(var(--text-swap-blur));opacity:0;transition:none}
+/* text morph (33) */
+.t-morph{white-space:nowrap;transition:color var(--text-morph-dur) var(--text-morph-ease)}
+.t-morph-swap{display:inline-grid;vertical-align:bottom;justify-items:start;transition:width var(--text-morph-resize-dur) var(--text-morph-ease)}
+.t-morph-swap > span{grid-area:1/1;white-space:pre;transition:opacity var(--text-morph-dur) var(--text-morph-ease),filter var(--text-morph-dur) var(--text-morph-ease)}
+.t-morph-new{opacity:0;filter:blur(var(--text-morph-blur))}
+.t-morph-swap.is-morphing .t-morph-old{opacity:0;filter:blur(var(--text-morph-blur))}
+.t-morph-swap.is-morphing .t-morph-new{opacity:1;filter:blur(0)}
+/* text swap soft (34); a wrapping block keeps its wrap and lets go of the width */
+.t-text-soft{display:inline-grid;grid-template-columns:minmax(0,1fr);justify-items:var(--text-soft-align,start);transition:width var(--text-soft-resize-dur) var(--text-soft-resize-ease)}
+.t-text-soft.blk{display:grid}
+/* a value aligned to the right, like the card's status, keeps its right edge (the recipe's --text-soft-align: end) */
+.st .t-text-soft{--text-soft-align:end}
+.t-text-soft > span{grid-area:1/1;white-space:pre;transition:filter var(--text-soft-dur) var(--text-soft-ease),opacity var(--text-soft-dur) var(--text-soft-ease)}
+.t-text-soft.blk > span{white-space:normal}
+.t-text-soft-new{opacity:0;filter:blur(var(--text-soft-blur))}
+.t-text-soft.is-swapping .t-text-soft-old{opacity:0;filter:blur(var(--text-soft-blur))}
+.t-text-soft.is-swapping .t-text-soft-new{opacity:1;filter:blur(0)}
+/* accordion (21), the panel only */
+.t-acc-panel{display:grid;grid-template-rows:1fr;transition:grid-template-rows var(--acc-collapse) var(--acc-ease)}
+.t-acc-panel-inner{overflow:hidden;min-height:0;transition:opacity var(--acc-collapse) var(--acc-ease),filter var(--acc-collapse) var(--acc-ease)}
+.t-acc.shut .t-acc-panel{grid-template-rows:0fr}
+.t-acc.shut .t-acc-panel-inner{opacity:0;filter:blur(2px)}
+.t-acc.snap .t-acc-panel,.t-acc.snap .t-acc-panel-inner{transition:none}
+
+/* ---- 7: the panes. Before is input.css as it is (transition: all); after names what moves ---- */
+.pane{position:absolute;left:0;right:0;top:0;width:auto;opacity:0;pointer-events:none;transition:opacity .15s}
+.pn[data-s=a] .pa,.pn[data-s=b] .pb{opacity:1;pointer-events:auto;transition:opacity .22s .12s}
+.pn{position:relative;height:138px}
+.pn .pane{padding-top:18px}
+.pn .gear:hover,.pn .gear.hv{background:#27272a;color:#fafafa}
+.cur{position:absolute;z-index:5;right:-6px;top:58px;pointer-events:none;transition:right .38s cubic-bezier(.3,.7,.4,1),top .38s cubic-bezier(.3,.7,.4,1)}
+.cur.on{right:13px;top:35px}
+.before .rv{opacity:0;transform:translateY(5px);filter:blur(3px);transition:all .12s}
+.before .pn[data-s=a] .pa .rv,.before .pn[data-s=b] .pb .rv{opacity:1;transform:none;filter:none;transition:all .4s cubic-bezier(.2,.9,.3,1);transition-delay:calc(.08s + var(--i,0) * .045s)}
+.after .rv{opacity:0;transform:translateY(5px);filter:blur(3px);transition:opacity .12s,transform .12s,filter .12s,background-color .15s,color .15s}
+.after .pn[data-s=a] .pa .rv,.after .pn[data-s=b] .pb .rv{opacity:1;transform:none;filter:none;
+  transition:opacity .4s cubic-bezier(.2,.9,.3,1),transform .4s cubic-bezier(.2,.9,.3,1),filter .4s cubic-bezier(.2,.9,.3,1),background-color .15s,color .15s;
+  transition-delay:calc(.08s + var(--i,0) * .045s),calc(.08s + var(--i,0) * .045s),calc(.08s + var(--i,0) * .045s),0s,0s}
+
+/* ---- 8: the switch. Before is input.css .sw; after the toggle (27) with Perch's 10 px of travel ---- */
+.sw{position:relative;width:26px;height:16px;flex:none;border-radius:999px;background:rgba(255,255,255,.2);cursor:pointer}
+.sw[aria-checked="true"]{background:#8DC8E8}
+.sw > i{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:999px;background:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.28),0 1px 2px rgba(0,0,0,.3)}
+.before .sw{transition:background-color .2s}
+.before .sw > i{transition:left .2s cubic-bezier(.3,1.3,.5,1)}
+.before .sw[aria-checked="true"] > i{left:12px}
+/* Perch's own .sw now moves the knob with translate (and a settle on .is-init): the Before side is the old left-based switch alone */
+.before .sw > i,.before .sw[aria-checked="true"] > i{translate:0 0;animation:none}
+.after .sw,.after .sw > i{transition:none}
+.after .sw > i,.after .sw[aria-checked="true"] > i{left:2px;translate:0 0}
+.after .sw[aria-checked="true"] > i{translate:var(--toggle-travel) 0}
+.after .sw.is-init[aria-checked="true"] > i{animation:t-toggle-on var(--toggle-dur) var(--toggle-ease) both}
+.after .sw.is-init[aria-checked="false"] > i{animation:t-toggle-off var(--toggle-dur) var(--toggle-ease) both}
+@keyframes t-toggle-on{0%{translate:0 0}55%{translate:calc(var(--toggle-travel) + var(--toggle-ov1)) 0}80%{translate:calc(var(--toggle-travel) - var(--toggle-ov2)) 0}100%{translate:var(--toggle-travel) 0}}
+@keyframes t-toggle-off{0%{translate:var(--toggle-travel) 0}55%{translate:calc(0px - var(--toggle-ov1)) 0}80%{translate:var(--toggle-ov2) 0}100%{translate:0 0}}
+
+@media (prefers-reduced-motion: reduce){
+  .t-icon,.t-text-swap,.t-morph-swap,.t-morph-swap > span,.t-text-soft,.t-text-soft > span,.t-acc-panel,.t-acc-panel-inner{transition:none!important}
+  .after .sw > i{animation:none!important}
+  .shimmer > .shine{display:none}
+}
+
+/* ---- the second pass: 9 to 14 ---- */
+.newhd{display:flex;flex-direction:column;gap:6px;padding-top:10px}
+.newhd h2{font-size:18px}
+.fresh{font:600 10.5px/1 Inter,sans-serif;letter-spacing:.02em;text-transform:uppercase;color:#0b6b3a;background:#d5f2e1;border-radius:4px;padding:3px 5px;vertical-align:2px;margin-left:6px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fresh{color:#8CCFA4;background:#16301f}}
+/* 9: a Settings menu, as Perch draws it */
+.trig{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 4px 0 6px;border-radius:6px;color:var(--mut);transition:background-color .15s}
+.trig.open{background:rgba(255,255,255,.08)}
+.trig .faces{display:flex;gap:3px}
+.trig .faces img{width:14px;height:14px;border-radius:4px}
+.menu{position:absolute;right:12px;top:calc(100% + 2px);z-index:4;width:196px;flex-direction:column;gap:1px;padding:4px;border-radius:8px;background:#1c1c1f;
+  box-shadow:0 12px 32px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08)}
+.before .menu{display:none}
+.before .menu.open{display:flex}
+.after .menu{display:flex}
+.mi{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:6px;font-size:13px}
+.mi:first-child{background:rgba(255,255,255,.08)}
+.mi img{width:16px;height:16px;border-radius:4px}
+.mi span{flex:1}
+.srow.anch{position:relative}
+:root{--dropdown-open-dur:250ms;--dropdown-close-dur:150ms;--dropdown-pre-scale:.97;--dropdown-closing-scale:.99;--dropdown-ease:cubic-bezier(.22,1,.36,1)}
+.t-dropdown{transform-origin:top right;transform:scale(var(--dropdown-pre-scale));opacity:0;pointer-events:none;
+  transition:transform var(--dropdown-open-dur) var(--dropdown-ease),opacity var(--dropdown-open-dur) var(--dropdown-ease)}
+.t-dropdown.is-open{transform:scale(1);opacity:1;pointer-events:auto}
+.t-dropdown.is-closing{transform:scale(var(--dropdown-closing-scale));opacity:0;pointer-events:none;
+  transition:transform var(--dropdown-close-dur) var(--dropdown-ease),opacity var(--dropdown-close-dur) var(--dropdown-ease)}
+/* 10: the new-session steps */
+.nwbox{position:relative;height:150px;overflow:hidden}
+.nwpage{position:absolute;inset:0}
+.nwh{display:flex;align-items:center;gap:6px;height:36px;padding:0 16px}
+.nwh .q{flex:1;min-width:0;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden}
+.nwh .r{font-size:12px;color:var(--mut)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 6px;border-radius:6px;background:rgba(255,255,255,.07);font-size:12.5px;font-weight:500}
+.chip img{width:14px;height:14px;border-radius:4px}
+.sep{color:var(--mut);font-size:12px}
+.nwrow{display:flex;align-items:center;gap:8px;height:34px;margin:0 8px;padding:0 6px;border-radius:6px;font-size:14px}
+.nwrow.on{background:#1b1b1d}
+.nwrow .k{margin-left:auto}
+.ta{margin:4px 10px 0;height:68px;border-radius:8px;background:rgba(255,255,255,.1);padding:7px 10px;color:var(--fg);font-size:13px;line-height:19px}
+.ta i{display:inline-block;width:1.5px;height:15px;background:currentColor;vertical-align:-3px;margin-left:1px}
+.nwft{display:flex;justify-content:flex-end;gap:4px;padding:6px 10px 0}
+/* 11, 12: a question */
+.opt{display:flex;align-items:center;gap:10px;margin:0 8px;padding:3px 8px;border-radius:8px;font-size:13px;line-height:16px;transition:background-color .15s}
+.opt.on{background:rgba(255,255,255,.1)}
+.opt .lab{flex:1;min-width:0}
+.opt .note{display:block;font-size:11.5px;line-height:14px;color:var(--mut)}
+.opt .ck{display:grid;place-items:center;flex:none;color:transparent}
+.before .opt.on .ck{color:#8CCFA4}
+.after .opt .ck{color:#8CCFA4}
+.qh{margin:8px 16px 6px;font-size:13px;line-height:18px}
+:root{--check-draw:350ms;--check-uncheck:150ms;--check-ease:cubic-bezier(.22,1,.36,1)}
+.t-check svg path{stroke-dasharray:var(--check-len,24);stroke-dashoffset:var(--check-len,24);transition:stroke-dashoffset var(--check-uncheck) var(--check-ease)}
+.t-check[aria-checked="true"] svg path{stroke-dashoffset:0;transition:stroke-dashoffset var(--check-draw) var(--check-ease)}
+/* 13: the chosen row in the list */
+.lst{position:relative}
+.lst .row{position:relative;z-index:1}
+.before .lst .row{transition:background-color .2s}
+.before .lst .row.sel{background:#1b1b1d;transition-duration:.13s}
+.pill{position:absolute;left:8px;right:8px;top:0;height:36px;border-radius:6px;background:#1b1b1d;transition:transform 250ms cubic-bezier(.22,1,.36,1)}
+.before .pill{display:none}
+/* 14: the list sorting itself again */
+.ord{position:relative}
+@media (prefers-reduced-motion: reduce){
+  .t-dropdown,.t-check svg path,.pill{transition:none!important}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Motion, before and after</h1>
+    <p class="sub"><b>Left:</b> Perch today. <b>Right:</b> the same moment using the transitions.dev version. Each pair plays on a loop. Set the speed to &frac14;&times; to see the difference clearly.</p>
+  </header>
+  <div class="bar">
+    <span class="lbl">Speed</span>
+    <span class="seg" id="speed"><button data-v="1" aria-pressed="true">1&times;</button><button data-v=".5">&frac12;&times;</button><button data-v=".25">&frac14;&times;</button></span>
+    <button class="btn" id="all">Replay all</button>
+  </div>
+  <main id="fixes" style="display:flex;flex-direction:column;gap:34px"></main>
+  <section>
+    <h2>Left as they are</h2>
+    <ul class="skip">
+      <li>The starting row's passing light (<code>.shimmer</code>) already works like the shimmer-text recipe.</li>
+      <li>The character, the notch's shape and the glow have no match in the library. That motion is Perch's own.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ---------- the clock: one speed for timers and for every animation on the page ---------- */
+  var SPEED = 1, loops = [];
+  function wait(fn, ms) { return setTimeout(fn, ms / SPEED); }
+  (function rate() {
+    if (document.getAnimations) document.getAnimations().forEach(function (a) { if (a.playbackRate !== SPEED) a.playbackRate = SPEED; });
+    requestAnimationFrame(rate);
+  })();
+  function reflow(el) { void el.offsetWidth; }
+
+  /* ---------- Perch's marks, as app.js draws them ---------- */
+  var C = { attention: '#E9A877', done: '#8CCFA4', running: '#8DC8E8' };
+  function glow(c) { return 'filter:drop-shadow(0 0 1px ' + c + '80) drop-shadow(0 0 3.5px ' + c + '4d)'; }
+  function Spinner(px) { return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="3.5" stroke-linecap="round" style="' + glow(C.running) + '"><path d="M12 3a9 9 0 1 1-9 9"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>'; }
+  var RING = { done: '<path d="M8 12.3l2.7 2.7L16.2 9.4"/>', question: '<path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 16.6h.01" stroke-width="3"/>',
+    permission: '<path d="M8 9.4l2.6 2.6L8 14.6"/><path d="M12.6 15h3.6"/>', need: '<path d="M12 7.6v5"/><path d="M12 16.4h.01" stroke-width="3"/>' };
+  function Ring(k, px) { var c = k === 'done' ? C.done : C.attention; return '<svg width="' + (px || 16) + '" height="' + (px || 16) + '" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"><circle cx="12" cy="12" r="9.5"/>' + RING[k] + '</svg>'; }
+  var PLANE = '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>';
+  function Plane(px) { return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" fill="none" stroke="' + C.running + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(C.running) + '">' + PLANE + '</svg>'; }
+  var GEAR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+  /* the real app icons when the design page's local copy is there, a plain tile otherwise */
+  function App(a, big) { return '<img class="app' + (big ? ' big' : '') + '" data-app="' + a + '" alt="">'; }
+  var ICONS = {};
+  fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (o) { ICONS = o || {}; paintIcons(); }).catch(function () {});
+  function paintIcons() { document.querySelectorAll('img.app[data-app]').forEach(function (im) { if (ICONS[im.dataset.app] && im.src !== ICONS[im.dataset.app]) im.src = ICONS[im.dataset.app]; }); }
+  new MutationObserver(paintIcons).observe(document.documentElement, { childList: true, subtree: true });
+  function Btn(label, key, def) { return '<span class="b' + (def ? ' d' : '') + '">' + label + (key ? ' <span class="k">' + key + '</span>' : '') + '</span>'; }
+
+  /* ---------- the recipes' orchestration (transitions.dev), adapted to these pieces ---------- */
+  /* icon swap: the new icon joins the cell small and blurred, then sharpens while the old one goes */
+  function iconSwap(slot, html) {
+    var old = slot.querySelector('.t-icon.on');
+    if (old && old.dataset.h === html) return;
+    if (old) { old.classList.remove('on'); wait(function () { old.remove(); }, 300); }
+    if (!html) return;
+    var n = document.createElement('span'); n.className = 't-icon'; n.dataset.h = html; n.innerHTML = html;
+    slot.appendChild(n); reflow(n); n.classList.add('on');
+  }
+  /* text states swap: out up, then in from below */
+  function swapText(el, text, color) {
+    if (el.dataset.t === text) return;
+    el.dataset.t = text; el.classList.add('is-exit');
+    clearTimeout(el._t);
+    el._t = wait(function () {
+      el.textContent = text; el.style.color = color || '';
+      el.classList.remove('is-exit'); el.classList.add('is-enter-start'); reflow(el); el.classList.remove('is-enter-start');
+    }, 150);
+  }
+  /* text morph: shared letters stay; the rest cross-blurs while its width eases */
+  function morphText(el, next) {
+    var prev = el.dataset.text != null ? el.dataset.text : el.textContent;
+    if (prev === next) return;
+    el.dataset.text = next; clearTimeout(el._m);
+    var a = 0; while (a < prev.length && a < next.length && prev[a] === next[a]) a++;
+    var b = 0; while (b < prev.length - a && b < next.length - a && prev[prev.length - 1 - b] === next[next.length - 1 - b]) b++;
+    var swap = document.createElement('span'); swap.className = 't-morph-swap';
+    var out = document.createElement('span'); out.className = 't-morph-old'; out.textContent = prev.slice(a, prev.length - b);
+    var inn = document.createElement('span'); inn.className = 't-morph-new'; inn.textContent = next.slice(a, next.length - b);
+    swap.append(out, inn); el.textContent = ''; el.append(next.slice(0, a), swap, next.slice(next.length - b));
+    swap.style.width = out.getBoundingClientRect().width + 'px'; reflow(swap);
+    swap.classList.add('is-morphing'); swap.style.width = inn.getBoundingClientRect().width + 'px';
+    el._m = wait(function () { el.textContent = next; }, 280);
+  }
+  /* text swap soft: old and new cross-blur together in one place */
+  function softSwap(el, next, block) {
+    var prev = el.dataset.text != null ? el.dataset.text : el.textContent;
+    if (prev === next) return;
+    el.dataset.text = next; clearTimeout(el._s);
+    var out = document.createElement('span'); out.className = 't-text-soft-old'; out.textContent = prev;
+    var inn = document.createElement('span'); inn.className = 't-text-soft-new'; inn.textContent = next;
+    var w0 = el.getBoundingClientRect().width;
+    el.classList.remove('is-swapping'); el.replaceChildren(out, inn);
+    if (!block) { var w1 = inn.getBoundingClientRect().width; el.style.width = w0 + 'px'; reflow(el); el.classList.add('is-swapping'); el.style.width = w1 + 'px'; }
+    else { reflow(el); el.classList.add('is-swapping'); }
+    el._s = wait(function () { el.classList.remove('is-swapping'); el.style.removeProperty('width'); el.textContent = next; }, 280);
+  }
+
+  /* ---------- the fixes ---------- */
+  var FIX = [];
+
+  /* 1. the card's status, top right of the card */
+  var ST = [
+    { t: 'Working', c: C.running, spin: true },
+    { t: 'Finished', c: C.done },
+    { t: 'Needs your OK', c: C.attention }
+  ];
+  function cardTop(inner) {
+    return '<div class="pc"><div class="ct">' + App('claude', true) + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">' +
+      '<span class="nm">Fix the flaky login test</span><div class="sb"><p>perch &middot; auth tests</p>' + inner + '</div></div></div>' +
+      '<p class="body">Found the race: the session cookie is read before the redirect lands.</p></div>';
+  }
+  FIX.push({
+    n: 1, title: 'The card’s status', where: 'app.js:615 status()', h: 130,
+    why: 'When a session finishes, the words at the top right of the card change, for example from Working to Finished. <b>Today</b> they change instantly and the spinner just disappears. <b>After:</b> the old word slides up and fades, the new one slides in from below, and the spinner shrinks away.',
+    rec: 'text-states-swap + icon-swap',
+    steps: [0, 1, 2], hold: 1600,
+    before: {
+      html: cardTop('<span class="st"></span>'),
+      go: function (el, i) { var s = ST[i]; el.querySelector('.st').innerHTML = (s.spin ? Spinner(12) : '') + '<span style="color:' + s.c + '">' + s.t + '</span>'; }
+    },
+    after: {
+      html: cardTop('<span class="st"><span class="ic"></span><span class="t-text-swap"></span></span>'),
+      go: function (el, i, first) {
+        var s = ST[i], w = el.querySelector('.t-text-swap');
+        var ic = el.querySelector('.ic');
+        ic.classList.toggle('has', !!s.spin); iconSwap(ic, s.spin ? Spinner(12) : '');
+        if (first) { w.textContent = s.t; w.dataset.t = s.t; w.style.color = s.c; } else swapText(w, s.t, s.c);
+      }
+    }
+  });
+
+  /* 2. a row's mark in the list */
+  var MK = [function () { return Spinner(14); }, function () { return Ring('done'); }, function () { return Ring('question'); }];
+  function listHtml() {
+    return '<div class="pc"><div class="sec">Today</div>' +
+      '<div class="row">' + App('claude') + '<span class="nm">Fix the flaky login test</span><span class="tm">2m</span><span class="rt"><span class="rk m"></span><span class="tp">perch</span></span></div>' +
+      '<div class="row">' + App('codex') + '<span class="nm">Move settings to SQLite</span><span class="tm">18m</span><span class="rt"><span class="rk">' + Ring('done') + '</span><span class="tp">ledger</span></span></div>' +
+      '<div class="row">' + App('claude') + '<span class="nm">Draft the release notes</span><span class="tm">1h</span><span class="rt"><span class="rk"></span><span class="tp">perch</span></span></div></div>';
+  }
+  FIX.push({
+    n: 2, title: 'A row’s mark in the list', where: 'app.js:847 rowMark()', h: 150,
+    why: 'Each row in the list has a small icon on the right: a spinner while the session works, a check when it is done, a question mark when it asks you something. <b>Today</b> the icon switches instantly. <b>After:</b> the old icon shrinks and blurs away while the new one grows in its place.',
+    rec: 'icon-swap',
+    steps: [0, 1, 2], hold: 1500,
+    before: { html: listHtml(), go: function (el, i) { el.querySelector('.rk.m').innerHTML = MK[i](); } },
+    after: { html: listHtml(), go: function (el, i) { iconSwap(el.querySelector('.rk.m'), MK[i]()); } }
+  });
+
+  /* 3. the card's footer: its buttons and the reply field take turns */
+  function footHtml() {
+    return '<div class="pc"><div class="ct">' + App('claude', true) + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span class="nm">Fix the flaky login test</span><div class="sb"><p>perch &middot; auth tests</p><span class="st" style="color:' + C.done + '">Finished</span></div></div></div>' +
+      '<div class="ft"><div class="f-main">' + Btn('All sessions', '←') + '<span style="flex:1"></span>' + Btn('Reply', 'R') + Btn('Pick up', '↵', true) + '</div>' +
+      '<div class="f-rep" style="display:none"><span class="k" style="margin:0 2px">esc</span><span class="in">Reply to Claude…</span>' + Btn('Send', '↵', true) + '</div></div></div>';
+  }
+  FIX.push({
+    n: 3, title: 'The card’s footer: buttons ↔ reply field', where: 'app.js:333 footer()', h: 120,
+    why: 'When you press Reply, the buttons at the bottom of the card make way for the text field. Both sides already animate. <b>After</b> is a little quicker and crisper. A small difference: either is fine.',
+    rec: 'text-states-swap',
+    steps: [0, 1], hold: 1700,
+    before: {
+      html: footHtml(),
+      go: function (el, i, first) {
+        var fs = [el.querySelector('.f-main'), el.querySelector('.f-rep')], now = fs[i], was = fs[1 - i];
+        if (first) { now.style.display = 'flex'; was.style.display = 'none'; return; }
+        was.style.position = 'absolute'; was.style.left = was.style.right = '10px'; was.style.top = '0';
+        var out = was.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 150, easing: 'cubic-bezier(.4,0,1,1)' });
+        out.onfinish = function () { was.style.display = 'none'; was.style.position = was.style.left = was.style.right = was.style.top = ''; };
+        now.style.display = 'flex';
+        now.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 70, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      }
+    },
+    after: {
+      html: footHtml(),
+      go: function (el, i, first) {
+        var fs = [el.querySelector('.f-main'), el.querySelector('.f-rep')], now = fs[i], was = fs[1 - i];
+        if (first) { now.style.display = 'flex'; was.style.display = 'none'; return; }
+        var ease = 'ease-in-out', blur = 'blur(2px)';
+        was.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-4px)', filter: blur }], { duration: 150, easing: ease, fill: 'forwards' })
+          .onfinish = function (e) { was.style.display = 'none'; e.target.cancel(); now.style.display = 'flex';
+            now.animate([{ opacity: 0, transform: 'translateY(4px)', filter: blur }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 150, easing: ease }); };
+      }
+    }
+  });
+
+  /* 4. a new session's row: Starting... then Started (or Didn't start) */
+  function pendRow() {
+    return '<div class="pc"><div class="sec">Today</div><div class="row p">' + App('claude') + '<span class="nm shimmer">Add a dark mode to Settings<span class="shine">Add a dark mode to Settings</span></span>' +
+      '<span class="pw"></span></div>' +
+      '<div class="row">' + App('codex') + '<span class="nm">Move settings to SQLite</span><span class="tm">18m</span><span class="rt"><span class="rk">' + Ring('done') + '</span><span class="tp">ledger</span></span></div></div>';
+  }
+  var PEND = [
+    { k: 'starting', t: 'Starting…' }, { k: 'started', t: 'Started' },
+    { k: 'starting', t: 'Starting…' }, { k: 'failed', t: 'Didn’t start' }
+  ];
+  function pendMark(k) { return k === 'started' ? Plane(13) : k === 'failed' ? Ring('need', 13) : ''; }
+  function pendColor(k) { return k === 'started' ? 'rgba(250,250,250,.9)' : k === 'failed' ? C.attention : '#a1a1aa'; }
+  /* the mark arrives as Perch's does (pendIn): the plane flies in from below left, a failure's ring pops. Both sides keep it. */
+  function markIn(mark, k) {
+    if (!mark) return;
+    if (k === 'failed') mark.animate([{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1.18)', offset: .6 }, { opacity: 1, transform: 'none' }], { duration: 420, delay: 60, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+    else mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 60, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+  }
+  function shimmerOn(el, on) { var nm = el.querySelector('.row.p .nm'); nm.classList.toggle('shimmer', on); nm.querySelector('.shine').style.display = on ? '' : 'none'; }
+  FIX.push({
+    n: 4, title: 'A new session’s row: Starting… → Started', where: 'app.js:736 pendHtml(), pendIn()', h: 110,
+    why: 'When you start a new session from the list, its row says Starting\u2026 and then Started. <b>Today</b> the whole word is replaced and slides in from the right. <b>After:</b> \u201cStart\u201d stays where it is and only the ending changes. The paper plane is the same on both sides.',
+    rec: 'text-morph',
+    steps: [0, 1, 2, 3], hold: 1500,
+    before: {
+      html: pendRow(),
+      go: function (el, i) {
+        var s = PEND[i], pw = el.querySelector('.pw');
+        shimmerOn(el, s.k === 'starting');
+        pw.innerHTML = '<span style="color:' + pendColor(s.k) + '">' + s.t + '</span>' + pendMark(s.k);
+        if (s.k === 'starting') return;
+        pw.animate([{ opacity: 0, transform: 'translateX(5px)', filter: 'blur(2px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+        markIn(pw.querySelector('svg'), s.k);
+      }
+    },
+    after: {
+      html: pendRow().replace('<span class="pw"></span>', '<span class="pw"><span class="t-morph"></span><span class="pm" style="display:inline-grid"></span></span>'),
+      go: function (el, i, first) {
+        var s = PEND[i], w = el.querySelector('.t-morph'), pm = el.querySelector('.pm');
+        shimmerOn(el, s.k === 'starting');
+        w.style.color = pendColor(s.k);
+        if (first) { w.textContent = s.t; w.dataset.text = s.t; } else morphText(w, s.t);
+        pm.innerHTML = pendMark(s.k); markIn(pm.querySelector('svg'), s.k);
+      }
+    }
+  });
+
+  /* 5. the card moves on to the next session */
+  var SES = [
+    { app: 'claude', name: 'Fix the flaky login test', sub: 'perch · auth tests', st: 'Finished', c: C.done, body: 'Found the race: the session cookie is read before the redirect lands. Tests pass ten runs in a row.' },
+    { app: 'codex', name: 'Move settings to SQLite', sub: 'ledger · storage', st: 'Needs your OK', c: C.attention, body: 'The migration is written and runs on a copy. It wants to run it on the real database next.' }
+  ];
+  function sesHtml(soft) {
+    var t = soft ? ' t-text-soft' : '';
+    return '<div class="pc"><div class="ct"><span class="ai" style="display:inline-grid"></span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">' +
+      '<span class="nm"><span class="w-n' + t + '"></span></span><div class="sb"><p><span class="w-s' + t + '"></span></p><span class="st"><span class="w-t' + t + '"></span></span></div></div></div>' +
+      '<p class="body"><span class="w-b' + (soft ? ' t-text-soft blk' : '') + '" style="display:' + (soft ? 'grid' : 'block') + '"></span></p></div>';
+  }
+  FIX.push({
+    n: 5, title: 'The card moves on to the next session', where: 'app.js:605 (Up and Down on a card)', h: 150,
+    why: 'When you press \u2193 on a card to see the next session, the card\u2019s words change. <b>Today</b> the new words just appear and fade in. <b>After:</b> the old words fade out while the new ones fade in, in the same spot, so it reads as one change.',
+    rec: 'text-swap-soft',
+    steps: [0, 1], hold: 1900,
+    before: {
+      html: sesHtml(false),
+      go: function (el, i, first) {
+        var s = SES[i], els = ['.ai', '.w-n', '.w-s', '.st', '.w-b'].map(function (q) { return el.querySelector(q); });
+        els[0].innerHTML = App(s.app, true); els[1].textContent = s.name; els[2].textContent = s.sub; els[3].innerHTML = '<span style="color:' + s.c + '">' + s.st + '</span>'; els[4].textContent = s.body;
+        if (first) return;
+        [els[1].parentNode, els[2].parentNode, els[3], els[4]].forEach(function (e, k) {
+          e.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'none' }], { duration: 280, delay: k * 30, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+        });
+      }
+    },
+    after: {
+      html: sesHtml(true),
+      go: function (el, i, first) {
+        var s = SES[i], st = el.querySelector('.w-t');
+        if (first) {
+          el.querySelector('.ai').innerHTML = '<span class="t-icon on" data-h="' + s.app + '">' + App(s.app, true) + '</span>';
+          [['.w-n', s.name], ['.w-s', s.sub], ['.w-t', s.st], ['.w-b', s.body]].forEach(function (p) { var e = el.querySelector(p[0]); e.textContent = p[1]; e.dataset.text = p[1]; });
+          st.style.color = s.c; return;
+        }
+        iconSwap(el.querySelector('.ai'), App(s.app, true));
+        softSwap(el.querySelector('.w-n'), s.name); softSwap(el.querySelector('.w-s'), s.sub); softSwap(st, s.st);
+        st.style.transition += ', color 200ms ease-in-out'; st.style.color = s.c;
+        softSwap(el.querySelector('.w-b'), s.body, true);
+      }
+    }
+  });
+
+  /* 6. a row that did not start folds away */
+  function foldHtml(acc) {
+    var top = '<div class="row">' + App('claude') + '<span class="nm">Add a dark mode to Settings</span><span class="pw" style="color:' + C.attention + '">Didn’t start' + Ring('need', 13) + '</span></div>';
+    return '<div class="pc"><div class="sec">Today</div>' + (acc ? '<div class="t-acc fo"><div class="t-acc-panel"><div class="t-acc-panel-inner">' + top + '</div></div></div>' : top.replace('class="row"', 'class="row fo"')) +
+      '<div class="row">' + App('codex') + '<span class="nm">Move settings to SQLite</span><span class="tm">18m</span><span class="rt"><span class="rk">' + Ring('done') + '</span><span class="tp">ledger</span></span></div>' +
+      '<div class="row">' + App('claude') + '<span class="nm">Draft the release notes</span><span class="tm">1h</span><span class="rt"><span class="rk"></span><span class="tp">perch</span></span></div></div>';
+  }
+  FIX.push({
+    n: 6, title: 'A row that didn’t start folds away', where: 'app.js:832 (pending → gone)', h: 150,
+    why: 'When a new session fails to start, its row disappears from the list. Both sides look almost the same. The difference is invisible: the right side is less work for the computer to draw. Low priority.',
+    rec: 'accordion',
+    steps: [0, 1], hold: 1400,
+    before: {
+      html: foldHtml(false),
+      go: function (el, i) {
+        var r = el.querySelector('.fo');
+        if (r._a) { r._a.cancel(); r._a = null; }
+        if (i) r._a = r.animate([{ height: '36px', opacity: 1 }, { height: '0px', opacity: 0, transform: 'translateY(-4px)', filter: 'blur(3px)' }], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+      }
+    },
+    after: {
+      html: foldHtml(true),
+      go: function (el, i) {
+        var a = el.querySelector('.fo');
+        if (!i) { a.classList.add('snap'); a.classList.remove('shut'); reflow(a); a.classList.remove('snap'); }
+        else a.classList.add('shut');
+      }
+    }
+  });
+
+  /* 7. from the list to a card: the panes and their staggered rise */
+  function paneHtml() {
+    return '<div class="pc"><span class="cur"><svg width="16" height="20" viewBox="0 0 16 20"><path d="M1 1v15.5l4-3.6 2.6 5.8 2.6-1.1-2.5-5.7H13z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg></span><div class="pn" data-s="b">' +
+      '<div class="pane pa"><span class="gear rv" style="--i:0">' + GEAR + '</span><div class="sec rv" style="--i:0">Today</div>' +
+        '<div class="row rv" style="--i:1">' + App('claude') + '<span class="nm">Fix the flaky login test</span><span class="tm">2m</span><span class="rt"><span class="rk">' + Ring('done') + '</span></span></div>' +
+        '<div class="row rv" style="--i:2">' + App('codex') + '<span class="nm">Move settings to SQLite</span><span class="tm">18m</span><span class="rt"><span class="rk">' + Ring('permission') + '</span></span></div></div>' +
+      '<div class="pane pb"><span class="gear rv" style="--i:0">' + GEAR + '</span><div class="ct rv" style="--i:1">' + App('claude', true) + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span class="nm">Fix the flaky login test</span><div class="sb"><p>perch &middot; auth tests</p><span class="st" style="color:' + C.done + '">Finished</span></div></div></div>' +
+        '<p class="body rv" style="--i:2">Found the race: the cookie is read before the redirect lands.</p>' +
+        '<div class="ft rv" style="--i:4"><div>' + Btn('All sessions', '←') + '<span style="flex:1"></span>' + Btn('Pick up', '↵', true) + '</div></div></div>' +
+      '</div></div>';
+  }
+  FIX.push({
+    n: 7, title: 'Hovering the gear and \u00d7 buttons', where: 'input.css:46–47 .rv', h: 150,
+    why: 'The small gear and \u00d7 buttons at the top of the card light up grey when you point at them. <b>Today</b> that grey arrives late and fades in slowly, because the rule that animates the card opening also slows down these buttons. <b>After:</b> the grey shows up right away, like any other button. The pointer in the demo moves on and off the gear: compare how quickly the grey appears.',
+    rec: 'hover colours not slowed down',
+    steps: [0, 1], hold: 1400,
+    before: { html: paneHtml(), go: function (el, i) { paneGo(el, i); } },
+    after: { html: paneHtml(), go: function (el, i) { paneGo(el, i); } }
+  });
+  /* the pointer moves onto the gear, waits, and moves away; the gear is lit only while it is there */
+  function paneGo(el, i) {
+    var g = el.querySelector('.pb .gear'), cur = el.querySelector('.cur');
+    cur.classList.toggle('on', !!i);
+    if (!i) { g.classList.remove('hv'); return; }
+    wait(function () { if (cur.classList.contains('on')) g.classList.add('hv'); }, 380);
+  }
+
+  /* 8. a switch in Settings */
+  function swHtml() {
+    return '<div class="pc" style="padding:10px 0"><div class="srow"><span>Live status</span><span class="sw" role="switch" aria-checked="false"><i></i></span></div>' +
+      '<div class="srow"><span>Open on the active window’s screen</span><span class="sw" role="switch" aria-checked="true"><i></i></span></div></div>';
+  }
+  FIX.push({
+    n: 8, title: 'A switch in Settings', where: 'input.css:204–206 .sw', h: 100,
+    why: 'The on/off switches in Settings. <b>After</b> has a bit more bounce. Optional: today\u2019s calmer switch may suit Perch better.',
+    rec: 'toggle',
+    steps: [0, 1], hold: 1200,
+    before: { html: swHtml(), go: function (el, i) { swGo(el, i, false); } },
+    after: { html: swHtml(), go: function (el, i, first) { swGo(el, i, !first); } }
+  });
+  function swGo(el, i, init) {
+    var sw = el.querySelectorAll('.sw');
+    sw[0].setAttribute('aria-checked', String(!!i)); sw[1].setAttribute('aria-checked', String(!i));
+    if (init) sw.forEach(function (s) { s.classList.add('is-init'); });
+  }
+
+  /* ======== the second pass: 9 to 14 ======== */
+  var CHEV = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  function Check(px) { return '<svg width="' + px + '" height="' + px + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'; }
+  var FOLDER = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+  var CHAT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>';
+  var EASE = 'cubic-bezier(.22,1,.36,1)';
+
+  /* 9. a Settings menu */
+  function setHtml(after) {
+    return '<div class="pc" style="padding:8px 0">' +
+      '<div class="srow"><span>Character</span><span class="mut" style="font-size:12px">Pip</span></div>' +
+      '<div class="srow anch"><span>Apps</span><span class="trig"><span class="faces">' + App('claude') + App('codex') + '</span>' + CHEV + '</span>' +
+        '<span class="menu' + (after ? ' t-dropdown' : '') + '" role="menu">' + [['claude', 'Claude', 1], ['codex', 'Codex', 1], ['opencode', 'OpenCode', 0]].map(function (m) {
+          return '<span class="mi">' + App(m[0]) + '<span>' + m[1] + '</span>' + (m[2] ? Check(12) : '') + '</span>'; }).join('') + '</span></div>' +
+      '<div class="srow"><span>Notify me about</span><span class="mut" style="font-size:12px">Everything</span></div>' +
+      '<div class="srow"><span>Show Perch on</span><span class="mut" style="font-size:12px">The mouse’s screen</span></div>' +
+      '<div class="srow"><span>Live status</span><span class="sw" role="switch" aria-checked="true"><i></i></span></div></div>';
+  }
+  FIX.push({
+    n: 9, fresh: true, title: 'Settings menus open and close', where: 'app.js:2643 appsMenu() and its two siblings', h: 200,
+    why: 'Settings has three small menus: Apps, Notify me about, and Show Perch on. <b>Today</b> they appear and vanish instantly. <b>After:</b> the menu grows out of its button as it fades in, and fades out a little faster when it closes.',
+    rec: 'menu-dropdown',
+    steps: [0, 1], hold: 1400,
+    before: { html: setHtml(false), go: function (el, i) { el.querySelector('.menu').classList.toggle('open', !!i); el.querySelector('.trig').classList.toggle('open', !!i); } },
+    after: {
+      html: setHtml(true),
+      go: function (el, i, first) {
+        var m = el.querySelector('.menu'); el.querySelector('.trig').classList.toggle('open', !!i);
+        if (first) return;
+        if (i) { m.classList.remove('is-closing'); m.classList.add('is-open'); }
+        else { m.classList.remove('is-open'); m.classList.add('is-closing'); wait(function () { m.classList.remove('is-closing'); }, 150); }
+      }
+    }
+  });
+
+  /* 10. the new-session steps */
+  function nwRow(ic, label, k, on) {
+    return '<div class="nwrow' + (on ? ' on' : '') + '">' + (ic.charAt(0) === '<' ? '<span style="width:20px;display:grid;place-items:center;color:#a1a1aa">' + ic + '</span>' : App(ic)) + '<span>' + label + '</span><span class="k">' + k + '</span></div>';
+  }
+  var NW = [
+    '<div class="nwh"><span class="q">New session</span><span class="r">Which agent?</span></div>' + nwRow('claude', 'Claude', 1, true) + nwRow('codex', 'Codex', 2) + nwRow('ghostty', 'Claude Code in Ghostty', 3),
+    '<div class="nwh"><span class="chip">' + App('claude') + 'Claude</span><span class="q" style="padding-left:2px">Which folder?</span><span class="r">Type to filter</span></div>' + nwRow(FOLDER, 'perch', 1, true) + nwRow(FOLDER, 'ledger', 2) + nwRow(CHAT, 'Let Claude choose', 3),
+    '<div class="nwh"><span class="chip">' + App('claude') + 'Claude</span><span class="sep">›</span><span class="chip"><span style="color:#a1a1aa;display:grid">' + FOLDER + '</span>perch</span></div>' +
+      '<div class="ta">Add a dark mode to Settings<i></i></div><div class="nwft">' + Btn('Back', 'esc') + Btn('Start', '↵', true) + '</div>'
+  ];
+  function nwHtml() { return '<div class="pc"><div class="nwbox"></div></div>'; }
+  FIX.push({
+    n: 10, fresh: true, title: 'The steps of a new session', where: 'app.js:938 newRender()', h: 175,
+    why: 'Starting a new session takes three steps: pick the agent, pick the folder, write what it should do. <b>Today</b> each step replaces the last one instantly. <b>After:</b> the next step slides in from the right, and going back slides in from the left, so you can feel whether you moved forward or back. (In the app the notch also changes size between steps; that stays as it is.)',
+    rec: 'page-side-by-side',
+    steps: [0, 1, 2, 1], hold: 1300,
+    before: { html: nwHtml(), go: function (el, i) { el.querySelector('.nwbox').innerHTML = '<div class="nwpage">' + NW[i] + '</div>'; } },
+    after: {
+      html: nwHtml(),
+      go: function (el, i, first) {
+        var box = el.querySelector('.nwbox'), pg = document.createElement('div');
+        pg.className = 'nwpage'; pg.innerHTML = NW[i];
+        if (first) { box.replaceChildren(pg); el._p = i; return; }
+        var dir = i > el._p ? 1 : -1, old = box.lastElementChild; el._p = i;
+        box.appendChild(pg);
+        if (old) old.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateX(' + (-8 * dir) + 'px)', filter: 'blur(3px)' }], { duration: 250, easing: EASE, fill: 'forwards' })
+          .onfinish = function () { old.remove(); };
+        pg.animate([{ opacity: 0, transform: 'translateX(' + (8 * dir) + 'px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: EASE });
+      }
+    }
+  });
+
+  /* 11, 12. a question on the card */
+  function askTop(st) {
+    return '<div class="ct">' + App('claude', true) + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px"><span class="nm">Plan the release</span>' +
+      '<div class="sb"><p>perch &middot; release</p><span class="st" style="color:' + C.attention + '">' + st + '</span></div></div></div>';
+  }
+  function opt(i, label, note, check) {
+    return '<div class="opt" data-i="' + i + '"><span class="k">' + (i + 1) + '</span><span class="lab"><span class="lt">' + label + '</span>' + (note ? '<span class="note">' + note + '</span>' : '') + '</span>' +
+      (check ? '<span class="ck' + (check === 'draw' ? ' t-check' : '') + '" aria-checked="false">' + Check(12) + '</span>' : '') + '</div>';
+  }
+  var MULTI = [['Unit tests', 'About two minutes'], ['UI snapshots', 'Needs the simulator'], ['Lint', '']];
+  function multiHtml(after) {
+    return '<div class="pc">' + askTop('Asked you something') + '<p class="qh">Which checks should run first? <span class="mut">Choose any</span></p>' +
+      MULTI.map(function (o, i) { return opt(i, o[0], o[1], after ? 'draw' : true); }).join('') + '</div>';
+  }
+  var PICKS = [[0], [0, 1], [0, 1, 2], [1, 2]];
+  function picksGo(el, i) {
+    el.querySelectorAll('.opt').forEach(function (o, k) {
+      var on = PICKS[i].indexOf(k) >= 0; o.classList.toggle('on', on);
+      o.querySelector('.ck').setAttribute('aria-checked', String(on));
+    });
+  }
+  FIX.push({
+    n: 11, fresh: true, title: 'Picking answers to a question', where: 'app.js:546 (a question’s answers)', h: 190,
+    why: 'When an agent asks a question where you can pick several answers, a green check marks each one you picked. <b>Today</b> the check just appears. <b>After:</b> the check draws itself in, and is wiped away quickly when you unpick it.',
+    rec: 'checkbox-check',
+    steps: [0, 1, 2, 3], hold: 1100,
+    before: { html: multiHtml(false), go: picksGo },
+    after: { html: multiHtml(true), go: picksGo }
+  });
+
+  var QS = [
+    { q: 'Which checks should run first?', o: ['Unit tests', 'UI snapshots', 'Lint'] },
+    { q: 'Where should the build go?', o: ['TestFlight', 'A zip on GitHub', 'Both'] },
+    { q: 'Bump the version to?', o: ['0.3.15', '0.4.0', 'Keep 0.3.14'] }
+  ];
+  function seqHtml(after) {
+    return '<div class="pc">' + askTop('<span class="cnt' + (after ? ' t-morph' : '') + '">Question 1 of 3</span>') +
+      '<p class="qh"><span class="qt' + (after ? ' t-text-soft blk' : '') + '" style="display:grid">' + QS[0].q + '</span></p>' +
+      QS[0].o.map(function (o, i) { return opt(i, o, '', false); }).join('').replace(/class="lt"/g, 'class="lt' + (after ? ' t-text-soft' : '') + '"') + '</div>';
+  }
+  FIX.push({
+    n: 12, fresh: true, title: 'The next question', where: 'app.js:536 (questions one after another)', h: 175,
+    why: 'When an agent asks several questions in a row, answering one brings the next. <b>Today</b> every word changes at once. <b>After:</b> in “Question 1 of 3” only the number changes, and the question and its answers cross-fade into the new ones.',
+    rec: 'text-morph + text-swap-soft',
+    steps: [0, 1, 2], hold: 1500,
+    before: {
+      html: seqHtml(false),
+      go: function (el, i) {
+        el.querySelector('.cnt').textContent = 'Question ' + (i + 1) + ' of 3'; el.querySelector('.qt').textContent = QS[i].q;
+        el.querySelectorAll('.lt').forEach(function (l, k) { l.textContent = QS[i].o[k]; });
+      }
+    },
+    after: {
+      html: seqHtml(true),
+      go: function (el, i, first) {
+        if (first) return;
+        morphText(el.querySelector('.cnt'), 'Question ' + (i + 1) + ' of 3');
+        softSwap(el.querySelector('.qt'), QS[i].q, true);
+        el.querySelectorAll('.lt').forEach(function (l, k) { softSwap(l, QS[i].o[k]); });
+      }
+    }
+  });
+
+  /* 13. the chosen row in the list */
+  var LROWS = [['claude', 'Fix the flaky login test', '2m'], ['codex', 'Move settings to SQLite', '18m'], ['claude', 'Draft the release notes', '1h'], ['ghostty', 'Profile the scan', '3h']];
+  function selHtml() {
+    return '<div class="pc"><div class="lst"><span class="pill"></span>' + LROWS.map(function (r) {
+      return '<div class="row">' + App(r[0]) + '<span class="nm">' + r[1] + '</span><span class="tm">' + r[2] + '</span></div>'; }).join('') + '</div></div>';
+  }
+  FIX.push({
+    n: 13, fresh: true, title: 'Moving through the list with ↑ and ↓', where: 'app.js:812 (the list’s chosen row)', h: 165,
+    why: 'In the list, the highlighted row moves when you press ↑ or ↓. <b>Today</b> the highlight fades from one row and appears on the next. <b>After:</b> one highlight slides from row to row. Optional: when you hold the key down, a sliding highlight trails slightly behind.',
+    rec: 'tabs-sliding',
+    steps: [0, 1, 2, 3, 2, 1], hold: 700,
+    before: { html: selHtml(), go: function (el, i) { el.querySelectorAll('.row').forEach(function (r, k) { r.classList.toggle('sel', k === i); }); } },
+    after: {
+      html: selHtml(),
+      go: function (el, i, first) {
+        var p = el.querySelector('.pill');
+        if (first) { p.style.transition = 'none'; p.style.transform = 'translateY(0)'; reflow(p); p.style.transition = ''; return; }
+        p.style.transform = 'translateY(' + (i * 36) + 'px)';
+      }
+    }
+  });
+
+  /* 14. the list sorts itself again */
+  var ORD = [
+    [['h', 'Today'], ['a', 'claude', 'Fix the flaky login test', '2m', 'spin', 'perch'], ['b', 'codex', 'Move settings to SQLite', '5m', 'spin', 'ledger'], ['c', 'claude', 'Draft the release notes', '1h', 'done', 'perch']],
+    [['n', 'Needs you'], ['b', 'codex', 'Move settings to SQLite', 'now', 'permission', 'ledger'], ['h', 'Today'], ['a', 'claude', 'Fix the flaky login test', '2m', 'spin', 'perch'], ['c', 'claude', 'Draft the release notes', '1h', 'done', 'perch']]
+  ];
+  function ordRender(i) {
+    return ORD[i].map(function (r) {
+      if (r.length === 2) return '<div class="sec" data-k="' + r[0] + '">' + r[1] + '</div>';
+      var mk = r[4] === 'spin' ? Spinner(14) : Ring(r[4] === 'done' ? 'done' : 'permission');
+      return '<div class="row" data-k="' + r[0] + '">' + App(r[1]) + '<span class="nm">' + r[2] + '</span><span class="tm">' + r[3] + '</span><span class="rt"><span class="rk">' + mk + '</span><span class="tp">' + r[5] + '</span></span></div>';
+    }).join('');
+  }
+  function ordHtml() { return '<div class="pc"><div class="ord" style="height:162px"></div></div>'; }
+  FIX.push({
+    n: 14, fresh: true, title: 'The list sorts itself again', where: 'app.js:790 (the list drawn again)', h: 180,
+    why: 'When a session changes, for example it starts needing you, the list sorts itself again and that row moves to the top. <b>Today</b> it jumps there in one frame, so it is hard to see what moved. <b>After:</b> the rows glide to their new places and the new section header fades in. The library has no recipe for this one: it uses the library’s timing for a change of position.',
+    rec: 'position change, motion tokens',
+    steps: [0, 1], hold: 1700,
+    before: { html: ordHtml(), go: function (el, i) { el.querySelector('.ord').innerHTML = ordRender(i); } },
+    after: {
+      html: ordHtml(),
+      go: function (el, i, first) {
+        var box = el.querySelector('.ord'), was = {};
+        box.querySelectorAll('[data-k]').forEach(function (e) { was[e.dataset.k] = e.getBoundingClientRect().top; });
+        box.innerHTML = ordRender(i);
+        if (first) return;
+        box.querySelectorAll('[data-k]').forEach(function (e) {
+          var k = e.dataset.k, top = e.getBoundingClientRect().top;
+          if (was[k] == null) e.animate([{ opacity: 0, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 250, delay: 120, easing: EASE, fill: 'backwards' });
+          else if (Math.abs(was[k] - top) > .5) e.animate([{ transform: 'translateY(' + (was[k] - top) + 'px)' }, { transform: 'none' }], { duration: 300, easing: EASE });
+        });
+      }
+    }
+  });
+
+  /* ---------- the page ---------- */
+  var main = document.getElementById('fixes');
+  var newShown = false;
+  FIX.forEach(function (f) {
+    if (f.fresh && !newShown) { newShown = true; var hd = document.createElement('div'); hd.className = 'newhd';
+      hd.innerHTML = '<h2>Found on the second pass</h2><p class="why">More places where something snaps or jumps today. Nothing here is in the app yet: say which ones you want.</p>'; main.appendChild(hd); }
+    var sec = document.createElement('section'); sec.id = 'f' + f.n;
+    var walls = ['', 'red', 'chroma'];
+    sec.innerHTML = '<div class="head"><h2>' + f.n + '. ' + f.title + (f.fresh ? '<span class="fresh">New</span>' : '') + '</h2><span class="where">' + f.where + '</span><button class="btn rp">Replay</button></div>' +
+      '<p class="why">' + f.why + '</p>' +
+      '<div class="pair"><div class="side before"><span class="tag">Before &middot; <i>Perch now</i></span><div class="stage ' + walls[f.n % 3] + '" style="--h:' + f.h + 'px">' + f.before.html + '</div></div>' +
+      '<div class="side after"><span class="tag">After &middot; <i>' + f.rec + '</i></span><div class="stage ' + walls[f.n % 3] + '" style="--h:' + f.h + 'px">' + f.after.html + '</div></div></div>';
+    main.appendChild(sec);
+    var b = sec.querySelector('.before .stage'), a = sec.querySelector('.after .stage');
+    var loop = { gen: 0, start: function () {
+      var g = ++loop.gen, i = 0;
+      b.innerHTML = f.before.html; a.innerHTML = f.after.html;
+      f.before.go(b, f.steps[0], true); f.after.go(a, f.steps[0], true);
+      (function tick() { wait(function () {
+        if (g !== loop.gen) return;
+        i = (i + 1) % f.steps.length;
+        f.before.go(b, f.steps[i], false); f.after.go(a, f.steps[i], false);
+        tick();
+      }, f.hold); })();
+    } };
+    sec.querySelector('.rp').onclick = loop.start;
+    loops.push(loop); loop.start();
+  });
+  if (location.hash) { var t = document.querySelector(location.hash); if (t) t.scrollIntoView(); }
+  document.getElementById('all').onclick = function () { loops.forEach(function (l) { l.start(); }); };
+  document.querySelectorAll('#speed button').forEach(function (bt) {
+    bt.onclick = function () {
+      SPEED = +bt.dataset.v;
+      document.querySelectorAll('#speed button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === bt)); });
+      loops.forEach(function (l) { l.start(); });
+    };
+  });
+})();
+</script>
