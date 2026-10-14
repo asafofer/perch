@@ -2636,7 +2636,7 @@
     ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
       /* what is wrong in orange, as an update that failed says it, and Allow as a filled button: it is the one thing to do here */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn Perch on there' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn on in System Settings' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
@@ -2672,7 +2672,7 @@
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
     on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn Perch on there at once */
+    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn on in System Settings at once */
     on('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
     on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
@@ -3014,7 +3014,7 @@
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
-    /* Allow in Settings: System Settings opens, the row says turn Perch on there, and the switch comes on a few seconds later */
+    /* Allow in Settings: System Settings opens, the row says turn on in System Settings, and the switch comes on a few seconds later */
     if (m.type === 'onb' && !s.onboarding) {
       if (m.action !== 'accessibility' || !s.settings) return;
       var k3 = ++updTok; s.timerToken = Math.random(); apply(s);
