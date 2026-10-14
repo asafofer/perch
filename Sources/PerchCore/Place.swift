@@ -1,19 +1,23 @@
 import Foundation
 
-/// Where a running agent lives, read from its environment. herdr and cmux put their own variables in every process they run.
+/// Where a running agent lives, read from its environment. herdr, tmux and cmux put their own variables in every process they run.
 public enum Place: Equatable, Sendable {
     /// A pane in a herdr server. `socket` reaches that server; `session` is its name ("default" for the usual one).
     case herdr(pane: String, socket: String, session: String)
+    /// A pane in a tmux server (`%3`). `socket` reaches that server.
+    case tmux(pane: String, socket: String)
     /// A surface (a tab or split) in cmux.
     case cmux(workspace: String, surface: String)
     /// A terminal's own tab.
     case tab
 
-    /// Innermost first: a herdr server started from a cmux tab passes that tab's variables to every pane, so herdr's win.
+    /// Innermost first: a herdr or tmux server started from a cmux tab passes that tab's variables to every pane, so theirs
+    /// win; herdr is taken to run inside tmux rather than the other way round.
     public static func from(environment env: [String: String]) -> Place {
         if let pane = env["HERDR_PANE_ID"], !pane.isEmpty, let socket = env["HERDR_SOCKET_PATH"], !socket.isEmpty {
             return .herdr(pane: pane, socket: socket, session: env["HERDR_SESSION"].flatMap { $0.isEmpty ? nil : $0 } ?? "default")
         }
+        if let pane = env["TMUX_PANE"], !pane.isEmpty, let socket = env["TMUX"].flatMap(TmuxServer.socket) { return .tmux(pane: pane, socket: socket.path) }
         if let s = env["CMUX_SURFACE_ID"], !s.isEmpty, let w = env["CMUX_WORKSPACE_ID"], !w.isEmpty { return .cmux(workspace: w, surface: s) }
         return .tab
     }
@@ -22,6 +26,56 @@ public enum Place: Equatable, Sendable {
     public var herdrWorkspace: String? {
         guard case .herdr(let pane, _, _) = self else { return nil }
         return pane.split(separator: ":").first.map(String.init)
+    }
+}
+
+/// What a tmux server says about its panes and the clients attached to it, read in one call (`listing`).
+public struct TmuxServer: Equatable, Sendable {
+    public struct Pane: Equatable, Sendable {
+        public let tty: String
+        /// The sessions it shows in: a window can be linked into more than one.
+        public var sessions: [String]
+    }
+    public struct Client: Equatable, Sendable {
+        public let pid: Int32, tty: String, session: String
+        /// When it was last used, in seconds since 1970.
+        public let activity: Int
+    }
+    /// By pane id (`%3`).
+    public var panes: [String: Pane] = [:]
+    public var clients: [Client] = []
+    public init(panes: [String: Pane] = [:], clients: [Client] = []) { self.panes = panes; self.clients = clients }
+
+    /// The arguments of one call that lists both, a line each, tagged P or C.
+    public static let listing = ["list-panes", "-a", "-F", "P\t#{pane_id}\t#{pane_tty}\t#{session_name}", ";",
+                                 "list-clients", "-F", "C\t#{client_pid}\t#{client_tty}\t#{session_name}\t#{client_activity}"]
+
+    public static func parse(_ out: String) -> TmuxServer {
+        var s = TmuxServer()
+        for line in out.split(whereSeparator: \.isNewline) {
+            let f = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+            if f.count >= 4, f[0] == "P" {
+                if s.panes[f[1]] == nil { s.panes[f[1]] = Pane(tty: f[2], sessions: []) }
+                s.panes[f[1]]?.sessions.append(f[3])
+            } else if f.count >= 5, f[0] == "C", let pid = Int32(f[1]) {
+                s.clients.append(Client(pid: pid, tty: f[2], session: f[3], activity: Int(f[4]) ?? 0))
+            }
+        }
+        return s
+    }
+
+    /// The client to show a pane in: the one used last of those already on its session, else the one used last.
+    public func viewer(of pane: String) -> Client? {
+        let on = clients.filter { panes[pane]?.sessions.contains($0.session) == true }
+        return (on.isEmpty ? clients : on).max { $0.activity < $1.activity }
+    }
+
+    /// TMUX is "socket,server pid,session id", and the socket's path may hold commas of its own.
+    public static func socket(_ value: String) -> (path: String, server: Int32?)? {
+        let parts = value.split(separator: ",", omittingEmptySubsequences: false)
+        guard parts.count >= 3 else { return value.isEmpty ? nil : (value, nil) }
+        let path = parts.dropLast(2).joined(separator: ",")
+        return path.isEmpty ? nil : (path, Int32(parts[parts.count - 2]))
     }
 }
 

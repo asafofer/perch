@@ -47,6 +47,39 @@ import Foundation
         #expect(Place.from(environment: ["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s"]) == .herdr(pane: "w1:p1", socket: "/s", session: "default"))
     }
 
+    @Test func aTmuxPaneIsReadFromItsVariables() {
+        let tmux = ["TMUX": "/private/tmp/tmux-501/default,4242,0", "TMUX_PANE": "%3"]
+        #expect(Place.from(environment: tmux) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))
+        // A tmux server started from a cmux tab passes that tab's variables to its panes; herdr run inside tmux is herdr's.
+        #expect(Place.from(environment: tmux.merging(["CMUX_SURFACE_ID": "S1", "CMUX_WORKSPACE_ID": "W1"]) { a, _ in a }) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))
+        #expect(Place.from(environment: tmux.merging(["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s"]) { a, _ in a }) == .herdr(pane: "w1:p1", socket: "/s", session: "default"))
+        // A shell that is not in a pane (TMUX without TMUX_PANE) is not in tmux.
+        #expect(Place.from(environment: ["TMUX": "/private/tmp/tmux-501/default,4242,0"]) == .tab)
+        #expect(TmuxServer.socket("/tmp/a,b/sock,4242,1")?.path == "/tmp/a,b/sock")
+        #expect(TmuxServer.socket("/tmp/a,b/sock,4242,1")?.server == 4242)
+        #expect(TmuxServer.socket("")?.path == nil)
+    }
+
+    @Test func tmuxSaysWhichPaneIsWhereAndWhichClientShowsIt() {
+        let out = """
+            P\t%0\t/dev/ttys004\tmain
+            P\t%3\t/dev/ttys007\twork
+            P\t%3\t/dev/ttys007\twork-linked
+            P\t%5\t/dev/ttys009\tside
+            C\t812\t/dev/ttys002\tmain\t1760430000
+            C\t990\t/dev/ttys011\twork\t1760420000
+            """
+        let s = TmuxServer.parse(out)
+        #expect(s.panes["%3"] == TmuxServer.Pane(tty: "/dev/ttys007", sessions: ["work", "work-linked"]))
+        #expect(s.clients.count == 2)
+        // The client already on the pane's session, though another was used since.
+        #expect(s.viewer(of: "%3")?.pid == 990)
+        // No client on its session: the one used last, which tmux moves there.
+        #expect(s.viewer(of: "%5")?.pid == 812)
+        #expect(TmuxServer.parse("P\t%0\t/dev/ttys004\tmain\n").viewer(of: "%0") == nil)
+        #expect(TmuxServer.parse("").panes.isEmpty)
+    }
+
     @Test func processArgumentsAndEnvironmentAreRead() {
         var data = Data()
         var argc = Int32(2); data.append(Data(bytes: &argc, count: 4))

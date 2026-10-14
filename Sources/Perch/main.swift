@@ -41,12 +41,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let place: String
                 switch hit.place {
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
+                case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
                 case .tab: place = "a tab"
                 }
                 print("running: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(place), in \(hit.app ?? "no app")")
             }
-            for v in viewers { print("herdr client: session \(v.session) on \(v.tty) in \(v.app ?? "no app")") }
+            for v in viewers { print("\(v.tmux == nil ? "herdr" : "tmux") client: session \(v.session) on \(v.tty) in \(v.app ?? "no app")") }
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }

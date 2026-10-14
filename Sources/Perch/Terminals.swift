@@ -48,16 +48,23 @@ enum Terminals {
     }
 
     /// Brings what this session runs in to the front and says which app has it: its herdr pane (in the terminal that shows
-    /// herdr), its cmux surface, or its terminal tab (Terminal and iTerm2 by tty, Ghostty by folder; any other terminal is
-    /// brought forward as a whole). Nil when there is nothing to bring forward.
+    /// herdr), its tmux pane (in the terminal of the tmux client that shows it), its cmux surface, or its terminal tab
+    /// (Terminal and iTerm2 by tty, Ghostty by folder; any other terminal is brought forward as a whole). Nil when there is
+    /// nothing to bring forward.
     @discardableResult
     static func focus(_ live: LiveSessions.Hit, hints: [String] = []) -> String? {
         switch live.place {
         case .herdr(let pane, let socket, let session):
-            Herdr.focus(pane: pane, socket: socket, bin: live.herdrBin)
+            Herdr.focus(pane: pane, socket: socket, bin: live.bin)
             if let v = live.viewer { return show(v) }
             // Nothing shows that server: open herdr in your terminal, on the pane just focused.
-            open(Herdr.attach(session: session, bin: live.herdrBin), in: live.cwd)
+            open(Herdr.attach(session: session, bin: live.bin), in: live.cwd)
+            return preferred
+        case .tmux(let pane, let socket):
+            // The client already on that session (else the one used last) moves to the pane, and its terminal comes forward.
+            if let v = live.viewer, Tmux.show(pane: pane, socket: socket, client: v.tty, bin: live.bin) { return show(v) }
+            // No client attached: open one in your terminal, on that pane.
+            open(Tmux.attach(pane: pane, socket: socket, bin: live.bin), in: live.cwd)
             return preferred
         case .cmux(let workspace, let surface):
             if Cmux.focus(workspace: workspace, surface: surface) { return cmux }
@@ -182,10 +189,11 @@ enum Terminals {
     }
 
     /// Types a line into what runs this session and presses Return, without bringing it forward, the clipboard or
-    /// Accessibility: a herdr pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder. False where it cannot.
+    /// Accessibility: a herdr or tmux pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder. False where it cannot.
     static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
         switch live.place {
-        case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.herdrBin)
+        case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
+        case .tmux(let pane, let socket): return Tmux.type(line, pane: pane, socket: socket, bin: live.bin)
         case .cmux(let w, let s): if Cmux.type(line, workspace: w, surface: s) { return true }
         case .tab: break
         }
@@ -345,6 +353,71 @@ enum Herdr {
     }
 }
 
+/// tmux, whose server outlives the terminal like herdr's: each terminal showing it runs a client, which the CLI can move
+/// to any pane. A pane's id (`%3`) holds while it lives; `-S` reaches the server an agent's TMUX names.
+enum Tmux {
+    /// The CLI: the server's own executable (its pid is in TMUX), else the usual places.
+    static func bin(server: Int32?) -> String {
+        var path = [CChar](repeating: 0, count: 4096)
+        if let pid = server, proc_pidpath(pid, &path, UInt32(path.count)) > 0 {
+            let exe = String(cString: path)
+            if (exe as NSString).lastPathComponent.hasPrefix("tmux") { return exe }
+        }
+        return bin(nil)
+    }
+    /// The one a place remembered, while it is still there, else the usual places.
+    static func bin(_ hint: String?) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return ([hint].compactMap { $0 } + ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/run/current-system/sw/bin/tmux", home + "/.nix-profile/bin/tmux", "/usr/bin/tmux"])
+            .first { FileManager.default.isExecutableFile(atPath: $0) } ?? "/opt/homebrew/bin/tmux"
+    }
+    @discardableResult
+    private static func cli(_ args: [String], socket: String, bin hint: String?) -> String? {
+        Terminals.tool(bin(hint), ["-S", socket] + args)
+    }
+
+    /// Its panes and the clients attached to it, or nil when the server does not answer.
+    static func ask(socket: String, bin: String) -> TmuxServer? {
+        cli(TmuxServer.listing, socket: socket, bin: bin).map(TmuxServer.parse)
+    }
+
+    /// Moves that client to the pane: its session, window and pane. Older tmux only switches the session, hence the rest.
+    static func show(pane: String, socket: String, client: String, bin: String?) -> Bool {
+        cli(["switch-client", "-c", client, "-t", pane, ";", "select-window", "-t", pane, ";", "select-pane", "-t", pane], socket: socket, bin: bin) != nil
+    }
+
+    /// The pane a client shows now.
+    static func showing(client: String, socket: String, bin: String?) -> String? {
+        cli(["display-message", "-p", "-c", client, "#{pane_id}"], socket: socket, bin: bin).flatMap {
+            let pane = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            return pane.hasPrefix("%") ? pane : nil
+        }
+    }
+
+    /// Types a line into the pane and presses Return, a beat apart so the agent reads Return as sending it. A pane scrolled
+    /// back (copy mode) would take the words as commands, so it leaves that first.
+    static func type(_ line: String, pane: String, socket: String, bin: String?) -> Bool {
+        guard cli(["if-shell", "-F", "-t", pane, "#{pane_in_mode}", "send-keys -X -t \(pane) cancel", ";", "send-keys", "-t", pane, "-l", "--", line], socket: socket, bin: bin) != nil else { return false }
+        Thread.sleep(forTimeInterval: 0.1)
+        return cli(["send-keys", "-t", pane, "Enter"], socket: socket, bin: bin) != nil
+    }
+
+    /// The command that attaches a terminal to that server, on the pane.
+    static func attach(pane: String, socket: String, bin: String?) -> String {
+        "\(Terminals.shellQuote(Self.bin(bin))) -S \(Terminals.shellQuote(socket)) attach-session -t \(Terminals.shellQuote(pane))"
+    }
+
+    /// A new window in that session (or a new session if it is gone) that runs `command` in `cwd` from your shell, so the
+    /// shell stays when the agent ends. Nil when the server is not running: that would start one.
+    static func run(_ command: String, cwd: String, session: String?, socket: String, bin: String?) -> String? {
+        guard FileManager.default.fileExists(atPath: socket), cli(["list-sessions"], socket: socket, bin: bin) != nil else { return nil }
+        let made = { (args: [String]) in cli(args + ["-P", "-F", "#{pane_id}", "-c", cwd], socket: socket, bin: bin)?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard let pane = session.flatMap({ $0.isEmpty ? nil : made(["new-window", "-t", "=\($0):"]) }) ?? made(["new-session", "-d"]),
+              pane.hasPrefix("%"), type(command, pane: pane, socket: socket, bin: bin) else { return nil }
+        return pane
+    }
+}
+
 /// cmux, a terminal app with workspaces and split surfaces. Its command line tool only answers processes inside cmux
 /// (its default socket mode), so Perch drives it through AppleScript, where each terminal's id is the CMUX_SURFACE_ID its
 /// processes carry and each workspace's id their CMUX_WORKSPACE_ID.
@@ -419,23 +492,29 @@ enum LiveSessions {
         let pid: pid_t, cwd: String, tty: String
         /// An Agent id.
         let agent: String
-        /// The terminal app it shows in (a bundle id). For herdr, the terminal that shows a client of its server.
+        /// The terminal app it shows in (a bundle id). For herdr and tmux, the terminal that shows a client of its server.
         let app: String?
         let place: Place
         let argv: [String]
         let started: Date
-        /// herdr: the client attached to its server, which is where you see it. Nil when none is attached.
+        /// herdr and tmux: the client attached to its server, which is where you see it. Nil when none is attached.
         let viewer: Viewer?
-        /// herdr: the CLI the pane names (HERDR_BIN_PATH).
-        let herdrBin: String?
+        /// The multiplexer's CLI: the one a herdr pane names (HERDR_BIN_PATH), or the tmux server's own.
+        let bin: String?
+        /// tmux: the session its pane is in.
+        var tmuxSession: String? = nil
     }
-    /// A herdr client in a terminal: what shows a herdr server's panes.
-    struct Viewer: Equatable { let pid: pid_t; let tty: String; let cwd: String; let app: String?; let place: Place; let session: String }
+    /// A herdr or tmux client in a terminal: what shows a herdr server's panes, or a tmux session. `tmux` is the socket of
+    /// that tmux server and `bin` its CLI; nil for herdr, whose `session` names the server.
+    struct Viewer: Equatable {
+        let pid: pid_t; let tty: String; let cwd: String; let app: String?; let place: Place; let session: String
+        var tmux: String? = nil, bin: String? = nil
+    }
 
     /// Agent processes that have a terminal. The ones the Claude app, Codex app or OpenCode app start have none, so they are left out.
     static func all() -> [Hit] { scan().hits }
 
-    /// The agents, and the herdr clients attached right now.
+    /// The agents, and the herdr and tmux clients attached right now.
     static func scan() -> (hits: [Hit], viewers: [Viewer]) {
         let capacity = Int(proc_listallpids(nil, 0)) + 64
         var pids = [pid_t](repeating: 0, count: capacity)
@@ -463,19 +542,44 @@ enum LiveSessions {
             guard let agent = Agent.recognise(executable: exe, argv0: args.argv.first) else { continue }
             found.append((pid, agent, args, tty, cwd, pid_t(bsd.pbi_ppid), Date(timeIntervalSince1970: Double(bsd.pbi_start_tvsec))))
         }
+        // Each tmux server an agent runs in, asked once: its panes, and its clients as viewers.
+        var tmux: [String: (bin: String, said: TmuxServer)] = [:]
+        for f in found {
+            guard case .tmux(_, let socket) = Place.from(environment: f.args.environment), tmux[socket] == nil else { continue }
+            let bin = Tmux.bin(server: f.args.environment["TMUX"].flatMap(TmuxServer.socket)?.server)
+            guard let said = Tmux.ask(socket: socket, bin: bin) else { continue }
+            tmux[socket] = (bin, said)
+            viewers += said.clients.map { viewer($0, socket: socket, bin: bin) }
+        }
         let hits = found.map { f in
-            let place = Place.from(environment: f.args.environment)
-            var viewer: Viewer?, app: String?
-            if case .herdr(_, _, let session) = place {
-                viewer = viewers.first { $0.session == session }
+            var place = Place.from(environment: f.args.environment)
+            var viewer: Viewer?, app: String?, bin = f.args.environment["HERDR_BIN_PATH"], tmuxSession: String?
+            if case .tmux(let pane, let socket) = place {
+                // Only a process on that pane's own terminal is in it: an app started from tmux (an editor) passes TMUX on
+                // to the shells in its own terminal.
+                if let server = tmux[socket], let p = server.said.panes[pane], p.tty == f.tty {
+                    bin = server.bin; tmuxSession = p.sessions.first
+                    let c = server.said.viewer(of: pane)
+                    viewer = viewers.first { $0.tmux == socket && $0.pid == c?.pid }
+                } else { place = .tab }
+            }
+            switch place {
+            case .herdr(_, _, let session):
+                viewer = viewers.first { $0.tmux == nil && $0.session == session }
                 app = viewer?.app
-            } else {
-                app = terminalApp(above: f.ppid)
+            case .tmux: app = viewer?.app
+            default: app = terminalApp(above: f.ppid)
             }
             return Hit(pid: f.pid, cwd: f.cwd, tty: f.tty, agent: f.agent.id, app: app, place: place, argv: f.args.argv, started: f.started,
-                       viewer: viewer, herdrBin: f.args.environment["HERDR_BIN_PATH"])
+                       viewer: viewer, bin: bin, tmuxSession: tmuxSession)
         }
         return (hits, viewers)
+    }
+
+    /// A tmux client as a viewer: the terminal it runs in, and where in it (a cmux surface, say).
+    static func viewer(_ c: TmuxServer.Client, socket: String, bin: String) -> Viewer {
+        Viewer(pid: c.pid, tty: c.tty, cwd: workingDirectory(c.pid) ?? "", app: terminalApp(above: c.pid),
+               place: Place.from(environment: arguments(c.pid)?.environment ?? [:]), session: c.session, tmux: socket, bin: bin)
     }
 
     private static func value(after flag: String, in argv: [String]) -> String? {

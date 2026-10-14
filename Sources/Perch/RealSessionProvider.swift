@@ -46,7 +46,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         FocusProbe.setKnown((live, viewers))
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
-        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.herdrBin) } }
+        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.bin) } }
         func seen(_ h: LiveSessions.Hit) -> (status: String, session: String?)? {
             if case .herdr(let pane, let socket, _) = h.place { return herdr[socket]?[pane] }
             return nil
@@ -71,8 +71,11 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                 switch h.place {
                 case .herdr(_, let socket, let session):
                     projects[i].host = "herdr"; projects[i].via = h.app ?? preferred
-                    places[id] = ["kind": "herdr", "socket": socket, "session": session, "workspace": h.place.herdrWorkspace ?? "", "bin": h.herdrBin ?? ""]
+                    places[id] = ["kind": "herdr", "socket": socket, "session": session, "workspace": h.place.herdrWorkspace ?? "", "bin": h.bin ?? ""]
                     if let s = seen(h) { projects[i] = HerdrStatus.apply(s.status, to: projects[i]) }
+                case .tmux(_, let socket):
+                    projects[i].host = "tmux"; projects[i].via = h.app ?? preferred
+                    places[id] = ["kind": "tmux", "socket": socket, "session": h.tmuxSession ?? "", "bin": h.bin ?? ""]
                 case .cmux:
                     projects[i].via = Terminals.cmux; places[id] = ["kind": "cmux"]
                 case .tab:
@@ -85,7 +88,10 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                 switch last?["kind"] {
                 case "herdr":
                     projects[i].host = "herdr"
-                    projects[i].via = viewers.first { $0.session == last?["session"] }?.app ?? preferred
+                    projects[i].via = viewers.first { $0.tmux == nil && $0.session == last?["session"] }?.app ?? preferred
+                case "tmux":
+                    projects[i].host = "tmux"
+                    projects[i].via = viewers.first { $0.tmux == last?["socket"] && $0.session == last?["session"] }?.app ?? preferred
                 case "cmux": projects[i].via = Terminals.cmux
                 default: projects[i].via = preferred
                 }
@@ -128,6 +134,12 @@ enum Restorer {
                 if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch pick up: \(agent) \(id.prefix(8)) in \(cwd); running: \(hit.map { "\($0.pid) \($0.place)" } ?? "no")") }
                 if let hit, let app = Terminals.focus(hit, hints: hints) {
                     landing = .app(app, exact: true)
+                } else if hit != nil {
+                    // It runs where Perch cannot follow (no terminal app above it). Never start a second copy of it: bring
+                    // forward the terminal you used last, which is most of the way there.
+                    let app = Terminals.preferred
+                    NSRunningApplication.runningApplications(withBundleIdentifier: app).first?.activate()
+                    landing = .app(app, exact: false)
                 } else {
                     landing = reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id))
                 }
@@ -158,16 +170,28 @@ enum Restorer {
         done(.none)   // sample data does nothing
     }
 
-    /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, the cmux surface
-    /// that kept it (cmux resumes it), a new cmux workspace, the OpenCode app, or a new window of your terminal.
+    /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, a new window in its
+    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, the OpenCode app, or a new
+    /// window of your terminal.
     /// Blocks on the tools it drives, so call it off the main thread.
     nonisolated static func reopen(agent: String, session id: String, cwd: String, command: String) -> Landing {
         let last = Prefs.places[id], preferred = Terminals.preferred
         if last?["kind"] == "herdr", let socket = last?["socket"], let name = last?["session"] {
             let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
             if Herdr.running(socket: socket, bin: bin), Herdr.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
-                if let v = LiveSessions.scan().viewers.first(where: { $0.session == name }) { return .newTerminal(Terminals.show(v) ?? preferred, cwd: cwd, agent: agent) }
+                if let v = LiveSessions.scan().viewers.first(where: { $0.tmux == nil && $0.session == name }) { return .newTerminal(Terminals.show(v) ?? preferred, cwd: cwd, agent: agent) }
                 Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
+                return .newTerminal(preferred, cwd: cwd, agent: agent)
+            }
+        }
+        if last?["kind"] == "tmux", let socket = last?["socket"] {
+            let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
+            if let pane = Tmux.run(command, cwd: cwd, session: last?["session"], socket: socket, bin: bin) {
+                // Shown in the client already on that session, else the one used last; with none, a terminal attaches to it.
+                if let c = Tmux.ask(socket: socket, bin: Tmux.bin(bin))?.viewer(of: pane), Tmux.show(pane: pane, socket: socket, client: c.tty, bin: bin) {
+                    return .newTerminal(Terminals.show(LiveSessions.viewer(c, socket: socket, bin: Tmux.bin(bin))) ?? preferred, cwd: cwd, agent: agent)
+                }
+                Terminals.open(Tmux.attach(pane: pane, socket: socket, bin: bin), in: cwd, app: preferred)
                 return .newTerminal(preferred, cwd: cwd, agent: agent)
             }
         }
