@@ -168,6 +168,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         hookServer.start()
         startRefreshing()
         startWatchingFocus()
+        startWatchingAccess()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -750,7 +751,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
-        if machine.phase == .whatsNew, let w = whatsNew { sent.whatsNew = .init(version: w.version, headline: w.notes.headline, bullets: w.notes.bullets) }
+        if machine.phase == .whatsNew, let w = whatsNew {
+            // The update that lost Accessibility says so on its own card; once it has, the card turns green when it is back.
+            if access.afterUpdate(build: Self.build) { wnCarriedAccess = true }
+            sent.whatsNew = .init(version: w.version, headline: w.notes.headline, bullets: w.notes.bullets, access: access.card(carried: wnCarriedAccess)?.rawValue)
+        }
+        if machine.phase == .idle { sent.access = accessRow() }
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
         if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
@@ -783,7 +789,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func phaseChanged(_ old: NotchPhase, _ new: NotchPhase) {
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
-        if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
+        if old == .whatsNew {
+            onWhatsNewKey?(false); whatsNew = nil
+            if wnCarriedAccess { access.markSaid(); saveAccess() }   // the card said it: the notch does not say it again
+            wnCarriedAccess = false
+        }
         if old == .switcher { pendingPicked = false }
         if old == .open, new != .open { frontForReply(false) }
         // Done setting up a new session: the app you were in is the one in front again.
@@ -1130,6 +1140,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case "back": send(.back)
         case "onb": if let a = body["action"] as? String { onboardingAction(a) }
+        case "access":
+            // Allow (the notch row or What's new): the same as Settings' Allow, and the row waits for the switch. Said: it folded or Later.
+            if body["action"] as? String == "allow" { access.allow(); onboardingAction("accessibility") }
+            else if body["action"] as? String == "said" { access.markSaid(); saveAccess(); push() }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
         case "settings": if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
         case "setting":
@@ -1477,7 +1491,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
-                                   back: machine.settingsFrom != nil)
+                                   accessWas: access.had, back: machine.settingsFrom != nil)
     }
     /// The connected displays, then a chosen one that is not connected, under the name it had when chosen.
     private func displaysState() -> [UISnapshot.Display] {
@@ -1497,6 +1511,48 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func setLaunchAtLogin(_ on: Bool) {
         do { if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } }
         catch { NSLog("Perch: launch at login failed: \(error)") }
+    }
+
+    // MARK: Accessibility it had, gone
+    /// macOS ties Accessibility to the code signature: an update signed another way drops it without a word, and the
+    /// Command+Option tap and replies to Claude stop. Perch reads it every two seconds, remembers that it had it, and says once
+    /// per loss that it is gone (AccessLoss): on the update's own What's new card, or in a notch row at a quiet moment.
+    private var access = AccessLoss.seeded(had: Prefs.accessHad, hadOn: Prefs.accessHadOn, said: Prefs.accessSaid, onboarded: Prefs.onboarded)
+    private static let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+    private let launchedAt = Date()
+    /// What's new showed the loss, so it says Accessibility is on once it is, and closing it counts as said.
+    private var wnCarriedAccess = false
+    private var accessTimer: Timer?
+    /// What's new asks for Accessibility: a press outside (in System Settings, to turn the switch on) or another app coming
+    /// forward does not close it until it says Accessibility is on.
+    private var wnHoldsForAccess: Bool { machine.phase == .whatsNew && access.holdsCard(carried: wnCarriedAccess) }
+    private func startWatchingAccess() {
+        checkAccess()
+        accessTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.checkAccess() } }
+    }
+    private func checkAccess() {
+        let before = accessSig()
+        let trusted = AXIsProcessTrusted()
+        if access.observe(trusted: trusted, build: Self.build, now: Date()) {
+            // back on: the tap starts again (it is set up only while Accessibility is on)
+            accessibilityWas = true; onAccessibilityGranted?()
+        } else if !trusted { accessibilityWas = false }   // lost: when it comes back, the tap is started again
+        saveAccess()
+        if accessSig() != before { push() }
+    }
+    private func saveAccess() {
+        if Prefs.accessHad != access.had { Prefs.accessHad = access.had }
+        if Prefs.accessHadOn != access.hadOn { Prefs.accessHadOn = access.hadOn }
+        if Prefs.accessSaid != access.said { Prefs.accessSaid = access.said }
+    }
+    /// What the notch row says. Not in the first seconds after launch, while an update's own word comes first (Updated or
+    /// What's new), nor while What's new waits or shows: the card carries it after an update, and the row follows it otherwise.
+    private func accessRow() -> UISnapshot.AccessRow? {
+        guard Date().timeIntervalSince(launchedAt) > 6, whatsNew == nil, let phase = access.row(now: Date()) else { return nil }
+        return .init(phase: phase.rawValue, afterUpdate: access.afterUpdate(build: Self.build), since: access.losses)
+    }
+    private func accessSig() -> String {
+        "\(accessRow().map { "\($0.phase)\($0.since)" } ?? "-")|\(access.card(carried: wnCarriedAccess)?.rawValue ?? "-")|\(access.lost)"
     }
 
     // MARK: onboarding
@@ -1915,7 +1971,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func releasedElsewhere() {
         guard pressedOutside else { return }
         pressedOutside = false
-        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !wnHoldsForAccess else { return }
         if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
         send(.dismiss)
     }
@@ -1925,7 +1981,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
