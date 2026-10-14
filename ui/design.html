@@ -368,6 +368,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         setTimeout(function () { if (me === charRun) document.querySelector('.r-in').blur(); }, 1250);
         selectSlowly(me, '.o-said-in', 'The headline wraps', 'something to look at.', 1300);
       }],
+      ['Words selected in the reply field', 'What you write can be selected as in any field: Command+A takes all of it, a double click a word, a triple click the line. The field keeps the system’s own highlight, in the character’s colour like the card’s.', function () {
+        var at = motionAt(), r = function () { return document.querySelector('.r-in'); }, word = function (w) { var i = r().value.indexOf(w); r().focus(); r().setSelectionRange(i, i + w.length); };
+        reply(true)();
+        at(1500, 'Command+A: all of it', function () { r().focus(); r().select(); });
+        at(3100, 'Double click: a word', function () { word('vendor'); });
+        at(4700, 'Triple click: the whole line', function () { r().focus(); r().select(); });
+      }],
+      ['Words selected in the prompt', 'The same in a new session’s prompt: Command+A, a double click on a word, a triple click on a paragraph. A refresh (a session elsewhere moving on) leaves what you selected, and the caret, where they were.', function () {
+        var at = motionAt(), t = function () { return document.querySelector('.nw-in'); }, pick = function (a, b) { var v = t().value, i = v.indexOf(a); t().focus(); t().setSelectionRange(i, b ? v.indexOf(b, i) + b.length : i + a.length); };
+        d.project(1); d.newSession({ step: 'prompt', text: 'The hero still jumps on Safari when the poster loads.\nReserve its height up front (aspect-ratio on the wrapper), and check it at phone width and at 1440.' });
+        at(1200, 'Command+A: all of it', function () { t().focus(); t().select(); });
+        at(2800, 'A refresh comes: the selection stays', function () { d.setNotch(!document.getElementById('desk').classList.contains('ext')); });
+        at(4400, 'Double click: a word', function () { pick('poster'); });
+        at(6000, 'Triple click: the paragraph', function () { pick('Reserve', '1440.'); });
+      }],
       ['Words copied', 'Command+C (or Copy from the right-click menu): the highlight brightens for a beat and settles back, so you know it went. Nothing else moves. Plays on a loop.', function () {
         var me = ++charRun; d.hl(); d.project(1); d.show('open', false, true);
         setTimeout(function () { if (me === charRun) selectWords('.o-h', 'The hero now fits', 'phone width'); }, 900);

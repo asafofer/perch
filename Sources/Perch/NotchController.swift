@@ -1208,9 +1208,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
         case "marked": listMarked = body["on"] as? Bool ?? true
         case "hand":
+            let wasText = textCursor
             handCursor = body["on"] as? Bool ?? false
             textCursor = body["text"] as? Bool ?? false
-            if !handCursor, !textCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
+            if !handCursor, !textCursor, !panel.isKeyWindow || wasText { NSCursor.arrow.set() }
         case "selected":
             // Selected with a press, which gives the card the keyboard; if it did not, it takes it now, for Command+C.
             textSelected = body["on"] as? Bool ?? false
@@ -1769,7 +1770,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // A question on the card: the page keeps which one you are on, so its keys go there.
             if self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
                let ask = self.projects[self.machine.selected].ask, ask.kind == .question, ask.answerable {
-                let keys: [UInt16: String] = [36: "enter", 76: "enter", 51: "back", 123: "back", 124: "next"]
+                let keys: [UInt16: String] = [36: "enter", 76: "enter", 51: "back", 123: "left", 124: "next"]
                 let k = keys[e.keyCode] ?? (ch.count == 1 && "123456789".contains(ch) ? ch : nil)
                 if let k { self.web.evaluateJavaScript("window.perch && window.perch.askKey('\(k)')", completionHandler: nil); self.restartTimer(); return nil }
             }
@@ -1868,7 +1869,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 self.mouseMoved()
                 self.watchLaunchers()
                 if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
-                else if self.textCursor, !self.panel.isKeyWindow, self.machine.phase != .idle { NSCursor.iBeam.set() }
+                // The I-beam even with the keyboard: a field opened by key (R, the new session's prompt) gets no moves from WebKit either.
+                else if self.textCursor, self.machine.phase != .idle { NSCursor.iBeam.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
