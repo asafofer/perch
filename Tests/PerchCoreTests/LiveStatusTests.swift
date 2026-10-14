@@ -107,6 +107,33 @@ import Foundation
         #expect(p.applying(stop).status.kind == "done")
     }
 
+    /// Helpers send their hooks with the session's id. Their tool calls must not answer the question the session asks.
+    @Test func aHelperAtWorkDoesNotAnswerTheSessionsQuestion() {
+        let t = Date()
+        #expect(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash","agent_id":"a1","agent_type":"general-purpose"}"#)?.helper == "a1")
+        #expect(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash"}"#)?.helper == nil)
+        guard case .asks(let own)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Ship it?","options":[{"label":"Yes"},{"label":"No"}]}]}}"#, id: "q")?.kind,
+              case .asks(let helpers)? = event("PermissionRequest", #"{"session_id":"s","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"rm -rf dist"}}"#, id: "h")?.kind
+        else { Issue.record("no ask"); return }
+        #expect(own.helper == nil); #expect(helpers.helper == "a1")
+        func ran(_ helper: String?, _ at: Date) -> HookEvent { var e = HookEvent(agent: "claude", sessionId: "s", kind: .toolRan(tool: "Bash"), at: at); e.helper = helper; return e }
+        var s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .asks(own), at: t), to: nil)
+        s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .asks(helpers), at: t), to: s)
+        // Another helper's tool: nothing changes, not even when the session last spoke.
+        s = LiveStatus.apply(ran("a2", t.addingTimeInterval(5)), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["q", "h"]); #expect(s.at == t)
+        // The helper that asked goes on: its request was answered, the session's own question is still open.
+        s = LiveStatus.apply(ran("a1", t.addingTimeInterval(6)), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["q"])
+        // The session itself goes on: its question was answered.
+        s = LiveStatus.apply(ran(nil, t.addingTimeInterval(7)), to: s)
+        #expect(s.kind == .working); #expect(s.asks.isEmpty)
+        // After the turn's Stop, a helper still at work keeps the session at work.
+        s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .finished(message: "Started the helpers."), at: t.addingTimeInterval(8)), to: s)
+        s = LiveStatus.apply(ran("a1", t.addingTimeInterval(9)), to: s)
+        #expect(s.kind == .working)
+    }
+
     /// Stop in the Claude app sends no hook: the last one said working. The transcript's interruption, after it, wins.
     @Test func aStopInTheAppBeatsTheLastHook() {
         let lines = [
