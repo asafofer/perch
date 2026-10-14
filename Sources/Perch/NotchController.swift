@@ -1652,7 +1652,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // A question on the card: the page keeps which one you are on, so its keys go there.
             if self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
                let ask = self.projects[self.machine.selected].ask, ask.kind == .question, ask.answerable {
-                let keys: [UInt16: String] = [36: "enter", 76: "enter", 51: "back", 123: "back", 124: "next"]
+                let keys: [UInt16: String] = [36: "enter", 76: "enter", 51: "back", 123: "left", 124: "next"]
                 let k = keys[e.keyCode] ?? (ch.count == 1 && "123456789".contains(ch) ? ch : nil)
                 if let k { self.web.evaluateJavaScript("window.perch && window.perch.askKey('\(k)')", completionHandler: nil); self.restartTimer(); return nil }
             }

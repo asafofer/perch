@@ -683,7 +683,10 @@
       var o = qn.options[+k - 1]; if (!o) return;
       if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
       else { asking.picks[asking.step] = [o]; forward(); }
-    } else if (k === 'back') { if (asking.step) { asking.step--; redraw('step'); } }
+    } else if (k === 'back' || k === 'left') {
+      /* Left on the first question goes to All sessions, as the footer says; Backspace there stays put */
+      if (asking.step) { asking.step--; redraw('step'); } else if (k === 'left') post({ type: 'switcher' });
+    }
     else if (k === 'next') { if (picks.length) forward(); }
     else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
   }
@@ -3467,7 +3470,7 @@
       if (ask && ask.answerable && fRep.style.display !== 'flex') {
         var k = e.key.toLowerCase();
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
-        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
+        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
