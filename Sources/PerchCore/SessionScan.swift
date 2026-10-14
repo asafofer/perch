@@ -66,7 +66,7 @@ public final class SessionScanner: @unchecked Sendable {
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
     private var digestCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
-    private var gitCache: [String: (at: Date, info: GitInfo?, branch: String?)] = [:]
+    private var gitCache: [String: (until: Date, info: GitInfo?, branch: String?)] = [:]
     /// Whether a folder is a worktree, and of which project, does not change.
     private var repoCache: [String: String?] = [:]
     private func cachedRepo(_ cwd: String) -> String? {
@@ -105,12 +105,15 @@ public final class SessionScanner: @unchecked Sendable {
         return d
     }
 
-    /// Git state changes slowly next to a conversation, so it is looked up at most every 30 seconds per folder.
+    /// Git state changes slowly next to a conversation, so it is looked up at most every 30 seconds per folder, and a
+    /// checkout that takes seconds to read (or is stopped, `run`) every ten minutes, so it does not slow every scan.
     private func cachedGit(_ cwd: String, withBranch: Bool = false) -> (info: GitInfo?, branch: String?) {
         lock.lock(); let hit = gitCache[cwd]; lock.unlock()
-        if let hit, Date().timeIntervalSince(hit.at) < 30, !withBranch || hit.branch != nil { return (hit.info, hit.branch) }
+        if let hit, Date() < hit.until, !withBranch || hit.branch != nil { return (hit.info, hit.branch) }
+        let start = Date()
         let info = lookUpGit(cwd), branch = withBranch ? lookUpBranch(cwd) : hit?.branch
-        lock.lock(); gitCache[cwd] = (Date(), info, branch); lock.unlock()
+        let slow = Date().timeIntervalSince(start) > 2
+        lock.lock(); gitCache[cwd] = (Date().addingTimeInterval(slow ? 600 : 30), info, branch); lock.unlock()
         return (info, branch)
     }
 
@@ -401,12 +404,18 @@ public final class SessionScanner: @unchecked Sendable {
         return GitInfo.parse(status: status, lastCommit: last)
     }
 
-    private static func run(_ tool: String, _ args: [String]) -> String? {
+    /// What a tool printed, or nil when it failed. The output is read while it runs: a pipe holds 64 KB, and `git status`
+    /// in a checkout with a couple of thousand changes prints more, then waits for room, and the scan waited with it for
+    /// good (the list stayed on "Looking for your sessions"). One slower than `timeout` (a huge checkout, a network
+    /// volume) is stopped, so one folder cannot hold up the list.
+    private static func run(_ tool: String, _ args: [String], timeout: TimeInterval = 5) -> String? {
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/env"); p.arguments = [tool] + args
-        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = Pipe()
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = FileHandle.nullDevice; p.standardInput = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) { if p.isRunning { p.terminate() } }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        guard p.terminationStatus == 0 else { return nil }
-        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+        guard p.terminationReason == .exit, p.terminationStatus == 0 else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }

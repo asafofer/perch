@@ -200,3 +200,17 @@ private final class Home {
         #expect(d?.lastUserText == "tighten the hero spacing on the landing page")
     }
 }
+
+@Suite struct GitLookUpTests {
+    @Test func aStatusLongerThanAPipeHoldsIsRead() throws {
+        // A checkout with thousands of changes prints more than a pipe holds (64 KB). Read only after git had exited, git
+        // waited for room that never came, the first scan never ended, and the list stayed on "Looking for your sessions".
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-git-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let git = Process(); git.executableURL = URL(fileURLWithPath: "/usr/bin/env"); git.arguments = ["git", "-C", dir.path, "init", "-q"]
+        try git.run(); git.waitUntilExit()
+        for i in 0..<4000 { FileManager.default.createFile(atPath: dir.appendingPathComponent("untracked-file-\(i).txt").path, contents: nil) }
+        #expect(SessionScanner.git(at: dir.path)?.uncommitted == 4000)
+    }
+}
