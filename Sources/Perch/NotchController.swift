@@ -1523,6 +1523,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// What's new showed the loss, so it says Accessibility is on once it is, and closing it counts as said.
     private var wnCarriedAccess = false
     private var accessTimer: Timer?
+    /// What's new asks for Accessibility: a press outside (in System Settings, to turn the switch on) or another app coming
+    /// forward does not close it until it says Accessibility is on.
+    private var wnHoldsForAccess: Bool { machine.phase == .whatsNew && access.holdsCard(carried: wnCarriedAccess) }
     private func startWatchingAccess() {
         checkAccess()
         accessTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.checkAccess() } }
@@ -1968,7 +1971,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func releasedElsewhere() {
         guard pressedOutside else { return }
         pressedOutside = false
-        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !wnHoldsForAccess else { return }
         if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
         send(.dismiss)
     }
@@ -1978,7 +1981,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.

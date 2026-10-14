@@ -118,6 +118,16 @@ import Testing
         let b = AccessLoss.seeded(had: true, hadOn: "200", said: true, onboarded: true)
         #expect(b.had && b.hadOn == "200" && b.said)
     }
+    @Test func whatsNewStaysUpWhileItAsks() {
+        var a = AccessLoss(had: true, hadOn: "200", said: false)
+        a.observe(trusted: false, build: "201", now: t0)
+        #expect(a.holdsCard(carried: true))
+        #expect(!a.holdsCard(carried: false))   // a card that does not carry it closes as always
+        a.allow()
+        #expect(a.holdsCard(carried: true))     // waiting for the switch: the click in System Settings must not close it
+        a.observe(trusted: true, build: "201", now: t0)
+        #expect(!a.holdsCard(carried: true))    // Accessibility is on: a press outside closes it again
+    }
     @Test func allowDoesNothingWhenNotLost() {
         var a = AccessLoss(had: true, hadOn: "200", said: false)
         a.observe(trusted: true, build: "200", now: t0)

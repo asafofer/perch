@@ -65,6 +65,9 @@ public struct AccessLoss: Equatable, Sendable {
         if let g = grantedAt, now.timeIntervalSince(g) < Self.grantedFor { return .granted }
         return nil
     }
+    /// What's new stays up while it asks for Accessibility: turning the switch on takes a click in System Settings, and that
+    /// press outside must not close the card before it says Accessibility is on. Got it and its close still close it.
+    public func holdsCard(carried: Bool) -> Bool { carried && lost }
     /// What the What's new card says. `carried`: the card showed the loss, so once the switch is on it says so in green.
     public func card(carried: Bool) -> Phase? {
         if lost { return asked ? .asked : .lost }
