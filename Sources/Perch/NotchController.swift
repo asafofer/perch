@@ -1106,9 +1106,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if let id = body["id"] as? String, let p = projects.first(where: { $0.id == id }) { markSeen(p); push() }
         case "marked": listMarked = body["on"] as? Bool ?? true
         case "hand":
+            let wasText = textCursor
             handCursor = body["on"] as? Bool ?? false
             textCursor = body["text"] as? Bool ?? false
-            if !handCursor, !textCursor, !panel.isKeyWindow { NSCursor.arrow.set() }
+            if !handCursor, !textCursor, !panel.isKeyWindow || wasText { NSCursor.arrow.set() }
         case "selected":
             // Selected with a press, which gives the card the keyboard; if it did not, it takes it now, for Command+C.
             textSelected = body["on"] as? Bool ?? false
@@ -1740,7 +1741,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 self.mouseMoved()
                 self.watchLaunchers()
                 if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
-                else if self.textCursor, !self.panel.isKeyWindow, self.machine.phase != .idle { NSCursor.iBeam.set() }
+                // The I-beam even with the keyboard: a field opened by key (R, the new session's prompt) gets no moves from WebKit either.
+                else if self.textCursor, self.machine.phase != .idle { NSCursor.iBeam.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
                 if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
