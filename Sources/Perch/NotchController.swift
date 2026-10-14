@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import WebKit
 import ServiceManagement
 import PerchCore
@@ -128,8 +129,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         config.userContentController = controller
         web = CardWebView(frame: .zero, configuration: config)
         super.init()
-        // A card that offers Reply: one asking you something has no field to drop into.
+        // A card that offers Reply (one asking you something has no field to drop into), or a new session's prompt.
         web.takesFiles = { [weak self] in
+            if self?.machine.phase == .newSession { return true }
             guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }
             return self.projects[self.machine.selected].ask == nil
         }
@@ -137,7 +139,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             self?.web.evaluateJavaScript("window.perch && window.perch.dragOver(\(n), \(at.x), \(at.y))", completionHandler: nil)
         }
         web.onFiles = { [weak self] paths in
-            guard let self, self.machine.phase == .open else { return false }
+            guard let self, self.machine.phase == .open || self.machine.phase == .newSession else { return false }
             // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.
             self.addPaths(paths); self.panel.makeKey(); return true
         }
@@ -217,6 +219,33 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var activitySize = CGSize.zero
     /// Registers the Command+Option keys its buttons answer to, and drops them when it goes.
     var onActivityKeys: (([String]) -> Void)?
+    /// R on a card that has the keyboard is a Perch shortcut while it shows (`replyKeyOn`), not only a key in the panel:
+    /// macOS lets an app come to the front right after its own shortcut, and the reply needs Perch in front so a
+    /// launcher's paste (Raycast's clipboard) lands in it.
+    var onReplyKey: ((Bool) -> Void)?
+    private var replyKeyOn = false
+    private func updateReplyKey() {
+        let asking = projects.indices.contains(machine.selected) && projects[machine.selected].ask != nil
+        let want = machine.phase == .open && panel.isKeyWindow && !replyOpen && !asking && recorder == nil
+        guard want != replyKeyOn else { return }
+        replyKeyOn = want; onReplyKey?(want)
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key: \(want)") }
+    }
+    /// A reply brought back (Command+Option on a card put away mid-reply): opened through Perch's own R shortcut, pressed
+    /// for you, as only that lets Perch come to the front. Without the shortcut (a card without the keyboard), just opened.
+    private func openReplyInFront() {
+        updateReplyKey()
+        guard replyKeyOn, let src = CGEventSource(stateID: .hidSystemState) else {
+            web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil); return
+        }
+        for down in [true, false] { CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(kVK_ANSI_R), keyDown: down)?.post(tap: .cghidEventTap) }
+    }
+    func replyKey() {
+        if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key pressed, active \(NSApp.isActive)") }
+        guard machine.phase == .open, !replyOpen else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil)
+    }
     func playActivityDemo() { web.evaluateJavaScript("window.perch && window.perch.actDemo()", completionHandler: nil) }
     func activityKey(_ name: String) { web.evaluateJavaScript("window.perch && window.perch.actKey('\(name)')", completionHandler: nil) }
 
@@ -326,7 +355,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         send(event)
         guard machine.phase != .idle else { return false }
         if machine.phase == .switcher, case .reopen(_, nil) = event { filterChanged() }   // its row has gone: the top one that matches
-        if away.replying { web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) }
+        if away.replying { openReplyInFront() }
         refreshProjects()
         return true
     }
@@ -526,8 +555,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let next = decorate(list).enumerated().sorted { (place[$0.element.id] ?? 1000 + $0.offset) < (place[$1.element.id] ?? 1000 + $1.offset) }.map(\.element)
         guard next != projects else { return }
         let keep = projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil
+        // The row you were on has left (a new session pushed the oldest off the list): you are on the one now drawn
+        // where it was, not thrown back to the top.
+        let now = Date(), slot = ListFilter.ordered(projects, listQuery, now: now).firstIndex(of: machine.selected)
         projects = next
-        machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? 0))
+        let shownNow = ListFilter.ordered(next, listQuery, now: now)
+        let stand = slot.flatMap { shownNow.isEmpty ? nil : shownNow[min($0, shownNow.count - 1)] }
+        machine.send(.projectsChanged(count: next.count, selected: next.firstIndex { $0.id == keep } ?? stand ?? 0))
         noteSeen()
         push()
     }
@@ -704,6 +738,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     private func push() {
+        updateReplyKey()
         trackViewing()
         guard ready else { return }
         let away = awaySinceForCard, now = Date()
@@ -749,6 +784,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if old != new { stopRecording(); shortcutTried = false; shortcutSaved = false }
         if old == .onboarding { Prefs.onboarded = true; onbTask?.cancel() }
         if old == .whatsNew { onWhatsNewKey?(false); whatsNew = nil }
+        if old == .switcher { pendingPicked = false }
+        if old == .open, new != .open { frontForReply(false) }
+        // Done setting up a new session: the app you were in is the one in front again.
+        if old == .newSession, new != .newSession {
+            if NSApp.isActive, let app = newFrontFrom, !app.isTerminated { app.activate() }
+            newFrontFrom = nil; pickBack = nil
+        }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
             NSLog("Perch phase: \(old) -> \(new)")
             if new == .idle { NSLog("Perch closed by: \(Thread.callStackSymbols.dropFirst(2).prefix(4).joined(separator: " | "))") }
@@ -790,8 +832,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             // It opened by itself: no keyboard, so nothing typed behind it lands here. Its key is a global one, only while it shows.
             timer?.cancel(); panel.allowsKey = false; panel.ignoresMouseEvents = false; onWhatsNewKey?(true)
         case .newSession:
-            // Asked for, so it takes the keyboard: the prompt is typed here.
+            // Asked for, so it takes the keyboard: the prompt is typed here. Perch is the app in front meanwhile, so what
+            // pastes into the app in front (Raycast's clipboard history, Paste to Perch) lands in the prompt. Where you were
+            // is kept for after (pickBack), as the panel alone never took it from that app.
             timer?.cancel()
+            if !NSApp.isActive { newFrontFrom = NSWorkspace.shared.frontmostApplication; if pickBack == nil { pickBack = WhereYouWere.now() }; NSApp.activate(ignoringOtherApps: true) }
             startKeys(); panel.allowsKey = true; panel.ignoresMouseEvents = false; panel.makeKey()
         case .restoring:
             timer?.cancel()
@@ -819,6 +864,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// seen), and how it is going: "starting", "started", "failed", "gone" (its row folding away).
     private struct Starting {
         let choice: NewSession.Choice, folder: String?, prompt: String, at: Date, known: Set<String>, sessionId: String?, fromList: Bool
+        /// What its row is called until it is found: your words without the attached files' paths.
+        var title = ""
         var state = "starting"
         var found: String?
     }
@@ -874,8 +921,32 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var pickingUntil = Date.distantPast
     /// Where you were before the picker made Perch the app in front: where a session started after it puts you back.
     private var pickBack: WhereYouWere?
+    /// While a reply is open Perch is the app in front, as for a new session, so a launcher's paste lands in the field.
+    /// Where you were is from before that, for whatever puts you back after the reply goes.
+    private var replyFrontFrom: NSRunningApplication?, replyBack: WhereYouWere?
+    private func whereYouWere() -> WhereYouWere { replyBack ?? WhereYouWere.now() }
+    private func frontForReply(_ on: Bool) {
+        if on {
+            guard !NSApp.isActive else { return }
+            replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now()
+            // macOS lets an app come forward by itself only right after its own shortcut; a key in the panel is not that.
+            // Asked through Launch Services, as opening it from Finder would, it does come forward (Perch shows nothing
+            // when opened again).
+            NSApp.activate(ignoringOtherApps: true)
+            let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
+            NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
+                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen { self.panel.makeKey() } } }
+            }
+        } else {
+            guard replyFrontFrom != nil else { return }
+            if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            replyFrontFrom = nil; replyBack = nil
+        }
+    }
+    /// The app in front when a new session was opened, given the front back when it closes.
+    private var newFrontFrom: NSRunningApplication?
     private func chooseFolder() {
-        pickBack = WhereYouWere.now()
+        if pickBack == nil { pickBack = WhereYouWere.now() }
         pickingUntil = .distantFuture
         let p = NSOpenPanel()
         p.canChooseDirectories = true; p.canChooseFiles = false; p.allowsMultipleSelection = false; p.prompt = "Choose"
@@ -897,13 +968,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
     /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
-    private func startNewSession(_ id: String, folder: String?, prompt: String, go: Bool, close: Double) {
+    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
+        Clipboard.letGo(prompt)
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
         let fromList = machine.newFrom == .switcher && !go
         let back = pickBack ?? WhereYouWere.now(); pickBack = nil
-        starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList)
+        starting = Starting(choice: choice, folder: folder, prompt: prompt, at: Date(), known: Set(base.map(\.id)), sessionId: sid, fromList: fromList, title: title.flatMap { $0.isEmpty ? nil : $0 } ?? prompt)
         if go { send(.dismiss) }
         else if fromList { send(.started) }
         else { DispatchQueue.main.asyncAfter(deadline: .now() + close) { [weak self] in if self?.machine.phase == .newSession { self?.send(.started) } } }
@@ -934,19 +1006,33 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    /// Return on the row of a session being started: the app or terminal it starts in comes forward (to confirm the folder
+    /// there, or watch it begin), and the list makes way for it.
+    private func showStarting() {
+        guard let st = starting else { return }
+        let bundle = st.choice.terminal ? Terminals.preferred : st.choice.agent == "codex" ? Restorer.codexApp : Restorer.claudeApp
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { return }
+        pendingPicked = false
+        send(.dismiss); putAway = nil
+        app.activate()
+    }
+
     /// The app asks you to trust the folder: the notch says to confirm there, and the wait is longer.
     private func startingAsks() {
         guard starting?.state == "starting" else { return }
         starting?.state = "confirm"
         let app = starting?.choice.agent == "codex" ? "Codex" : "Claude"
         web.evaluateJavaScript("window.perch && window.perch.newStarted('confirm', '\(app)')", completionHandler: nil)
+        // Started from the list: the app now has the keyboard and waits for you, so the list must not look as if it still
+        // listens. It folds into the line that says to confirm there, as a session started from anywhere does.
+        if machine.phase == .switcher, starting?.fromList == true { pendingPicked = false; send(.dismiss); putAway = nil }
         push()
     }
 
     /// After each scan: is the new session there yet? Given up after a while.
     private func checkStarted() {
         guard let st = starting, st.state == "starting" || st.state == "confirm" else { return }
-        if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId) {
+        if let p = NewSession.started(in: base, choice: st.choice, folder: st.folder, since: st.at, known: st.known, sessionId: st.sessionId, anyFolder: st.state == "confirm") {
             starting?.found = p.id
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch new session: found \(p.id) in \(p.cwd ?? "-")") }
             finishStarting(true)
@@ -956,26 +1042,39 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         guard starting?.state == "starting" || starting?.state == "confirm" else { return }
         startingTicker?.invalidate(); startingTicker = nil
         starting?.state = ok ? "started" : "failed"
-        if !ok { NSLog("Perch: the new session did not show up") }
+        if !ok { NSLog("Perch: the new session did not show up"); if let t = starting?.prompt { Clipboard.keep(t) } }
+        // You were on its row: once it is a real row, you are on that one.
+        if ok, pendingPicked, let id = starting?.found, let i = projects.firstIndex(where: { $0.id == id }) {
+            pendingPicked = false; machine.send(.projectsChanged(count: projects.count, selected: i))
+        }
         web.evaluateJavaScript("window.perch && window.perch.newStarted(\(ok))", completionHandler: nil)
         push()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) { [weak self] in
             guard let self else { return }
             if ok { self.starting = nil; self.push(); return }
             self.starting?.state = "gone"; self.push()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.starting = nil; self?.push() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.starting = nil; self?.pendingPicked = false; self?.push() }
         }
     }
 
     /// In the list: a row for the session from the moment you press Return, at the top of Today. Once the scan finds it,
     /// its real row says Started instead.
+    /// The row you are on in the list is the one being started: the arrows reach it like any other, Return brings
+    /// forward the app it starts in (where it may ask you to confirm), and it has no details.
+    private var pendingPicked = false
+    /// Whether the list shows a row for a session being started, and before which listed session (nil: at the end).
+    private var pendingSlot: (shown: Bool, before: Int?) {
+        guard machine.phase == .switcher, let st = starting, st.fromList, listQuery.isEmpty, st.state != "started" else { return (false, nil) }
+        let shown = ListFilter.ordered(projects, listQuery, now: Date())
+        return (true, shown.first { ListFilter.section(projects[$0], now: Date()) != .needsYou })
+    }
     private func pendingRow(_ st: Starting, into sent: inout UISnapshot) {
         if st.state == "started" {
             if let id = st.found, let i = sent.projects.firstIndex(where: { $0.id == id }) { sent.projects[i].pending = "started" }
             return
         }
         let folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
-        let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.prompt, app: st.choice.agent,
+        let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.title, app: st.choice.agent,
                                        attention: false, fresh: false, line: "", status: .init(kind: "running", text: "Starting", app: st.choice.agent), steps: [], ask: nil, now: nil,
                                        via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: st.state)
         sent.projects.append(row)
@@ -983,6 +1082,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let at = shown.firstIndex { sent.projects[$0].section != "Needs you" } ?? shown.count
         shown.insert(sent.projects.count - 1, at: at)
         sent.shown = shown
+        if pendingPicked { sent.selected = sent.projects.count - 1 }
     }
 
     // MARK: web view
@@ -997,7 +1097,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "answer":
             if let a = body["answers"] as? [String: String] { answer("", answers: a) }
             else if let c = body["choice"] as? String { answer(c) }
-        case "pick": if let i = body["index"] as? Int { send(.select(i)) }
+        case "pick":
+            guard let i = body["index"] as? Int else { break }
+            if i == projects.count, pendingSlot.shown { pendingPicked = true; push() } else { pendingPicked = false; send(.select(i)) }
         case "details": if let i = body["index"] as? Int { send(.show(i)) }
         case "hooks":
             let on = body["on"] as? Bool ?? true
@@ -1011,7 +1113,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
-            if replyOpen { timer?.cancel(); panel.makeKey() } else { restartTimer(); cancelWaiting() }
+            if replyOpen { timer?.cancel(); frontForReply(true); panel.makeKey() } else { restartTimer(); cancelWaiting(); frontForReply(false) }
             push()
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
@@ -1022,7 +1124,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "newSession":
             switch body["action"] as? String {
-            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
             case "chooseFolder": chooseFolder()
             default: openNewSession()
             }
@@ -1152,13 +1254,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `pid`: the session to answer, when it is not the one on the card.
     private func reply(_ text: String, to pid: String? = nil, closeAfter: Double = 0.78) {
         guard let i = projectIndex(pid) else { return }
+        Clipboard.letGo(text)
         // A terminal session takes the words straight into its tab, and you stay where you are. A closed one opens again
         // with your words as its first message. Only a terminal Perch cannot type into falls back to pasting.
         let p = projects[i]
         drafts[p.id] = nil   // on its way; a fallback leaves it on the clipboard
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
-            let sentAt = Date(), back = WhereYouWere.now()
+            let sentAt = Date(), back = whereYouWere()
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
@@ -1191,7 +1294,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if !AXIsProcessTrusted() { waitForAccess(text, for: p); return }
         // A session in the Claude app takes the words in the background: its window never comes forward.
         if p.app == "claude", let id = p.desktopSessionId {
-            let cli = p.sessionId, topic = p.topic, back = WhereYouWere.now()
+            let cli = p.sessionId, topic = p.topic, back = whereYouWere()
             markSeen(p)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -1269,7 +1372,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// `send` false: paste only, leaving it with your draft for you to send (a draft was in the field).
     private func pasteReply(_ text: String, to pid: String? = nil, claudeShown: String? = nil, back: WhereYouWere? = nil, send: Bool = true) {
         guard let i = projectIndex(pid) else { return }
-        let back = back ?? WhereYouWere.now(), targetSession = projects[i].desktopSessionId
+        let back = back ?? whereYouWere(), targetSession = projects[i].desktopSessionId
         let trusted = AXIsProcessTrusted()
         if !trusted, !askedForAccessibility {
             askedForAccessibility = true   // ask once per launch, never in a loop
@@ -1335,10 +1438,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// Files dropped on the card or pasted from Finder: their paths go into the reply, which opens for them if it can.
+    /// Files dropped on the card or pasted from Finder: attached to the reply (which opens for them if it can) or the new
+    /// session's prompt. Their icons follow a moment later, read off the main thread (a picture is a thumbnail of it).
     private func addPaths(_ paths: [String]) {
         guard let data = try? JSONEncoder().encode(paths), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.paths(\(json))", completionHandler: nil)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var icons: [String: String] = [:]
+            for p in paths { icons[p] = AppIcons.file(p) }
+            guard let data = try? JSONEncoder().encode(icons), let json = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.web.evaluateJavaScript("window.perch && window.perch.fileIcons(\(json))", completionHandler: nil) } }
+        }
     }
 
     /// A word beside the notch once the card has closed, when something did not go as you would expect.
@@ -1365,7 +1475,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
-                                   showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState(),
+                                   showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
                                    back: machine.settingsFrom != nil)
     }
@@ -1503,12 +1613,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var shortcutPicks = 0
     private var shortcutRefusals = 0
 
-    private func shortcutState() -> UISnapshot.ShortcutState {
-        let new = recordingFor == "new", s = new ? Prefs.newShortcut : Prefs.openShortcut
+    /// The recorder's shortcut, or `which` one: Settings' Open Perch row always shows Open Perch's, so a New session
+    /// shortcut just recorded neither shows its keys there nor springs it.
+    private func shortcutState(_ which: String? = nil) -> UISnapshot.ShortcutState {
+        let w = which ?? recordingFor, mine = w == recordingFor
+        let new = w == "new", s = new ? Prefs.newShortcut : Prefs.openShortcut
         var works = true, why = ""
         if s.kind == .tap, !AXIsProcessTrusted() { works = false; why = "A tap needs Accessibility. Allow it, or record a key combo." }
         else if s.kind == .combo, (new ? newComboWorks?() : openComboWorks?()) == false { works = false; why = "Another app already uses this shortcut. Record a different one." }
-        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: new ? s != Prefs.standardNew : !s.isStandard, recording: recorder != nil, error: shortcutError, tried: shortcutTried, saved: shortcutSaved, works: works, why: why, attempt: shortcutAttempt, refusals: shortcutRefusals, pending: shortcutPending, picks: shortcutPicks, which: recordingFor)
+        return UISnapshot.ShortcutState(keys: s.keys, kind: s.kind.rawValue, custom: new ? s != Prefs.standardNew : !s.isStandard, recording: mine && recorder != nil, error: mine ? shortcutError : "", tried: mine && shortcutTried, saved: mine && shortcutSaved, works: works, why: why,
+                                       attempt: mine ? shortcutAttempt : [], refusals: mine ? shortcutRefusals : 0, pending: mine ? shortcutPending : [], picks: mine ? shortcutPicks : 0, which: w)
     }
     /// Which shortcut the recorder page records: "open" or "new" (New session's, from its row in Settings).
     private var recordingFor = "open"
@@ -1614,6 +1728,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
+                    // A file copied in Finder, or a picture on the clipboard (a screenshot), is attached, into the prompt (on to it from an earlier step), as on a reply.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
+                    }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
                 return e
@@ -1624,9 +1742,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
-                    // A file copied in Finder pastes as its path, not its name.
-                    if action == "paste:", let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-                        self.addPaths(urls.map(\.path)); return nil
+                    // A file copied in Finder is attached by its path; a picture on the clipboard (a screenshot) is saved and attached the same way.
+                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                        self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
                 }
@@ -1670,6 +1788,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Nothing left to open or look at when nothing matches.
                 if [36, 76, 48, 124].contains(e.keyCode), !self.listMarked || ListFilter.shown(self.projects, self.listQuery).isEmpty { return nil }
             }
+            // On the row of a session being started: Return brings its app forward, and it has no details.
+            if self.machine.phase == .switcher, self.pendingPicked, self.pendingSlot.shown, [36, 76, 48, 124].contains(e.keyCode) {
+                if e.keyCode == 36 || e.keyCode == 76 { self.showStarting() }
+                return nil
+            }
             if self.machine.phase == .switcher, e.keyCode == 124 { self.send(.back); return nil }   // the details of the row you are on
             switch (e.keyCode, ch) {
             case (36, _), (76, _): self.send(.confirm)
@@ -1704,10 +1827,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// Up and down move through the rows that match, wrapping around.
     private func stepList(_ d: Int) {
-        let shown = ListFilter.ordered(projects, listQuery, now: Date())
-        guard !shown.isEmpty else { return }
-        let next = shown.firstIndex(of: machine.selected).map { shown[($0 + d + shown.count) % shown.count] } ?? shown[0]
-        machine.send(.projectsChanged(count: projects.count, selected: next))
+        // nil stands for the row of a session being started, where the list draws it
+        var order: [Int?] = ListFilter.ordered(projects, listQuery, now: Date())
+        let slot = pendingSlot
+        if slot.shown { order.insert(nil, at: slot.before.flatMap { b in order.firstIndex { $0 == b } } ?? order.count) }
+        guard !order.isEmpty else { return }
+        let here = pendingPicked && slot.shown ? order.firstIndex { $0 == nil } : order.firstIndex { $0 == machine.selected }
+        let next = here.map { order[($0 + d + order.count) % order.count] } ?? order[0]
+        pendingPicked = next == nil
+        if let next { machine.send(.projectsChanged(count: projects.count, selected: next)) }
         push()
     }
     private func stopKeys() { if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil } }
@@ -1794,9 +1922,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Another app took the keyboard from the card (Raycast, Spotlight, Command+Tab): you have gone elsewhere, as with a
     /// click outside, so the card makes way rather than cover that app's window. Not during onboarding (you go to System
-    /// Settings in the middle of it), nor while a reply is typed or on its way.
+    /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
+    /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !replyOpen, waitingReply == nil else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
@@ -1836,6 +1965,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     private func installMouseMonitors() {
         startCursorPolling()
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.updateReplyKey() } }
+        }
         NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.makeWay() }
         }
