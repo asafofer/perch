@@ -36,7 +36,7 @@ scenario with what it shows. No visible change: replace the markers with "No vis
 ## Risk and what was not checked
 
 <!-- Anything that touches: hooks or other apps' config (HookInstaller), Accessibility or the keyboard (cardTakesKeys,
-makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards fit its 410 pt), updates (Sparkle).
+makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards fit its 440 pt), updates (Sparkle).
 Say plainly what you did not try. -->
 
 ## Checks
