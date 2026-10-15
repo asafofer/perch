@@ -44,6 +44,6 @@ Say plainly what you did not try. -->
 - [ ] `swift test` passes (count: )
 - [ ] Looked at every changed state in the design page
 - [ ] `ui/app.js` is ASCII only, CSS rebuilt (`cd ui && npm run build`)
-- [ ] Settings and onboarding cards fit the 410 pt panel (if a row was added)
-- [ ] AGENTS.md updated where behaviour or structure changed
+- [ ] Settings and onboarding cards fit the 440 pt panel (if a row was added)
+- [ ] AGENTS.md or its `docs/behavior/` file updated where behaviour or structure changed
 - [ ] Release notes and version (only for a release)

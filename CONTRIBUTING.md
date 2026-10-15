@@ -2,7 +2,7 @@
 
 Thanks for wanting to help. Perch is small on purpose: the bar is polish and restraint, not more features. A bug fix or a rough edge smoothed is the easiest thing to land. For a new feature, open an issue first and say what it is for, so nobody builds something that will not be merged.
 
-[AGENTS.md](AGENTS.md) is the full guide, for people and coding agents alike: architecture, design rules and the things that will bite you. Read it before a change of any size.
+[AGENTS.md](AGENTS.md) is the full guide, for people and coding agents alike: architecture, design rules and the things that will bite you. Read it before a change of any size, and the file in [docs/behavior](docs/behavior) for the area you change.
 
 ## Set up
 
