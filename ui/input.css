@@ -247,7 +247,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
 .act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; cursor: pointer; transition: color .15s; }
 .act-q:hover, .act-q.hv { color: #fff; }   /* clicked, the question opens on the card, all of it */
-.act-b.act-o { color: #a1a1aa; margin-left: 2px; }
+.act-b.act-o { background: rgba(255,255,255,.08); margin-left: 4px; }   /* to the app: a button of its own, set apart from the choices */
+.act-b.act-o:hover, .act-b.act-o.hv { background: rgba(255,255,255,.14); }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
 .act-rec { margin-left: 6px; font-style: normal; font-weight: 500; font-size: inherit; color: #a1a1aa; }
 .act-ex b { display: block; font-weight: 500; color: #e4e4e7; }

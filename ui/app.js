@@ -1565,7 +1565,8 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var openB = opener ? '<button class="act-b nk act-o" data-a="pick" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '"><span class="act-bl">' + esc(goLabel(p)) + '</span></button>' : '';
+    var openKey = !bs.some(function (b) { return b[0] === 'open'; });   /* Answer has Command+Option+Return: then it is for the mouse */
+    var openB = opener ? '<button class="act-b act-o' + (openKey ? '' : ' nk') + '" data-a="pick" title="' + esc(goLabel(p)) + '"><span class="act-bl">' + esc(goLabel(p)) + '</span>' + (openKey ? '<kbd>' + CMDOPT + '\u21a9</kbd>' : '') + '</button>' : '';
     var btns = (opener ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
@@ -1577,10 +1578,18 @@
     /* after the choices at the right edge; before the actions, whose main one keeps the edge */
     if (openB) btns = choices ? btns + openB : btns.replace(/(<button class="act-b(?! act-x)[^"]*" data-a="(?:allow|deny|open|pick\d)")/, openB + '$1');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    /* what a hovered choice says comes and goes on its own: drawing the row again would replay the buttons' entrance, the
+       row would slide under the pointer, and the choice it passed would open it again */
+    var ex = actExtra(p, k), had = actEl.querySelector('.act-ex');
+    if (!ex) { if (had) had.remove(); }
+    else if (!had || had._h !== ex) {
+      var t = document.createElement('div'); t.innerHTML = ex; var el = t.firstChild; el._h = ex; el.style.transition = 'none';
+      if (had) actEl.replaceChild(el, had); else actEl.insertBefore(el, actEl.querySelector('.act-body, .act-btns'));
+    }
     actEl._for = p.id;
     actGlide();
   }
@@ -1701,7 +1710,7 @@
     }
     var base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
     /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
-    bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
+    bb.style.bottom = 'auto'; bb.style.top = (base - 35) + 'px';   /* always from the top: a note going away does not carry them up and back on the spring */
     if (ex) {
       /* as tall as its words are at this width, up to a point */
       var m = ex.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:' + (w - 26) + 'px';
