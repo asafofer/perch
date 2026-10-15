@@ -257,7 +257,8 @@ enum Terminals {
         guard FileManager.default.isExecutableFile(atPath: path) else { return nil }
         let p = Process(); p.executableURL = URL(fileURLWithPath: path); p.arguments = args
         if !env.isEmpty { p.environment = ProcessInfo.processInfo.environment.merging(env) { _, new in new } }
-        let out = Pipe(); p.standardOutput = out; p.standardError = Pipe()
+        // Nothing reads what it says on stderr, so that goes nowhere: an unread pipe that fills up blocks the tool for good.
+        let out = Pipe(); p.standardOutput = out; p.standardError = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
