@@ -21,19 +21,23 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
-        for item in all {
+        for item in all where !item.project.smallTalk {
             let key = item.project.app, cwd = item.project.cwd ?? item.project.id
             var entry = perApp[key] ?? ([], [])
             if entry.seen.insert(cwd).inserted { entry.names.append(item.project.name) }
             perApp[key] = entry
         }
         lock.lock(); _counts = perApp.mapValues { Count(count: $0.names.count, names: $0.names) }; lock.unlock()
-        var out = Array(all.filter { isEnabled($0.project.app) }.prefix(maxProjects))
+        // Small talk in a terminal takes no real session's place: it is matched to the running agents with the rest (so its
+        // process does not claim another session in that folder), then kept only if one of them runs it.
+        let on = all.filter { isEnabled($0.project.app) }
+        var out = (Array(on.filter { !$0.project.smallTalk }.prefix(maxProjects)) + on.filter(\.project.smallTalk)).sorted { $0.last > $1.last }
         if out.contains(where: { $0.project.terminal }) {
             var projects = out.map(\.project)
             Self.placeTerminalSessions(&projects)
             for i in out.indices { out[i].project = projects[i] }
         }
+        out = Array(out.filter { !$0.project.smallTalk || $0.project.pid != nil }.prefix(maxProjects))
         let fresh = Dictionary(out.map { ($0.project.id, (digest: $0.digest, git: $0.git)) }, uniquingKeysWith: { a, _ in a })
         lock.lock(); _inputs = fresh; lock.unlock()
         return out.map(\.project)
