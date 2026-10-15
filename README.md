@@ -57,7 +57,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 | Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time macOS says it can't check Perch: open System Settings, Privacy & Security, scroll down and choose **Open Anyway** beside Perch. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
+**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Perch is signed and notarized by Apple, so it opens like any app from the internet. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 
@@ -137,6 +137,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 - **The card never appears on its own.** It waits until you have been away for the "Come back after" time, 20 minutes by default. To test it quickly: `./scripts/run.sh --idle 15`.
 - **macOS asks for permissions after every build.** Run `./scripts/make-dev-cert.sh` once so builds are signed with a stable identity.
+- **Perch asks for Accessibility again after an update.** 0.4.0 is the first release signed by Apple, and macOS ties Accessibility to the signature, so it asks once more. Press Allow on the What's new card (or in Settings) and turn Perch on in System Settings.
 - **Accessibility is on but Perch still waits.** Remove Perch from the list with the minus button, add it again and restart Perch. Setup has a Restart button for this.
 - **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database and `~/.pi/agent/sessions`, and which agents are running, in which terminal, herdr pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
 - **Status lags or guesses.** Turn on live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
@@ -158,7 +159,6 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 ## Roadmap
 
 - More sources: Cursor, tmux
-- Notarized releases with automatic updates
 - An optional sound and haptics
 
 ## Credits
