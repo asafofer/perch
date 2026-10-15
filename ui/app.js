@@ -2345,7 +2345,9 @@
       if (!rest) requestAnimationFrame(step);
     }
   }
-  if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
+  /* the real pointer only: hoverAt's own mousemove (for the page's hover handlers) would come back here and loop, and the
+     design page's pretend pointer calls cursor itself */
+  if (!NATIVE) scene.addEventListener('mousemove', function (e) { if (e.isTrusted) cursor(e.clientX, e.clientY); });
   if (!NATIVE) scene.addEventListener('mousemove', function (e) {
     if (!snap || snap.phase !== 'idle') return;
     var r = n.getBoundingClientRect(), pad = 10;
