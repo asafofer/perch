@@ -263,6 +263,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
 .act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }
+.act-b.act-o > * { opacity: .8; transition: opacity .15s; }   /* the app's icon, to open the session there */
+.act-b.act-o:hover > *, .act-b.act-o.hv > * { opacity: 1; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
 .act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
 .act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }
@@ -460,6 +462,8 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .sel-pill.on { opacity: 1; }
 .sel-pill.snap { transition: none; }
 .p-switch.nomark .sel-pill { opacity: 0; transition-duration: .2s; }
+/* a question card's choice under the pointer, the same slide (app.js markChoice); a picked choice keeps its own fill */
+.ch-pill { left: 0; right: 0; border-radius: 8px; background: rgba(255,255,255,.06); }
 .p-switch .s-l .row.bg-accent:not(.crossed) { background-color: transparent; }
 .p-switch .s-l .row { position: relative; }
 @media (prefers-reduced-motion: reduce) { .sel-pill { transition: opacity .01ms; } }

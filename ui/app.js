@@ -664,17 +664,34 @@
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
     /* the choices stand a little apart, so two picked ones read as two; each number sits level with its choice */
-    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
+    /* the pointer's choice is one highlight that slides from choice to choice, as on the list (chPill); a note is said in full */
+    setWords(q('.o-ask'), '<div class="ch-box relative -mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : '') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
-        (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
+        (note ? '<span class="block text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
     }).join('') + '</div>');
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
     setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
       (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go')));
+  }
+  /* The choice under the pointer: one highlight that slides from choice to choice, put where the pointer is (not from enter
+     and leave, which a card hovered open gets played late and out of order, so two choices lit at once or one stayed lit). */
+  var chPill = document.createElement('div'); chPill.className = 'sel-pill ch-pill'; chPill.setAttribute('aria-hidden', 'true');
+  function markChoice() {
+    var box = q('.o-ask .ch-box');
+    if (!box || !box.offsetParent) { chPill.classList.remove('on'); chPill.at = null; return; }
+    if (chPill.parentNode !== box) { box.insertBefore(chPill, box.firstChild); chPill.at = null; chPill.classList.remove('on'); }
+    var e = ptrAt[0] >= 0 ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, b = e && e.closest && e.closest('.ch-box > button');
+    if (!b || b.parentNode !== box) { chPill.classList.remove('on'); return; }
+    var at = b.offsetTop + ':' + b.offsetHeight; if (at === chPill.at && chPill.classList.contains('on')) return;
+    var first = !chPill.classList.contains('on'); chPill.at = at;
+    if (first) chPill.classList.add('snap');
+    chPill.style.transform = 'translateY(' + b.offsetTop + 'px)'; chPill.style.height = b.offsetHeight + 'px';
+    if (first) { void chPill.offsetWidth; chPill.classList.remove('snap'); }
+    chPill.classList.add('on');
   }
   /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
@@ -714,6 +731,7 @@
       var pane = q('.p-open'), seen = how === 'step' && !STILL ? crossSeen(pane, ['.o-h', '.o-ask']) : [];
       cardMove = 'live'; questionCard(asking.p, a); cardMove = '';
       if (snap) layout(lastSt, snap);
+      markChoice();
       crossIn(pane, seen);
       if (how === 'pick') drawCheck(pick, on);
     };
@@ -1469,8 +1487,10 @@
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
+    if (keys.indexOf('open') >= 0) keys = keys.filter(function (k) { return k !== 'pick'; });   /* Answer has Command+Option+Return; the app's icon is for the mouse */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
+    if (st === 'open') markChoice();
   }
 
   /* ---- the live activity ----
@@ -1531,7 +1551,10 @@
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
+    /* Its app's icon at the left of the row opens the session there, to see all of it (Command+Option+Return), unless a
+       button already does; then a cross puts it away. Command+Option+. puts it away either way. */
+    var opener = !bs.some(function (b) { return b[0] === 'pick'; });
+    act.keys = ['gone'].concat(opener ? ['pick'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
@@ -1540,7 +1563,8 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>' +
+    var btns = (opener ? '<button class="act-b act-x act-o" data-a="pick" aria-label="' + esc(goLabel(p)) + '" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '">' + AppOf(p, 'size-[15px]') + '</button>'
+      : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
@@ -2231,7 +2255,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -2258,6 +2282,7 @@
     hlDraw();
   }
   document.addEventListener('selectionchange', selCheck);
+  document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
   /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
      them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
      highlight stays underneath, hidden, and is what gets copied. */
@@ -2315,7 +2340,7 @@
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
-    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList();
+    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
