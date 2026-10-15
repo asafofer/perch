@@ -1788,9 +1788,11 @@
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
     if (!u || u.phase !== 'available') updOpen = false;
+    /* found by itself and peeked already (this version, or a Not now holds): the notch says nothing, the list's Update says it */
+    var updList = !!(u && u.phase === 'available' && u.peek && u.listOnly && !updOpen);
     /* the timer of the phase before (the offer folding away) must not fold this one */
     if (u && act.p && act.p.update && act.p.update.phase !== u.phase) clearTimeout(actTimer);
-    if (up && !s.quiet && !actGone[ukey]) {
+    if (up && !s.quiet && !actGone[ukey] && !updList) {
       var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase && (u.phase !== 'failed' || act.p.update.problem === u.problem);   /* a failure that says something else is a new one */
       /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */
       if (u.phase === 'downloading' && !need.length) { setAct('wings', up, true); return; }
@@ -1798,12 +1800,16 @@
       /* found by itself (a check on the schedule): it peeks first, one line for four seconds, and opens to the row only when you click
          it. A session waiting on you goes first: the peek waits until the notch is free. Once it folds, the list's Update says the rest. */
       if (u.phase === 'available' && u.peek && !updOpen) {
-        if (!need.length) { var peeking = act.mode === 'peek' && act.p && act.p.update; setAct('peek', up, true); if (!peeking) actLater(4000); return; }
+        if (!need.length) {
+          var peeking = act.mode === 'peek' && act.p && act.p.update; setAct('peek', up, true);
+          if (!peeking) { actLater(4000); post({ type: 'update', action: 'peeked' }); }   /* once per version: Swift remembers it */
+          return;
+        }
       } else if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
       /* a small row that says it and goes: updated, up to date, could not check */
       if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? (u.problem ? 9000 : 4500) : 3500); return; }
     }
-    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
+    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && !updList && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
@@ -3571,7 +3577,7 @@
         o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) { updNotes = false; updOpen = false; } }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, listOnly: !!o.listOnly, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */

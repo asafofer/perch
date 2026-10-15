@@ -107,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
             c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
             c.onMenuIcon = { [weak self] image in self?.statusItem?.button?.image = image }
-            monitor.onReturn = { since in c.comeBack(proactive: true, awaySince: since) }
+            monitor.onReturn = { [updater] since in c.comeBack(proactive: true, awaySince: since); updater.checkSoon() }
             activity = monitor
             installStatusItem()
             // First run (or a restart in the middle of setup): the guided onboarding.

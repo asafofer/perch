@@ -18,12 +18,18 @@ struct UpdateInfo: Encodable, Equatable {
     var short = ""
     var fix = ""
     var during = ""
+    /// Found by a check on the schedule, not one you asked for: the notch peeks (one line, a click opens the row) instead of
+    /// opening the row. `listOnly`: it peeked already for this version, or a Not now holds: only the list's Update says it.
+    var peek = false
+    var listOnly = false
 }
 
 /// Keeps a released Perch up to date with Sparkle, with Perch's own face instead of Sparkle's windows: the notch says what is
-/// happening (ui/app.js, "an update of Perch itself"). A check on a schedule that finds a new version downloads it and restarts
-/// at a quiet moment; one you asked for (Check for updates) offers it first. The update is signed with Perch's own key
-/// (SUPublicEDKey), so it needs no Apple notarization. Test builds never update themselves.
+/// happening (ui/app.js, "an update of Perch itself"). It looks every hour (SUScheduledCheckInterval, Sparkle's shortest), and
+/// again when the Mac wakes or you come back from a break. Nothing downloads until you say so: a check on the schedule that finds
+/// a new version has the notch peek once per version, and the list keeps Update until you take it; one you asked for (Check for
+/// updates) opens the offer. Once you press Update it downloads and restarts at a quiet moment. The update is signed with Perch's
+/// own key (SUPublicEDKey), so it needs no Apple notarization. Test builds never update themselves.
 @MainActor
 final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     private var updater: SPUUpdater?
@@ -64,7 +70,23 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         do { try u.start() } catch { NSLog("Perch updates: \(error.localizedDescription)"); return }
         updater = u
         announceUpdated()
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            // A moment for the network to come back after sleep.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) { MainActor.assumeIsolated { self?.checkSoon() } }
+        }
     }
+
+    /// The Mac woke, or you came back from a break: look now rather than at the next hour, unless a look was recent or one is
+    /// already on its way. Like the schedule's, it says nothing unless it finds something.
+    func checkSoon() {
+        guard let updater, !updater.sessionInProgress, updater.automaticallyChecksForUpdates else { return }
+        if let last = updater.lastUpdateCheckDate, Date().timeIntervalSince(last) < 15 * 60 { return }
+        if ["available", "downloading", "ready", "restarting", "checking"].contains(info?.phase ?? "") { return }
+        updater.checkForUpdatesInBackground()
+    }
+
+    /// The last version the notch peeked about: it peeks once per version, across restarts.
+    private static let peekedKey = "update.peeked"
 
     @objc func check() {
         // The demo has no Sparkle: a check just says you are up to date.
@@ -79,7 +101,7 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
         guard let updater else { return }
         // Already on it: say so rather than doing nothing.
         switch info?.phase {
-        case "available": info?.nudge += 1; return   // the offer is still there: say it again
+        case "available": info?.peek = false; info?.listOnly = false; info?.nudge += 1; return   // the offer is still there: say it again, as the row
         case "ready": restartNow(); return
         case "downloading", "restarting", "checking": return
         default: break
@@ -92,7 +114,9 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     func handle(_ action: String) {
         switch action {
         case "install": if let offer { self.offer = nil; offer(.install) }
-        case "later": if let offer { self.offer = nil; offer(.dismiss) }; if ["available", "failed"].contains(info?.phase ?? "") { clearTimer?.invalidate(); info = nil }
+        // Later puts the row away; an offer stays (Sparkle keeps it open), so the list keeps Update until you take it.
+        case "later": if info?.phase == "failed" { clearTimer?.invalidate(); info = nil }
+        case "peeked": if let v = info?.version { UserDefaults.standard.set(v, forKey: Self.peekedKey) }
         case "retry": retry()
         case "reveal": revealApp()
         case "restart": if relaunch == nil, updater == nil, demoTask != nil { demoRestart() } else { restartNow() }
@@ -202,9 +226,13 @@ final class Updater: NSObject, SPUUserDriver, SPUUpdaterDelegate {
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
         let notes = UpdateNotes.parse(appcastItem.itemDescription)
         let version = appcastItem.displayVersionString
-        if state.userInitiated, state.stage == .notDownloaded {
+        // Nothing downloads until you say so. Found on the schedule, the notch peeks, once per version; asked for, it offers.
+        // Already downloaded (by a build that fetched updates by itself) it goes ahead.
+        if state.stage == .notDownloaded {
             offer = reply
-            info = UpdateInfo(version: version, phase: "available", notes: notes.headline, bullets: notes.bullets)
+            let peek = !state.userInitiated
+            info = UpdateInfo(version: version, phase: "available", notes: notes.headline, bullets: notes.bullets, peek: peek,
+                              listOnly: peek && UserDefaults.standard.string(forKey: Self.peekedKey) == version)
         } else {
             reply(.install)
             info = UpdateInfo(version: version, phase: "downloading", notes: notes.headline, bullets: notes.bullets)
