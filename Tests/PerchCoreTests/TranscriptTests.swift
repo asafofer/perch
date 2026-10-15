@@ -383,6 +383,18 @@ import Foundation
         let still = Recap.project(digest: alive, git: nil, now: launch.addingTimeInterval(2000), quietFor: 1990)!
         #expect(still.status.kind == "running"); #expect(still.now == "Waiting on a helper: M4")
     }
+    @Test func aHelperWaitingOnItsOwnBackgroundWorkIsStillOut() {
+        // Claude Code 2.1: a helper that put its own command in the background stops, and says so; it reports again when
+        // that is over, with no tool call id the second time.
+        func queued(_ content: String) -> String {
+            String(data: try! JSONSerialization.data(withJSONObject: ["type": "queue-operation", "operation": "enqueue", "content": content]), encoding: .utf8)!
+        }
+        let interim = queued("<task-notification>\n<task-id>a-t1</task-id>\n<tool-use-id>t1</tool-use-id>\n<status>completed</status>\n<summary>Agent \"M4\" is waiting on its own background work</summary>\n<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>\n<result>The 90-second sleep is running in the background.</result>\n</task-notification>")
+        let final = queued("<task-notification>\n<task-id>a-t1</task-id>\n<status>completed</status>\n<summary>Agent \"M4\" finished</summary>\n<note>A task-notification fires each time this agent stops with no live background children of its own.</note>\n<result>done</result>\n</task-notification>")
+        let out = [prompt] + helper("t1", "M4") + [turnOver, interim]
+        #expect(later(out).status.kind == "running"); #expect(later(out).now == "Waiting on a helper: M4")
+        #expect(later(out + [final]).status.kind == "done")
+    }
     @Test func aCommandLeftInTheBackgroundIsWorkButAServerIsNot() {
         let ci = toolCall("Bash", #"{"command":"gh pr checks 12 --watch","description":"Wait for the PR checks","run_in_background":true}"#)
         let started = launched("t1", #"{"stdout":"","stderr":"","interrupted":false,"backgroundTaskId":"b1"}"#)

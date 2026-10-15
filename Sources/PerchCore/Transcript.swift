@@ -213,8 +213,9 @@ public struct Background: Equatable, Sendable {
         return work.allSatisfy { $0.kind == .helper } ? "Waiting on \(work.count) helpers" : "Waiting on \(work.count) tasks in the background"
     }
 
-    /// The ids a task notification says are over: its tool call's and its task's. Nil for anything else, and for a watch's
-    /// events, which carry no status: the watch goes on.
+    /// The ids a task notification says are over: its tool call's and its task's. Nil for anything else, for a watch's
+    /// events, which carry no status (the watch goes on), and for a helper that stopped with work of its own still out
+    /// ("is waiting on its own background work"): its report is interim, and the same task id reports again at the end.
     static func ended(_ note: String) -> Set<String>? {
         let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.hasPrefix("<task-notification>"), t.contains("<status>") else { return nil }
@@ -222,6 +223,7 @@ public struct Background: Equatable, Sendable {
             guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
             return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        if tag("summary")?.hasSuffix("waiting on its own background work") == true || tag("note")?.contains("background work of its own still running") == true { return nil }
         return Set([tag("tool-use-id"), tag("task-id")].compactMap { $0 })
     }
 
