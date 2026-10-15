@@ -279,9 +279,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* folded to wings: only the app and the mark, beside the camera */
 .act[data-mode=wings] > .act-l, .act[data-mode=wings] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
 .act[data-mode=wings] .act-n, .act[data-mode=wings] .act-s { display: none; }
-/* an update found by itself peeks: the character, and the version beside its mark; a click opens it into the row */
+/* an update found by itself peeks: Update available, and the version beside its mark; a click opens it into the row */
 .act[data-mode=peek] > .act-l, .act[data-mode=peek] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
-.act[data-mode=peek] .act-n { display: none; }
 .n[data-act=peek] .act { pointer-events: auto; cursor: pointer; }
 /* an answer went (app.js sentShow): the row folds to its top line; the question and the buttons fade up and away */
 .act[data-mode=sent] > .act-l, .act[data-mode=sent] > .act-r { opacity: 1; transform: none; }

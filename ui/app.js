@@ -1587,10 +1587,10 @@
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
     if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', 'Show in Finder', true) : btn('retry', 'Try again', true))); }
     act.keys = keys;
-    /* the peek: only the version beside its mark, the character on the other side */
+    /* the peek: Update available on one side, the version beside its mark on the other; no character */
     var peeking = act.mode === 'peek';
     if (peeking) { words = esc(u.version); body = ''; btns = ''; }
-    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
+    var html = '<span class="act-l">' + (peeking ? '' : crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake')) + '<span class="act-n"><span class="mq-in">' + (peeking ? 'Update available' : 'Perch ' + esc(u.version)) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s ' + (peeking ? 'said' : ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
     var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
     if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
