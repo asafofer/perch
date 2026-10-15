@@ -850,17 +850,26 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   addEventListener('resize', function () { if (dd.classList.contains('open')) ddFit(); });
   addEventListener('scroll', function () { if (dd.classList.contains('open')) ddFit(); }, { passive: true });
   /* typed: the categories whose name matches, then every scenario whose name or words match, with its category beside it */
+  /* each word typed is the start of a word there, in any order ("asked l" finds Asked you something, long) */
+  function words(x) { return x.toLowerCase().replace(/[\u2018\u2019']/g, '').split(/[^a-z0-9]+/).filter(Boolean); }
+  function matches(t, x) { var w = words(x); return words(t).every(function (q) { return w.some(function (v) { return v.indexOf(q) === 0; }); }); }
   function ddSearch() {
-    var t = ddq.value.trim().toLowerCase();
-    [].forEach.call(tabs.querySelectorAll(':scope > button'), function (b, k) { b.hidden = !!t && GROUPS[k][0].toLowerCase().indexOf(t) < 0; b.classList.remove('at'); });
+    var t = ddq.value.trim();
+    [].forEach.call(tabs.querySelectorAll(':scope > button'), function (b, k) { b.hidden = !!t && !matches(t, GROUPS[k][0]); b.classList.remove('at'); });
     hits.innerHTML = '';
+    /* a scenario whose name matches comes before one whose words below it do */
+    var found = [];
     if (t) GROUPS.forEach(function (g, gi) { g[1].forEach(function (sc, si) {
-      if ((sc[0] + ' ' + sc[1]).toLowerCase().indexOf(t) < 0) return;
+      var rank = matches(t, sc[0]) ? 0 : matches(t, sc[0] + ' ' + sc[1]) ? 1 : -1;
+      if (rank >= 0) found.push({ g: g, gi: gi, sc: sc, si: si, rank: rank });
+    }); });
+    found.sort(function (a, b) { return a.rank - b.rank; }).forEach(function (f) {
+      var g = f.g, gi = f.gi, sc = f.sc, si = f.si;
       var b = document.createElement('button'); b.setAttribute('role', 'option');
       b.innerHTML = '<span>' + sc[0] + '</span><span class="in">' + g[0] + '</span>';
       b.onclick = function () { showTab(gi); ddOpen(false); boxes[gi].children[si].click(); boxes[gi].children[si].scrollIntoView({ block: 'nearest' }); };
       hits.appendChild(b);
-    }); });
+    });
     var shown = ddItems(); none.hidden = shown.length > 0; if (shown[0] && t) shown[0].classList.add('at');
   }
   function ddItems() { return [].slice.call(tabs.querySelectorAll('button')).filter(function (b) { return !b.hidden; }); }
