@@ -76,6 +76,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd>button .chev{margin-left:6px;width:13px;height:13px}
 .dd .menu{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:40;min-width:100%;padding:4px;background:var(--pg-card);border-radius:11px;box-shadow:0 0 0 1px var(--pg-line),0 14px 34px rgba(0,0,0,.45)}
 .dd.open .menu{display:block}
+.dd.up .menu{top:auto;bottom:calc(100% + 4px)}
 .dd .menu{padding:5px}.dd .menu button+button{margin-top:2px}
 .dd .menu button{display:flex;align-items:center;gap:9px;width:100%;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer;text-align:left}
 .dd .menu button:hover,.dd .menu button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
@@ -837,8 +838,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   function ddOpen(o) {
     dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o));
-    if (o) { ddq.value = ''; ddSearch(); setTimeout(function () { ddq.focus(); var cur = tabs.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }, 0); }
+    if (o) { ddq.value = ''; ddSearch(); ddFit(); setTimeout(function () { ddq.focus(); var cur = tabs.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }, 0); }
   }
+  /* the menu stays inside the window, so the page never grows under it: its list is as tall as the room below the button,
+     or it opens upward when there is more room above */
+  function ddFit() {
+    var r = ddb.getBoundingClientRect(), below = innerHeight - r.bottom - 16, above = r.top - 16, up = below < 240 && above > below;
+    dd.classList.toggle('up', up);
+    tabs.style.maxHeight = Math.max(120, Math.min(380, (up ? above : below) - 4 - 52)) + 'px';   /* 52: the search and the menu's padding */
+  }
+  addEventListener('resize', function () { if (dd.classList.contains('open')) ddFit(); });
+  addEventListener('scroll', function () { if (dd.classList.contains('open')) ddFit(); }, { passive: true });
   /* typed: the categories whose name matches, then every scenario whose name or words match, with its category beside it */
   function ddSearch() {
     var t = ddq.value.trim().toLowerCase();
