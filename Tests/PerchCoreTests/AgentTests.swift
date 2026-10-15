@@ -19,6 +19,11 @@ import Testing
         #expect(Agent.recognise(executable: "/Users/a/.nvm/versions/node/v22.16.0/bin/node", argv0: "pi") == .pi)
         #expect(Agent.recognise(executable: "/Users/a/.nvm/versions/node/v22.16.0/bin/node", argv0: "node") == nil)
         #expect(Agent.recognise(executable: "/usr/local/bin/node", argv0: "claude") == .claude)
+        // Claude Code 2.1 from npm is its native binary, installed as bin/claude.exe in the package.
+        #expect(Agent.recognise(executable: "/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe", argv0: "claude") == .claude)
+        #expect(Agent.mayBe("/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe"))
+        #expect(Agent.mayBe("/Users/a/.local/share/claude/versions/2.1.0") && Agent.mayBe("/opt/homebrew/bin/codex-aarch64-apple-darwin"))
+        #expect(!Agent.mayBe("/bin/zsh"))
         #expect(Agent.recognise(executable: "/bin/zsh", argv0: "-zsh") == nil)
     }
 

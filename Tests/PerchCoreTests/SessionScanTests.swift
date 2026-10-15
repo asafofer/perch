@@ -120,6 +120,21 @@ private final class Home {
         #expect(found.last?.terminal == false)
     }
 
+    @Test func smallTalkInATerminalIsFoundButMarked() {
+        // "hello" in a terminal: listed only while its agent still runs there (the app drops it otherwise), so the row the
+        // notch just spoke of does not vanish the moment the reply lands. The Claude app's small talk stays out.
+        let h = Home(), code = h.folder("code"), site = h.folder("code/site")
+        let ts = ISO8601DateFormatter().string(from: h.now.addingTimeInterval(-30))
+        h.write(".claude/projects/-code/hello.jsonl", [
+            #"{"type":"user","sessionId":"hello","cwd":"\#(code)","entrypoint":"cli","timestamp":"\#(ts)","message":{"content":"hello"}}"#,
+            #"{"type":"assistant","sessionId":"hello","cwd":"\#(code)","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"Hi! What can I help you with today?"}]}}"#,
+        ].joined(separator: "\n") + "\n", ago: 30)
+        h.write(".claude/projects/-code-site/work.jsonl", Home.transcript("work", cwd: site, at: h.now.addingTimeInterval(-60), entrypoint: "cli"), ago: 60)
+        let found = h.scanner.claude(limit: 1, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["hello", "work"])   // small talk takes no place of a real session
+        #expect(found.map(\.smallTalk) == [true, false])
+    }
+
     @Test func codexInATerminalIsATerminalSession() {
         let h = Home(), docs = h.folder("code/docs")
         h.codex("cli1", cwd: docs, source: #""cli""#, originator: "codex_cli_rs", ago: 60)

@@ -49,6 +49,9 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var conductor: String?
     /// Started in a terminal (Claude Code or Codex on the command line), not in an app. Pick up goes back to its tab.
     public var terminal = false
+    /// Only small talk so far (`Recap.isTrivial`), in a terminal: listed only while its agent still runs there, so a
+    /// "hello" does not vanish the moment its reply lands, and is gone once you close it.
+    public var smallTalk = false
     /// The terminal app it runs in, or would open in (a bundle id). In herdr, the terminal that shows herdr.
     public var via: String?
     /// The multiplexer it runs in, when that is not the terminal itself: "herdr".

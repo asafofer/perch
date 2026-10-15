@@ -523,11 +523,10 @@ enum LiveSessions {
         var found: [(pid: pid_t, agent: Agent, args: ProcessArgs, tty: String, cwd: String, ppid: pid_t, started: Date)] = []
         var viewers: [Viewer] = []
         var path = [CChar](repeating: 0, count: 4096)
-        let interesting: Set<String> = ["claude", "codex", "opencode", "pi", "node", "bun", "herdr"]
         for pid in pids.prefix(max(0, n)) where pid > 0 {
             guard proc_pidpath(pid, &path, UInt32(path.count)) > 0 else { continue }
             let exe = String(cString: path), name = (exe as NSString).lastPathComponent
-            guard interesting.contains(name) || name.hasPrefix("codex-") || exe.contains("/claude/versions/") else { continue }
+            guard name == "herdr" || Agent.mayBe(exe) else { continue }
             var bsd = proc_bsdinfo()
             guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsd, Int32(MemoryLayout<proc_bsdinfo>.size)) > 0,
                   bsd.e_tdev != UInt32.max, let dev = devname(dev_t(bitPattern: bsd.e_tdev), S_IFCHR) else { continue }
