@@ -397,7 +397,7 @@ enum Tmux {
     /// Types a line into the pane and presses Return, a beat apart so the agent reads Return as sending it. A pane scrolled
     /// back (copy mode) would take the words as commands, so it leaves that first.
     static func type(_ line: String, pane: String, socket: String, bin: String?) -> Bool {
-        guard cli(["if-shell", "-F", "-t", pane, "#{pane_in_mode}", "send-keys -X -t \(pane) cancel", ";", "send-keys", "-t", pane, "-l", "--", line], socket: socket, bin: bin) != nil else { return false }
+        guard cli(["if-shell", "-F", "-t", pane, "#{pane_in_mode}", "send-keys -X -t \(pane) cancel", ";", "send-keys", "-t", pane, "-l", "--", TmuxServer.literal(line)], socket: socket, bin: bin) != nil else { return false }
         Thread.sleep(forTimeInterval: 0.1)
         return cli(["send-keys", "-t", pane, "Enter"], socket: socket, bin: bin) != nil
     }

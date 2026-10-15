@@ -77,6 +77,10 @@ public struct TmuxServer: Equatable, Sendable {
         let path = parts.dropLast(2).joined(separator: ",")
         return path.isEmpty ? nil : (path, Int32(parts[parts.count - 2]))
     }
+
+    /// Words passed to tmux as one argument, as they are. tmux reads an argument that ends in ";" as the end of its command
+    /// and drops the ";" (a reply "run the tests;" was typed without it), so that last ";" goes as "\;", which tmux keeps as ";".
+    public static func literal(_ s: String) -> String { s.hasSuffix(";") ? String(s.dropLast()) + "\\;" : s }
 }
 
 /// A process's executable, arguments and environment, as `sysctl(KERN_PROCARGS2)` returns them: the argument count, the

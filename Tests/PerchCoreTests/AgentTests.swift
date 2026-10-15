@@ -80,6 +80,15 @@ import Foundation
         #expect(TmuxServer.parse("").panes.isEmpty)
     }
 
+    @Test func wordsTypedIntoATmuxPaneKeepTheirLastSemicolon() {
+        // tmux ends a command at an argument ending in ";" and drops it; "\;" there is kept as ";".
+        #expect(TmuxServer.literal("run the tests;") == "run the tests\\;")
+        #expect(TmuxServer.literal(";") == "\\;")
+        #expect(TmuxServer.literal("a\\;") == "a\\\\;")
+        #expect(TmuxServer.literal("a; b") == "a; b")
+        #expect(TmuxServer.literal("") == "")
+    }
+
     @Test func processArgumentsAndEnvironmentAreRead() {
         var data = Data()
         var argc = Int32(2); data.append(Data(bytes: &argc, count: 4))
