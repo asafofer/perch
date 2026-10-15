@@ -83,7 +83,7 @@
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
     var term = icons[host] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[host] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
+    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host ? esc(p.host) + ', in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
          the ring sits on the icon's own edge instead of leaving a dark band between them */
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, iconOf(p.app) ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
