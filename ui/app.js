@@ -1549,13 +1549,14 @@
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'access') { renderAccess(p.access); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
+    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q" data-a="card" title="Show it all">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    /* An arrow at the left of the row opens the session in its app, to see all of it (Command+Option+Return), unless a
-       button already does; then a cross puts it away. Command+Option+. puts it away either way. */
+    /* Open Claude at the right of the row opens the session in its app (Command+Option+Return, unless Answer has it), unless a
+       button already does; then a cross at the left puts it away. Command+Option+. puts it away either way. Clicking the
+       question opens the whole of it on the card ('card'). */
     var opener = !bs.some(function (b) { return b[0] === 'pick'; });
-    act.keys = ['gone'].concat(opener ? ['pick'] : [], bs.map(function (b) { return b[0]; }));
+    act.keys = ['gone'].concat(opener ? ['pick'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
@@ -1564,8 +1565,8 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = (opener ? '<button class="act-b act-x act-o" data-a="pick" aria-label="' + esc(goLabel(p)) + '" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '">' + svg('open', 'size-3.5') + '</button>'
-      : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
+    var openB = opener ? '<button class="act-b nk act-o" data-a="pick" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '"><span class="act-bl">' + esc(goLabel(p)) + '</span></button>' : '';
+    var btns = (opener ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
@@ -1573,6 +1574,8 @@
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
+    /* after the choices at the right edge; before the actions, whose main one keeps the edge */
+    if (openB) btns = choices ? btns + openB : btns.replace(/(<button class="act-b(?! act-x)[^"]*" data-a="(?:allow|deny|open|pick\d)")/, openB + '$1');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
       '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
@@ -3382,6 +3385,7 @@
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
+    if (m.type === 'activityOpen') { var oi = s.projects.findIndex(function (x) { return x.id === m.id; }); if (oi >= 0) { s.selected = oi; s.phase = 'open'; } }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : snap.phase === 'newSession' ? (snap.newSession && snap.newSession.from === 'list' ? 'switcher' : 'idle') : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
