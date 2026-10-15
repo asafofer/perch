@@ -92,6 +92,8 @@ struct UISnapshot: Encodable {
         let showOn: String; let displays: [Display]
         let shortcut: ShortcutState
         var newShortcut: NewShortcut? = nil
+        /// Perch had Accessibility before: the row says needs access again.
+        var accessWas = false
         /// It came from the card or the list, so Esc goes back there.
         var back = false }
     var newSession: NewSession?
@@ -141,7 +143,13 @@ struct UISnapshot: Encodable {
     var update: UpdateInfo?
     /// The first start after an update: what is new (phase "whatsnew").
     var whatsNew: WhatsNewCard?
-    struct WhatsNewCard: Encodable { let version: String; let headline: String; let bullets: [String] }
+    struct WhatsNewCard: Encodable { let version: String; let headline: String; let bullets: [String]
+        /// The update lost Accessibility Perch had: lost, asked (Allow pressed) or granted. The card says so with Allow.
+        var access: String? = nil }
+    /// Accessibility Perch had, gone (AccessLoss): the notch row's phase (lost, asked, granted), whether an update brought it
+    /// about, and which loss it is, so the page tells a new one from one it put away. Only at rest, once per loss.
+    var access: AccessRow?
+    struct AccessRow: Encodable { let phase: String; let afterUpdate: Bool; let since: Int }
     /// This build can look for updates, so Settings offers it.
     var canUpdate = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.

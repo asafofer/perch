@@ -105,6 +105,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .badge{display:inline-block;margin-left:6px;font:500 11px Inter,sans-serif;color:var(--pg-bg);background:var(--pg-fg);border-radius:6px;padding:1px 6px;vertical-align:1px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
+/* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
+:root:not(.rec) .desk:has(.n[data-s=set]),:root:not(.rec) .desk:has(.n[data-s=onb]){height:452px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
@@ -683,6 +685,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: downloaded', 'Downloaded and waiting for a quiet moment: Restart to update does it now.', function () { d.settings({ update: { version: '0.3.1', phase: 'ready' } }); }],
       ['Settings: you press Update', 'Update in Settings: the button becomes the ring with an arrow and says Downloading, then Restart to update, then Updating as Perch goes. The row keeps its height the whole way, so nothing below it moves.', function () { var me = ++charRun; d.updStop(); d.settings({ update: { version: '0.3.1', phase: 'available' } }); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.s-upd'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); }],
     ]],
+    ['Accessibility', [
+      ['After an update', 'An update to a build signed another way: macOS ties Accessibility to the signature, so the switch Perch had no longer counts. What\u2019s new says so under its lines, with Allow; Got it stays the main button and still has its keys. Nothing else shows on this launch.', function () { d.whatsNew({ access: 'lost' }); }],
+      ['After the update: you press Allow', 'Allow clears the old switch and asks macOS, whose own prompt opens System Settings on Accessibility with a fresh switch for Perch (macOS lists Perch only once that prompt is answered). The row waits with a spinner (Open asks again); when the switch is on it turns green. The card stays until Got it.', function () { var me = ++charRun; d.whatsNew({ access: 'lost' }); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.wn-ax'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1800); }],
+      ['After the update: allowed', 'The switch is on: the row says so in green, with no button. Got it goes on to the list.', function () { d.whatsNew({ access: 'granted' }); }],
+      ['After an update without notes', 'A release with no What\u2019s new card: the notch row says it instead, with after this update in its line.', function () { d.access('lost', { afterUpdate: true }); }],
+      ['Turned off', 'Perch notices it is gone, at launch or while it runs (someone turned the switch off, or a reset). At a quiet moment the notch says it once, in the row an update uses: the character, Needs access in orange, one line on what waits, Later and Allow for the mouse. It never takes the keyboard. It folds away after twelve seconds (held while the pointer rests on it) and is not said again until Perch has it back and loses it once more.', function () { d.access('lost'); }],
+      ['Turned off: you press Allow', 'Allow asks macOS, whose prompt opens System Settings on Accessibility. The row stays, with a spinner and Turn it on, until the switch is on; then Allowed in green, and it folds away.', function () { var me = ++charRun; d.access('lost'); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.act [data-a=axallow]'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1800); }],
+      ['Turned off: Later', 'Later puts it away for good: it is not said again for this loss. Settings keeps the row with Allow.', function () { var me = ++charRun; d.access('lost'); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.act [data-a=gone]'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1800); }],
+      ['Turned off: a session needs you', 'A request waiting on you goes first: its row or wings show, and the Accessibility row waits until the notch is free.', function () { var me = ++charRun; d.access('lost', { busy: true }); }],
+      ['Settings: needs access again', 'Settings, Reply and shortcuts: needs access again, with Allow. Open Perch\u2019s keys are orange while the tap cannot work.', function () { d.settings({ accessibility: false, accessWas: true }); }],
+      ['Settings: you press Allow', 'The row says turn on in System Settings, and Allow becomes Open (it brings System Settings back).', function () { var me = ++charRun; d.settings({ accessibility: false, accessWas: true }); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.set .s-ax'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 1500); }],
+      ['Settings: waiting for the switch', 'After Allow, while System Settings is open and the switch is still off: the row stays like this until macOS says Perch is on.', function () { d.settings({ accessibility: false, accessWas: true }); setTimeout(function () { var b = document.querySelector('.set .s-ax'); if (b) { b.click(); d.updStop(); } }, 300); }],
+      ['Reply: Allow and send', 'A reply to a Claude app session while it is off: Send reads Allow and send and holds the words until the switch is on.', function () { d.noAccess(); reply(true)(); }]
+    ]],
     ['Update errors', [
       ['Each one', 'Every way an update can fail, one after another in the notch, three seconds each: what Perch says, and the buttons that fit it. Pick one below to hold it.', function () { var me = ++charRun, n = 0; (function next() { if (me !== charRun) return; var e = UPD_ERR[n % UPD_ERR.length]; d.update('failed', Object.assign({ fresh: true }, e[1])); n++; setTimeout(next, 3000); })(); }],
       ['Settings: each one', 'Settings\u2019 Updates row for every failure, three seconds each: the reason beside Updates in orange, and the button that fits (Try again, Show in Finder, or none).', function () { var me = ++charRun, n = 0; (function next() { if (me !== charRun) return; var e = UPD_ERR[n % UPD_ERR.length]; d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, e[1]) }, true); n++; setTimeout(next, 3000); })(); }],
@@ -790,6 +806,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Character': '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
     'External display': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    'Accessibility': '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
     'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
@@ -857,8 +874,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  /* it opens on what changed last, the new session flow; the first scenario there is the newest */
-  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'New session') first = gi; });
+  /* it opens on what changed last, Accessibility lost after an update; the first scenario there is the newest */
+  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Accessibility') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
