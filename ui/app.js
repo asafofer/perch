@@ -11,6 +11,7 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    open: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
     chev: '<path d="m6 9 6 6 6-6"/>',
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
@@ -1551,7 +1552,7 @@
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    /* Its app's icon at the left of the row opens the session there, to see all of it (Command+Option+Return), unless a
+    /* An arrow at the left of the row opens the session in its app, to see all of it (Command+Option+Return), unless a
        button already does; then a cross puts it away. Command+Option+. puts it away either way. */
     var opener = !bs.some(function (b) { return b[0] === 'pick'; });
     act.keys = ['gone'].concat(opener ? ['pick'] : [], bs.map(function (b) { return b[0]; }));
@@ -1563,7 +1564,7 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = (opener ? '<button class="act-b act-x act-o" data-a="pick" aria-label="' + esc(goLabel(p)) + '" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '">' + AppOf(p, 'size-[15px]') + '</button>'
+    var btns = (opener ? '<button class="act-b act-x act-o" data-a="pick" aria-label="' + esc(goLabel(p)) + '" title="' + esc(goLabel(p)) + (bs.some(function (b) { return b[0] === 'open'; }) ? '' : ' (\u2318\u2325\u21a9)') + '">' + svg('open', 'size-3.5') + '</button>'
       : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
