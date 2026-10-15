@@ -163,6 +163,7 @@ public final class SessionScanner: @unchecked Sendable {
                   digest.entrypoint == nil || digest.entrypoint == "cli", !Recap.isTrivial(digest), let cwd = digest.cwd, usable(cwd) else { continue }
             digest.repoName = cachedRepo(cwd)
             let git = cachedGit(cwd).info
+            Self.heardFrom(helpersOf: t.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(t.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = Self.created(t.url)
                 out.append((p, digest, git, last)); fromTerminal += 1
@@ -177,6 +178,7 @@ public final class SessionScanner: @unchecked Sendable {
             if let t = s.entry.title, !t.isEmpty { digest.title = t }      // the Claude app's own title wins
             digest.repoName = cachedRepo(cwd)
             let git = cachedGit(cwd).info
+            Self.heardFrom(helpersOf: s.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
                 p.focusedAt = s.entry.focusedAt
                 out.append((p, digest, git, last))
@@ -193,12 +195,23 @@ public final class SessionScanner: @unchecked Sendable {
             digest.repoName = entry.repo ?? cachedRepo(entry.cwd)
             digest.branch = entry.branch ?? digest.branch
             let git = cachedGit(entry.cwd).info
+            Self.heardFrom(helpersOf: url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(mtime), conductor: entry.workspaceId), let last = digest.lastTimestamp {
                 p.startedAt = Self.created(url)
                 out.append((p, digest, git, last)); fromConductor += 1
             }
         }
         return out
+    }
+
+    /// A helper left in the background writes its own transcript (`<id>/subagents/agent-<agentId>.jsonl`) while the session's
+    /// waits: its last change there is the helper's last sign of life.
+    static func heardFrom(helpersOf url: URL, _ d: inout SessionDigest) {
+        let dir = url.deletingPathExtension().appendingPathComponent("subagents")
+        for i in d.background.indices where d.background[i].kind == .helper {
+            guard let m = mtime(dir.appendingPathComponent("agent-\(d.background[i].taskId).jsonl")) else { continue }
+            d.background[i].at = max(d.background[i].at ?? m, m)
+        }
     }
 
     // MARK: Codex (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl)
