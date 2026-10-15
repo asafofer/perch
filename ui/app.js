@@ -1604,7 +1604,7 @@
     var words = { lost: 'Needs access', asked: 'Turn it on', granted: 'Allowed' }[ph];
     var mark = ph === 'granted' ? Ring('done') : ph === 'asked' ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
     var line = ph === 'lost' ? (a.afterUpdate ? 'macOS asks again after an update. Command+Option and replies wait.' : 'Accessibility is off. Command+Option and replies wait until it is on.')
-      : ph === 'asked' ? 'Turn Perch on in System Settings, under Accessibility.' : '';
+      : ph === 'asked' ? 'In macOS\u2019s prompt, choose Open System Settings.' : '';
     var btn = function (x, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + x + '"><span class="act-bl">' + label + '</span></button>'; };
     var btns = '', keys = ['gone'];
     if (ph === 'lost') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Allow', true); }
@@ -2028,7 +2028,7 @@
     var on = ax === 'granted', asked = ax === 'asked';
     var mark = on ? Ring('done') : asked ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
     var title = on ? 'Accessibility is on' : asked ? 'Turn Perch on in System Settings' : 'Allow Accessibility again';
-    var sub = on ? 'Command+Option and replies work again.' : asked ? 'Under Privacy & Security, Accessibility.' : 'macOS asks once more after this update. Until then Command+Option and replies wait.';
+    var sub = on ? 'Command+Option and replies work again.' : asked ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on.' : 'macOS asks once more after this update. Until then Command+Option and replies wait.';
     return '<div class="wn-a rv mx-4 mt-2 flex items-center gap-2.5 rounded-lg bg-black/[0.18] py-2 pl-3 pr-2" style="--i:3">' + mark +
       '<div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-[17px]">' + title + '</div><div class="text-xs leading-4 text-muted-foreground">' + sub + '</div></div>' +
       (on ? '' : Button('ghost', asked ? 'Open' : 'Allow', '', 'wn-ax flex-none bg-white/[0.08] text-foreground')) + '</div>';
@@ -2092,7 +2092,7 @@
     /* while it waits there is nothing to press: no Return on it, and it steps back */
     q('.x-send kbd').style.display = !canSend && s.allowing ? 'none' : '';
     q('.x-send').style.opacity = !canSend && s.allowing ? '.6' : '';
-    q('.x-send').title = canSend ? '' : s.allowing ? 'Turn Perch on in System Settings, Accessibility. Your reply goes out as soon as it is on.'
+    q('.x-send').title = canSend ? '' : s.allowing ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on. Your reply goes out as soon as it is on.'
       : 'Perch needs Accessibility to send for you. Allow it once and this reply goes out.';
     /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
     var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
@@ -2733,7 +2733,7 @@
     } else if (st === 2) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and listens for its shortcut. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
-        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
+        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS asks next: choose Open System Settings there, then switch Perch on. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       h = shortcutStep(o);

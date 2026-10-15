@@ -1619,9 +1619,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 reset.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "app.perch.mac"]
                 try? reset.run(); reset.waitUntilExit()
             }
-            // Asking is what lists Perch in the Accessibility pane; then take them there.
+            // Ask macOS, and let its own prompt take them to System Settings. macOS lists Perch in the Accessibility pane only once
+            // that prompt is answered with Open System Settings; opening the pane ourselves covered the prompt and showed a
+            // list without Perch in it. A prompt put away with Deny comes back the next time, since the entry is reset above.
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
         case "restart": relaunch(); return
         default: break
         }
