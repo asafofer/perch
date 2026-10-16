@@ -950,6 +950,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
   /* each category's scenarios in alphabetical order */
+  var newest = GROUPS.map(function (g) { return g[1][0]; });
   GROUPS.forEach(function (g) { g[1].sort(function (a, b) { return a[0].localeCompare(b[0], 'en', { sensitivity: 'base', numeric: true }); }); });
   GROUPS.forEach(function (g, gi) {
     var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.insertBefore(t, hits);
@@ -965,10 +966,11 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     wrap.appendChild(box);
   });
   tabs.appendChild(none);
-  /* it opens on what changed last, the update found by itself, on its first scenario */
+  /* it opens on what changed last, the peek of an update found by itself: the newest scenario there (the first written,
+     whatever the sorting puts first) */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Updates') first = gi; });
   /* a demo being filmed (?play=) starts on its own scenarios: this one's timers would play over them */
-  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].querySelector('.sc').click();
+  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
