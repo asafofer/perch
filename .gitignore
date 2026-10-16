@@ -12,3 +12,6 @@ ui/explore-*.html
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Written per checkout by scripts/worktree-setup.sh (its own design server port)
+.claude/launch.json
