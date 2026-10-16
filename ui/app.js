@@ -1488,7 +1488,6 @@
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
-    if (keys.indexOf('open') >= 0) keys = keys.filter(function (k) { return k !== 'pick'; });   /* Answer has Command+Option+Return; the app's icon is for the mouse */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
     if (st === 'open') markChoice();
@@ -1504,6 +1503,7 @@
      wings. When you come back from a break, the welcome card says all this instead. */
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
+  var actNoKeys = [];   /* row keys Swift could not take (window.perch.actNoKeys): their buttons show no key */
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
@@ -1552,11 +1552,11 @@
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q" data-a="card" title="Show it all">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    /* Open Claude at the right of the row opens the session in its app (Command+Option+Return, unless Answer has it), unless a
-       button already does; then a cross at the left puts it away. Command+Option+. puts it away either way. Clicking the
-       question opens the whole of it on the card ('card'). */
-    var opener = !bs.some(function (b) { return b[0] === 'pick'; });
-    act.keys = ['gone'].concat(opener ? ['pick'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
+    /* Open Claude at the right of the row opens the session in its app, on Command+Option+O on every row ('app'), unless a
+       button already does (then a cross at the left puts it away) or three choices need the room. Command+Option+. puts it
+       away either way. Clicking the question opens the whole of it on the card ('card'). */
+    var opener = !bs.some(function (b) { return b[0] === 'pick'; }) && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);
+    act.keys = ['gone'].concat(opener ? ['app'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
@@ -1565,9 +1565,10 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var openKey = !bs.some(function (b) { return b[0] === 'open'; });   /* Answer has Command+Option+Return: then it is for the mouse */
-    var openB = opener ? '<button class="act-b act-o' + (openKey ? '' : ' nk') + '" data-a="pick" title="' + esc(goLabel(p)) + '"><span class="act-bl">' + esc(goLabel(p)) + '</span>' + (openKey ? '<kbd>' + CMDOPT + '\u21a9</kbd>' : '') + '</button>' : '';
-    var btns = (opener ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
+    /* no key when Command+Option+O is Perch's own shortcut or another app holds it (Swift says, actNoKeys) */
+    var openKey = actNoKeys.indexOf('app') < 0;
+    var openB = opener ? '<button class="act-b act-o' + (openKey ? '' : ' nk') + '" data-a="app" title="' + esc(goLabel(p)) + '"><span class="act-bl">' + esc(goLabel(p)) + '</span>' + (openKey ? '<kbd>' + CMDOPT + 'O</kbd>' : '') + '</button>' : '';
+    var btns = (!bs.some(function (b) { return b[0] === 'pick'; }) ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
@@ -1882,7 +1883,7 @@
     var m = null;
     if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
-    else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
+    else post({ type: a === 'pick' || a === 'app' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
     actGone[actKey(p)] = 1; clearTimeout(actTimer);
     if (!m) { setAct('', null); return; }
     /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
@@ -3271,7 +3272,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });

@@ -85,12 +85,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         c.newComboWorks = { newWorks }
         // While the notch says an answer or a request arrived, its buttons answer to Command+Option and a key. Only then.
         let activityCodes: [String: Int] = ["pick": kVK_Return, "open": kVK_Return, "reply": kVK_ANSI_R, "gone": kVK_ANSI_Period,
-                                            "allow": kVK_ANSI_A, "deny": kVK_ANSI_X, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3]
+                                            "allow": kVK_ANSI_A, "deny": kVK_ANSI_X, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3, "app": kVK_ANSI_O]
         let activityIds = Dictionary(uniqueKeysWithValues: activityCodes.keys.sorted().enumerated().map { ($1, UInt32(20 + $0)) })
         c.onActivityKeys = { [hotkeys] keys in
             for (name, id) in activityIds where !keys.contains(name) { hotkeys.unregister(id: id) }
             // Reply is Command+R, the rest Command+Option and a key.
-            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
+            // A key Perch's own shortcuts already use, or that another app holds, is left alone: its button shows no key.
+            let mine = [Prefs.openShortcut, Prefs.newShortcut].compactMap { s in s.kind == .combo && s.mods == [.command, .option] ? s.keyCode : nil }
+            var missed: [String] = []
+            for name in keys { if let code = activityCodes[name], let id = activityIds[name] {
+                let mods = name == "reply" ? cmdKey : cmdKey | optionKey
+                if mods == cmdKey | optionKey && mine.contains(code) { hotkeys.unregister(id: id); missed.append(name); continue }
+                if !hotkeys.register(keyCode: code, modifiers: mods, id: id, action: { c.activityKey(name) }) { missed.append(name) }
+            } }
+            c.activityKeysMissed(missed)
         }
         c.onReplyKey = { [hotkeys] on in if on { hotkeys.register(keyCode: kVK_ANSI_R, modifiers: 0, id: 40) { c.replyKey() } } else { hotkeys.unregister(id: 40) } }
         hotkeys.onChordTap = { c.chordTap() }
