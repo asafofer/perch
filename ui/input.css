@@ -360,6 +360,9 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
 .p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
+/* answering in your own words (Other): the agent's choices step back while you type */
+.p-open .o-ask button { transition: opacity 200ms ease, background-color 150ms ease; }
+.p-open[data-oth="1"] .o-ask button:not(.o-other) { opacity: .35; }
 /* what you last said: a bubble at the top of the message, a scroll up from where it opens */
 .o-you { width: fit-content; max-width: 88%; margin: 0 0 8px auto; padding: 5px 11px; border-radius: 14px 14px 4px 14px; background: rgba(255, 255, 255, .1); white-space: pre-wrap; overflow-wrap: anywhere; }
 .o-said .o-said-in { padding-top: 10px; padding-bottom: 10px; }

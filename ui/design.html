@@ -81,6 +81,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd .menu button:hover,.dd .menu button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
 .dd .menu button[aria-selected="true"]{background:color-mix(in srgb,var(--pg-fg) 12%,transparent)}
 .dd .menu button[aria-selected="true"] svg{color:var(--pg-fg)}
+/* the category menu: a search on top, the list under it scrolls; typed, it lists the scenarios that match in every category */
+.dd .dd-q{display:block;width:100%;box-sizing:border-box;font:400 13px Inter,sans-serif;color:var(--pg-fg);background:color-mix(in srgb,var(--pg-fg) 6%,transparent);border:0;border-radius:7px;padding:7px 10px;margin:0 0 5px;outline:none;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.dd .dd-q:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.dd .dd-q::placeholder{color:var(--pg-muted)}
+.dd .dd-list{max-height:min(380px,55vh);overflow-y:auto;overscroll-behavior:contain;min-width:280px}
+.dd .dd-list button[hidden]{display:none}
+.dd .dd-list .in{margin-left:auto;padding-left:12px;font-weight:400;font-size:12px;color:var(--pg-muted);white-space:nowrap}
+.dd .dd-none{padding:8px 10px;font-size:13px;color:var(--pg-muted)}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden],.sc[hidden],.dd[hidden]{display:none}
@@ -164,11 +172,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
   /* a Motion scenario's timeline: at(ms, caption, f) runs f after ms, unless another scenario started since */
   function motionAt() { var me = charRun; return function (ms, label, f) { setTimeout(function () { if (me !== charRun) return; if (label) now.textContent = label; f(); }, ms); }; }
+  /* types `text` into the card's field a letter at a time, from `delay` ms, then runs `then` */
+  function typeIn(me, text, delay, then) {
+    setTimeout(function () {
+      var r = document.querySelector('.r-in'), i = 0; if (!r || me !== charRun) return;
+      var tick = setInterval(function () { if (me !== charRun) { clearInterval(tick); return; } r.value = text.slice(0, ++i); if (i >= text.length) { clearInterval(tick); if (then) setTimeout(function () { if (me === charRun) then(); }, 500); } }, 38);
+    }, delay);
+  }
+  var OWN = 'Vendor first, but flag anything over $10k for me';
   function Q(text, header, opts, multi) { return { text: text, header: header, multi: !!multi, options: opts.map(function (o) { return o[0]; }), notes: opts.map(function (o) { return o[1] || ''; }) }; }
   var P0 = { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run build && npm test -- --watch=false', options: [], answerable: true } };
   var CLAUDE_ASKS = { status: { kind: 'attention', text: 'Claude asked you something', app: 'claude' }, attention: true, line: 'Waiting on you for 2m',
     ask: { kind: 'question', title: 'Claude asked you something', subject: 'Match invoices by vendor first, or by amount?', answerable: true,
       questions: [Q('Match invoices by vendor first, or by amount?', 'Matching', [['Vendor first', 'Group by vendor, then match amounts'], ['Amount first', 'Exact amounts first, any vendor'], ['Both, vendor wins', 'Try vendor first, fall back to amount']])] } };
+  var CHECKS = { status: CLAUDE_ASKS.status, attention: true, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'Claude asked you something', subject: 'Which checks should run first?', answerable: true,
+    questions: [Q('Which checks should run first?', 'Checks', [['Unit tests', 'About two minutes'], ['UI snapshots', 'Needs the simulator'], ['Lint']], true)] } };
   /* the same asks when Perch cannot answer them (no hooks, or Bypass permissions): read from the transcript, shown read-only */
   var READ_ONE = { status: CLAUDE_ASKS.status, attention: true, line: 'Waiting on you for 2m', ask: Object.assign({}, CLAUDE_ASKS.ask, { answerable: false, why: 'Perch can\'t answer this one. Turn on Live status in Settings.' }) };
   /* the real one from a room-planner session: four questions at once */
@@ -278,6 +296,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Needs your OK', 'Claude wants to run a command. Allow with A, Deny with D, right from the notch.', function () { d.project(0); d.show('open'); }],
       ['Asked you something', 'One question with a few choices: press 1, 2 or 3.', function () { d.variant(3, CLAUDE_ASKS); }],
       ['Asked you something, by hover', 'A card you hover open leaves the keyboard where it was, except when it shows something to answer: then 1, 2, 3 (or A and D) and Esc are Perch\u2019s. Otherwise they would land in Claude\u2019s own question behind it, where Esc dismisses it.', function () { d.variant(3, CLAUDE_ASKS); }],
+      ['Other: in your own words', 'After the agent\u2019s choices, Other (here 4): the reply field opens with the question still above and the choices stepped back. Return answers with what you typed; Esc keeps it on the Other row for later.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('4'); }, 900); typeIn(me, OWN, 1500); }],
+      ['Other, kept', 'Typed, then Esc: the words wait on the Other row, and Other again brings them back in the field.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('4'); }, 600); typeIn(me, OWN, 900, function () { window.perch.replyMenu(false); }); }],
+      ['Other on a pick-several question', 'On a question that takes several, Add puts your words in as one more pick, checked beside the others; Send sends them all.', function () { d.variant(3, CHECKS); var me = charRun; setTimeout(function () { if (me === charRun) { window.perch.askKey('1'); } }, 700); setTimeout(function () { if (me === charRun) window.perch.askKey('4'); }, 1300); typeIn(me, 'Swift tests only', 1800, function () { document.querySelector('.x-send').click(); }); }],
       ['Asked you four things', 'A real one: four questions, one at a time. A number answers and moves on; the last is pick-several. Left goes back.', function () { d.variant(0, FOUR_ASKS); }],
       ['Asked you something, read only', 'No hooks, so Perch cannot answer it: the question and its choices to read, nothing to press but Open Claude (a reply would dismiss the question).', function () { d.variant(3, READ_ONE); }],
       ['Asked you something, read only, Live status on', 'Live status is on but this question never reached Perch (or Codex, which asks in its own app): the reason is just where to answer.', function () { d.variant(3, Object.assign({}, READ_ONE, { ask: Object.assign({}, READ_ONE.ask, { why: 'Answer in Claude.' }) })); }],
@@ -599,6 +620,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Allowed from the notch', 'Allow or Deny says the same as a choice: Sent, with the plane.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); press('allow'); }],
       ['Answered while another arrives', 'You answer, and a moment later another session wants to run a command. The Sent line is said to the end; the request shows in full right after it.', function () { d.arrive(3, CLAUDE_ASKS); press('pick1', 800); var me = charRun; setTimeout(function () { if (me === charRun) d.also(0, { status: P0.status, attention: true, ask: P0.ask }); }, 1550); }],
       ['Answered on the card', 'A card you hovered open, answered with 2: the card closes straight into the same line, Sent with the plane. Then it folds away; here Onboarding flow still needs your OK, so its wings stay.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('2'); }, 1800); }],
+      ['Answered in your own words', 'Other, a few words, Return: the card closes into Sent like any answer.', function () { d.variant(3, CLAUDE_ASKS); var me = charRun; setTimeout(function () { if (me === charRun) window.perch.askKey('4'); }, 900); typeIn(me, OWN, 1400, function () { document.querySelector('.x-send').click(); }); }],
       ['Answered four things on the card', 'Four questions answered one after another: one Sent once the last is in.', function () { d.variant(0, FOUR_ASKS); var me = charRun; ['1', '2', '1', '2', 'next'].forEach(function (k, i) { setTimeout(function () { if (me === charRun) window.perch.askKey(k); }, 800 + i * 320); }); }],
       ['Didn\u2019t send', 'The answer came too late: the question was already answered in Claude, or Perch had let it go. The line says Didn\u2019t send in orange and stays a little longer; the question is Claude\u2019s to answer now.', function () { d.arrive(3, CLAUDE_ASKS); press('pick1', 1400, true); }],
       ['Asks in a terminal', 'A terminal session answers in its own tab, so the row offers Pick up, which goes there.', function () { d.arrive(7, { status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, attention: true, ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'npm run test -- --runInBand', options: [], answerable: false } }); }],
@@ -820,18 +842,49 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
   var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
   var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
-  var tabs = document.createElement('div'); tabs.className = 'menu'; tabs.setAttribute('role', 'listbox'); dd.appendChild(tabs);
+  var menu = document.createElement('div'); menu.className = 'menu'; dd.appendChild(menu);
+  var ddq = document.createElement('input'); ddq.className = 'dd-q'; ddq.placeholder = 'Search scenarios'; ddq.setAttribute('aria-label', 'Search scenarios'); ddq.spellcheck = false; menu.appendChild(ddq);
+  var tabs = document.createElement('div'); tabs.className = 'dd-list'; tabs.setAttribute('role', 'listbox'); menu.appendChild(tabs);
+  var hits = document.createElement('div'); tabs.appendChild(hits);
+  var none = document.createElement('div'); none.className = 'dd-none'; none.textContent = 'Nothing matches'; none.hidden = true;
+  menu.onclick = function (e) { e.stopPropagation(); };
   var CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
-  function ddOpen(o) { dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o)); }
+  function ddOpen(o) {
+    dd.classList.toggle('open', o); ddb.setAttribute('aria-expanded', String(o));
+    if (o) { ddq.value = ''; ddSearch(); setTimeout(function () { ddq.focus(); var cur = tabs.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }, 0); }
+  }
+  /* typed: the categories whose name matches, then every scenario whose name or words match, with its category beside it */
+  function ddSearch() {
+    var t = ddq.value.trim().toLowerCase();
+    [].forEach.call(tabs.querySelectorAll(':scope > button'), function (b, k) { b.hidden = !!t && GROUPS[k][0].toLowerCase().indexOf(t) < 0; b.classList.remove('at'); });
+    hits.innerHTML = '';
+    if (t) GROUPS.forEach(function (g, gi) { g[1].forEach(function (sc, si) {
+      if ((sc[0] + ' ' + sc[1]).toLowerCase().indexOf(t) < 0) return;
+      var b = document.createElement('button'); b.setAttribute('role', 'option');
+      b.innerHTML = '<span>' + sc[0] + '</span><span class="in">' + g[0] + '</span>';
+      b.onclick = function () { showTab(gi); ddOpen(false); boxes[gi].children[si].click(); boxes[gi].children[si].scrollIntoView({ block: 'nearest' }); };
+      hits.appendChild(b);
+    }); });
+    var shown = ddItems(); none.hidden = shown.length > 0; if (shown[0] && t) shown[0].classList.add('at');
+  }
+  function ddItems() { return [].slice.call(tabs.querySelectorAll('button')).filter(function (b) { return !b.hidden; }); }
+  ddq.addEventListener('input', ddSearch);
   ddb.onclick = function (e) { e.stopPropagation(); ddOpen(!dd.classList.contains('open')); };
   document.addEventListener('click', function () { ddOpen(false); });
-  document.addEventListener('keydown', function (e) {
+  /* while the menu is open it has every key, before anything else hears it: the notch's own (numbers, N, Esc) would act on
+     the card behind, and a scenario playing may have put the caret in a field of its own */
+  window.addEventListener('keydown', function (e) {
     if (!dd.classList.contains('open')) return;
+    if (document.activeElement !== ddq && !e.metaKey && !e.ctrlKey && (e.key.length === 1 || e.key === 'Backspace')) ddq.focus();
+    e.stopPropagation(); ddKey(e);
+  }, true);
+  function ddKey(e) {
     if (e.key === 'Escape') { ddOpen(false); return; }
-    var items = [].slice.call(tabs.children), at = items.findIndex(function (t) { return t.classList.contains('at'); });
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].classList.add('at'); }
+    var items = ddItems(), at = items.findIndex(function (t) { return t.classList.contains('at'); });
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items.forEach(function (t) { t.classList.remove('at'); }); var to = items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]; to.classList.add('at'); to.scrollIntoView({ block: 'nearest' }); }
     else if (e.key === 'Enter' && at >= 0) { e.preventDefault(); items[at].click(); }
-  });
+  }
   var boxes = [];
   /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
   var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
@@ -863,11 +916,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function showTab(i) {
     curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
-    tabs.querySelectorAll('button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
+    tabs.querySelectorAll(':scope > button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
+  /* each category's scenarios in alphabetical order */
+  var newest = GROUPS.map(function (g) { return g[1][0]; });
+  GROUPS.forEach(function (g) { g[1].sort(function (a, b) { return a[0].localeCompare(b[0], 'en', { sensitivity: 'base', numeric: true }); }); });
   GROUPS.forEach(function (g, gi) {
-    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.appendChild(t);
+    var t = document.createElement('button'); t.setAttribute('role', 'option'); t.innerHTML = tabIcon(g[0]) + g[0] + '<span class="cnt">' + g[1].length + '</span>'; t.onclick = function () { showTab(gi); ddOpen(false); }; tabs.insertBefore(t, hits);
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
@@ -879,9 +935,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     });
     wrap.appendChild(box);
   });
-  /* it opens on what changed last, the peek of an update found by itself; the first scenario there is the newest */
+  tabs.appendChild(none);
+  /* it opens on what changed last, the peek of an update found by itself: the newest scenario there (the first written,
+     whatever the sorting puts first) */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Updates') first = gi; });
-  showTab(first); boxes[first].querySelector('.sc').click();
+  /* a demo being filmed (?play=) starts on its own scenarios: this one's timers would play over them */
+  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */

@@ -94,7 +94,7 @@ enum PerchPlugins {
               hold(id, { session_id: p.sessionID, tool_name: "AskUserQuestion", tool_input: { questions } }, (d) => {
                 if (d.behavior !== "allow") return call("/question/{requestID}/reject", { requestID: id }, {});
                 const a = (d.updatedInput && d.updatedInput.answers) || {};
-                return call("/question/{requestID}/reply", { requestID: id }, { answers: qs.map((q) => String(a[q.question] || "").split(", ").filter(Boolean)) });
+                return call("/question/{requestID}/reply", { requestID: id }, { answers: qs.map((q) => { const t = String(a[q.question] || ""); return (q.multiple ? t.split(", ") : [t]).filter(Boolean); }) });
               });
               break;
             }

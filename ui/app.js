@@ -405,6 +405,7 @@
     else if (a === 'snooze') snoozeMenu(true);
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
+    else if (a === 'other') otherMenu(true);
     else if (a === 'qback') askKey('back');
     else if (a === 'qnext') askKey('next');
     else if (a === 'flip') post({ type: 'flip' });
@@ -440,6 +441,7 @@
   /* the session the open reply is for; what you type there is kept as its draft (Swift holds them, snap.drafts) */
   var replyFor = '';
   function replyMenu(open, quiet) {
+    if (asking.typing) { if (!open) otherMenu(false, quiet); return; }
     footer(open ? fRep : fMain);
     showSaid(open);
     var p = snap && snap.projects[snap.selected];
@@ -450,7 +452,7 @@
     if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
-  rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
+  rIn.addEventListener('input', function () { if (asking.typing) return; if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
   /* Files dropped on the card or pasted from Finder are attachments: a chip each (the file's name, its path on hover, an x
      to take it off; Backspace in an empty field takes the last), opening the reply if need be. Sent, their paths follow
      your words, quoted when they have spaces. A reply's files are kept with its session, as its words are. */
@@ -460,6 +462,8 @@
     if (lastSt === 'ns') return nwPaths(list);
     if (lastSt !== 'open') return;
     if (dropping) dropped();
+    /* an answer in your own words is words: a file goes in as its path */
+    if (asking.typing) { rIn.value = withFiles(rIn.value.trim(), addFiles([], list)); setTimeout(function () { caretAt(rIn.value.length); }, 40); return; }
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
     repFiles[replyFor] = addFiles(repFiles[replyFor] || [], list); repAtt();
     setTimeout(function () { caretAt(rIn.value.length); }, 40);
@@ -529,7 +533,7 @@
     var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
     setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
   }
-  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? (asking.typing ? 'Your answer for ' : 'Reply to ') + agentShort(p.app || p.status.app) + '\u2026' : ''; }
   /* focus the field with the caret at i, the words scrolled so it shows */
   function caretAt(i) {
     rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
@@ -565,6 +569,7 @@
     set(); w.onscroll = set;
   }
   function sendReply() {
+    if (asking.typing) { otherSend(); return; }
     var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
@@ -653,12 +658,13 @@
   var snap = null;
 
   /* Questions, one at a time: a number answers and moves on, Back returns, the last one sends them all together. */
-  var asking = { key: '', step: 0, picks: [], p: null };
+  var asking = { key: '', step: 0, picks: [], own: [], typing: false, p: null };
   function questionCard(p, a) {
     var key = p.id + '|' + a.subject + '|' + a.questions.length;
-    if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
+    if (asking.key !== key) { if (asking.typing) otherMenu(false); asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), own: a.questions.map(function () { return ''; }), typing: false, p: p }; }
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    var own = asking.own[asking.step], ownOn = !!own && picks.indexOf(own) >= 0;
     status({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
@@ -670,11 +676,58 @@
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
-    }).join('') + '</div>');
+    }).join('') + otherRow(qn, own, ownOn) + '</div>');
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
     setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
       (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go')));
+  }
+  /* Other: the choice after the agent's own, for an answer in your own words. It opens the card's reply field with the
+     question still above it and the agent's choices dimmed; Return answers with what you typed (on a question that takes
+     several, it is one more pick). What you typed stays on the row, so Esc and Other again bring it back. */
+  function otherRow(qn, own, ownOn) {
+    if (qn.options.length >= 9) return '';   /* the number keys end at 9 */
+    return '<button data-act="other" data-i="' + qn.options.length + '" class="o-other flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (ownOn || asking.typing ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      Kbd(String(qn.options.length + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">Other</span>' +
+      '<span dir="auto" class="block truncate text-[11.5px] leading-[14px] ' + (own ? 'text-foreground/75">\u201c' + esc(own) + '\u201d' : 'text-muted-foreground">Answer in your own words') + '</span></span>' +
+      (qn.multi ? '<span class="flex-none self-center ' + (ownOn ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+  }
+  function otherMenu(open, quiet) {
+    var a = asking.p && asking.p.ask, qn = a && a.questions && a.questions[asking.step];
+    if (open && !qn) return;
+    if (asking.typing === open) { if (open) caretAt(rIn.value.length); return; }
+    if (!open) keepOwn();
+    asking.typing = open;
+    q('.p-open').dataset.oth = open ? '1' : '';
+    footer(open ? fRep : fMain);
+    if (open) {
+      var last = asking.step === a.questions.length - 1;
+      rIn.value = asking.own[asking.step] || '';
+      q('.x-send-l').textContent = qn.multi ? 'Add' : last ? 'Send' : 'Next';
+      setTimeout(function () { caretAt(rIn.value.length); }, 30);
+    } else { rIn.value = ''; rIn.blur(); q('.x-send-l').textContent = 'Send'; }
+    rIn.placeholder = replyHint();
+    if (!quiet) post({ type: 'replyMenu', open: open });
+    /* the Other row lights (or goes back), the agent's choices dim: only while the card still shows this question */
+    var p = snap && snap.projects[snap.selected];
+    if (lastSt === 'open' && p && p.id === asking.p.id) { cardMove = 'live'; questionCard(asking.p, a); cardMove = ''; layout(lastSt, snap); }
+  }
+  /* the words in the field stay this question's own answer when it closes; already picked, the pick changes with them
+     (emptied, it is taken back) */
+  function keepOwn() {
+    var t = rIn.value.trim(), was = asking.own[asking.step], picks = asking.picks[asking.step] || [], at = picks.indexOf(was);
+    if (t === was) return;
+    if (at >= 0) { if (t) picks[at] = t; else picks.splice(at, 1); }
+    asking.own[asking.step] = t;
+  }
+  /* Return in the field: the words answer this question (a question that takes several gets them as one more pick) */
+  function otherSend() {
+    var t = rIn.value.trim(), a = asking.p && asking.p.ask; if (!a) return;
+    var qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    if (!t && !qn.multi) return;
+    otherMenu(false);
+    if (!qn.multi) { asking.picks[asking.step] = [t]; askKey('forward'); }
+    else if (t && picks.indexOf(t) < 0) { picks.push(t); askKey('redraw'); drawCheck(qn.options.length, true); }
   }
   /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
@@ -715,13 +768,16 @@
       cardMove = 'live'; questionCard(asking.p, a); cardMove = '';
       if (snap) layout(lastSt, snap);
       crossIn(pane, seen);
-      if (how === 'pick') drawCheck(pick, on);
+      if (how === 'pick' && pick != null) drawCheck(pick, on);
     };
     var forward = function () {
       if (asking.step < n - 1) { asking.step++; redraw('step'); return; }
       var answers = {}; a.questions.forEach(function (x, i) { answers[x.text] = asking.picks[i].join(', '); });
       post({ type: 'answer', answers: answers });
     };
+    if (k === 'redraw') { redraw('pick'); return; }
+    if (k === 'forward') { forward(); return; }
+    if (/^[1-9]$/.test(k) && +k === qn.options.length + 1) { otherMenu(true); return; }
     if (/^[1-9]$/.test(k)) {
       var o = qn.options[+k - 1]; if (!o) return;
       if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
@@ -2082,6 +2138,7 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -2329,7 +2386,7 @@
   hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
   /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
   document.addEventListener('keydown', function (e) {
-    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || (document.activeElement && document.activeElement.tagName === 'INPUT') || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
