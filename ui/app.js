@@ -2,7 +2,7 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 400;
+  var CARD_W = 400, CARD_MAX_H = 440;   /* the panel's height: a card taller than it is cut off */
   var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
@@ -11,6 +11,7 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    open: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
     chev: '<path d="m6 9 6 6 6-6"/>',
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
@@ -670,11 +671,12 @@
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
     /* the choices stand a little apart, so two picked ones read as two; each number sits level with its choice */
-    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
+    /* the pointer's choice is one highlight that slides from choice to choice, as on the list (chPill); a note is said in full */
+    setWords(q('.o-ask'), '<div class="ch-box relative -mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : '') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
-        (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
+        (note ? '<span class="block text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
     }).join('') + otherRow(qn, own, ownOn) + '</div>');
     q('.o-nx').style.display = 'none';
@@ -682,12 +684,28 @@
     setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
       (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go')));
   }
+  /* The choice under the pointer: one highlight that slides from choice to choice, put where the pointer is (not from enter
+     and leave, which a card hovered open gets played late and out of order, so two choices lit at once or one stayed lit). */
+  var chPill = document.createElement('div'); chPill.className = 'sel-pill ch-pill'; chPill.setAttribute('aria-hidden', 'true');
+  function markChoice() {
+    var box = q('.o-ask .ch-box');
+    if (!box || !box.offsetParent) { chPill.classList.remove('on'); chPill.at = null; return; }
+    if (chPill.parentNode !== box) { box.insertBefore(chPill, box.firstChild); chPill.at = null; chPill.classList.remove('on'); }
+    var e = ptrAt[0] >= 0 ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, b = e && e.closest && e.closest('.ch-box > button');
+    if (!b || b.parentNode !== box) { chPill.classList.remove('on'); return; }
+    var at = b.offsetTop + ':' + b.offsetHeight; if (at === chPill.at && chPill.classList.contains('on')) return;
+    var first = !chPill.classList.contains('on'); chPill.at = at;
+    if (first) chPill.classList.add('snap');
+    chPill.style.transform = 'translateY(' + b.offsetTop + 'px)'; chPill.style.height = b.offsetHeight + 'px';
+    if (first) { void chPill.offsetWidth; chPill.classList.remove('snap'); }
+    chPill.classList.add('on');
+  }
   /* Other: the choice after the agent's own, for an answer in your own words. It opens the card's reply field with the
      question still above it and the agent's choices dimmed; Return answers with what you typed (on a question that takes
      several, it is one more pick). What you typed stays on the row, so Esc and Other again bring it back. */
   function otherRow(qn, own, ownOn) {
     if (qn.options.length >= 9) return '';   /* the number keys end at 9 */
-    return '<button data-act="other" data-i="' + qn.options.length + '" class="o-other flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (ownOn || asking.typing ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+    return '<button data-act="other" data-i="' + qn.options.length + '" class="o-other relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (ownOn || asking.typing ? 'bg-white/[0.1]' : '') + '">' +
       Kbd(String(qn.options.length + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">Other</span>' +
       '<span dir="auto" class="block truncate text-[11.5px] leading-[14px] ' + (own ? 'text-foreground/75">\u201c' + esc(own) + '\u201d' : 'text-muted-foreground">Answer in your own words') + '</span></span>' +
       (qn.multi ? '<span class="flex-none self-center ' + (ownOn ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
@@ -767,6 +785,7 @@
       var pane = q('.p-open'), seen = how === 'step' && !STILL ? crossSeen(pane, ['.o-h', '.o-ask']) : [];
       cardMove = 'live'; questionCard(asking.p, a); cardMove = '';
       if (snap) layout(lastSt, snap);
+      markChoice();
       crossIn(pane, seen);
       if (how === 'pick' && pick != null) drawCheck(pick, on);
     };
@@ -1477,11 +1496,19 @@
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
   var crHideT = 0;
+  /* A question taller than the panel (four choices with long notes, and Other): its choices scroll, so the buttons below
+     stay on the card. One that fits is left as it is. */
+  function fitAsk(pane) {
+    var box = pane.querySelector('.o-ask .ch-box'); if (!box) return;
+    box.style.maxHeight = ''; box.classList.remove('fit');
+    var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
+    if (over > 0 && box.offsetHeight) { box.style.maxHeight = Math.max(120, box.offsetHeight - over) + 'px'; box.classList.add('fit'); }
+  }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
-    if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
+    if (st !== 'idle') { var pane = q('.p-' + st); if (st === 'open') fitAsk(pane); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
@@ -1527,6 +1554,7 @@
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
+    if (st === 'open') markChoice();
   }
 
   /* ---- the live activity ----
@@ -1539,6 +1567,7 @@
      wings. When you come back from a break, the welcome card says all this instead. */
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
+  var actNoKeys = [];   /* row keys Swift could not take (window.perch.actNoKeys): their buttons show no key */
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
@@ -1571,6 +1600,8 @@
       var o = qs.options[actMore.c]; if (o == null) return '';
       return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + (/\(recommended\)\s*$/i.test(o) ? '<i class="act-rec">Recommended</i>' : '') + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
     }
+    /* the question hovered: a click shows it all on the card, and where Open Claude has no button, its key */
+    if (actMore.q) return '<div class="act-ex">Click to see it all' + (act.keys.indexOf('app') >= 0 && !actEl.querySelector('.act-o') && actNoKeys.indexOf('app') < 0 ? ' \u00b7 ' + CMDOPT + 'O opens ' + esc(goLabel(p).replace(/^Open /, '')) : '') + '</div>';
     return '';
   }
   function renderAct() {
@@ -1584,10 +1615,14 @@
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'access') { renderAccess(p.access); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
+    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q" data-a="card" title="Show it all">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
+    /* Open Claude at the right of the row opens the session in its app, on Command+Option+O on every row ('app'), unless a
+       button already does (then a cross at the left puts it away); three choices need the room, so there it is the key alone. Command+Option+. puts it
+       away either way. Clicking the question opens the whole of it on the card ('card'). */
+    var toApp = !bs.some(function (b) { return b[0] === 'pick'; }), opener = toApp && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);   /* three choices: the key alone */
+    act.keys = ['gone'].concat(toApp ? ['app'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
@@ -1596,7 +1631,10 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>' +
+    /* no key when Command+Option+O is Perch's own shortcut or another app holds it (Swift says, actNoKeys) */
+    var openKey = actNoKeys.indexOf('app') < 0;
+    var openB = opener ? '<button class="act-b act-o' + (openKey ? '' : ' nk') + '" data-a="app" title="' + esc(goLabel(p)) + '"><span class="act-bl">' + esc(goLabel(p)) + '</span>' + (openKey ? '<kbd>' + CMDOPT + 'O</kbd>' : '') + '</button>' : '';
+    var btns = (!bs.some(function (b) { return b[0] === 'pick'; }) ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
@@ -1604,12 +1642,23 @@
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
+    /* after the choices at the right edge; before the actions, whose main one keeps the edge */
+    if (openB) btns = choices ? btns + openB : btns.replace(/(<button class="act-b(?! act-x)[^"]*" data-a="(?:allow|deny|open|pick\d)")/, openB + '$1');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    /* what a hovered choice says comes and goes on its own: drawing the row again would replay the buttons' entrance, the
+       row would slide under the pointer, and the choice it passed would open it again */
+    var ex = actExtra(p, k), had = actEl.querySelector('.act-ex');
+    if (!ex) { if (had) had.remove(); }
+    else if (!had || had._h !== ex) {
+      var t = document.createElement('div'); t.innerHTML = ex; var el = t.firstChild; el._h = ex; el.style.transition = 'none';
+      if (had) actEl.replaceChild(el, had); else actEl.insertBefore(el, actEl.querySelector('.act-body, .act-btns'));
+    }
     actEl._for = p.id;
+    markAct();
     actGlide();
   }
   /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
@@ -1733,7 +1782,7 @@
     }
     var base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
     /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
-    bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
+    bb.style.bottom = 'auto'; bb.style.top = (base - 35) + 'px';   /* always from the top: a note going away does not carry them up and back on the spring */
     if (ex) {
       /* as tall as its words are at this width, up to a point */
       var m = ex.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:' + (w - 26) + 'px';
@@ -1917,7 +1966,7 @@
     var m = null;
     if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
-    else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
+    else post({ type: a === 'pick' || a === 'app' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
     actGone[actKey(p)] = 1; clearTimeout(actTimer);
     if (!m) { setAct('', null); return; }
     /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
@@ -2019,14 +2068,23 @@
       questions: [{ text: 'Which layout should the hero use?', header: 'Layout', multi: false, options: ['Centered', 'Split (Recommended)', 'Full bleed'], notes: ['', '', ''] }] } })); }, 21000);
     setTimeout(function () { actDemoOn = false; actKnown = null; known = null; actGone = {}; apply(actDemoLast || s0); actDemoLast = null; }, 33000);   /* no All clear for a pretend request */
   }
+  /* The button (or question) under the pointer, from where the pointer is, as the list's row: WebKit's own hover stays on a
+     button the pointer left when the panel was never clicked, so two lit at once. */
+  function markAct() {
+    var e = ptrAt[0] >= 0 && act.mode === 'full' ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, t = e && e.closest && e.closest('.act-b, .act-q');
+    if (t && !actEl.contains(t)) t = null;
+    [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { if (x !== t) x.classList.remove('pt'); });
+    if (t) t.classList.add('pt');
+  }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full' || act.mode === 'peek') { actHeld = true; clearTimeout(actTimer); } });
-  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); });
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { x.classList.remove('pt'); }); });
   /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
   actEl.addEventListener('mousemove', function (e) {
     if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
     var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch');
-    if (ch && qs) {
+    if (e.target.closest('.act-q')) actMoreSet({ q: 1 });
+    else if (ch && qs) {
       var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
       if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
     } else actMoreSet(null);
@@ -2306,7 +2364,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -2333,6 +2391,7 @@
     hlDraw();
   }
   document.addEventListener('selectionchange', selCheck);
+  document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
   /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
      them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
      highlight stays underneath, hidden, and is what gets copied. */
@@ -2390,7 +2449,7 @@
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
-    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList();
+    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -3308,7 +3367,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3431,6 +3490,7 @@
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
+    if (m.type === 'activityOpen') { var oi = s.projects.findIndex(function (x) { return x.id === m.id; }); if (oi >= 0) { s.selected = oi; s.phase = 'open'; } }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : snap.phase === 'newSession' ? (snap.newSession && snap.newSession.from === 'list' ? 'switcher' : 'idle') : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -3670,7 +3730,7 @@
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
-      updStop: function () { updTok++; base.access = null; document.getElementById('scene').style.opacity = '1'; },
+      updStop: function () { updTok++; base.access = null; base.update = null; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {

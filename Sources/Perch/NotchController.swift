@@ -249,6 +249,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     func playActivityDemo() { web.evaluateJavaScript("window.perch && window.perch.actDemo()", completionHandler: nil) }
     func activityKey(_ name: String) { web.evaluateJavaScript("window.perch && window.perch.actKey('\(name)')", completionHandler: nil) }
+    func activityKeysMissed(_ names: [String]) {
+        let list = names.map { "'\($0)'" }.joined(separator: ",")
+        web.evaluateJavaScript("window.perch && window.perch.actNoKeys && window.perch.actNoKeys([\(list)])", completionHandler: nil)
+    }
 
     /// The notch grown for the activity, in screen coordinates.
     /// The live activity takes the pointer (clicks, resting holds it) when it shows its row, or an update's peek, which a click opens.
