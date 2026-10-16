@@ -406,6 +406,7 @@
     else if (a === 'snooze') snoozeMenu(true);
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
+    else if (a === 'other') otherMenu(true);
     else if (a === 'qback') askKey('back');
     else if (a === 'qnext') askKey('next');
     else if (a === 'flip') post({ type: 'flip' });
@@ -441,6 +442,7 @@
   /* the session the open reply is for; what you type there is kept as its draft (Swift holds them, snap.drafts) */
   var replyFor = '';
   function replyMenu(open, quiet) {
+    if (asking.typing) { if (!open) otherMenu(false, quiet); return; }
     footer(open ? fRep : fMain);
     showSaid(open);
     var p = snap && snap.projects[snap.selected];
@@ -451,7 +453,7 @@
     if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
-  rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
+  rIn.addEventListener('input', function () { if (asking.typing) return; if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
   /* Files dropped on the card or pasted from Finder are attachments: a chip each (the file's name, its path on hover, an x
      to take it off; Backspace in an empty field takes the last), opening the reply if need be. Sent, their paths follow
      your words, quoted when they have spaces. A reply's files are kept with its session, as its words are. */
@@ -461,6 +463,8 @@
     if (lastSt === 'ns') return nwPaths(list);
     if (lastSt !== 'open') return;
     if (dropping) dropped();
+    /* an answer in your own words is words: a file goes in as its path */
+    if (asking.typing) { rIn.value = withFiles(rIn.value.trim(), addFiles([], list)); setTimeout(function () { caretAt(rIn.value.length); }, 40); return; }
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
     repFiles[replyFor] = addFiles(repFiles[replyFor] || [], list); repAtt();
     setTimeout(function () { caretAt(rIn.value.length); }, 40);
@@ -530,7 +534,7 @@
     var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
     setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
   }
-  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? (asking.typing ? 'Your answer for ' : 'Reply to ') + agentShort(p.app || p.status.app) + '\u2026' : ''; }
   /* focus the field with the caret at i, the words scrolled so it shows */
   function caretAt(i) {
     rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
@@ -566,6 +570,7 @@
     set(); w.onscroll = set;
   }
   function sendReply() {
+    if (asking.typing) { otherSend(); return; }
     var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
@@ -654,12 +659,13 @@
   var snap = null;
 
   /* Questions, one at a time: a number answers and moves on, Back returns, the last one sends them all together. */
-  var asking = { key: '', step: 0, picks: [], p: null };
+  var asking = { key: '', step: 0, picks: [], own: [], typing: false, p: null };
   function questionCard(p, a) {
     var key = p.id + '|' + a.subject + '|' + a.questions.length;
-    if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
+    if (asking.key !== key) { if (asking.typing) otherMenu(false); asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), own: a.questions.map(function () { return ''; }), typing: false, p: p }; }
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    var own = asking.own[asking.step], ownOn = !!own && picks.indexOf(own) >= 0;
     status({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
@@ -672,7 +678,7 @@
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
         (note ? '<span class="block text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
-    }).join('') + '</div>');
+    }).join('') + otherRow(qn, own, ownOn) + '</div>');
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
     setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
@@ -693,6 +699,53 @@
     chPill.style.transform = 'translateY(' + b.offsetTop + 'px)'; chPill.style.height = b.offsetHeight + 'px';
     if (first) { void chPill.offsetWidth; chPill.classList.remove('snap'); }
     chPill.classList.add('on');
+  }
+  /* Other: the choice after the agent's own, for an answer in your own words. It opens the card's reply field with the
+     question still above it and the agent's choices dimmed; Return answers with what you typed (on a question that takes
+     several, it is one more pick). What you typed stays on the row, so Esc and Other again bring it back. */
+  function otherRow(qn, own, ownOn) {
+    if (qn.options.length >= 9) return '';   /* the number keys end at 9 */
+    return '<button data-act="other" data-i="' + qn.options.length + '" class="o-other relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (ownOn || asking.typing ? 'bg-white/[0.1]' : '') + '">' +
+      Kbd(String(qn.options.length + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">Other</span>' +
+      '<span dir="auto" class="block truncate text-[11.5px] leading-[14px] ' + (own ? 'text-foreground/75">\u201c' + esc(own) + '\u201d' : 'text-muted-foreground">Answer in your own words') + '</span></span>' +
+      (qn.multi ? '<span class="flex-none self-center ' + (ownOn ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+  }
+  function otherMenu(open, quiet) {
+    var a = asking.p && asking.p.ask, qn = a && a.questions && a.questions[asking.step];
+    if (open && !qn) return;
+    if (asking.typing === open) { if (open) caretAt(rIn.value.length); return; }
+    if (!open) keepOwn();
+    asking.typing = open;
+    q('.p-open').dataset.oth = open ? '1' : '';
+    footer(open ? fRep : fMain);
+    if (open) {
+      var last = asking.step === a.questions.length - 1;
+      rIn.value = asking.own[asking.step] || '';
+      q('.x-send-l').textContent = qn.multi ? 'Add' : last ? 'Send' : 'Next';
+      setTimeout(function () { caretAt(rIn.value.length); }, 30);
+    } else { rIn.value = ''; rIn.blur(); q('.x-send-l').textContent = 'Send'; }
+    rIn.placeholder = replyHint();
+    if (!quiet) post({ type: 'replyMenu', open: open });
+    /* the Other row lights (or goes back), the agent's choices dim: only while the card still shows this question */
+    var p = snap && snap.projects[snap.selected];
+    if (lastSt === 'open' && p && p.id === asking.p.id) { cardMove = 'live'; questionCard(asking.p, a); cardMove = ''; layout(lastSt, snap); }
+  }
+  /* the words in the field stay this question's own answer when it closes; already picked, the pick changes with them
+     (emptied, it is taken back) */
+  function keepOwn() {
+    var t = rIn.value.trim(), was = asking.own[asking.step], picks = asking.picks[asking.step] || [], at = picks.indexOf(was);
+    if (t === was) return;
+    if (at >= 0) { if (t) picks[at] = t; else picks.splice(at, 1); }
+    asking.own[asking.step] = t;
+  }
+  /* Return in the field: the words answer this question (a question that takes several gets them as one more pick) */
+  function otherSend() {
+    var t = rIn.value.trim(), a = asking.p && asking.p.ask; if (!a) return;
+    var qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    if (!t && !qn.multi) return;
+    otherMenu(false);
+    if (!qn.multi) { asking.picks[asking.step] = [t]; askKey('forward'); }
+    else if (t && picks.indexOf(t) < 0) { picks.push(t); askKey('redraw'); drawCheck(qn.options.length, true); }
   }
   /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
@@ -734,13 +787,16 @@
       if (snap) layout(lastSt, snap);
       markChoice();
       crossIn(pane, seen);
-      if (how === 'pick') drawCheck(pick, on);
+      if (how === 'pick' && pick != null) drawCheck(pick, on);
     };
     var forward = function () {
       if (asking.step < n - 1) { asking.step++; redraw('step'); return; }
       var answers = {}; a.questions.forEach(function (x, i) { answers[x.text] = asking.picks[i].join(', '); });
       post({ type: 'answer', answers: answers });
     };
+    if (k === 'redraw') { redraw('pick'); return; }
+    if (k === 'forward') { forward(); return; }
+    if (/^[1-9]$/.test(k) && +k === qn.options.length + 1) { otherMenu(true); return; }
     if (/^[1-9]$/.test(k)) {
       var o = qn.options[+k - 1]; if (!o) return;
       if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
@@ -1628,8 +1684,11 @@
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
     if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', 'Show in Finder', true) : btn('retry', 'Try again', true))); }
     act.keys = keys;
-    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s ' + (ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    /* the peek: Update available on one side, the version beside its mark on the other; no character */
+    var peeking = act.mode === 'peek';
+    if (peeking) { words = esc(u.version); body = ''; btns = ''; }
+    var html = '<span class="act-l">' + (peeking ? '' : crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake')) + '<span class="act-n"><span class="mq-in">' + (peeking ? 'Update available' : 'Perch ' + esc(u.version)) + '</span></span></span>' +
+      '<span class="act-r"><span class="act-s ' + (peeking ? 'said' : ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
     var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
     if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
     var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
@@ -1700,6 +1759,7 @@
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
     if (act.mode === 'sent') return [Math.ceil(Math.min(480, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went; as wide as the panel at most, so Confirm in Claude fits */
+    if (act.mode === 'peek') return [Math.ceil(Math.max(idleW + 2 * side, idleW + 120) / 2) * 2, idleH];   /* an update found by itself: one line, as wide as the version */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1790,6 +1850,7 @@
   }
   var updTok = 0;
   var updNotes = false;   /* What's new open */
+  var updOpen = false;    /* the peek was clicked open into the row */
   function updP(u) { return { id: 'perch-update', name: 'Perch', topic: 'Perch ' + u.version, app: 'perch', update: Object.assign({}, u, { notesOpen: updNotes }), status: { kind: 'idle', text: 'Perch ' + u.version, app: 'perch' } }; }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
@@ -1823,18 +1884,29 @@
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
+    if (!u || u.phase !== 'available') updOpen = false;
+    /* found by itself and peeked already (this version, or a Not now holds): the notch says nothing, the list's Update says it */
+    var updList = !!(u && u.phase === 'available' && u.peek && u.listOnly && !updOpen);
     /* the timer of the phase before (the offer folding away) must not fold this one */
     if (u && act.p && act.p.update && act.p.update.phase !== u.phase) clearTimeout(actTimer);
-    if (up && !s.quiet && !actGone[ukey]) {
+    if (up && !s.quiet && !actGone[ukey] && !updList) {
       var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase && (u.phase !== 'failed' || act.p.update.problem === u.problem);   /* a failure that says something else is a new one */
       /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */
       if (u.phase === 'downloading' && !need.length) { setAct('wings', up, true); return; }
       if (u.phase === 'restarting' || u.phase === 'checking') { clearTimeout(actTimer); setAct('full', up, true); return; }
-      if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
+      /* found by itself (a check on the schedule): it peeks first, one line for four seconds, and opens to the row only when you click
+         it. A session waiting on you goes first: the peek waits until the notch is free. Once it folds, the list's Update says the rest. */
+      if (u.phase === 'available' && u.peek && !updOpen) {
+        if (!need.length) {
+          var peeking = act.mode === 'peek' && act.p && act.p.update; setAct('peek', up, true);
+          if (!peeking) { actLater(4000); post({ type: 'update', action: 'peeked' }); }   /* once per version: Swift remembers it */
+          return;
+        }
+      } else if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
       /* a small row that says it and goes: updated, up to date, could not check */
       if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? (u.problem ? 9000 : 4500) : 3500); return; }
     }
-    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
+    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && !updList && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
@@ -1963,6 +2035,8 @@
     mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
+    /* the peek opens into the update's row, with its headline and buttons */
+    if (act.mode === 'peek' && act.p && act.p.update && snap && snap.update) { updOpen = true; clearTimeout(actTimer); setAct('full', updP(snap.update)); actLater(9000); return; }
     if (act.mode !== 'full') return;
     var b = e.target.closest('[data-a]'); if (b) actDo(b.dataset.a);
   });
@@ -1995,7 +2069,7 @@
     if (t) t.classList.add('pt');
   }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
-  actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
+  actEl.addEventListener('mouseenter', function () { if (act.mode === 'full' || act.mode === 'peek') { actHeld = true; clearTimeout(actTimer); } });
   actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { x.classList.remove('pt'); }); });
   /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
   actEl.addEventListener('mousemove', function (e) {
@@ -2022,7 +2096,7 @@
   /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked daily';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked hourly';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
@@ -2114,6 +2188,7 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -3611,9 +3686,9 @@
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
         o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
+        if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) { updNotes = false; updOpen = false; } }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, listOnly: !!o.listOnly, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */

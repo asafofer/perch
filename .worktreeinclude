@@ -1,0 +1,2 @@
+# Gitignored files Claude Code copies into each new worktree.
+ui/icons.local.json

@@ -1,5 +1,29 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(npm run build:*)",
+      "Bash(./scripts/run.sh:*)",
+      "Bash(./scripts/worktree-setup.sh)",
+      "Bash(.build/debug/Perch --dump)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(lsof -iTCP:*)"
+    ]
+  },
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/scripts/worktree-setup.sh\"", "timeout": 120 }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

@@ -9,6 +9,7 @@
 ## Answering from the notch, per agent
 
 - Claude's PermissionRequest hook runs alongside the app's own prompt, and whichever answers first wins, so Perch can allow, deny or answer a question (`answers` in `updatedInput`).
+- A question's card ends with Other, the number after the agent's choices. It opens the card's reply field with the question above and the choices dimmed, and what you type is the answer (on a pick-several question, one more pick; a dropped file goes in as its path). Esc keeps the words on the row (app.js `otherRow`, `otherMenu`). The live activity's row has no Other.
 - In Bypass permissions mode Claude sends no PermissionRequest for a question, so Perch also installs a PreToolUse hook on `AskUserQuestion` (`Ask.viaPreToolUse`, tested against a real `claude` with a temporary settings file: allow plus `updatedInput.answers` is taken as the answer). That hook blocks the app's own prompt until it returns, so it is held only for a Claude app session you are not in, for the notch's nine seconds plus the question time, and let go the moment you are in that session (`HookServer.keepHolding`). `HookInstaller.upgrade()` adds it to an earlier install at launch.
 - Codex's hook runs before its prompt, so Perch answers Codex at once with no decision and only shows the status.
 - Perch's OpenCode plugin never blocks OpenCode: a permission or question is held open beside OpenCode's own prompt, an answer from the notch goes back through OpenCode's client, and one given in OpenCode makes the plugin drop its request.
