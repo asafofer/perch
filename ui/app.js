@@ -2,7 +2,7 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 400;
+  var CARD_W = 400, CARD_MAX_H = 440;   /* the panel's height: a card taller than it is cut off */
   var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
@@ -1496,11 +1496,19 @@
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
   var crHideT = 0;
+  /* A question taller than the panel (four choices with long notes, and Other): its choices scroll, so the buttons below
+     stay on the card. One that fits is left as it is. */
+  function fitAsk(pane) {
+    var box = pane.querySelector('.o-ask .ch-box'); if (!box) return;
+    box.style.maxHeight = ''; box.classList.remove('fit');
+    var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
+    if (over > 0 && box.offsetHeight) { box.style.maxHeight = Math.max(120, box.offsetHeight - over) + 'px'; box.classList.add('fit'); }
+  }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
-    if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
+    if (st !== 'idle') { var pane = q('.p-' + st); if (st === 'open') fitAsk(pane); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';

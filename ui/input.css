@@ -472,6 +472,8 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .p-switch.nomark .sel-pill { opacity: 0; transition-duration: .2s; }
 /* a question card's choice under the pointer, the same slide (app.js markChoice); a picked choice keeps its own fill */
 .ch-pill { left: 0; right: 0; border-radius: 8px; background: rgba(255,255,255,.06); }
+/* a question taller than the panel: its choices scroll (app.js fitAsk) */
+.ch-box.fit { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
 .p-switch .s-l .row.bg-accent:not(.crossed) { background-color: transparent; }
 .p-switch .s-l .row { position: relative; }
 @media (prefers-reduced-motion: reduce) { .sel-pill { transition: opacity .01ms; } }
