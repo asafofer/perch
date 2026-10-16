@@ -1536,6 +1536,8 @@
       var o = qs.options[actMore.c]; if (o == null) return '';
       return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + (/\(recommended\)\s*$/i.test(o) ? '<i class="act-rec">Recommended</i>' : '') + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
     }
+    /* the question hovered: a click shows it all on the card, and where Open Claude has no button, its key */
+    if (actMore.q) return '<div class="act-ex">Click to see it all' + (act.keys.indexOf('app') >= 0 && !actEl.querySelector('.act-o') && actNoKeys.indexOf('app') < 0 ? ' \u00b7 ' + CMDOPT + 'O opens ' + esc(goLabel(p).replace(/^Open /, '')) : '') + '</div>';
     return '';
   }
   function renderAct() {
@@ -1990,7 +1992,8 @@
   actEl.addEventListener('mousemove', function (e) {
     if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
     var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch');
-    if (ch && qs) {
+    if (e.target.closest('.act-q')) actMoreSet({ q: 1 });
+    else if (ch && qs) {
       var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
       if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
     } else actMoreSet(null);
