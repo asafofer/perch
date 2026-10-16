@@ -197,6 +197,8 @@ enum OpenCodeSteps {
                                                                            Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-25)), Self.result])
         // opened and closed without a word
         h.pi("empty", cwd: site, ago: 10, entries: [])
-        #expect(h.scanner.pi(limit: 15, now: h.now).isEmpty)
+        // Only the small talk is found, marked: the app lists it only while pi still runs it.
+        let found = h.scanner.pi(limit: 15, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["hi"]); #expect(found.first?.smallTalk == true)
     }
 }

@@ -31,10 +31,11 @@ public struct Agent: Equatable, Sendable {
 
     /// Which agent a process is, from its executable path and argv[0]. pi, and Claude Code installed with npm, run under
     /// node or bun and name themselves in argv[0].
-    /// The native Claude installer runs ~/.local/share/claude/versions/<version>. Nil for anything else.
+    /// The native Claude installer runs ~/.local/share/claude/versions/<version>; Claude Code 2.1 from npm runs its native
+    /// binary as the package's bin/claude.exe. Nil for anything else.
     public static func recognise(executable: String, argv0: String?) -> Agent? {
         let name = (executable as NSString).lastPathComponent
-        if executable.contains("/claude/versions/") || name == "claude" { return .claude }
+        if executable.contains("/claude/versions/") || name == "claude" || name == "claude.exe" { return .claude }
         if name == "codex" || name.hasPrefix("codex-") { return .codex }
         if name == "opencode" { return .opencode }
         if name == "pi" { return .pi }
@@ -43,5 +44,11 @@ public struct Agent: Equatable, Sendable {
             if a == "claude" { return .claude }
         }
         return nil
+    }
+
+    /// Worth reading a process's arguments for: an executable `recognise` could take for an agent (node and bun by argv[0]).
+    public static func mayBe(_ executable: String) -> Bool {
+        let name = (executable as NSString).lastPathComponent
+        return ["claude", "claude.exe", "codex", "opencode", "pi", "node", "bun"].contains(name) || name.hasPrefix("codex-") || executable.contains("/claude/versions/")
     }
 }

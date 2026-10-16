@@ -68,6 +68,26 @@ private final class Home {
 }
 
 @Suite struct SessionScanTests {
+    @Test func aHelperAtWorkInTheBackgroundKeepsItsSessionAtWork() {
+        let h = Home(), site = h.folder("code/site")
+        let ts = ISO8601DateFormatter().string(from: h.now.addingTimeInterval(-3000))
+        // The turn started a helper in the background and ended; the transcript has been still for 50 minutes since.
+        let lines = [
+            #"{"type":"user","sessionId":"a","cwd":"\#(site)","timestamp":"\#(ts)","message":{"content":"launch the M4 work in parallel"}}"#,
+            #"{"type":"assistant","sessionId":"a","timestamp":"\#(ts)","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"t1","name":"Agent","input":{"description":"M4","prompt":"go","run_in_background":true}}]}}"#,
+            #"{"type":"user","sessionId":"a","timestamp":"\#(ts)","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"Async agent launched successfully."}]},"toolUseResult":{"isAsync":true,"status":"async_launched","agentId":"ab12"}}"#,
+            #"{"type":"assistant","sessionId":"a","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"M4 is under way in the background."}]}}"#,
+        ]
+        h.claude("a", cwd: site, title: "Launch parallel M4 work", ago: 3000)
+        let dir = ".claude/projects/" + String(site.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
+        h.write("\(dir)/a.jsonl", lines.joined(separator: "\n") + "\n", ago: 3000)
+        #expect(h.scanner.claude(limit: 15, now: h.now).first?.project.status.kind == "done")   // nothing has moved for 50 minutes
+        // The helper writes its own transcript as it works: the session is at work.
+        h.write("\(dir)/a/subagents/agent-ab12.jsonl", #"{"type":"assistant"}"# + "\n", ago: 20)
+        let p = h.scanner.claude(limit: 15, now: h.now).first?.project
+        #expect(p?.status.kind == "running"); #expect(p?.now == "Waiting on a helper: M4")
+    }
+
     @Test func everyAppSessionGetsARowEvenInTheSameFolder() {
         let h = Home(), site = h.folder("code/site")
         h.claude("a", cwd: site, title: "Hero spacing", ago: 60)
@@ -98,6 +118,21 @@ private final class Home {
         #expect(found.map(\.sessionId) == ["term", "app"])
         #expect(found.first?.terminal == true); #expect(found.first?.desktopSessionId == nil)
         #expect(found.last?.terminal == false)
+    }
+
+    @Test func smallTalkInATerminalIsFoundButMarked() {
+        // "hello" in a terminal: listed only while its agent still runs there (the app drops it otherwise), so the row the
+        // notch just spoke of does not vanish the moment the reply lands. The Claude app's small talk stays out.
+        let h = Home(), code = h.folder("code"), site = h.folder("code/site")
+        let ts = ISO8601DateFormatter().string(from: h.now.addingTimeInterval(-30))
+        h.write(".claude/projects/-code/hello.jsonl", [
+            #"{"type":"user","sessionId":"hello","cwd":"\#(code)","entrypoint":"cli","timestamp":"\#(ts)","message":{"content":"hello"}}"#,
+            #"{"type":"assistant","sessionId":"hello","cwd":"\#(code)","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"Hi! What can I help you with today?"}]}}"#,
+        ].joined(separator: "\n") + "\n", ago: 30)
+        h.write(".claude/projects/-code-site/work.jsonl", Home.transcript("work", cwd: site, at: h.now.addingTimeInterval(-60), entrypoint: "cli"), ago: 60)
+        let found = h.scanner.claude(limit: 1, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["hello", "work"])   // small talk takes no place of a real session
+        #expect(found.map(\.smallTalk) == [true, false])
     }
 
     @Test func codexInATerminalIsATerminalSession() {
@@ -198,5 +233,19 @@ private final class Home {
         let start = try #require((100..<9000).first { (data[$0] & 0xC0) == 0x80 })
         let d = SessionScanner.digest(of: url, windows: [UInt64(data.count - start)], parse: TranscriptParser.digest)
         #expect(d?.lastUserText == "tighten the hero spacing on the landing page")
+    }
+}
+
+@Suite struct GitLookUpTests {
+    @Test func aStatusLongerThanAPipeHoldsIsRead() throws {
+        // A checkout with thousands of changes prints more than a pipe holds (64 KB). Read only after git had exited, git
+        // waited for room that never came, the first scan never ended, and the list stayed on "Looking for your sessions".
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-git-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let git = Process(); git.executableURL = URL(fileURLWithPath: "/usr/bin/env"); git.arguments = ["git", "-C", dir.path, "init", "-q"]
+        try git.run(); git.waitUntilExit()
+        for i in 0..<4000 { FileManager.default.createFile(atPath: dir.appendingPathComponent("untracked-file-\(i).txt").path, contents: nil) }
+        #expect(SessionScanner.git(at: dir.path)?.uncommitted == 4000)
     }
 }

@@ -40,24 +40,24 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 - **While you work.** When a session you are not in finishes or asks for something, the notch grows with what happened and a row of buttons. A finish folds away on its own; a request folds to small wings until you answer. An answer from the notch or a card says it went: the notch folds to one line that reads Sent, with a blue paper plane.
 - **What needs you.** With live status on, Claude Code, Codex, OpenCode and pi tell Perch the moment they finish or need your OK. Sessions that need you come first.
 - **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's or OpenCode's question, without leaving what you are doing.
-- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr pane or cmux split. A session that has ended opens again where it last ran.
+- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr or tmux pane or cmux split. A session that has ended opens again where it last ran.
 - **Reply.** See the agent's last message and answer it, into a terminal session or into the Claude or Codex app.
 - **All sessions.** Every recent session in one list, grouped into what needs you, today and earlier, with its status at a glance. Type to filter.
 - **Yours.** Pick a character and its colour. It lives behind the notch and only comes out when there is something to say.
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
-**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and cmux, and exact panes inside [herdr](https://herdr.dev).
+**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and cmux, and exact panes inside [herdr](https://herdr.dev) and tmux.
 
 ## Install
 
 | Requirement | |
 |---|---|
 | macOS | 26 or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
-| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr and cmux included). |
+| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Builds are not notarized yet, so the first time macOS says it can't check Perch: open System Settings, Privacy & Security, scroll down and choose **Open Anyway** beside Perch. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
+**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Perch is signed and notarized by Apple, so it opens like any app from the internet. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 
@@ -137,8 +137,9 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 - **The card never appears on its own.** It waits until you have been away for the "Come back after" time, 20 minutes by default. To test it quickly: `./scripts/run.sh --idle 15`.
 - **macOS asks for permissions after every build.** Run `./scripts/make-dev-cert.sh` once so builds are signed with a stable identity.
+- **Perch asks for Accessibility again after an update.** 0.4.0 is the first release signed by Apple, and macOS ties Accessibility to the signature, so it asks once more. Press Allow on the What's new card (or in Settings) and turn Perch on in System Settings.
 - **Accessibility is on but Perch still waits.** Remove Perch from the list with the minus button, add it again and restart Perch. Setup has a Restart button for this.
-- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database and `~/.pi/agent/sessions`, and which agents are running, in which terminal, herdr pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
+- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database and `~/.pi/agent/sessions`, and which agents are running, in which terminal, herdr or tmux pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
 - **Status lags or guesses.** Turn on live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
 
 </details>
@@ -157,8 +158,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-- More sources: Cursor, tmux
-- Notarized releases with automatic updates
+- More sources: Cursor
 - An optional sound and haptics
 
 ## Credits

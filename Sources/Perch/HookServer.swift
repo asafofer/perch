@@ -121,8 +121,8 @@ final class HookServer: @unchecked Sendable {
             // Answered already (with no decision): the card shows it, and Pick up takes you to where it is asked.
             if case .asks(var ask) = event.kind, ask.answerable {
                 ask.answerable = false
-                let pid = event.pid
-                event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at); event.pid = pid
+                let pid = event.pid, helper = event.helper
+                event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at); event.pid = pid; event.helper = helper
             }
         }
         let sent = event

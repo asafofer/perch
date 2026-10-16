@@ -15,6 +15,7 @@
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
+    doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
@@ -82,7 +83,7 @@
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
     var term = icons[host] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[host] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
+    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host ? esc(p.host) + ', in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
          the ring sits on the icon's own edge instead of leaving a dark band between them */
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, iconOf(p.app) ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
@@ -287,8 +288,10 @@
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
+      /* files for the reply, as chips over its field (attChips) */
+      '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
-      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
@@ -444,23 +447,62 @@
     var p = snap && snap.projects[snap.selected];
     /* the words you left in this session's reply are still there, the caret after them */
     if (open && p && p.id !== replyFor) { replyFor = p.id; rIn.value = (snap.drafts && snap.drafts[p.id]) || ''; }
+    repOn = !!open; repAtt();
     /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
     if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
   rIn.addEventListener('input', function () { if (asking.typing) return; if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
-  /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
+  /* Files dropped on the card or pasted from Finder are attachments: a chip each (the file's name, its path on hover, an x
+     to take it off; Backspace in an empty field takes the last), opening the reply if need be. Sent, their paths follow
+     your words, quoted when they have spaces. A reply's files are kept with its session, as its words are. */
+  var repFiles = {}, repOn = false;
   function addPaths(list) {
-    if (lastSt !== 'open' || !list || !list.length) return;
+    if (!list || !list.length) return;
+    if (lastSt === 'ns') return nwPaths(list);
+    if (lastSt !== 'open') return;
     if (dropping) dropped();
+    /* an answer in your own words is words: a file goes in as its path */
+    if (asking.typing) { rIn.value = withFiles(rIn.value.trim(), addFiles([], list)); setTimeout(function () { caretAt(rIn.value.length); }, 40); return; }
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
-    var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
-    var t = list.join(' ');
-    if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
-    if (b < v.length && !/\s/.test(v.charAt(b))) t += ' ';
-    rIn.value = v.slice(0, a) + t + v.slice(b);
-    rIn.dispatchEvent(new Event('input'));
-    var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
+    repFiles[replyFor] = addFiles(repFiles[replyFor] || [], list); repAtt();
+    setTimeout(function () { caretAt(rIn.value.length); }, 40);
+  }
+  function addFiles(had, list) { return had.concat(list.filter(function (x, i) { return had.indexOf(x) < 0 && list.indexOf(x) === i; })); }
+  function withFiles(t, files) {
+    var paths = (files || []).map(function (f) { return /[\s"']/.test(f) ? '"' + f.replace(/"/g, '\\"') + '"' : f; }).join(' ');
+    return paths ? (t ? t + ' ' : '') + paths : t;
+  }
+  /* One line of chips, however many: more than fit scroll sideways, the edges fading where there is more, and the one
+     just added scrolled into view. Each wears the file's own icon as Finder shows it, a picture a thumbnail of itself
+     (Swift sends them a moment after the files, fileIcons); the design page has stand-ins by kind (file.png, ...). */
+  var fileIcons = {};
+  function fileIcon(f) {
+    var ext = /\/$/.test(f) || !/\.[^./]+$/.test(f) ? 'folder' : f.split('.').pop().toLowerCase();
+    return fileIcons[f] || icons['file.' + ext];
+  }
+  function attChips(box, files, drop) {
+    var had = box.children.length;
+    box.innerHTML = files.map(function (f, i) {
+      var name = f.replace(/\/+$/, '').split('/').pop() || f, ic = fileIcon(f);
+      return '<span class="att inline-flex h-[22px] max-w-[168px] flex-none items-center gap-1 rounded-md bg-white/[0.09] pl-1 pr-0.5 text-[12px] leading-4 text-foreground/90" title="' + esc(f) + '">' +
+        (ic ? '<img class="size-4 flex-none rounded-[3px] object-cover" src="' + ic + '" alt="">' : svg('doc', 'size-3 flex-none text-muted-foreground')) +
+        '<span dir="auto" class="min-w-0 truncate">' + esc(name) + '</span>' +
+        '<button class="att-x grid size-4 flex-none cursor-pointer place-items-center rounded text-muted-foreground transition-colors hover:bg-white/[0.12] hover:text-foreground" data-i="' + i + '" aria-label="Remove ' + esc(name) + '">' + svg('x', 'size-2.5') + '</button></span>';
+    }).join('');
+    box.style.display = files.length ? 'flex' : 'none';
+    box.querySelectorAll('.att-x').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function (e) { e.stopPropagation(); drop(+b.dataset.i); }; });
+    if (files.length > had) box.scrollLeft = box.scrollWidth;
+    attEdges(box); box.onscroll = function () { attEdges(box); };
+  }
+  function attEdges(box) {
+    var l = box.scrollLeft > 1, r = box.scrollLeft + box.clientWidth < box.scrollWidth - 1;
+    box.style.webkitMaskImage = box.style.maskImage = l || r ? 'linear-gradient(90deg, ' + (l ? 'transparent, #000 20px' : '#000, #000') + ', ' + (r ? '#000 calc(100% - 20px), transparent' : '#000') + ')' : '';
+  }
+  function repAtt() {
+    var files = (replyFor && repFiles[replyFor]) || [];
+    attChips(q('.r-att'), repOn ? files : [], function (i) { files.splice(i, 1); repAtt(); rIn.focus({ preventScroll: true }); });
+    if (snap && lastSt === 'open') layout('open', snap);
   }
   /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
      it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
@@ -468,6 +510,7 @@
      and hops. */
   var dropping = 0, dropOpened = false;
   function dragOver(n, x, y) {
+    if (lastSt === 'ns') return nwDragOver(n, x, y);
     if (lastSt !== 'open') return;
     if (n && !dropping) {
       if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
@@ -477,7 +520,7 @@
     var r = rIn.getBoundingClientRect();
     var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
     rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
-    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
     if (!n && was) {
       if (dropOpened) { dropOpened = false; replyMenu(false, true); }
       if (snap) layout('open', snap);   /* its face goes back to the session's */
@@ -527,13 +570,13 @@
   }
   function sendReply() {
     if (asking.typing) { otherSend(); return; }
-    var t = rIn.value.trim(); if (!t) return;
+    var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
-    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
+    if (p && p.via && sendFly(t)) { delete repFiles[replyFor]; post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
     /* without Accessibility Perch asks for it first; your words stay here and go out once it is on */
     if (snap.canSend === false && !(p && p.via)) { if (!snap.allowing) post({ type: 'reply', text: t }); rIn.focus({ preventScroll: true }); return; }
-    replyMenu(false, true); post({ type: 'reply', text: t });
+    delete repFiles[replyFor]; replyMenu(false, true); post({ type: 'reply', text: t });
   }
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only your words are moving; then they
      shoot up into the notch as a bubble, stretching as they go, and the notch swallows them with a green ripple. The
@@ -593,7 +636,9 @@
     return hit || box;
   }
   rIn.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
+    var rf = repFiles[replyFor];
+    if (e.key === 'Backspace' && rf && rf.length && !rIn.selectionStart && !rIn.selectionEnd) { e.preventDefault(); rf.pop(); repAtt(); }
+    else if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
     else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
     /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
@@ -737,7 +782,10 @@
       var o = qn.options[+k - 1]; if (!o) return;
       if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
       else { asking.picks[asking.step] = [o]; forward(); }
-    } else if (k === 'back') { if (asking.step) { asking.step--; redraw('step'); } }
+    } else if (k === 'back' || k === 'left') {
+      /* Left on the first question goes to All sessions, as the footer says; Backspace there stays put */
+      if (asking.step) { asking.step--; redraw('step'); } else if (k === 'left') post({ type: 'switcher' });
+    }
     else if (k === 'next') { if (picks.length) forward(); }
     else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
   }
@@ -818,7 +866,9 @@
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
       var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
       if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      /* your own words quoted back (You said: / You asked:): the label is grey, so what is quoted reads first */
+      var you = /^(You said|You asked):\s*/.exec(did);
+      if (did) { setWords(h, you ? '<span class="text-muted-foreground">' + esc(you[1]) + '</span> ' + md(did.slice(you[0].length)) : md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
       else setWords(h, said ? '' : md(p.headline));
       setWords(c, ''); setWords(box, '');
     }
@@ -944,6 +994,8 @@
   selPill.el = document.createElement('div'); selPill.el.className = 'sel-pill'; selPill.el.setAttribute('aria-hidden', 'true');
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
+    /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
+    if (lastSt !== 'switch') { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
@@ -1117,8 +1169,10 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
+  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
+  /* what a row says while a file is over it (nwDropRow) */
+  var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -1139,14 +1193,27 @@
   function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'The folder picked in Claude', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
   function newApply(o, entering) {
+    /* While it is open, what you are choosing holds still: a scan that finds activity elsewhere (another folder moving to
+       the top, an agent found) would move the rows under you, change the folder chosen, or redraw the field and its caret
+       as you type. Only a list that was empty (the first scan not yet done) is filled in. */
+    if (!entering) {
+      var had = (nw.o && nw.o.projects) || [];
+      if (had.length || !(o.projects || []).length) return;
+      nw.o = o;
+      if (nw.step === 'app') { var fi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; }); nw.proj = fi < 0 ? 0 : fi; }
+      return newRender();
+    }
     nw.o = o;
     if (entering) {
-      var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
+      /* a draft waiting comes back with the agent and folder it was written for, not the defaults of where you are now */
+      var kept = (nw.text || nw.files.length) && nw.kept, agent = kept ? kept.app : o.agent;
+      var ai = nwApps().findIndex(function (a) { return a.id === agent; });
       nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
-      var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
+      var pi = nwRows().findIndex(function (r) { return kept ? (kept.none ? r.none : !r.none && !r.pick && r.path === kept.path) : !r.none && !r.pick && r.name === o.project; });
+      if (pi < 0 && kept) pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
       /* a draft waiting: straight back to it, as you left it */
-      nw.step = nw.text ? 'prompt' : 'app';
+      nw.step = nw.text || nw.files.length ? 'prompt' : 'app';
     }
     newRender(entering);
   }
@@ -1162,33 +1229,41 @@
     var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
-      (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
+      (right ? '<span class="nw-right flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') +
+      (nw.step !== 'prompt' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
     if (nw.step === 'app') {
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="nw-rt flex flex-none items-center gap-2"><span class="text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else if (nw.step === 'project') {
       var rows = nwRows();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
         var on = i === nw.proj ? ' bg-accent' : '';
         if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span></div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="nw-rt flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span>' + NW_DZ + '</div>';
         if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
           '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
-          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
+          '<span dir="ltr" class="nw-rt min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
-      html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
+      /* the field is a box: the files attached along its top (nwPaths), then your words */
+      html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
+        '<div class="nw-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
+        '<textarea class="nw-in block cursor-text max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div></div>' +
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
     /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
        page side by side) */
     var by = nwSlide; nwSlide = 0;   /* taken once: a draw again from inside this one (an answer to what it posts) does not slide */
+    /* a refresh that changes nothing here leaves the card alone: drawn again, the prompt would lose what you selected in it
+       (a double or triple click, Command+A) and its caret would jump to the end */
+    if (!entering && !by && html === nwDrawn && box.firstChild) return;
+    nwDrawn = html;
     var slid = by && !STILL ? crossSeen(q('.p-ns'), ['.nw'])[0] : null;
     box.innerHTML = html;
     if (slid && slid.g) {
@@ -1202,14 +1277,15 @@
     box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
     box.querySelectorAll('.nrow').forEach(function (r) {
       r.onclick = function () { nwPick(+r.dataset.i); nwNext(); };
-      r.onmouseenter = function () { if (!ptrMoved()) return; nwPick(+r.dataset.i, true); };
+      r.onmouseenter = function () { if (!ptrMoved() || nwDrop) return; nwPick(+r.dataset.i, true); };   /* a file dragged across the rows chooses nothing */
     });
     var ta = q('.nw-in');
     if (ta) {
-      ta.value = nw.text; nwGrow(ta);
+      ta.value = nw.text; nwAtt();
       ta.oninput = function () { nw.text = ta.value; nwGrow(ta); };
       ta.onkeydown = function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
+        if (e.key === 'Backspace' && nw.files.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); nw.files.pop(); nwAtt(); }
+        else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
       };
       q('.nw-start').onclick = function () { nwStart(false); };
@@ -1231,7 +1307,8 @@
     var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
     l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
   }
-  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
+  /* three lines to write in; two with files over them, so the field is about the same height either way */
+  function nwGrow(ta) { var min = nw.files.length ? 44 : 68; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
@@ -1243,6 +1320,9 @@
   function nwTo(step) {
     /* leaving the agents: the one you chose keeps its place in the whole list */
     if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    /* and leaving the folders: the one you chose keeps its place too, rather than whatever row the narrowed one sat at
+       (it was No project, then the app's own choice: a typed "perch" started in another folder) */
+    if (nw.step === 'project' && step !== 'project' && nw.q) { var f = nwRows()[nw.proj]; nw.q = ''; var fi = nwRows().indexOf(f); nw.proj = fi < 0 ? 0 : fi; }
     nwSlide = NW_STEPS.indexOf(step) - NW_STEPS.indexOf(nw.step);
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
@@ -1258,23 +1338,31 @@
   /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
      session shows in the list, working. Command+Return starts it and takes you there. */
   function nwStart(go) {
-    var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
+    var words = nw.text.trim(), t = withFiles(words, nw.files), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
     var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
-    nw.last = nw.text; nw.text = '';
+    nw.last = nw.text; nw.text = ''; nw.lastFiles = nw.files; nw.files = [];
     /* from anywhere the words fly into the notch; from the list it is simply back, the new row already there and shimmering */
-    if (!go && from !== 'list') newFly(t);
+    if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
   function nwStarted(ok, app) {
     /* the app asks you to trust the folder first: the line says to confirm there, and waits */
-    if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
-    if (!ok && nw.last) nw.text = nw.last;
-    nw.last = '';
+    if (ok === 'confirm') {
+      if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+      /* asked before the card had folded into its line: the line, when it comes, says it */
+      if (sentNext && sentNext.p.id === 'new-session') { sentNext.words = 'Confirm in ' + app; sentNext.asks = true; return; }
+      /* started from the list: the app has the keyboard now, so the list (Swift closes it next) folds into that same line */
+      var pr = lastSt === 'switch' && snap && snap.projects.filter(function (x) { return x.pending === 'starting' || x.pending === 'confirm'; })[0];
+      if (pr) sentNext = { p: { id: 'new-session', name: pr.name, topic: '', app: pr.app, via: pr.via, status: { kind: 'running', text: 'Starting', app: pr.app } }, words: 'Confirm in ' + app, at: Date.now(), pending: true, asks: true };
+      return;
+    }
+    if (!ok && (nw.last || nw.lastFiles.length)) { nw.text = nw.last; nw.files = nw.lastFiles; }
+    nw.last = ''; nw.lastFiles = [];
     if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
   }
   function newFly(text) {
@@ -1303,6 +1391,51 @@
   function nwPicked(name, path) {
     var o = nw.o || {}; o.projects = (o.projects || []).filter(function (p) { return p.path !== path; });
     o.projects.unshift({ name: name, path: path, away: '' }); nw.o = o; nw.q = ''; nw.proj = 1; nwTo('prompt');
+  }
+  /* Files dropped on the card or pasted from Finder go into the prompt as their paths, as on a reply. Dropped while the
+     agent or the folder is still being chosen, the card goes on to the prompt with what is chosen so far (the chips
+     change it). Over the card the field lights up, more so with the file right on it, and the character watches. */
+  var nwDrop = 0, nwHint = '', nwDropWas = null;
+  function nwPaths(list) {
+    nwDropWas = null;   /* dropped on a row: that row is the choice */
+    if (nwDrop) nwDragOver(0);
+    if (nw.step !== 'prompt') nwTo('prompt');
+    var ta = q('.nw-in'); if (!ta) return;
+    nw.files = addFiles(nw.files, list); nwAtt();
+    setTimeout(function () { var e = ta.value.length; ta.focus({ preventScroll: true }); ta.setSelectionRange(e, e); }, 40);
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!nwDrop && snap && lastSt === 'ns') layout('ns', snap); }, 1100);
+  }
+  function nwAtt() {
+    var box = q('.nw-att'); if (!box) return;
+    attChips(box, nw.files, function (i) { nw.files.splice(i, 1); nwAtt(); var ta = q('.nw-in'); if (ta) ta.focus({ preventScroll: true }); });
+    var ta = q('.nw-in'); if (ta) nwGrow(ta);
+  }
+  /* A file over the agents or the folders: the row under it lights up and says Drop to start, and a drop there picks it
+     and goes on to the prompt with the file attached. Off the rows (or gone), the row you had chosen comes back.
+     Choose a folder... takes no file. */
+  function nwDropRow(x, y) {
+    var el = x == null ? null : document.elementFromPoint(x, y), row = el && el.closest ? el.closest('.nw .nrow') : null, i = row ? +row.dataset.i : -1;
+    if (i >= 0 && nw.step === 'project' && (nwRows()[i] || {}).pick) i = -1;
+    var cur = nw.step === 'app' ? nw.app : nw.proj;
+    if (x != null && nwDropWas == null) nwDropWas = cur;
+    var to = i >= 0 ? i : nwDropWas;
+    if (to != null && to !== cur) nwPick(to, true);
+    q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('dz', +r.dataset.i === i); });
+    q('.nw').classList.toggle('dropping', x != null);
+    if (x == null) nwDropWas = null;
+  }
+  function nwDragOver(n, x, y) {
+    var ta = q('.nw-in'), fb = q('.nw-box'), was = nwDrop; nwDrop = n;
+    if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
+    if (n) lookAt(ta || q('.nw'), 60);
+    if (nw.step !== 'prompt') nwDropRow(n ? x : null, y);
+    if (ta) {
+      var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+      fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
+      ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
+    }
+    if (!n && was && snap) layout('ns', snap);   /* its face goes back */
   }
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
@@ -1391,7 +1524,7 @@
       : st === 'new' ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
-    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
+    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
   }
@@ -1411,10 +1544,11 @@
   };
   function actKind(p) {
     if (p.update) return 'update';
+    if (p.access) return 'access';
     if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
     return p.status.kind === 'attention' ? 'need' : 'done';
   }
-  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
+  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.access ? 'access|' + p.access.phase + '|' + (p.access.since || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
   /* what you can do from here, as [action, label, key]; the first one is the main one */
   function actButtons(p, k) {
     var a = p.ask;
@@ -1448,6 +1582,7 @@
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
+    if (k === 'access') { renderAccess(p.access); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
@@ -1515,6 +1650,28 @@
     var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
     actGlide();
   }
+  /* Accessibility Perch had, gone: an update signed another way (macOS ties the grant to the signature) or a switch turned off
+     in System Settings. The notch says it once, at a quiet moment, in the same row as an update: the character, Needs access
+     in orange, one line on what waits, and Allow for the mouse (it opens by itself, so no keys). Allow clears the stale switch
+     and opens System Settings; the row waits there until the switch is on, says Allowed and folds away. */
+  function accP(a) { return { id: 'perch-access', name: 'Perch', topic: 'Perch', app: 'perch', access: a, status: { kind: 'idle', text: 'Accessibility', app: 'perch' } }; }
+  function renderAccess(a) {
+    var ph = a.phase;
+    var words = { lost: 'Needs access', asked: 'Turn it on', granted: 'Allowed' }[ph];
+    var mark = ph === 'granted' ? Ring('done') : ph === 'asked' ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var line = ph === 'lost' ? (a.afterUpdate ? 'macOS asks again after an update. Command+Option and replies wait.' : 'Accessibility is off. Command+Option and replies wait until it is on.')
+      : ph === 'asked' ? 'In macOS\u2019s prompt, choose Open System Settings.' : '';
+    var btn = function (x, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + x + '"><span class="act-bl">' + label + '</span></button>'; };
+    var btns = '', keys = ['gone'];
+    if (ph === 'lost') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Allow', true); }
+    if (ph === 'asked') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Open System Settings'); }
+    act.keys = keys;
+    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), 'awake') + '<span class="act-n"><span class="mq-in">Perch</span></span></span>' +
+      '<span class="act-r"><span class="act-s' + (ph === 'granted' ? ' ok' : ph === 'asked' ? ' mu' : '') + '">' + words + '</span>' + mark + '</span>' +
+      (line ? '<div class="act-body fail" data-h="32"><span dir="auto" class="act-t">' + esc(line) + '</span></div>' : '') + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    actGlide();
+  }
   /* A name that does not fit, beside the camera or on the row below, reads itself out as a list row does: after a moment it
      glides to its end, rests, and comes back. Started again only when the words change, so a refresh does not restart it. */
   var actGlides = [], actGlideFor = '';
@@ -1557,7 +1714,7 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
-    if (act.mode === 'sent') return [Math.ceil(Math.min(460, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went */
+    if (act.mode === 'sent') return [Math.ceil(Math.min(480, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went; as wide as the panel at most, so Confirm in Claude fits */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1675,7 +1832,7 @@
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending, sn.asks); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
@@ -1697,6 +1854,17 @@
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
     if (act.mode === 'sent') return;
+    /* Accessibility gone: said when nothing else is on the notch, and a session's news goes first. Once said (it folded, or
+       Later) Swift stops sending it until it is lost again. Waiting for the switch it stays; Allowed folds away. */
+    var ax = s.access, ap = ax && accP(ax), akey = ap && actKey(ap);
+    var axShowing = act.mode === 'full' && act.p && act.p.access;
+    if (ap && !s.quiet && !actGone[akey] && !arrived && !landed && (axShowing || !need.length) && (axShowing || act.mode !== 'full')) {
+      var same = axShowing && act.p.access.phase === ax.phase;
+      setAct('full', ap, true);
+      if (!same) { clearTimeout(actTimer); if (ax.phase === 'lost') actLater(12000); else if (ax.phase === 'granted') actLater(3500); }
+      return;
+    }
+    if (axShowing) { clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true); }
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1714,18 +1882,21 @@
   /* it has said its piece: whatever still waits on you stays as wings */
   function actSettle() {
     if (!snap) return;
-    if (act.p && (actErr(act.p) || act.p.update)) actGone[actKey(act.p)] = 1;   /* said once */
+    if (act.p && act.p.access && act.p.access.phase === 'lost') post({ type: 'access', action: 'said' });
+    if (act.p && (actErr(act.p) || act.p.update || act.p.access)) actGone[actKey(act.p)] = 1;   /* said once */
     var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
   function actDo(a) {
     var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
     if (a === 'gone') {
       if (p.update) { updNotes = false; post({ type: 'update', action: 'later' }); }
+      if (p.access) post({ type: 'access', action: 'said' });
       actGone[actKey(p)] = 1; clearTimeout(actTimer);
       if (act.kind === 'done') post({ type: 'activitySeen', id: p.id });
       actSettle(); return;
     }
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
+    if (a === 'axallow') { clearTimeout(actTimer); post({ type: 'access', action: 'allow' }); return; }   /* the row stays: it waits for the switch */
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     var m = null;
     if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
@@ -1900,19 +2071,39 @@
   var wnSig = '';
   /* Got it. WebKit sometimes never turns a press and release into a click on this card, which opens by itself, often under
      a pointer resting on the notch; so Swift also passes on each release over the card (wnUp) and the page checks what is there. */
-  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); });
-  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); }
+  /* Allow on the card, once however it arrives (a click, a release Swift passes on, or both) */
+  var wnAxAt = 0;
+  function wnAllow() { if (Date.now() - wnAxAt < 1500) return; wnAxAt = Date.now(); post({ type: 'access', action: 'allow' }); }
+  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (e.target.closest('.wn-ax')) wnAllow(); });
+  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (el && el.closest('.wn-ax')) wnAllow(); }
+  /* The update that lost Accessibility (a build signed another way) says so on its own What's new card, under the lines: one row
+     with the orange ring, what waits, and Allow. Pressed, it waits for the switch in System Settings; on, it turns green. Got it
+     stays the card's main button either way: Settings keeps the row for later. */
+  function wnAccess(ax) {
+    if (!ax) return '';
+    var on = ax === 'granted', asked = ax === 'asked';
+    var mark = on ? Ring('done') : asked ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var title = on ? 'Accessibility is on' : asked ? 'Turn Perch on in System Settings' : 'Allow Accessibility again';
+    var sub = on ? 'Command+Option and replies work again.' : asked ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on.' : 'macOS asks once more after this update. Until then Command+Option and replies wait.';
+    return '<div class="wn-a rv mx-4 mt-2 flex items-center gap-2.5 rounded-lg bg-black/[0.18] py-2 pl-3 pr-2" style="--i:3">' + mark +
+      '<div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-[17px]">' + title + '</div><div class="text-xs leading-4 text-muted-foreground">' + sub + '</div></div>' +
+      (on ? '' : Button('ghost', asked ? 'Open' : 'Allow', '', 'wn-ax flex-none bg-white/[0.08] text-foreground')) + '</div>';
+  }
   function whatsNew(w) {
     if (!w) return;
-    var sig = JSON.stringify(w); if (sig === wnSig) return; wnSig = sig;
+    var sig = JSON.stringify(w); if (sig === wnSig) return;
+    /* only the Accessibility row changed (Allow pressed, the switch turned on): that row alone, the list keeps its scroll */
+    var was = wnSig; wnSig = sig;
+    var a0 = q('.wn-a'), bare = function (x) { var o = JSON.parse(x); delete o.access; return JSON.stringify(o); };
+    if (was && a0 && w.access && bare(was) === bare(sig)) { a0.outerHTML = wnAccess(w.access); return; }
     var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
     var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
       return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
     }).join('') + '</div>' : '';
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
-      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list +
-      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:3">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
+      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
     var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
@@ -1950,7 +2141,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else nw.on = false;
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -1958,7 +2149,7 @@
     /* while it waits there is nothing to press: no Return on it, and it steps back */
     q('.x-send kbd').style.display = !canSend && s.allowing ? 'none' : '';
     q('.x-send').style.opacity = !canSend && s.allowing ? '.6' : '';
-    q('.x-send').title = canSend ? '' : s.allowing ? 'Turn Perch on in System Settings, Accessibility. Your reply goes out as soon as it is on.'
+    q('.x-send').title = canSend ? '' : s.allowing ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on. Your reply goes out as soon as it is on.'
       : 'Perch needs Accessibility to send for you. Allow it once and this reply goes out.';
     /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
     var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
@@ -2211,7 +2402,9 @@
       if (!rest) requestAnimationFrame(step);
     }
   }
-  if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
+  /* the real pointer only: hoverAt's own mousemove (for the page's hover handlers) would come back here and loop, and the
+     design page's pretend pointer calls cursor itself */
+  if (!NATIVE) scene.addEventListener('mousemove', function (e) { if (e.isTrusted) cursor(e.clientX, e.clientY); });
   if (!NATIVE) scene.addEventListener('mousemove', function (e) {
     if (!snap || snap.phase !== 'idle') return;
     var r = n.getBoundingClientRect(), pad = 10;
@@ -2599,7 +2792,7 @@
     } else if (st === 2) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and listens for its shortcut. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
-        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
+        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS asks next: choose Open System Settings there, then switch Perch on. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       h = shortcutStep(o);
@@ -2778,6 +2971,7 @@
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
+    if (o.accessibility) axAsked = false;   /* on now: if it is ever lost again, the row starts over at Allow */
     var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
     /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
     var segOf = function (key, vals, name) {
@@ -2809,7 +3003,8 @@
       srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
     ].concat([
       /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
+      /* what is wrong in orange, as an update that failed says it, and Allow as a filled button: it is the one thing to do here */
+      o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn on in System Settings' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
       srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
     ]).concat(snap && snap.canUpdate ? [
       /* a build that can update says where it stands; a local test build has no updater and no row */
@@ -2845,7 +3040,7 @@
     on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
     on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
     on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
+    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn on in System Settings at once */
     on('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
     on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
@@ -3063,9 +3258,9 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
+    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
@@ -3095,7 +3290,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3109,6 +3304,14 @@
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
   var devFrom = '', devSc = Object.assign({}, SC0);
+  /* New session's shortcut, as Settings shows it; while the recorder records it, devSc is its state and Open Perch's waits in devScOpen */
+  var SCN0 = { keys: ['\u2325', '\u2318', 'N'], kind: 'combo', custom: false }, devScNew = Object.assign({}, SCN0), devScOpen = null;
+  /* back from the recorder: what it recorded goes to its own shortcut, and devSc is Open Perch's again */
+  function devScBack() {
+    if (devSc.which !== 'new') return;
+    devScNew = { keys: devSc.keys, kind: devSc.kind, custom: devSc.custom };
+    devSc = devScOpen || Object.assign({}, SC0); devScOpen = null;
+  }
   /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
   /* what Swift sends for "does it work": a tap hears nothing without Accessibility, a combo can be held by another app */
   function devScOut(ax) {
@@ -3139,7 +3342,7 @@
     if (m.type === 'shortcut') {
       if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], pending: [], saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '', pending: [] });
-      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, devSc.which === 'new' ? SCN0 : {}, { which: devSc.which, saved: true }));
       else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
       return;
     }
@@ -3149,7 +3352,22 @@
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
     if (m.type === 'newSession') { devNew(m); return; }
-    if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    if (m.type === 'whatsnew') { base.access = null; window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    /* Allow: System Settings opens (here, a line says so), the switch is turned on a few seconds later */
+    if (m.type === 'access') {
+      var nowA = document.getElementById('now'), D2 = window.perchDev;
+      if (m.action === 'said') { base.access = null; return; }
+      if (m.action !== 'allow' || !snap) return;
+      var k2 = ++updTok, onCard = snap.phase === 'whatsnew', set = function (ph) {
+        if (k2 !== updTok) return;
+        if (onCard) { if (!snap || snap.phase !== 'whatsnew') return; var c = JSON.parse(JSON.stringify(snap)); c.whatsNew.access = ph; c.timerToken = Math.random(); apply(c); }
+        else { base.access = { phase: ph, afterUpdate: false, since: 1 }; D2.access(ph, { fresh: false }); }
+      };
+      set('asked'); if (nowA) nowA.textContent = 'System Settings opens on Accessibility, with a fresh switch for Perch';
+      setTimeout(function () { if (k2 !== updTok) return; set('granted'); if (nowA) nowA.textContent = 'You turn Perch on'; }, 3800);
+      if (!onCard) setTimeout(function () { if (k2 === updTok) base.access = null; }, 4000);
+      return;
+    }
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
@@ -3180,9 +3398,15 @@
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
+    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
-    if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
+    /* Allow in Settings: System Settings opens, the row says turn on in System Settings, and the switch comes on a few seconds later */
+    if (m.type === 'onb' && !s.onboarding) {
+      if (m.action !== 'accessibility' || !s.settings) return;
+      var k3 = ++updTok; s.timerToken = Math.random(); apply(s);
+      setTimeout(function () { if (k3 !== updTok || !snap || snap.phase !== 'settings') return; var s3 = JSON.parse(JSON.stringify(snap)); s3.settings.accessibility = true; s3.settings.shortcut = devScOut(true); s3.timerToken = Math.random(); apply(s3); }, 3800);
+      return;
+    }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
@@ -3205,7 +3429,7 @@
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
-      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You asked: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
+      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You said: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', via: 'terminal', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       /* the other agents: OpenCode at work in Ghostty, and pi in a herdr pane (herdr shown in Ghostty) */
@@ -3264,7 +3488,7 @@
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
-      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
+      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: (m.title || m.prompt).length > 70 ? (m.title || m.prompt).slice(0, 68) + '\u2026' : (m.title || m.prompt), app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
       var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
@@ -3277,6 +3501,20 @@
           D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
           if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
         });
+        /* the app asks you to confirm the folder: it has the keyboard now, so the list folds into the line that says so */
+        if (D.newConfirms) {
+          later(close + 1200, function () {
+            pend.pending = 'confirm'; relist(); nwStarted('confirm', agentShort(a.app));
+            apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = agentShort(a.app) + ' asks you to trust the folder: the list folds into the line that says so';
+          });
+          later(close + 5200, function () {
+            P[P.indexOf(pend)] = row; nwStarted(true);
+            apply(Object.assign({}, snap, { projects: P, timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = 'Confirmed there: Perch sees the session, Started';
+          });
+          return;
+        }
         later(close + 1500, function () {
           pend.pending = fail ? 'failed' : 'started'; relist();
           if (fail) nwStarted(false); else nwStarted(true);
@@ -3328,15 +3566,19 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
+        devScBack();
+        if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
-      onboarding: function (step, accessibility, only, live, all, scan) {
-        devSc = only && step === 3 ? Object.assign({}, devSc, { recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
+      onboarding: function (step, accessibility, only, live, all, scan, which) {
+        devScBack();
+        /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
+        if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
+        else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
@@ -3389,7 +3631,15 @@
         var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
         var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
         apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
-          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets } }));
+          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: o.access ? bullets.slice(0, 2) : bullets, access: o.access || null } }));
+      },
+      /* Accessibility Perch had, gone: `phase` is lost, asked (Allow was pressed, System Settings is open) or granted; null takes it away.
+         `o.afterUpdate`: an update brought it about (only when What's new did not say it already). */
+      access: function (phase, o) {
+        o = o || {}; d0(); if (o.fresh !== false) { window.perchDev.updStop(); actGone = {}; clearTimeout(actTimer); if (act.p && act.p.access) act.mode = ''; }   /* a fresh start runs its own clock */
+        base.access = phase ? { phase: phase, afterUpdate: !!o.afterUpdate, since: 1 } : null;
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
+        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: null, access: base.access }));
       },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
@@ -3402,7 +3652,7 @@
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
-      updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
+      updStop: function () { updTok++; base.access = null; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
@@ -3444,7 +3694,7 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; window.perchDev.newConfirms = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
@@ -3464,7 +3714,7 @@
     /* what you press is only a choice; Return alone saves it, another try replaces it */
     var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [], picks: (devSc.picks || 0) + 1 }); };
     var scSave = function () {
-      var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      var std = devSc.which === 'new' ? SCN0 : SC0, keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === std.keys.join('') && kind === std.kind;
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
     };
     window.perchDev.saveChoice = scSave;
@@ -3494,6 +3744,7 @@
       if (!only || !mods.length) return;
       if (devSc.recording) {
         e.preventDefault(); e.stopImmediatePropagation();
+        if (devSc.which === 'new') { devScSync({ error: 'New session needs a key too, like \u2325\u2318N.', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         var tap = mods.join('');
         if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap], attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
@@ -3518,7 +3769,7 @@
       if (ask && ask.answerable && fRep.style.display !== 'flex') {
         var k = e.key.toLowerCase();
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
-        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
+        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }

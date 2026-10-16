@@ -22,6 +22,9 @@ public struct HookEvent: Equatable, Sendable {
     public let at: Date
     /// The process that sent it, or the hook's parent: which running agent this session is.
     public var pid: Int32?
+    /// The helper it came from, when a helper (a subagent) sent it: Claude sends the session's own id with a helper's hooks,
+    /// and the helper's `agent_id` beside it.
+    public var helper: String?
     public init(agent: String, sessionId: String, kind: Kind, at: Date = Date()) {
         self.agent = agent; self.sessionId = sessionId; self.kind = kind; self.at = at
     }
@@ -31,17 +34,20 @@ public struct HookEvent: Equatable, Sendable {
     public static func parse(agent: String, event: String, body: Data, requestId: String, at: Date = Date(), pid: Int32? = nil) -> HookEvent? {
         guard let o = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any],
               let session = o["session_id"] as? String, !session.isEmpty else { return nil }
+        let helper = (o["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         let kind: Kind
         switch event {
         case "UserPromptSubmit": kind = .started
         case "PostToolUse": kind = .toolRan(tool: o["tool_name"] as? String ?? "")
         case "PermissionRequest":
-            kind = .asks(Ask(id: requestId, agent: agent, tool: o["tool_name"] as? String ?? "tool", input: o["tool_input"] as? [String: Any] ?? [:]))
+            var a = Ask(id: requestId, agent: agent, tool: o["tool_name"] as? String ?? "tool", input: o["tool_input"] as? [String: Any] ?? [:])
+            a.helper = helper
+            kind = .asks(a)
         case "PreToolUse":
             // Only for a question: Bypass permissions mode sends no PermissionRequest for it, but this hook still runs.
             guard agent == "claude", o["tool_name"] as? String == "AskUserQuestion" else { return nil }
             var a = Ask(id: requestId, agent: agent, tool: "AskUserQuestion", input: o["tool_input"] as? [String: Any] ?? [:])
-            a.viaPreToolUse = true
+            a.viaPreToolUse = true; a.helper = helper
             kind = .asks(a)
         case "Stop": kind = .finished(message: o["last_assistant_message"] as? String)
         case "StopFailure": kind = .failed
@@ -50,6 +56,7 @@ public struct HookEvent: Equatable, Sendable {
         }
         var e = HookEvent(agent: agent, sessionId: session, kind: kind, at: at)
         e.pid = pid ?? (o["pid"] as? Int).map(Int32.init)
+        e.helper = helper
         return e
     }
 }
@@ -71,6 +78,8 @@ public struct Ask: Equatable, Sendable {
     public var answerable: Bool
     /// It came from the PreToolUse hook, which blocks the agent's own prompt until Perch lets it go, so the reply has that hook's shape.
     public var viaPreToolUse = false
+    /// The helper that asks, when a helper (a subagent) asks rather than the session itself.
+    public var helper: String?
     /// Set when only the transcript showed this request (no hook reported it): when it was asked. The card shows it, read-only.
     public var transcriptAt: Date?
 
@@ -208,6 +217,13 @@ public struct LiveStatus: Equatable, Sendable {
     /// Folds one event into the session's state. Anything that moves the turn along settles the open requests.
     public static func apply(_ e: HookEvent, to s: LiveStatus?) -> LiveStatus {
         var s = s ?? LiveStatus(kind: .working, at: e.at)
+        // A helper's tool call settles only what that helper asked: helpers at work in the background never answer the
+        // question the session itself asks. With nothing left open, the session is at work (its helpers are).
+        if case .toolRan = e.kind, let h = e.helper {
+            s.asks.removeAll { $0.helper == h }
+            if s.asks.isEmpty { s.kind = .working; s.at = e.at }
+            return s
+        }
         s.at = e.at
         switch e.kind {
         case .started: s.kind = .working; s.asks = []; s.outcome = nil
@@ -245,10 +261,12 @@ extension Project {
         // A question the transcript shows open that the hooks never reported, and that came after their last word (a hook that
         // did not fire in Bypass permissions mode): it stands. The tool's own result, a hook after it, is what ends it.
         if live.kind != .asking, let q = ask, let at = q.transcriptAt, live.at <= at { return self }
+        // The turn that left work in the background ended (the Stop hook), but the work did not: still at work.
+        let kind: LiveStatus.Kind = live.kind == .finished && waiting ? .working : live.kind
         let who = Agent.of(app).short
         let status: AgentStatus
         var next = self.next, context = self.context
-        switch live.kind {
+        switch kind {
         case .working: status = AgentStatus(kind: .running, text: "\(Agent.of(app).name) is working", app: app); next = ""
         case .asking:
             let a = live.asks.last
@@ -262,8 +280,8 @@ extension Project {
         var p = self
         p.agents = [status]; p.next = next; p.context = context
         p.lastActive = max(lastActive ?? live.at, live.at)
-        p.ask = live.kind == .asking ? live.asks.last : nil
-        p.now = live.kind == .working ? now : nil
+        p.ask = kind == .asking ? live.asks.last : nil
+        p.now = kind == .working ? now : nil
         p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
         return p
     }

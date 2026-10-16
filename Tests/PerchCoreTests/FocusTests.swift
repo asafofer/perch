@@ -14,6 +14,16 @@ import Testing
         #expect(Spot.key(.cmux(workspace: "w", surface: "S1"), tty: "/dev/ttys001") == "cmux:s1")
         #expect(Spot.key(.tab, tty: "/dev/ttys004") == "tty:/dev/ttys004")
         #expect(Spot.key(.herdr(pane: "w1:p2", socket: "/h.sock", session: "default"), tty: "/dev/ttys004") == Spot.herdr(socket: "/h.sock", pane: "w1:p2"))
+        #expect(Spot.key(.tmux(pane: "%3", socket: "/t.sock"), tty: "/dev/ttys004") == Spot.tmux(socket: "/t.sock", pane: "%3"))
+        #expect(Spot.tmux(socket: "/t.sock", pane: "%3") != Spot.tmux(socket: "/o.sock", pane: "%3"))
+    }
+
+    @Test func onlyThePaneATmuxClientShowsIsTheSessionYouAreIn() {
+        // Two agents in one tmux, shown in one Ghostty tab: the client's pane decides, not the folder they share.
+        let a = Spot.tmux(socket: "/t.sock", pane: "%1"), b = Spot.tmux(socket: "/t.sock", pane: "%2")
+        let ps = [session("a", via: ghostty, spot: a), session("b", via: ghostty, spot: b)]
+        let r = Focus.inTerminal(ps, app: ghostty, looking: Looking(spots: [b]))
+        #expect(r.sure == ["b"]); #expect(r.maybe == ["b"])
     }
 
     @Test func onlyTheFocusedCmuxSurfaceIsTheSessionYouAreIn() {
