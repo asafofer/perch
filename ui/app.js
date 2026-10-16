@@ -1553,10 +1553,10 @@
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
     /* Open Claude at the right of the row opens the session in its app, on Command+Option+O on every row ('app'), unless a
-       button already does (then a cross at the left puts it away) or three choices need the room. Command+Option+. puts it
+       button already does (then a cross at the left puts it away); three choices need the room, so there it is the key alone. Command+Option+. puts it
        away either way. Clicking the question opens the whole of it on the card ('card'). */
-    var opener = !bs.some(function (b) { return b[0] === 'pick'; }) && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);
-    act.keys = ['gone'].concat(opener ? ['app'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
+    var toApp = !bs.some(function (b) { return b[0] === 'pick'; }), opener = toApp && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);   /* three choices: the key alone */
+    act.keys = ['gone'].concat(toApp ? ['app'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
