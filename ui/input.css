@@ -225,10 +225,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-bar > i { position: absolute; top: 0; right: 2px; width: 3px; border-radius: 3px; background: rgba(255,255,255,.26); transition: width .15s, background-color .15s; }
 .s-bar:hover > i, .s-bar.hv > i, .s-bar.drag > i { width: 5px; background: rgba(255,255,255,.42); }
 /* the live activity (app.js activity): the notch grows to the sides with the session and what happened, and down by a row of buttons */
-.n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings], .n[data-s=idle][data-act=sent] {
+.n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings], .n[data-s=idle][data-act=sent], .n[data-s=idle][data-act=peek] {
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .5s .04s cubic-bezier(.3,1.35,.45,1), border-radius .4s, --gcol .7s; }
 .n[data-s=idle][data-act=full] { border-radius: 0 0 20px 20px; }
-.n[data-s=idle][data-act=full] .ear, .n[data-s=idle][data-act=wings] .ear, .n[data-s=idle][data-act=sent] .ear { transform: scale(1); }
+.n[data-s=idle][data-act=full] .ear, .n[data-s=idle][data-act=wings] .ear, .n[data-s=idle][data-act=sent] .ear, .n[data-s=idle][data-act=peek] .ear { transform: scale(1); }
 .act { position: absolute; inset: 0; pointer-events: none; color: #fafafa; font-size: 12.5px; letter-spacing: -.011em; }
 .act > * { position: absolute; opacity: 0; transition: opacity .18s, transform .3s cubic-bezier(.2,.9,.3,1), left .45s cubic-bezier(.3,1.2,.45,1), right .45s cubic-bezier(.3,1.2,.45,1); }
 .act-l { left: var(--as); top: 0; height: var(--ah); display: flex; align-items: center; gap: 7px; max-width: calc(var(--aw) + 22px); }
@@ -283,6 +283,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* folded to wings: only the app and the mark, beside the camera */
 .act[data-mode=wings] > .act-l, .act[data-mode=wings] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
 .act[data-mode=wings] .act-n, .act[data-mode=wings] .act-s { display: none; }
+/* an update found by itself peeks: Update available, and the version beside its mark; a click opens it into the row */
+.act[data-mode=peek] > .act-l, .act[data-mode=peek] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
+.n[data-act=peek] .act { pointer-events: auto; cursor: pointer; }
 /* an answer went (app.js sentShow): the row folds to its top line; the question and the buttons fade up and away */
 .act[data-mode=sent] > .act-l, .act[data-mode=sent] > .act-r { opacity: 1; transform: none; }
 /* the choice you pressed lights for a beat before the row folds; the rest step back */

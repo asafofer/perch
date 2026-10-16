@@ -669,7 +669,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Needs access', 'Accessibility not granted yet.', function () { d.settings({ accessibility: false }); }]
     ]],
     ['Updates', [
-      ['Update available', 'Perch found a new version, on its own or when you chose Check for updates. The notch grows: the character, the version, a blue download mark, and the headline of what is new. Buttons are for the mouse, with no keys to learn: the notch never takes the keyboard when it opens by itself, so a key would only fight what you are typing. It folds away by itself after nine seconds.', function () { d.update('available', { fresh: true }); }],
+      ['Found by itself: the peek', 'Perch looks for a new version every hour, and again when the Mac wakes or you come back from a break. It finds one and downloads nothing: at the next quiet moment (nothing on the notch, no call, camera or presentation, no launcher open) the notch peeks. One line: Update available on the left, the version and the blue download mark on the right. No buttons and no keys. It folds away after four seconds and is not shown again for this version; Update waits in the list until you update.', function () { d.update('available', { fresh: true, peek: true }); }],
+      ['The peek: you click it', 'A click on the peek opens it into the Update available row: the headline of what is new, What’s new, Later and Update. Resting the pointer on the peek holds it.', function () { var me = ++charRun; d.update('available', { fresh: true, peek: true }); setTimeout(function () { if (me === charRun) { var a = document.querySelector('.act'); if (a) a.click(); } }, 1800); }],
+      ['The peek: a session needs you', 'A request waiting on you goes first, and the peek waits until the notch is free (here, the request is answered after four seconds).', function () { var me = ++charRun; d.update('available', { fresh: true, peek: true, busy: true }); setTimeout(function () { if (me === charRun) d.update('available', { fresh: false, peek: true }); }, 4000); }],
+      ['Found by itself, start to finish', 'The whole way, at your pace. The peek, then nothing on the notch. Opening Perch, the list has Update at its top right; press it and the same spot becomes the ring while it downloads, Perch says Updating as it restarts, and comes back with What’s new.', function () {
+        var me = ++charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
+        d.update(null, { fresh: true });
+        at(900, function () { now.textContent = 'The hourly check finds a new version: nothing downloads'; d.update('available', { fresh: true, peek: true }); });
+        at(5600, function () { now.textContent = 'The peek has folded: the notch is quiet'; });
+        at(7600, function () { now.textContent = 'Later, you open Perch: Update waits at the top right'; d.update('available', { fresh: false, peek: true, view: 'switcher' }); });
+        at(10000, function () { var b = document.querySelector('.p-switch .upd-chip'); if (b) { now.textContent = 'You press Update: it downloads'; b.classList.add('hv'); setTimeout(function () { if (me === charRun) b.click(); }, 500); } });
+        at(21600, function () { now.textContent = 'Downloaded: Perch restarts'; });
+        at(26000, function () { now.textContent = 'Back on the new version'; });
+      }],
+      ['Update available', 'Perch found a new version: you chose Check for updates, or clicked the peek. The notch grows: the character, the version, a blue download mark, and the headline of what is new. Buttons are for the mouse, with no keys to learn: the notch never takes the keyboard when it opens by itself, so a key would only fight what you are typing. It folds away by itself after nine seconds, and Update stays in the list until you update.', function () { d.update('available', { fresh: true }); }],
       ['Update available: what\u2019s new', 'What\u2019s new opens right in the notch: the few things that changed, one line each. Nothing leaves Perch. Later closes it, Update goes ahead.', function () { d.update('available', { fresh: true }); setTimeout(function () { var b = document.querySelector('.act [data-a=notes]'); if (b) b.click(); }, 900); }],
       ['Update available: a long list', 'Release notes of any length. Six lines show; the rest scroll inside the notch (a wheel or two fingers), and a long line wraps instead of being cut off. Nothing grows past the panel.', function () { d.update('available', { fresh: true, long: true }); setTimeout(function () { var b = document.querySelector('.act [data-a=notes]'); if (b) b.click(); }, 900); }],
       ['You press Update', 'About twenty seconds. The ring beside the camera, with an arrow inside, fills slowly while it downloads. Then the row says Updating, Perch is gone for a second and comes back on the new version, with a small row that says Updated and folds away. No character peeking, nothing stays behind.', function () {
@@ -685,15 +698,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['On a card: update available', 'The same spot on a session\u2019s card.', function () { d.update('available', { fresh: true, view: 'open' }); }],
       ['Check for updates: found one', 'Check for updates\u2026 in the menu bar. The notch says Checking for a moment, then the update is offered.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('available', { fresh: true }); }, 1800); }],
       ['Check for updates: up to date', 'Nothing newer: a small row says so and goes.', function () { var me = ++charRun; d.update('checking', { fresh: true }); setTimeout(function () { if (me === charRun) d.update('current', { fresh: true }); }, 1800); }],
-      ['Updates itself, start to finish', 'The usual way, with nobody pressing anything. Perch finds a new version and downloads it in the background (the character beside the camera and a ring with an arrow, filling slowly), says Updating when it restarts at a quiet moment, and comes back with a small row that says Updated.', function () {
-        var me = ++charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
-        d.update(null, { fresh: true });
-        at(900, function () { now.textContent = 'A new version is found: it downloads quietly'; d.updRun(false); });
-        at(11500, function () { now.textContent = 'Nothing is open, so Perch restarts'; });
-        at(14500, function () { now.textContent = 'Perch quits and opens again'; });
-        at(16500, function () { now.textContent = 'Back on the new version'; });
-      }],
-      ['Downloading', 'The character beside the camera and a ring with an arrow inside that fills. It gives way to a session that needs you.', function () { d.update('downloading', { progress: 0.45, fresh: true }); }],
+      ['Downloading', 'After you press Update: the character beside the camera and a ring with an arrow inside that fills. It gives way to a session that needs you.', function () { d.update('downloading', { progress: 0.45, fresh: true }); }],
       ['Restarting', 'The row widens: the character asleep, Updating, a spinner. A moment later Perch is gone and back.', function () { d.update('restarting', { fresh: true }); }],
       ['What\u2019s new, after an update', 'The first start on a new version. Perch opens a card by itself: the version, the headline of the release and the few lines behind it. Got it has a key, Command+Option+Return, which the app listens for only while the card shows, so it never types into what is behind it (a plain Return would, as the card opened by itself). It stays until you answer it.', function () { d.whatsNew(); }],
       ['What\u2019s new: Got it', 'Got it goes on to the session list: where you were, in the order you left it. The card shows once per version.', function () { var me = ++charRun; d.whatsNew(); setTimeout(function () { if (me === charRun) { var b = document.querySelector('.wn-ok'); if (b) { b.classList.add('hv'); setTimeout(function () { b.click(); }, 500); } } }, 2200); }],
@@ -946,8 +951,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     wrap.appendChild(box);
   });
   tabs.appendChild(none);
-  /* it opens on what changed last, Accessibility lost after an update */
-  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Accessibility') first = gi; });
+  /* it opens on what changed last, the peek of an update found by itself; the first scenario there is the newest */
+  var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Updates') first = gi; });
   showTab(first); boxes[first].querySelector('.sc').click();
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
