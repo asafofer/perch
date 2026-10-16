@@ -57,7 +57,7 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 | Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux and cmux included). |
 | To build | Xcode 26 and Node 20 or later. |
 
-**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Perch is signed and notarized by Apple, so it opens like any app from the internet. After that Perch keeps itself up to date: it checks once a day, installs a new version in the background and restarts when nothing is on screen (the menu has Check for updates).
+**Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Perch is signed and notarized by Apple, so it opens like any app from the internet. After that Perch looks for a new version every hour and tells you with a quick peek in the notch; press Update (in the list, or click the peek) and it installs and restarts when nothing is on screen (the menu has Check for updates).
 
 **Build from source.**
 

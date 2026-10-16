@@ -5,7 +5,8 @@
 - Perch updates itself with Sparkle (`Sources/Perch/Updater.swift`). Cutting a release is the owner's, with tooling kept outside this repo.
 - `SUFeedURL` in `Resources/Info.plist` points at `appcast.xml` in the public repo `asafofer/perch-releases` (the source repo, `asafofer/perch`, is public too, MIT); the zips are that repo's release assets.
 - Each update is signed with an EdDSA key (public half `SUPublicEDKey` in the plist; the private half never leaves the owner's Mac), so only the owner can publish an update installed copies accept.
-- It checks daily, downloads and installs in the background, and a downloaded update restarts Perch only when `NotchController.isQuiet` (nothing open, no draft).
+- It checks every hour (`SUScheduledCheckInterval`, Sparkle's shortest), and again when the Mac wakes or you come back from a break (`Updater.checkSoon`, at most every 15 minutes).
+- Nothing downloads until you press Update; once you do, a downloaded update restarts Perch only when `NotchController.isQuiet` (nothing open, no draft).
 - A test build (`PerchTestBuild`) and any `--fake`, `--demo` or `--snapshot` run never update.
 - Sparkle's version compare uses the build number, the commit count, so a release must be cut from a commit newer than the last.
 
@@ -18,9 +19,11 @@
 ## Perch's own face
 
 - The update has Perch's own face, not Sparkle's windows: `Updater` is Sparkle's user driver, and the page draws it (app.js, "an update of Perch itself"). The design page's Updates tab plays every state; `./scripts/run.sh --update-demo` plays it over the real notch.
-- A check on a schedule that finds an update downloads it (the character and a ring with an arrow beside the camera), then restarts at a quiet moment ("Updating", then a small "Updated" row).
-- Check for updates in the menu offers it first (Update, Later, What's new).
-- While the list or a card is open it waits as a blue chip at their top right (Update, the ring, Restart).
+- A check on the schedule that finds an update holds Sparkle's offer and peeks once per version (`UpdateInfo.peek`, app.js `peek` mode): at a quiet moment the notch grows to one line, Update available and the version with a blue download mark, for four seconds; a request waiting on you goes first. A click opens it into the offer row.
+- The page posts `peeked` as it shows, and the version is kept (`update.peeked`), so later checks and restarts leave the notch empty (`listOnly`, also set while a Not now holds). Sparkle runs no scheduled check while an offer is held.
+- Check for updates in the menu opens the offer row (Update, Later, What's new); with an offer already held it shows that one again, as the row.
+- Later puts the row away and keeps the offer: the list and cards keep a blue chip at their top right (Update, the ring while it downloads, Restart) until you update.
+- Pressing Update downloads it (the ring beside the camera), then restarts at a quiet moment ("Updating", then a small "Updated" row).
 - The buttons have no keys: the notch never takes the keyboard when it opens by itself.
 
 ## What's new

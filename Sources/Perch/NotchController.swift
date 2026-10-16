@@ -251,6 +251,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func activityKey(_ name: String) { web.evaluateJavaScript("window.perch && window.perch.actKey('\(name)')", completionHandler: nil) }
 
     /// The notch grown for the activity, in screen coordinates.
+    /// The live activity takes the pointer (clicks, resting holds it) when it shows its row, or an update's peek, which a click opens.
+    private var activityTakesPointer: Bool { activityMode == "full" || activityMode == "peek" }
     private var activityRect: CGRect {
         CGRect(x: info.frame.midX - activitySize.width / 2, y: info.frame.maxY - activitySize.height, width: activitySize.width, height: activitySize.height)
     }
@@ -763,6 +765,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         sent.allowing = waitingReply != nil
         sent.drafts = drafts
         sent.update = updateInfo; sent.canUpdate = canUpdate
+        // An update found by itself peeks at a quiet moment, and a Not now is not one: until it is over, only the list says it.
+        if Date() < snoozedUntil, sent.update?.peek == true { sent.update?.listOnly = true }
         sent.proactive = proactiveOpen
         if machine.phase == .newSession { sent.newSession = newSessionState() }
         if machine.phase == .switcher, let st = starting, st.fromList, listQuery.isEmpty { pendingRow(st, into: &sent) }
@@ -1208,7 +1212,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let to = ScreenChooser.rest(); if to !== screen { place(on: to); push() }
             }
             if let w = body["width"] as? Double, let h = body["height"] as? Double { activitySize = CGSize(width: w, height: h) }
-            if activityMode != "full" { hoverLatched = true }   // what it folds to under the cursor is not a hover
+            if !activityTakesPointer { hoverLatched = true }   // what it folds to under the cursor is not a hover
             onActivityKeys?(body["keys"] as? [String] ?? [])
         case "activityOpen":
             if let id = body["id"] as? String { openCard(for: id, reply: body["reply"] as? Bool ?? false) }
@@ -1925,12 +1929,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if fast != self.cursorFast { self.cursorFast = fast; self.startCursorPolling(); return }
                 self.mouseMoved()
                 self.watchLaunchers()
-                if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityMode == "full" { NSCursor.pointingHand.set() }
+                if self.handCursor, !self.panel.isKeyWindow, self.machine.phase != .idle || self.activityTakesPointer { NSCursor.pointingHand.set() }
                 // The I-beam even with the keyboard: a field opened by key (R, the new session's prompt) gets no moves from WebKit either.
                 else if self.textCursor, self.machine.phase != .idle { NSCursor.iBeam.set() }
                 let p = NSEvent.mouseLocation
                 // The eyes follow it, and a card or activity WebKit is not telling about the pointer lights what is under it.
-                if self.machine.phase != .idle || self.activityMode == "full", self.ready, p != self.lastCursor {
+                if self.machine.phase != .idle || self.activityTakesPointer, self.ready, p != self.lastCursor {
                     self.lastCursor = p
                     let f = self.panel.frame
                     self.web.evaluateJavaScript("window.perch && window.perch.cursor(\(p.x - f.minX), \(f.maxY - p.y))", completionHandler: nil)
@@ -2068,7 +2072,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // Back home once, when the cursor has left the zone it came for and the activity it brought along (asking where
         // home is reads the window list).
         guard awayForHover, hoverTask == nil,
-              HoverDetour.goBack(at: at, zone: notchHoverRect(), activity: activityMode == "full" ? activityRect : nil) else { return }
+              HoverDetour.goBack(at: at, zone: notchHoverRect(), activity: activityTakesPointer ? activityRect : nil) else { return }
         awayForHover = false
         let home = ScreenChooser.rest()
         if home !== screen { place(on: home); push() }
@@ -2105,7 +2109,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if Prefs.showOn == .mouse { if let under = ScreenChooser.under(), under !== screen { place(on: under); push() } }
             else { followHoverWhileFixed() }
             // Open, the activity takes clicks (its buttons) and resting on it holds it; it does not open the card.
-            let onActivity = activityMode == "full" && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
+            let onActivity = activityTakesPointer && activityRect.insetBy(dx: -2, dy: -2).contains(NSEvent.mouseLocation)
             if panel.ignoresMouseEvents == onActivity { panel.ignoresMouseEvents = !onActivity }
             if onActivity {
                 hoverTask?.cancel(); hoverTask = nil; hoverLatched = true
