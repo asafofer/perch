@@ -3665,7 +3665,7 @@
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
-      updStop: function () { updTok++; base.access = null; document.getElementById('scene').style.opacity = '1'; },
+      updStop: function () { updTok++; base.access = null; base.update = null; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
