@@ -1594,6 +1594,7 @@
       if (had) actEl.replaceChild(el, had); else actEl.insertBefore(el, actEl.querySelector('.act-body, .act-btns'));
     }
     actEl._for = p.id;
+    markAct();
     actGlide();
   }
   /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
@@ -1985,9 +1986,17 @@
       questions: [{ text: 'Which layout should the hero use?', header: 'Layout', multi: false, options: ['Centered', 'Split (Recommended)', 'Full bleed'], notes: ['', '', ''] }] } })); }, 21000);
     setTimeout(function () { actDemoOn = false; actKnown = null; known = null; actGone = {}; apply(actDemoLast || s0); actDemoLast = null; }, 33000);   /* no All clear for a pretend request */
   }
+  /* The button (or question) under the pointer, from where the pointer is, as the list's row: WebKit's own hover stays on a
+     button the pointer left when the panel was never clicked, so two lit at once. */
+  function markAct() {
+    var e = ptrAt[0] >= 0 && act.mode === 'full' ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, t = e && e.closest && e.closest('.act-b, .act-q');
+    if (t && !actEl.contains(t)) t = null;
+    [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { if (x !== t) x.classList.remove('pt'); });
+    if (t) t.classList.add('pt');
+  }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
   actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
-  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); });
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { x.classList.remove('pt'); }); });
   /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
   actEl.addEventListener('mousemove', function (e) {
     if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
@@ -2272,7 +2281,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -2357,7 +2366,7 @@
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
-    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice();
+    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);

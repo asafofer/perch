@@ -246,9 +246,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-body.fail { top: calc(var(--ah) + 5px); }   /* a failed update's line sits a little lower, clear of the row above */
 .act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
 .act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; cursor: pointer; transition: color .15s; }
-.act-q:hover, .act-q.hv { color: #fff; }   /* clicked, the question opens on the card, all of it */
+.act-q.pt { color: #fff; }   /* clicked, the question opens on the card, all of it */
 .act-b.act-o { background: rgba(255,255,255,.08); margin-left: 4px; }   /* to the app: a button of its own, set apart from the choices */
-.act-b.act-o:hover, .act-b.act-o.hv { background: rgba(255,255,255,.14); }
+.act-b.act-o.pt { background: rgba(255,255,255,.14); }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
 .act-rec { margin-left: 6px; font-style: normal; font-weight: 500; font-size: inherit; color: #a1a1aa; }
 .act-ex b { display: block; font-weight: 500; color: #e4e4e7; }
@@ -263,11 +263,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b.nk { padding: 0 10px; justify-content: center; }   /* a button with no key beside its words */
-.act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
+/* lit from where the pointer is (app.js markAct), not :hover: WebKit leaves a panel it was never clicked in hovering what the pointer left */
+.act-b.pt { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
-.act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }
+.act-b.act-x.pt { color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
-.act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
+.act-b.go.pt { background: #e4e4e7; }
 .act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }
 .act-mod { flex: none; padding: 0 4px 0 2px; font: 500 10.5px/1 Inter, sans-serif; color: #71717a; letter-spacing: .02em; }
 .act-bl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -286,7 +287,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act[data-mode=sent] > .act-l, .act[data-mode=sent] > .act-r { opacity: 1; transform: none; }
 /* the choice you pressed lights for a beat before the row folds; the rest step back */
 .act.chose .act-b:not(.on):not(.act-x) { opacity: .35; transition: opacity .12s; }
-.act-b.on, .act-b.on:hover, .act-b.on.hv { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
+.act-b.on, .act-b.on.pt { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
 .act-b.on kbd { background: rgba(0,0,0,.08); color: #52525b; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 @media (prefers-reduced-motion: reduce) { .act > * { transition: opacity .15s; } }
 /* the list's section headers: what needs you, today, earlier */
