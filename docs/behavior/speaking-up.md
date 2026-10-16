@@ -19,6 +19,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 
 - An answer from the notch or a card says it went: the chosen button lights for a beat, then the notch folds to one line, the session on the left and Sent with a blue paper plane on the right, whatever the answer (a choice, Allow, Deny), for about two seconds (app.js `sentShow`). From a card, the plane waits until the notch has settled.
 - It is said to the end: a request or a finish that arrives meanwhile, or while the button lights, is said in full right after it (`sentDone`, measured against what had been said when you answered, `sentBase`).
+- A reply sent from the notch ends the same way, after its words have flown up into the notch (details in [replies.md](replies.md#sending)).
 - If the answer reached nothing (the request was settled or let go a moment before, `HookServer.answer` reports it), the line says Didn't send in orange (`notSent`).
 
 ## The welcome card

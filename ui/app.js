@@ -1887,6 +1887,18 @@
     var p = snap && snap.projects[snap.selected]; if (!p) return;
     delete sentLate[p.id]; sentNext = { p: p, words: sentWords(m), at: Date.now() };
   }
+  /* Swift: a reply is on its way to the session in the background (typed into its terminal, or Claude's composer took it).
+     Like an answer, the card closes into the line that says it went. */
+  function replying(id) {
+    var p = snap && snap.projects.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    delete sentLate[p.id]; sentNext = { p: p, words: 'Sent', at: Date.now() };
+  }
+  /* Swift: it could not go in the background, so the session comes forward with the words to paste. The line was early:
+     it goes without a word (the session in front, or Reply copied, says the rest). */
+  function replyHanded(id) {
+    if (sentNext && sentNext.p.id === id) sentNext = null;
+    if (act.mode === 'sent' && act.p && act.p.id === id) { clearTimeout(sentT); sentDone(); }
+  }
   /* Swift: that answer reached nothing (the request was settled or let go a moment before). The line says so, however far it got. */
   var sentLate = {};
   function notSent(id) {
@@ -3251,7 +3263,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3333,9 +3345,10 @@
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { replying(snap.projects[snap.selected].id); setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
     /* without Accessibility the card stays, waiting for it; the words stay in the field */
     if (m.type === 'reply' && snap.canSend === false) { s.allowing = true; s.timerToken++; apply(s); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected]) replying(snap.projects[snap.selected].id);   /* the Claude app takes it in the background */
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */
