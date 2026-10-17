@@ -187,6 +187,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     d.settings({ page: 'feedback' });
     var ta = document.querySelector('.fb-in'), m = document.querySelector('.fb-mail');
     ta.value = bare ? '' : FB_WORDS; ta.dispatchEvent(new Event('input'));
+    window.perch.fileSizes({ '/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png': 1258291, '/Users/you/Library/Logs/Perch/perch.log': 184320, '/Users/you/Desktop/notch on the LG.png': 912384, '/Users/you/Desktop/notch on the LG.mov': 19293798 });
     if (!bare) { window.perch.paths(['/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png', '/Users/you/Library/Logs/Perch/perch.log']); m.value = 'you@example.com'; m.dispatchEvent(new Event('input')); }
   }
   function fbPress(ms) { var me = charRun; setTimeout(function () { var b = document.querySelector('.fb-send'); if (me === charRun && b) { b.classList.add('hv'); setTimeout(function () { b.classList.remove('hv'); b.click(); }, 350); } }, ms); }
@@ -711,11 +712,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         fbFill(true);
         at(1000, 'A file over the card', function () { window.perch.dragOver(1, 20, 20); });
         at(2200, 'Onto the field', function () { var c = box(); window.perch.dragOver(1, c[0], c[1]); });
-        at(3400, 'Dropped', function () { window.perch.dragOver(0); window.perch.paths(['/Users/you/Desktop/notch on the LG.mov']); });
+        at(3400, 'Dropped', function () { window.perch.dragOver(0); window.perch.paths(['/Users/you/Desktop/notch on the LG.png']); });
       }],
       ['Sending', 'Return or Send: the page clears, the field first, and your words rise as a bubble into the notch, which swallows them with a green ripple; the character watches and hops. The list comes back on the Send feedback row, which says Sending with a spinner (held here).', function () { fbFill(); d.fbHold = true; fbPress(800); }],
       ['Sent', 'The same, then the spinner turns into a green check and the row says Sent. Thank you; the card glows green for a moment.', function () { fbFill(); fbPress(900); }],
-      ['Couldn\u2019t send', 'Not sent (offline, here): the row says Couldn\u2019t send in orange and the card glows orange for a moment. Open it again and everything is there, your words, files and email, with Try again.', function () { var at = motionAt(); fbFill(); d.fbFail = true; fbPress(900); at(4200, 'Right: open it again', function () { window.perch.setKey('right'); }); }],
+      ['Couldn\u2019t send', 'Not sent (offline, here): the row says Couldn\u2019t send in orange and the card glows orange for a moment. Open it again and everything is there, your words, files and email, with Try again, and Email it instead beside it.', function () { var at = motionAt(); fbFill(); d.fbFail = true; fbPress(900); at(4200, 'Right: open it again', function () { window.perch.setKey('right'); }); }],
+      ['Too big to send', 'A screen recording takes it past 4 MB, the most Perch sends (pictures are made smaller first): its chip turns orange and says its size, the line under the switch says what to do, Send stays faint and Email it instead appears. Take the file off (its x, or Backspace) and Send is back.', function () { var me = charRun; fbFill(); setTimeout(function () { if (me === charRun) window.perch.paths(['/Users/you/Desktop/notch on the LG.mov']); }, 700); }],
+      ['Email it instead', 'From Couldn\u2019t send, or a file too big: Mail opens a new message to the maker of Perch with your words, files and version in it, and Perch steps aside. The words are Mail\u2019s now, so the row has no draft.', function () { var at = motionAt(); fbFill(); at(700, 'A screen recording, too big to send', function () { window.perch.paths(['/Users/you/Desktop/notch on the LG.mov']); }); at(2000, 'Email it instead', function () { var b = document.querySelector('.fb-mailit'); if (b) { b.classList.add('hv'); setTimeout(function () { b.classList.remove('hv'); b.click(); }, 450); } }); }],
       ['Kept as a draft', 'Esc with words written: back on the list, where the row says Draft. Open it again and they are all there, the caret after them.', function () {
         var at = motionAt();
         fbFill();

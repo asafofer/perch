@@ -3266,10 +3266,13 @@
       '<input class="fb-mail mt-1.5 block h-7 w-full cursor-text rounded-lg bg-white/[0.06] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.1] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" type="email" spellcheck="false" autocomplete="email" placeholder="Your email, if you\u2019d like an answer" aria-label="Your email">' +
       /* what else goes with it, said plainly; on by default, a click turns it off */
       '<div class="s-tap fb-inf mt-1.5 flex h-6 cursor-pointer items-center gap-2 px-1 text-[12px] text-muted-foreground">' + swHtml(fbInfo, 'fbinfo', 'Include version details') + '<span class="truncate">Include Perch ' + esc(ver) + ' and macOS ' + esc(mac) + '</span></div>' +
+      /* what stands in the way, in orange, when something does: files over the limit, or a send that failed */
+      '<p class="fb-err mt-1 hidden px-1 text-[12px] leading-4" style="color:' + COLORS.attention + '"></p>' +
       '</div>' +
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
-        Button('ghost', svg('clip', 'size-3') + 'Attach', '', 'fb-attach -ml-1') +
-        '<span class="fb-err min-w-0 flex-1 truncate px-1 text-right text-xs" style="color:' + COLORS.attention + '"></span>' +
+        Button('ghost', svg('clip', 'size-3') + 'Attach', '', 'fb-attach -ml-1') + '<span class="flex-1"></span>' +
+        /* the way round both: Mail, with a new message to the maker of Perch, your words and files in it */
+        Button('ghost', 'Email it instead', '', 'fb-mailit hidden') +
         Button('default', '<span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
       '</div>';
   }
@@ -3292,6 +3295,7 @@
     box.querySelector('.fb-send').onclick = fbSend;
     box.querySelector('.fb-back').onclick = function () { setGo(''); };
     box.querySelector('.fb-attach').onclick = function () { post({ type: 'feedbackAttach' }); };
+    box.querySelector('.fb-mailit').onclick = fbMailIt;
     var inf = box.querySelector('.fb-inf'), isw = inf.querySelector('.s-sw');
     inf.onclick = function (e) { if (!e.target.closest('.s-sw')) isw.click(); };
     isw.onclick = function (e) { e.stopPropagation(); fbInfo = !fbInfo; setSw(isw, fbInfo); };
@@ -3302,21 +3306,47 @@
   function fbAtt() {
     var box = q('.set .fb-att'); if (!box) return;
     attChips(box, fbFiles, function (i) { fbFiles.splice(i, 1); fbAtt(); fbPaint(); var ta = q('.set .fb-in'); if (ta) ta.focus({ preventScroll: true }); });
+    /* a file past the limit is orange and says its size */
+    var big = fbBig();
+    [].forEach.call(box.querySelectorAll('.att'), function (c, i) {
+      if (big.indexOf(i) < 0) return;
+      c.style.background = 'rgba(233,168,119,.16)'; c.style.color = COLORS.attention; c.title += ' (too big to send)';
+      c.querySelector('.truncate').insertAdjacentHTML('afterend', '<span class="flex-none pl-1 text-[11px] tabular-nums opacity-80">' + fbMB(fileSizes[fbFiles[i]]) + '</span>');
+    });
+    if (big.length) { box.scrollLeft = box.scrollWidth; attEdges(box); }
     var ta = q('.set .fb-in'); if (ta) fbGrow(ta);
   }
-  /* Send: faint until there is something to send; Try again after a failure (the words morph) */
+  /* Perch sends 4 MB at most (a Vercel function takes 4.5): pictures go smaller first (the app sends their size after
+     that), and a file that would take it past the limit is marked, in the order you added them */
+  var FB_CAP = 4 * 1024 * 1024, fileSizes = {};
+  function fbBig() { var sum = 0, out = []; fbFiles.forEach(function (f, i) { var b = fileSizes[f] || 0; if (sum + b > FB_CAP) out.push(i); else sum += b; }); return out; }
+  function fbMB(b) { return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
+  /* Send: faint until there is something to send, and while a file is too big; Try again after a failure (the words
+     morph). Either way the line above says what is wrong and Email it instead appears beside it. */
   function fbPaint(still) {
     var b = q('.set .fb-send'); if (!b) return;
-    var go = fbState === 'sending';
-    b.classList.toggle('opacity-50', !fbHas() || go);
-    morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : fbState === 'failed' ? 'Try again' : 'Send', still);
-    q('.set .fb-err').textContent = fbState === 'failed' ? 'Couldn\u2019t send. Your words are kept.' : '';
+    var go = fbState === 'sending', big = fbBig(), failed = fbState === 'failed';
+    b.classList.toggle('opacity-50', !fbHas() || go || big.length > 0);
+    morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : failed && !big.length ? 'Try again' : 'Send', still);
+    var err = big.length ? 'Too big to send, 4 MB at most. Remove ' + (big.length === 1 ? 'it' : 'them') + ', or email it instead.'
+      : failed ? 'Couldn\u2019t send. Your words are kept.' : '';
+    var e = q('.set .fb-err'), had = !e.classList.contains('hidden');
+    e.textContent = err; e.classList.toggle('hidden', !err);
+    q('.set .fb-mailit').classList.toggle('hidden', !err);
     q('.set .fb-in').readOnly = q('.set .fb-mail').readOnly = go;
+    if (had !== !!err && snap && lastSt === 'set') layout('set', snap);
+  }
+  /* Mail takes it from here: a new message with everything in it, and Perch steps aside (the words are Mail's now) */
+  function fbMailIt() {
+    post({ type: 'feedbackMail', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
+    fbText = ''; fbFiles = []; fbState = '';
   }
   function fbSend() {
     if (fbState === 'sending') return;
     var ta = q('.set .fb-in');
-    if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); if (ta.animate && !STILL) q('.set .fb-box').animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); } return; }
+    var shake = function (el) { if (el && el.animate && !STILL) el.animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); };
+    if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); shake(q('.set .fb-box')); } return; }
+    if (fbBig().length) { shake(q('.set .fb-err')); return; }
     fbState = 'sending';
     post({ type: 'feedback', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
     /* then the list again, coming in from the left, on the Send feedback row, which says Sending */
@@ -3338,6 +3368,7 @@
       if (el) el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     });
     var b = document.createElement('div'); b.className = 'fly'; b.textContent = words; pane.appendChild(b);
+    ta.style.color = 'transparent';   /* the words are the bubble now: they are not left behind in the field as well */
     var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + 6;
     b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
     var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = 2 - (y0 + b.offsetHeight / 2);
@@ -3348,7 +3379,7 @@
     look(2.8, -1.6);
     setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); fbGlowNow('done'); }, 400);
     setTimeout(function () { b.remove(); ring.remove(); }, 1000);
-    return 480;
+    return 320;
   }
   function fbGlowNow(k) {
     fbGlow = { at: Date.now(), k: k };
@@ -3469,7 +3500,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3587,6 +3618,7 @@
       return;
     }
     if (m.type === 'feedback') { clearTimeout(devFbT); if (!window.perchDev.fbHold) devFbT = setTimeout(function () { fbDone(!window.perchDev.fbFail); }, 1300); return; }
+    if (m.type === 'feedbackMail') { var nm = document.getElementById('now'); if (nm) nm.textContent = 'Mail opens a new message to the maker of Perch with your words' + (m.files.length ? ' and ' + m.files.length + ' file' + (m.files.length === 1 ? '' : 's') : ''); s.phase = 'idle'; }
     if (m.type === 'feedbackAttach') { addPaths(['/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png']); return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
