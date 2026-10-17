@@ -3237,6 +3237,8 @@
     var was = setPage;
     setSlide = still ? 0 : id ? 1 : -1;
     setPage = id; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
+    /* the app gives Send feedback's fields the keys while it is open, and takes files dropped on the card */
+    if (id === 'feedback' || was === 'feedback') post({ type: 'feedbackOpen', open: id === 'feedback' });
     if (id === 'feedback' && fbState === 'sent') fbState = '';
     if (!id) { var a = document.activeElement; if (a && a.blur) a.blur(); }
     setSig = ''; if (setLast) settingsApply(setLast);
@@ -3423,6 +3425,8 @@
     }
     setTimeout(function () { fbGlowNow(ok ? 'done' : 'attention'); }, fbFlying ? 500 : 0);
   }
+  /* Esc on Send feedback with neither field focused (they handle it themselves); in the app nothing else would see it */
+  if (NATIVE) document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lastSt === 'set' && setPage === 'feedback') { e.preventDefault(); setGo(''); } });
   function fbPaths(list) {
     if (setPage !== 'feedback') return;
     var b = q('.set .fb-box'); if (b) b.classList.remove('drop', 'on');
