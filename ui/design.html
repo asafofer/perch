@@ -713,9 +713,9 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
         at(2200, 'Onto the field', function () { var c = box(); window.perch.dragOver(1, c[0], c[1]); });
         at(3400, 'Dropped', function () { window.perch.dragOver(0); window.perch.paths(['/Users/you/Desktop/notch on the LG.mov']); });
       }],
-      ['Sending', 'Send becomes Sending with a spinner, the words morphing; the fields wait.', function () { fbFill(); d.fbHold = true; fbPress(800); }],
-      ['Sent', 'Back on the Settings list, on the Send feedback row, which says Sent. Thank you in green; the character hops and the card glows green for a moment.', function () { fbFill(); fbPress(900); }],
-      ['Couldn’t send', 'Not sent (offline, here): it stays as it was, says so in orange beside Send, and Send reads Try again. Your words, files and email are all still there.', function () { fbFill(); d.fbFail = true; fbPress(900); }],
+      ['Sending', 'Return or Send: the page clears, the field first, and your words rise as a bubble into the notch, which swallows them with a green ripple; the character watches and hops. The list comes back on the Send feedback row, which says Sending with a spinner (held here).', function () { fbFill(); d.fbHold = true; fbPress(800); }],
+      ['Sent', 'The same, then the spinner turns into a green check and the row says Sent. Thank you; the card glows green for a moment.', function () { fbFill(); fbPress(900); }],
+      ['Couldn\u2019t send', 'Not sent (offline, here): the row says Couldn\u2019t send in orange and the card glows orange for a moment. Open it again and everything is there, your words, files and email, with Try again.', function () { var at = motionAt(); fbFill(); d.fbFail = true; fbPress(900); at(4200, 'Right: open it again', function () { window.perch.setKey('right'); }); }],
       ['Kept as a draft', 'Esc with words written: back on the list, where the row says Draft. Open it again and they are all there, the caret after them.', function () {
         var at = motionAt();
         fbFill();

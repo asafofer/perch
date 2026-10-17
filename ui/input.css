@@ -445,6 +445,9 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .o-st .st-t { align-self: baseline; display: inline-block; }
 .o-st .st-ic { width: 0; margin-right: 0; justify-items: end; transition: width .25s ease-in-out, margin-right .25s ease-in-out; }
 .o-st .st-ic.has { width: 12px; margin-right: 6px; }
+/* Settings' Send feedback row, the same way: the spinner, the check or the orange mark brings its own room and takes it away */
+.fb-st .fb-ic { width: 0; margin-right: 0; justify-items: end; transition: width .25s ease-in-out, margin-right .25s ease-in-out; }
+.fb-st .fb-ic.has { width: 16px; margin-right: 6px; }
 /* text states swap: out up with a blur, then in from below (app.js swapText) */
 .t-swap { transition: transform .15s ease-in-out, filter .15s ease-in-out, opacity .15s ease-in-out; }
 .t-swap.is-exit { transform: translateY(-4px); filter: blur(2px); opacity: 0; }

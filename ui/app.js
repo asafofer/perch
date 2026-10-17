@@ -40,6 +40,7 @@
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
+    tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
     clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
@@ -1552,7 +1553,7 @@
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
-      : st === 'new' || (st === 'set' && Date.now() - fbSentAt < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
+      : st === 'new' || (st === 'set' && fbGlow.k === 'done' && Date.now() - fbGlow.at < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
@@ -2108,7 +2109,7 @@
   /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked hourly';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : '';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
@@ -2234,7 +2235,7 @@
       : 'Perch needs Accessibility to send for you. Allow it once and this reply goes out.';
     /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
     var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
-    var gk = st === 'set' && Date.now() - fbSentAt < 2600 ? glow.done : st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
+    var gk = st === 'set' && Date.now() - fbGlow.at < 2600 ? glow[fbGlow.k] : st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
@@ -3106,14 +3107,14 @@
           general: small(esc(showNow(o).name))
         };
         var go = function (id, label, ic, right) { return srow(slabel(label, '', ic), '<span class="flex items-center gap-2">' + right + chev + '</span>').replace('<div class="', '<div data-go="' + id + '" class="s-go cursor-pointer ' + (id === 'character' ? 's-char ' : '')); };
-        /* which build this is and where its update stands, on the list itself: Check for updates when there is nothing to
-           say, Update, a ring while it downloads, Restart to update. A local test build has no updater: its version only,
-           and none at all when the notch already says it is a test build. */
-        var ver = snap && !snap.testBuild && snap.version ? 'Perch ' + esc(snap.version) : '';
-        var upd = snap && snap.canUpdate ? srow(slabel(ver || 'Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
-          : ver ? srow(slabel(ver, '', 'refresh'), '') : '';
+        /* which build this is, and on the right where its update stands: Check for updates when there is nothing to say,
+           what is out with Update, a ring while it downloads, Restart to update, a failure in orange with what to do. A local
+           test build has no updater: its version only, and no row when the notch already says it is a test build. */
+        var ver = snap && !snap.testBuild && snap.version ? '<span class="tabular-nums">' + esc(snap.version) + '</span>' : '';
+        var upd = snap && snap.canUpdate ? srow(slabel('Version', ver, 'tag'), '<span class="flex items-center gap-2"><span class="s-updsub min-w-0 truncate text-xs text-muted-foreground">' + updSub(snap) + '</span><span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span></span>')
+          : ver ? srow(slabel('Version', ver, 'tag'), '') : '';
         rows = axRow + SET_PAGES.map(function (p) { return go(p[0], p[1], p[2], sum[p[0]]); }).join('') +
-          '<div class="h-2"></div>' + upd + go('feedback', 'Send feedback', 'chat', fbState === 'sent' ? small('Sent. Thank you', COLORS.done) : fbHas() ? small('Draft') : '');
+          '<div class="h-2"></div>' + upd + go('feedback', 'Send feedback', 'chat', '<span class="fb-st flex items-center text-xs"><span class="fb-ic t-ic"></span><span class="t-swap"></span></span>');
         foot = setHints([['\u2191\u2193', 'Choose'], ['\u2192', 'Open']]) + '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done');
       } else {
         /* the page says which it is under the notch's line (beside the notch there is room only for Settings), with Left as
@@ -3159,7 +3160,7 @@
       else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
       else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
     }; });
-    bindUpdSlot(box, snap);
+    bindUpdSlot(box, snap); fbRow(true);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -3246,9 +3247,10 @@
 
   /* ---- feedback, from Settings ----
      Your words, files dropped on the card, pasted or attached, and an email if you would like an answer. Return sends;
-     Esc, or Left in an empty field, goes back and keeps what you wrote (the Send feedback row says Draft). Sent, it goes
-     back to Settings: the row says thank you, the character hops, the card glows green. */
-  var fbText = '', fbMail = '', fbFiles = [], fbInfo = true, fbState = '', fbSentAt = 0;   /* fbState: '', sending, sent, failed */
+     Esc, or Left in an empty field, goes back and keeps what you wrote (the Send feedback row says Draft). Sent, your
+     words fly into the notch and the list comes back, its Send feedback row saying how it is going. */
+  var fbText = '', fbMail = '', fbFiles = [], fbInfo = true, fbState = '', fbFlying = false;   /* fbState: '', sending, sent, failed */
+  var fbGlow = { at: 0, k: '' };   /* the card glows green for a moment when it goes, orange when it could not */
   function fbHas() { return !!(fbText.trim() || fbFiles.length); }
   function fbHtml() {
     var ver = (snap && snap.version) || '0.4.3', mac = (snap && snap.macOS) || '26.1';
@@ -3268,7 +3270,7 @@
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
         Button('ghost', svg('clip', 'size-3') + 'Attach', '', 'fb-attach -ml-1') +
         '<span class="fb-err min-w-0 flex-1 truncate px-1 text-right text-xs" style="color:' + COLORS.attention + '"></span>' +
-        Button('default', '<span class="fb-spin hidden">' + Spinner('size-3') + '</span><span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
+        Button('default', '<span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
       '</div>';
   }
   function fbBind(box) {
@@ -3302,12 +3304,11 @@
     attChips(box, fbFiles, function (i) { fbFiles.splice(i, 1); fbAtt(); fbPaint(); var ta = q('.set .fb-in'); if (ta) ta.focus({ preventScroll: true }); });
     var ta = q('.set .fb-in'); if (ta) fbGrow(ta);
   }
-  /* Send: faint until there is something to send; Sending with a spinner (the words morph, the fields wait); Try again after a failure */
+  /* Send: faint until there is something to send; Try again after a failure (the words morph) */
   function fbPaint(still) {
     var b = q('.set .fb-send'); if (!b) return;
     var go = fbState === 'sending';
-    b.classList.toggle('opacity-50', !fbHas() && !go);
-    b.querySelector('.fb-spin').classList.toggle('hidden', !go);
+    b.classList.toggle('opacity-50', !fbHas() || go);
     morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : fbState === 'failed' ? 'Try again' : 'Send', still);
     q('.set .fb-err').textContent = fbState === 'failed' ? 'Couldn\u2019t send. Your words are kept.' : '';
     q('.set .fb-in').readOnly = q('.set .fb-mail').readOnly = go;
@@ -3316,18 +3317,70 @@
     if (fbState === 'sending') return;
     var ta = q('.set .fb-in');
     if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); if (ta.animate && !STILL) q('.set .fb-box').animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); } return; }
-    fbState = 'sending'; fbPaint();
+    fbState = 'sending';
     post({ type: 'feedback', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
+    /* then the list again, coming in from the left, on the Send feedback row, which says Sending */
+    var t = fbFly(); fbFlying = !!t;
+    setTimeout(function () {
+      fbFlying = false; if (setPage !== 'feedback') return;
+      setGo('', true);
+      if (t) q('.set').animate([{ opacity: 0, transform: 'translateX(-8px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: SMOOTH });
+    }, t);
   }
-  /* the app says how it went: sent, Settings again, thanking you; not sent, it stays, your words in place */
+  /* Your words go off into the notch the way a reply to a terminal does: the page clears, the field first, and the words
+     rise as a bubble, stretching as they go; the notch swallows them with a green ripple, and the character watches and
+     hops. Returns when the list may come back (0 with reduced motion: at once). */
+  function fbFly() {
+    var pane = q('.p-set'), box = q('.set'), ta = box.querySelector('.fb-in'); if (STILL || !ta) return 0;
+    var pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var words = fbText.trim().split('\n')[0] || fbFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', ');
+    [box.querySelector('.fb-box'), box.querySelector('.fb p'), box.querySelector('.fb-mail'), box.querySelector('.fb-inf'), box.firstChild, box.lastChild].forEach(function (el, i) {
+      if (el) el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    });
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = words; pane.appendChild(b);
+    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + 6;
+    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
+    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = 2 - (y0 + b.offsetHeight / 2);
+    b.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
+      { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
+      { duration: 360, delay: 40, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = document.createElement('div'); ring.className = 'fly-ring'; ring.style.left = (CARD_W / 2 - 30) + 'px'; ring.style.top = '-28px'; ring.style.animationDelay = '370ms'; pane.appendChild(ring);
+    look(2.8, -1.6);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); fbGlowNow('done'); }, 400);
+    setTimeout(function () { b.remove(); ring.remove(); }, 1000);
+    return 480;
+  }
+  function fbGlowNow(k) {
+    fbGlow = { at: Date.now(), k: k };
+    var g = k === 'done' ? ['140,207,164', '196,234,210'] : ['233,168,119', '244,210,180'];
+    n.dataset.g = 'status'; n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
+    clearTimeout(fbGlowNow._t); fbGlowNow._t = setTimeout(function () { if (snap) apply(snap); }, 2700);   /* then it settles back into the character's colour */
+  }
+  /* The Send feedback row says how your message is doing, changing in place: Sending with a spinner, then a green check
+     and thank you, or Couldn't send in orange (open it and everything is still there). Draft while words wait. */
+  function fbRow(still) {
+    var st = q('.set .fb-st'); if (!st) return;
+    var ic = st.firstChild, tx = st.lastChild;
+    var m = fbState === 'sending' ? [Spinner('size-3.5', glow(COLORS.running)), 'Sending', COLORS.running]
+      : fbState === 'sent' ? [Ring('done'), 'Sent. Thank you', COLORS.done]
+      : fbState === 'failed' ? [Ring('need'), 'Couldn\u2019t send', COLORS.attention]
+      : ['', fbHas() ? 'Draft' : '', ''];
+    ic.classList.toggle('has', !!m[0]);
+    iconSwap(ic, m[0], still);
+    tx.classList.toggle('text-muted-foreground', !m[2]);
+    swapText(tx, m[1], m[2], still);
+  }
+  /* the app says how it went */
   function fbDone(ok) {
     if (fbState !== 'sending') return;
-    if (!ok) { fbState = 'failed'; fbPaint(); return; }
-    fbState = 'sent'; fbText = ''; fbFiles = []; fbSentAt = Date.now();
-    setGo('');   /* on its row, which says thank you */
-    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
-    n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
-    setTimeout(function () { if (snap) apply(snap); }, 2700);   /* the green settles back into the character's colour */
+    fbState = ok ? 'sent' : 'failed';
+    if (ok) { fbText = ''; fbFiles = []; }
+    if (!fbFlying) {
+      /* opened again while it went: a failure shows there, a success takes you back to the list */
+      if (setPage === 'feedback') { if (ok) setGo(''); else fbPaint(); }
+      else fbRow(false);
+    }
+    setTimeout(function () { fbGlowNow(ok ? 'done' : 'attention'); }, fbFlying ? 500 : 0);
   }
   function fbPaths(list) {
     if (setPage !== 'feedback') return;
@@ -3391,7 +3444,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff, fbState]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -3405,6 +3458,7 @@
         var sb = box.querySelector('.s-updsub'); if (sb) sb.textContent = ''; if (sb) sb.innerHTML = updSub(snap);
         var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
       }
+      fbRow(false);
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
