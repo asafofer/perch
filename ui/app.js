@@ -39,6 +39,8 @@
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    chevR: '<path d="m9 18 6-6-6-6"/>',
+    clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
@@ -309,7 +311,7 @@
     '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
-    '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-set">' + '<span class="s-title rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center gap-1 text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
     /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
     '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -461,6 +463,7 @@
   function addPaths(list) {
     if (!list || !list.length) return;
     if (lastSt === 'ns') return nwPaths(list);
+    if (lastSt === 'set') return fbPaths(list);
     if (lastSt !== 'open') return;
     if (dropping) dropped();
     /* an answer in your own words is words: a file goes in as its path */
@@ -512,6 +515,7 @@
   var dropping = 0, dropOpened = false;
   function dragOver(n, x, y) {
     if (lastSt === 'ns') return nwDragOver(n, x, y);
+    if (lastSt === 'set') return fbDragOver(n, x, y);
     if (lastSt !== 'open') return;
     if (n && !dropping) {
       if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
@@ -1548,7 +1552,7 @@
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
-      : st === 'new' ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
+      : st === 'new' || (st === 'set' && Date.now() - fbSentAt < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
@@ -2203,9 +2207,15 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
+      if (liveNext) { setPage = 'agents'; setSig = ''; }
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
+      if (liveNext) { liveNext = false; var lr = q('.set .s-sw[data-k=live]'); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), lr && lr.closest('.s-row')); setKb = true; paintFocus(); setTimeout(flashLive, 300); }
+    } else {
+      /* the character picker and the shortcut recorder come back to the page and row they opened from; anywhere else,
+         Settings starts again at the top of the list */
+      if (st !== 'onb') { setPage = ''; setFocus = setRootAt = 0; if (fbState === 'sent') fbState = ''; }
+      setSig = ''; setKb = true; setHot = -1;
+    }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     cardMove = st === 'open' && lastSt === 'open' && p ? (p.id !== cardId ? 'flip' : 'live') : '';
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -2229,7 +2239,7 @@
       : 'Perch needs Accessibility to send for you. Allow it once and this reply goes out.';
     /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
     var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
-    var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
+    var gk = st === 'set' && Date.now() - fbSentAt < 2600 ? glow.done : st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
@@ -3027,8 +3037,13 @@
     pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
   }
 
-  /* ---- settings, inside the notch ---- */
-  var setLast = null, setSig = '';
+  /* ---- settings, inside the notch ----
+     A short list of categories, each saying what it is set to now. Right or Return opens one; Left or Esc comes back, and
+     on the list itself goes back to where Settings came from. A category shows its settings inline, with no menus to drop
+     down, so a page is only as tall as it needs. Character opens its picker; Send feedback is the last row. */
+  var setLast = null, setSig = '', setPage = '', setSlide = 0, setRootAt = 0;
+  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
+  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', notify: 'Notifications', general: 'General' };
   /* a switch changes in place so it slides, with a double settle (.sw.is-init); redrawing it would just snap to the new state */
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
@@ -3038,73 +3053,111 @@
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
-  /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance */
-  function stile(ic) { return ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
+  /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
+  function drow(left, desc, right) {
+    return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-[5px] text-[13px] transition-colors"><span class="flex h-5 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
+      '<span class="block pl-[26px] pt-px text-[11.5px] leading-[15px] text-muted-foreground">' + desc + '</span></div>';
+  }
+  /* a few words over a group of rows: not a row, the keys pass it by */
+  function shead(t) { return '<div class="mx-2 px-2 pb-1 pt-2 text-[11.5px] font-medium text-muted-foreground/80">' + t + '</div>'; }
+  /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance ('-' keeps the room, empty) */
+  function stile(ic) { return ic === '-' ? '<span class="size-[18px] flex-none" aria-hidden="true"></span>' : ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
   function slabel(t, sub, ic) {
     var txt = t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '');
     return ic ? '<span class="flex min-w-0 flex-1 items-center gap-2">' + stile(ic) + '<span class="min-w-0 truncate">' + txt + '</span></span>' : '<span class="min-w-0 flex-1 truncate">' + txt + '</span>';
+  }
+  /* a row that is one thing (an agent, a moment, a screen): its mark first, dimmed while it is off */
+  function sthing(mark, name, on, after) {
+    return '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="s-dim grid size-[18px] flex-none place-items-center transition-opacity' + (on ? '' : ' opacity-40') + '">' + mark + '</span><span class="min-w-0 truncate' + (on ? '' : ' text-muted-foreground') + '">' + name + '</span>' + (after || '') + '</span>';
+  }
+  /* a click anywhere on such a row switches or picks it */
+  function stap(html, attrs) { return html.replace('<div class="', '<div ' + (attrs || '') + ' class="s-tap cursor-pointer '); }
+  function setHints(l) { return '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground">' + l.map(function (h) { return '<span class="flex items-baseline gap-1.5">' + (h[0] === '\u2191\u2193' ? Keys('\u2191', '\u2193') : Kbd(h[0])) + h[1] + '</span>'; }).join('') + '</span>'; }
+  function showNow(o) { var all = showChoices(o), cur = o.showOn || 'mouse'; return all.filter(function (x) { return x.id === cur; })[0] || all[0]; }
+  /* what each switch says, by its key, so a refresh slides only the ones that moved */
+  function swVal(o, k) {
+    if (k === 'login') return !!o.login;
+    if (k === 'live') return o.live === 'on';
+    if (k === 'hover') return !!o.hoverExternal;
+    if (k === 'fbinfo') return fbInfo;
+    if (/^src:/.test(k)) return o.sources.some(function (x) { return x.id === k.slice(4) && x.enabled; });
+    if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
+    return false;
   }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
     if (o.accessibility) axAsked = false;   /* on now: if it is ever lost again, the row starts over at Allow */
-    var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-    /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
-    var segOf = function (key, vals, name) {
-      return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + vals.map(function (m) {
-        return '<button class="s-seg h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o[key] === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-key="' + key + '" data-m="' + m + '">' + name(m) + '</button>';
-      }).join('') + '</span>';
-    };
-    var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
-    var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
-    var sc = scOf(o.shortcut),
-      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
-      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
-    /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
-    var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
-    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
-    var rows = [
-      scRow,
-      newRow,
-      srow(slabel('Character', sh[1] + ', ' + colorName, 'cat'), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
-      srow(slabel('Apps', '', 'grid'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
-      /* which moments the notch announces (the list and the cards say all of them) */
-      srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
-      srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
-      /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
-      srow(slabel('Welcome back after', '', 'timer'), awaySeg),
-      /* a question nobody answers leaves the notch after this long (it stays in the list) */
-      srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
-      /* where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen */
-      srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
-    ].concat([
-      /* nothing to do when it is allowed, so the row only shows while it is not */
-      /* what is wrong in orange, as an update that failed says it, and Allow as a filled button: it is the one thing to do here */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn on in System Settings' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
-      srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).concat(snap && snap.canUpdate ? [
-      /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
-    ] : []).filter(Boolean);
-    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt). New session's
-       row makes twelve at most (438 pt), so building it grows the panel by a row. */
-    rows = rows.join('');
-    var box = q('.set');
-    box.innerHTML = '<div>' + rows + '</div>' +
+    var sc = scOf(o.shortcut), chev = svg('chevR', 'size-3 flex-none text-muted-foreground/60');
+    var small = function (t, c) { return '<span class="min-w-0 truncate text-xs' + (c ? '' : ' text-muted-foreground') + '"' + (c ? ' style="color:' + c + '"' : '') + '>' + t + '</span>'; };
+    /* nothing to do when it is allowed, so the row only shows while it is not: what is wrong in orange, and Allow, the one thing to do here */
+    var axRow = o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn on in System Settings' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.'));
+    var html, by = setSlide; setSlide = 0;
+    if (setPage === 'feedback') html = fbHtml();
+    else {
+      var rows, foot;
+      if (!setPage) {
+        var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = NOTIFY.filter(function (x) { return notifyOn(x[0]); }), u = snap && snap.update, uph = u ? u.phase : '';
+        var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
+        /* each category says what it is set to now, so the list alone answers most questions */
+        var sum = {
+          shortcuts: scKeysHtml(sc, sc.works ? '' : COLORS.attention),
+          agents: (o.live === 'on' ? '' : small('Live status off')) + (on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None')),
+          notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
+          character: small(esc(sh[1]) + ', ' + colorName),
+          general: uph === 'available' || uph === 'ready' ? small(updSub(snap), COLORS.running) : uph === 'failed' ? small(updSub(snap)) : small(esc(showNow(o).name))
+        };
+        var go = function (id, label, ic, right) { return srow(slabel(label, '', ic), '<span class="flex items-center gap-2">' + right + chev + '</span>').replace('<div class="', '<div data-go="' + id + '" class="s-go cursor-pointer ' + (id === 'character' ? 's-char ' : '')); };
+        rows = axRow + SET_PAGES.map(function (p) { return go(p[0], p[1], p[2], sum[p[0]]); }).join('') +
+          '<div class="h-2"></div>' + go('feedback', 'Send feedback', 'chat', fbState === 'sent' ? small('Sent. Thank you', COLORS.done) : fbHas() ? small('Draft') : '');
+        foot = setHints([['\u2191\u2193', 'Choose'], ['\u2192', 'Open']]) + '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done');
+      } else {
+        /* the page says which it is under the notch's line (beside the notch there is room only for Settings), with Left as
+           its way back, drawn as the key, as Raycast does */
+        rows = '<div class="mx-2 flex h-7 items-center gap-2 px-1.5"><button aria-label="Back" title="Back (\u2190)" class="s-back -my-1 flex h-6 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('\u2190') + '</button>' +
+          '<span class="truncate text-[13px] font-medium">' + SET_TITLES[setPage] + '</span></div>' + pageRows(o, sc, axRow);
+        foot = '<span class="flex flex-1 justify-center">' + setHints([['\u2191\u2193', 'Choose'], [ENTER, 'Change'], ['\u2190', 'Back']]) + '</span>';
+      }
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
-      '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
+      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-center gap-1 px-2.5">' + foot + '</div>';
+    }
+    /* inside a category, Settings steps back and is a way back */
+    var title = setPage ? '<button class="s-crumb cursor-pointer rounded text-muted-foreground transition-colors hover:text-foreground" title="Back (\u2190)">Settings</button>' : 'Settings';
+    /* a category opens from the right and comes back from the left, the old page going the other way (transitions.dev page side by side) */
+    var pane = q('.p-set'), slid = by && !STILL ? crossSeen(pane, ['.set']) : [];
+    var box = q('.set');
+    box.innerHTML = html; q('.s-title').innerHTML = title;
+    slid.forEach(function (x) {
+      if (!x.g) return;
+      var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
+      pane.appendChild(g);
+      g.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateX(' + (-dx) + 'px)', filter: 'blur(3px)' }], { duration: 250, easing: SMOOTH, fill: 'forwards' }).onfinish = gone;
+      setTimeout(gone, 370);   /* the timer finishes it even when animations are paused */
+      x.el.animate([{ opacity: 0, transform: 'translateX(' + dx + 'px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: SMOOTH });
+    });
+    var crumb = q('.s-crumb'); if (crumb) crumb.onclick = function () { setGo(''); };
+    if (setPage === 'feedback') { fbBind(box); return; }
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
-    box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
-      var on = b.getAttribute('aria-checked') !== 'true';
-      setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
-      if (b.dataset.k === 'login') post({ type: 'setting', key: b.dataset.k, value: on });
-      else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
+    box.querySelectorAll('.s-go').forEach(function (r) { r.onclick = function () { setGo(r.dataset.go); }; });
+    box.querySelectorAll('.s-tap').forEach(function (r) { r.onclick = function (e) {
+      if (e.target.closest('.s-sw')) return;
+      if (r.dataset.show) { post({ type: 'setting', key: 'showOn', value: r.dataset.show }); return; }
+      var c = r.querySelector('.s-sw'); if (c) c.click();
     }; });
-    bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
-    var sb0 = box.querySelector('.s-show'); if (sb0) { sb0._k = showKey(o); showClamp(sb0.querySelector('.s-showmenu')); }
+    box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
+      var on = b.getAttribute('aria-checked') !== 'true', k = b.dataset.k, r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim');
+      setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
+      if (dm) { dm.classList.toggle('opacity-40', !on); dm.nextSibling.classList.toggle('text-muted-foreground', !on); }
+      if (k === 'login') post({ type: 'setting', key: k, value: on });
+      else if (k === 'live') post({ type: 'hooks', on: on });
+      else if (k === 'hover') post({ type: 'setting', key: 'hoverExternal', value: on });
+      else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
+      else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
+    }; });
+    bindUpdSlot(box, snap);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -3112,244 +3165,239 @@
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
-    var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
-    on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
-    on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
-    on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
-    on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn on in System Settings at once */
-    on('.s-quit', function () { post({ type: 'quit' }); });
+    var on2 = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
+    on2('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
+    on2('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
+    on2('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
+    on2('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn on in System Settings at once */
+    on2('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
-    on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
+    on2('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
+    on2('.s-back', function () { setGo(''); });
   }
-  /* Apps: the icons of the agents Perch reads and a chevron; it opens a menu with a check for each */
-  var appsOpen = false;
-  function appsHtml(o) {
-    var on = o.sources.filter(function (x) { return x.enabled; });
-    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return App(x.id, 'size-4'); }).join('') + '</span>'
-      : '<span class="text-xs text-muted-foreground">None</span>';
-    var items = o.sources.map(function (x, i) {
-      return '<button role="menuitemcheckbox" aria-checked="' + x.enabled + '" data-k="' + x.id + '" data-i="' + i + '" class="s-app flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.enabled ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="flex-1 truncate">' + x.name + '</span>' +
-        (x.count ? '<span class="text-xs text-muted-foreground">' + x.count + '</span>' : '') +
-        '<span class="flex size-3.5 flex-none items-center">' + (x.enabled ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('');
-    return '<span class="s-apps"><button aria-haspopup="menu" aria-expanded="' + appsOpen + '" aria-label="Apps Perch reads" class="s-apptrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (appsOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-appmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[196px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (appsOpen ? ' is-open' : '') + '">' + items + '</span></span>';
+  /* a category's own rows */
+  function pageRows(o, sc, axRow) {
+    var gap = '<div class="h-1.5"></div>';
+    if (setPage === 'shortcuts') {
+      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
+      var scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+      /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
+      var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
+      var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
+      return scRow + newRow + axRow;
+    }
+    if (setPage === 'agents') {
+      return o.sources.map(function (x) {
+        var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
+        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), swHtml(x.enabled, 'src:' + x.id, x.name)));
+      }).join('') + gap +
+        drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'));
+    }
+    if (setPage === 'notify') {
+      /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
+      var segOf = function (key, vals, name) {
+        return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + vals.map(function (m) {
+          return '<button class="s-seg h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o[key] === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-key="' + key + '" data-m="' + m + '">' + name(m) + '</button>';
+        }).join('') + '</span>';
+      };
+      /* which moments the notch announces (the list and the cards say all of them) */
+      return NOTIFY.map(function (x) {
+        var y = notifyOn(x[0]);
+        return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
+      }).join('') + gap +
+        /* the minutes are how long you are away, not a reminder after an agent replies */
+        drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
+        /* a question nobody answers leaves the notch after this long (it stays in the list) */
+        drow(slabel('Questions stay for', '', 'hourglass'), 'Then they wait in the list', segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; }));
+    }
+    if (setPage === 'general') {
+      /* Where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen.
+         One check: the two ways of following you, then each display by name. A display you chose that is not connected
+         stays listed, greyed, so the choice is still there to see; until it is back Perch follows the mouse. While a
+         display without a notch is connected, Hover opens on external displays follows them. */
+      var now = showNow(o), mark = { mouse: 'pointer', window: 'win' };
+      var screens = showChoices(o).map(function (x) {
+        var y = x.id === now.id;
+        return stap(srow(sthing(svg(mark[x.id] || 'monitor', 'size-3.5 text-muted-foreground'), esc(x.name), x.on, x.on ? '' : '<span class="flex-none text-xs text-muted-foreground">Not connected</span>'),
+          '<span class="flex size-4 items-center justify-center">' + (y ? svg('check', 'size-3.5') : '') + '</span>'), 'role="menuitemradio" aria-checked="' + y + '" data-show="' + x.id + '"');
+      }).join('');
+      var hover = o.hasExternal ? stap(drow(slabel('Hover opens on external displays', '', '-'), 'Rest the pointer on its top edge and Perch opens there', swHtml(!!o.hoverExternal, 'hover', 'Hover opens on external displays'))) : '';
+      /* a build that can update says where it stands; a local test build has no updater and no row */
+      var upd = snap && snap.canUpdate ? srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>') : '';
+      return srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login')) + upd + gap + shead('Show Perch on') + screens + hover;
+    }
+    return '';
   }
-  function bindApps(box) {
-    var trig = box.querySelector('.s-apptrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); appsMenu(!appsOpen); };
-    box.querySelectorAll('.s-app').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { if (ptrMoved()) { appsAt = +b.dataset.i; paintFocus(); } };
-    });
+  /* a category, the list (''), Character's picker, or feedback; `still` opens it in place, without the slide */
+  function setGo(id, still) {
+    if (!setPage) setRootAt = setFocus;
+    if (id === 'character') { post({ type: 'onbOpen', step: 1, only: true }); return; }
+    if (id === setPage) return;
+    var was = setPage;
+    setSlide = still ? 0 : id ? 1 : -1;
+    setPage = id; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
+    if (id === 'feedback' && fbState === 'sent') fbState = '';
+    if (!id) { var a = document.activeElement; if (a && a.blur) a.blur(); }
+    setSig = ''; if (setLast) settingsApply(setLast);
+    /* back on the list, on the row of the page you left */
+    if (!id && was) { var rows = [].slice.call(q('.set').querySelectorAll('.s-row')), at = rows.indexOf(q('.set .s-go[data-go=' + was + ']')); if (at >= 0) { setFocus = at; paintFocus(); } }
+    if (snap && lastSt === 'set') layout('set', snap);
   }
-  /* opens or closes the menu in place; a click anywhere else on the card closes it */
-  /* a Settings menu grows out of its button and fades in, and fades out a little quicker (transitions.dev menu dropdown) */
-  function dropMenu(m, open) {
-    clearTimeout(m._t);
-    if (open) { m.classList.remove('is-closing'); m.classList.add('is-open'); return; }
-    if (!m.classList.contains('is-open')) return;
-    m.classList.remove('is-open'); m.classList.add('is-closing');
-    m._t = setTimeout(function () { m.classList.remove('is-closing'); }, 150);
+
+  /* ---- feedback, from Settings ----
+     Your words, files dropped on the card, pasted or attached, and an email if you would like an answer. Return sends;
+     Esc, or Left in an empty field, goes back and keeps what you wrote (the Send feedback row says Draft). Sent, it goes
+     back to Settings: the row says thank you, the character hops, the card glows green. */
+  var fbText = '', fbMail = '', fbFiles = [], fbInfo = true, fbState = '', fbSentAt = 0;   /* fbState: '', sending, sent, failed */
+  function fbHas() { return !!(fbText.trim() || fbFiles.length); }
+  function fbHtml() {
+    var ver = (snap && snap.version) || '0.4.3', mac = (snap && snap.macOS) || '26.1';
+    /* the title as a category's, with Esc as its way back: Left moves through your words here */
+    return '<div class="mx-2 flex h-7 items-center gap-2 px-1.5"><button aria-label="Back" title="Back (Esc)" class="fb-back -my-1 flex h-6 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+      '<span class="truncate text-[13px] font-medium">Send feedback</span></div>' +
+      '<div class="fb px-2.5">' +
+      '<p class="px-1 pb-2 text-[12px] leading-4 text-muted-foreground">Bugs, ideas, anything. It goes straight to the maker of Perch.</p>' +
+      /* the field is a box: the files attached along its top, then your words */
+      '<div class="fb-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
+        '<div class="fb-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
+        '<textarea class="fb-in block cursor-text max-h-[150px] min-h-[92px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="true" placeholder="What happened, or what you wish Perch did\u2026" aria-label="Feedback"></textarea></div>' +
+      '<input class="fb-mail mt-1.5 block h-7 w-full cursor-text rounded-lg bg-white/[0.06] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.1] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" type="email" spellcheck="false" autocomplete="email" placeholder="Your email, if you\u2019d like an answer" aria-label="Your email">' +
+      /* what else goes with it, said plainly; on by default, a click turns it off */
+      '<div class="s-tap fb-inf mt-1.5 flex h-6 cursor-pointer items-center gap-2 px-1 text-[12px] text-muted-foreground">' + swHtml(fbInfo, 'fbinfo', 'Include version details') + '<span class="truncate">Include Perch ' + esc(ver) + ' and macOS ' + esc(mac) + '</span></div>' +
+      '</div>' +
+      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
+        Button('ghost', svg('clip', 'size-3') + 'Attach', '', 'fb-attach -ml-1') +
+        '<span class="fb-err min-w-0 flex-1 truncate px-1 text-right text-xs" style="color:' + COLORS.attention + '"></span>' +
+        Button('default', '<span class="fb-spin hidden">' + Spinner('size-3') + '</span><span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
+      '</div>';
   }
-  function appsMenu(open) {
-    if (open && notOpen) notifyMenu(false);
-    if (open && showOpen) showMenu(false);
-    appsOpen = open; if (open) appsAt = 0;
-    var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    paintFocus();
+  function fbBind(box) {
+    var ta = box.querySelector('.fb-in'), mail = box.querySelector('.fb-mail');
+    ta.value = fbText; mail.value = fbMail; fbAtt(); fbPaint(true);
+    ta.oninput = function () { fbText = ta.value; if (fbState === 'failed') fbState = ''; fbGrow(ta); fbPaint(); };
+    mail.oninput = function () { fbMail = mail.value; };
+    var keys = function (e, el) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); fbSend(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setGo(''); }
+      /* Left is Back here too, once there is nothing in the field for it to move through */
+      else if (e.key === 'ArrowLeft' && !el.value && !(el === ta && fbFiles.length)) { e.preventDefault(); e.stopPropagation(); setGo(''); }
+      else if (e.key === 'Backspace' && el === ta && fbFiles.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); fbFiles.pop(); fbAtt(); fbPaint(); }
+      else if (e.key === 'ArrowDown' && el === ta && ta.selectionStart === ta.value.length) { e.preventDefault(); mail.focus({ preventScroll: true }); }
+      else if (e.key === 'ArrowUp' && el === mail) { e.preventDefault(); ta.focus({ preventScroll: true }); }
+      else e.stopPropagation();   /* typing is the field's: the settings keys never see it */
+    };
+    ta.onkeydown = function (e) { keys(e, ta); }; mail.onkeydown = function (e) { keys(e, mail); };
+    box.querySelector('.fb-send').onclick = fbSend;
+    box.querySelector('.fb-back').onclick = function () { setGo(''); };
+    box.querySelector('.fb-attach').onclick = function () { post({ type: 'feedbackAttach' }); };
+    var inf = box.querySelector('.fb-inf'), isw = inf.querySelector('.s-sw');
+    inf.onclick = function (e) { if (!e.target.closest('.s-sw')) isw.click(); };
+    isw.onclick = function (e) { e.stopPropagation(); fbInfo = !fbInfo; setSw(isw, fbInfo); };
+    /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
+    setTimeout(function () { if (setPage === 'feedback' && document.activeElement !== mail) { ta.focus({ preventScroll: true }); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 40);
   }
-  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); if (showOpen && !e.target.closest('.s-show')) showMenu(false); });
-  /* Notify me about: the marks of the moments the notch announces and a chevron; it opens a menu with a check for each, as Apps does */
-  var notOpen = false, notAt = 0;
-  function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
-  function notifyHtml() {
-    var on = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
-    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return nMark(x[0]); }).join('') + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>';
-    var items = NOTIFY.map(function (x, i) {
-      var y = notifyOn(x[0]);
-      return '<button role="menuitemcheckbox" aria-checked="' + y + '" data-k="' + x[0] + '" data-i="' + i + '" class="s-nitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (y ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + nMark(x[0]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
-        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('');
-    return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (notOpen ? ' is-open' : '') + '">' + items + '</span></span>';
+  function fbGrow(ta) { var min = fbFiles.length ? 64 : 92; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(150, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && lastSt === 'set') layout('set', snap); }
+  function fbAtt() {
+    var box = q('.set .fb-att'); if (!box) return;
+    attChips(box, fbFiles, function (i) { fbFiles.splice(i, 1); fbAtt(); fbPaint(); var ta = q('.set .fb-in'); if (ta) ta.focus({ preventScroll: true }); });
+    var ta = q('.set .fb-in'); if (ta) fbGrow(ta);
   }
-  function bindNotify(box) {
-    var trig = box.querySelector('.s-notrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); notifyMenu(!notOpen); };
-    box.querySelectorAll('.s-nitem').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { if (ptrMoved()) { notAt = +b.dataset.i; paintFocus(); } };
-    });
+  /* Send: faint until there is something to send; Sending with a spinner (the words morph, the fields wait); Try again after a failure */
+  function fbPaint(still) {
+    var b = q('.set .fb-send'); if (!b) return;
+    var go = fbState === 'sending';
+    b.classList.toggle('opacity-50', !fbHas() && !go);
+    b.querySelector('.fb-spin').classList.toggle('hidden', !go);
+    morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : fbState === 'failed' ? 'Try again' : 'Send', still);
+    q('.set .fb-err').textContent = fbState === 'failed' ? 'Couldn\u2019t send. Your words are kept.' : '';
+    q('.set .fb-in').readOnly = q('.set .fb-mail').readOnly = go;
   }
-  function notifyMenu(open) {
-    if (open && appsOpen) appsMenu(false);
-    if (open && showOpen) showMenu(false);
-    notOpen = open; if (open) notAt = 0;
-    var box = q('.set'), m = box && box.querySelector('.s-notmenu'), t = box && box.querySelector('.s-notrig');
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    paintFocus();
+  function fbSend() {
+    if (fbState === 'sending') return;
+    var ta = q('.set .fb-in');
+    if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); if (ta.animate && !STILL) q('.set .fb-box').animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); } return; }
+    fbState = 'sending'; fbPaint();
+    post({ type: 'feedback', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
   }
-  /* Show Perch on: the screen it opens on now and a chevron; the menu has one check, the two ways of following you first,
-     then each display by name. It opens upward: the row sits low on the card. A display you chose that is not connected
-     stays listed, so the choice is still there to see; until it is back Perch follows the mouse. While a display without a
-     notch is connected, the menu ends with Hover opens on external displays: a display without a notch shows nothing at
-     rest, and this lets its top edge open Perch (the shortcut always does). It switches in place and the menu stays open. */
-  var showOpen = false, showAt = 0;
+  /* the app says how it went: sent, Settings again, thanking you; not sent, it stays, your words in place */
+  function fbDone(ok) {
+    if (fbState !== 'sending') return;
+    if (!ok) { fbState = 'failed'; fbPaint(); return; }
+    fbState = 'sent'; fbText = ''; fbFiles = []; fbSentAt = Date.now();
+    setGo('');   /* on its row, which says thank you */
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    n.dataset.g = 'status'; n.style.setProperty('--glow', '140,207,164'); n.style.setProperty('--glow-hi', '196,234,210');
+    setTimeout(function () { if (snap) apply(snap); }, 2700);   /* the green settles back into the character's colour */
+  }
+  function fbPaths(list) {
+    if (setPage !== 'feedback') return;
+    var b = q('.set .fb-box'); if (b) b.classList.remove('drop', 'on');
+    fbFiles = addFiles(fbFiles, list); if (fbState === 'failed') fbState = '';
+    fbAtt(); fbPaint();
+    var ta = q('.set .fb-in'); if (ta) setTimeout(function () { ta.focus({ preventScroll: true }); }, 40);
+  }
+  /* a file over the card lights the field, more so right on it */
+  function fbDragOver(nf, x, y) {
+    var b = setPage === 'feedback' && q('.set .fb-box'); if (!b) return;
+    if (!nf) { b.classList.remove('drop', 'on'); return; }
+    var el = x == null ? null : document.elementFromPoint(x, y);
+    b.classList.add('drop'); b.classList.toggle('on', !!(el && el.closest && el.closest('.fb-box')));
+  }
   var DEV_DISPLAYS = [{ id: '1', name: 'Built-in Retina Display', connected: true }, { id: '2', name: 'LG UltraFine', connected: true }];
   var SHOW_WAYS = [['mouse', 'Screen with mouse'], ['window', 'Screen with active window']];
   function showChoices(o) {
     return SHOW_WAYS.map(function (w) { return { id: w[0], name: w[1], on: true }; })
       .concat((o.displays || []).map(function (x) { return { id: x.id, name: x.name, on: x.connected !== false, display: true }; }));
   }
-  function showHtml(o) {
-    var all = showChoices(o), cur = o.showOn || 'mouse', now = all.filter(function (x) { return x.id === cur; })[0] || all[0];
-    var items = all.map(function (x, i) {
-      var y = x.id === now.id;
-      return (x.display && !all[i - 1].display ? '<span class="mx-2 my-1 block h-px"></span>' : '') +
-        '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.on ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-1 truncate">' + x.name + '</span>' + (x.on ? '' : '<span class="text-xs text-muted-foreground">Not connected</span>') +
-        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('') + (o.hasExternal ? '<span class="mx-2 my-1 block h-px"></span>' +
-      '<button role="menuitemcheckbox" aria-checked="' + !!o.hoverExternal + '" data-k="hover" data-i="' + all.length + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
-      '<span class="flex-1 truncate">Hover opens on external displays</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
-    return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
-      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (showOpen ? ' is-open' : '') + '" data-origin="bottom-right">' + items + '</span></span>';
-  }
-  /* what the menu shows, so it is drawn again only when that changes: not for opening or closing it (Swift sends
-     Settings every half second while sessions are written, and a redraw would drop it back under the notch) and not
-     for the hover switch, which slides in place */
-  function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal]); }
-  /* it opens upward but never under the notch: when it would, it slides down over its own row */
-  function showClamp(m) {
-    /* its own translate, so the grow from its corner (.t-drop, a transform) still runs; measured unscaled: it grows from its bottom edge */
-    if (!showOpen) return;   /* closing, it fades out where it is */
-    m.style.translate = '';
-    var pane = m.closest('.pane');
-    if (pane) { var over = pane.getBoundingClientRect().top + 38 - (m.getBoundingClientRect().bottom - m.offsetHeight); if (over > 0) m.style.translate = '0 ' + Math.ceil(over) + 'px'; }
-  }
-  function bindShow(box) {
-    var trig = box.querySelector('.s-showtrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); showMenu(!showOpen); };
-    box.querySelectorAll('.s-sitem').forEach(function (b) {
-      b.onclick = function (e) {
-        e.stopPropagation();
-        if (b.dataset.k === 'hover') {
-          var on = b.getAttribute('aria-checked') !== 'true';
-          b.setAttribute('aria-checked', String(on)); setSw(b.querySelector('.s-hovsw'), on);   /* slide now; the app confirms a moment later */
-          post({ type: 'setting', key: 'hoverExternal', value: on }); return;
-        }
-        showMenu(false); post({ type: 'setting', key: 'showOn', value: b.dataset.k });
-      };
-      b.onmouseenter = function () { if (ptrMoved()) { showAt = +b.dataset.i; paintFocus(); } };
-    });
-  }
-  function showMenu(open) {
-    if (open && appsOpen) appsMenu(false);
-    if (open && notOpen) notifyMenu(false);
-    showOpen = open;
-    var box = q('.set'), m = box && box.querySelector('.s-showmenu'), t = box && box.querySelector('.s-showtrig');
-    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem[role=menuitemradio]')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    showClamp(m);
-    paintFocus();
-  }
-  /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
-  var setFocus = 0, appsAt = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
-  /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
+  function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
+  /* the highlighted row, moved with the arrow keys or the pointer */
+  var setFocus = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
+  /* opened from a question's "Settings": Agents opens on Live status, and it lights up once so the eye lands on it */
   function flashLive() {
-    var r = q('.set').querySelectorAll('.s-row')[3];
+    var b = q('.set .s-sw[data-k=live]'), r = b && b.closest('.s-row');
     if (r && r.animate && !STILL) r.animate([{ backgroundColor: 'rgba(255,255,255,.2)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1800, easing: 'ease-out' });
   }
   function paintFocus() {
-    var box = q('.set'), rows = box.querySelectorAll('.s-row');
+    var rows = q('.set').querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen); });
-    var sitems = box.querySelectorAll('.s-sitem');
-    showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
-    sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
-    var items = box.querySelectorAll('.s-app');
-    appsAt = Math.max(0, Math.min(appsAt, items.length - 1));
-    items.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', appsOpen && i === appsAt); });
-    var nitems = box.querySelectorAll('.s-nitem');
-    notAt = Math.max(0, Math.min(notAt, nitems.length - 1));
-    nitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', notOpen && i === notAt); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot)); });
   }
-  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
+  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
   function settingsKey(k) {
     keyPtr = ptrAt.slice(); setKb = true;
-    var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
-    /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
-    if (appsOpen) {
-      var items = box.querySelectorAll('.s-app');
-      if (k === 'down' || k === 'up') { appsAt = (appsAt + (k === 'down' ? 1 : -1) + items.length) % items.length; paintFocus(); }
-      else if (k === 'enter' && items[appsAt]) items[appsAt].click();
-      else if (k === 'esc' || k === 'left') appsMenu(false);
-      return;
-    }
-    if (notOpen) {
-      var ni = box.querySelectorAll('.s-nitem');
-      if (k === 'down' || k === 'up') { notAt = (notAt + (k === 'down' ? 1 : -1) + ni.length) % ni.length; paintFocus(); }
-      else if (k === 'enter' && ni[notAt]) ni[notAt].click();
-      else if (k === 'esc' || k === 'left') notifyMenu(false);
-      return;
-    }
-    if (showOpen) {
-      var si = box.querySelectorAll('.s-sitem');
-      if (k === 'down' || k === 'up') { showAt = (showAt + (k === 'down' ? 1 : -1) + si.length) % si.length; paintFocus(); }
-      else if (k === 'enter' && si[showAt]) si[showAt].click();
-      else if (k === 'esc' || k === 'left') showMenu(false);
-      return;
-    }
-    if (k === 'esc') { post({ type: 'back' }); return; }
+    if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
+    var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
+    if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
-    var seg = row.querySelectorAll('.s-seg'), apps = row.querySelector('.s-apptrig');
-    if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
-    var nt = row.querySelector('.s-notrig');
-    if (nt && (k === 'right' || k === 'enter')) { notifyMenu(true); return; }
-    if (row.querySelector('.s-showtrig') && (k === 'right' || k === 'enter')) { showMenu(true); return; }
-    if (k === 'left' || k === 'right') {
-      var d = k === 'right' ? 1 : -1;
-      /* on a row that has no sideways choice, Left goes back to where Settings came from */
-      if (!(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
-      if (seg.length && setLast) {
-        var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast[seg[0].dataset.key]));
-        post({ type: 'setting', key: seg[0].dataset.key, value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
-      }
-      return;
+    if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
+    /* a segment: Right moves the choice along and stops at the end; Return comes round again from the start */
+    var seg = row.querySelectorAll('.s-seg');
+    if (seg.length && setLast) {
+      var v = [].map.call(seg, function (b) { return +b.dataset.m; }), sk = seg[0].dataset.key, i = v.indexOf(setLast[sk]);
+      if (k === 'right' && i >= v.length - 1) return;
+      post({ type: 'setting', key: sk, value: v[(i + 1) % v.length] }); return;
     }
-    /* Return or Space: flip the switch, step the segment, or press the row's button */
-    if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }), sk = seg[0].dataset.key; post({ type: 'setting', key: sk, value: v[(v.indexOf(setLast[sk]) + 1) % v.length] }); return; }
+    if (k === 'right') return;
+    /* Return or Space: flip the switch, pick the screen, or press the row's button */
+    if (row.classList.contains('s-tap')) { row.click(); return; }
     var c = row.querySelector('.s-sw, button'); if (c) c.click();
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked]); if (sig === setSig) return;
-    /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, fbState]); if (sig === setSig) return;
+    /* feedback is drawn once when it opens: Swift sends Settings every half second while sessions are written, and a
+       redraw would take your caret and selection */
+    if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
+    /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
+       place, so switches and the segment animate */
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff, upd, fbState]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
-      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
-      var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
-      var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
-      var sw2 = box.querySelector('.s-show'), skey = showKey(o);
-      if (sw2 && sw2._k !== skey) { sw2.outerHTML = showHtml(o); sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); showClamp(sw2.querySelector('.s-showmenu')); paintFocus(); }
-      else if (sw2) {
-        /* the same menu: only the hover switch may have moved, and it slides */
-        var hv = sw2.querySelector('.s-sitem[data-k=hover]');
-        if (hv && hv.getAttribute('aria-checked') !== String(!!o.hoverExternal)) { hv.setAttribute('aria-checked', String(!!o.hoverExternal)); setSw(hv.querySelector('.s-hovsw'), !!o.hoverExternal); }
-      }
+      box.querySelectorAll('.s-sw').forEach(function (b) {
+        var v = swVal(o, b.dataset.k), r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim'); setSw(b, v);
+        if (dm) { dm.classList.toggle('opacity-40', !v); dm.nextSibling.classList.toggle('text-muted-foreground', !v); }
+      });
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -3367,7 +3415,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3380,7 +3428,7 @@
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
-  var devFrom = '', devSc = Object.assign({}, SC0);
+  var devFrom = '', devFbT = 0, devSc = Object.assign({}, SC0);
   /* New session's shortcut, as Settings shows it; while the recorder records it, devSc is its state and Open Perch's waits in devScOpen */
   var SCN0 = { keys: ['\u2325', '\u2318', 'N'], kind: 'combo', custom: false }, devScNew = Object.assign({}, SCN0), devScOpen = null;
   /* back from the recorder: what it recorded goes to its own shortcut, and devSc is Open Perch's again */
@@ -3484,6 +3532,8 @@
       setTimeout(function () { if (k3 !== updTok || !snap || snap.phase !== 'settings') return; var s3 = JSON.parse(JSON.stringify(snap)); s3.settings.accessibility = true; s3.settings.shortcut = devScOut(true); s3.timerToken = Math.random(); apply(s3); }, 3800);
       return;
     }
+    if (m.type === 'feedback') { clearTimeout(devFbT); if (!window.perchDev.fbHold) devFbT = setTimeout(function () { fbDone(!window.perchDev.fbFail); }, 1300); return; }
+    if (m.type === 'feedbackAttach') { addPaths(['/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png']); return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
@@ -3646,9 +3696,12 @@
       settings: function (o, keep) {
         devScBack();
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
+        /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
+        if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
+        if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
