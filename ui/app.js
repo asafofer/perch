@@ -3055,8 +3055,9 @@
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
   function drow(left, desc, right) {
-    return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-[5px] text-[13px] transition-colors"><span class="flex h-5 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
-      '<span class="block pl-[26px] pt-px text-[11.5px] leading-[15px] text-muted-foreground">' + desc + '</span></div>';
+    /* the line is as tall as a segment (24 pt), so the control never reaches the words under it */
+    return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-1 text-[13px] transition-colors"><span class="flex h-6 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
+      '<span class="block pl-[26px] pt-[3px] text-[11.5px] leading-[15px] text-muted-foreground">' + desc + '</span></div>';
   }
   /* a few words over a group of rows: not a row, the keys pass it by */
   function shead(t) { return '<div class="mx-2 px-2 pb-1 pt-2 text-[11.5px] font-medium text-muted-foreground/80">' + t + '</div>'; }
