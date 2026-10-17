@@ -311,7 +311,7 @@
     '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
-    '<div class="pane p-set">' + '<span class="s-title rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center gap-1 text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-set">' + '<span class="s-title rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center gap-1 text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
     /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
     '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -2145,7 +2145,6 @@
       b.onclick = function () { if (ph !== 'downloading') post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
     });
   }
-  var verSig = '';
   /* What is new, after an update. The card says it once: Perch and its version, the headline, then the few lines behind it (six show,
      the rest scroll). It opens by itself, so it takes no keys; Got it goes on to the list. */
   var wnSig = '';
@@ -2187,10 +2186,6 @@
     var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
-    /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
-    /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
-    var head = s.testBuild ? '' : (s.version || '');
-    if (head !== verSig) { verSig = head; q('.s-ver').textContent = head; }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -3100,7 +3095,7 @@
       var rows, foot;
       if (!setPage) {
         var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-        var on = o.sources.filter(function (x) { return x.enabled; }), marks = NOTIFY.filter(function (x) { return notifyOn(x[0]); }), u = snap && snap.update, uph = u ? u.phase : '';
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
         var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
@@ -3108,11 +3103,17 @@
           agents: (o.live === 'on' ? '' : small('Live status off')) + (on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None')),
           notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
           character: small(esc(sh[1]) + ', ' + colorName),
-          general: uph === 'available' || uph === 'ready' ? small(updSub(snap), COLORS.running) : uph === 'failed' ? small(updSub(snap)) : small(esc(showNow(o).name))
+          general: small(esc(showNow(o).name))
         };
         var go = function (id, label, ic, right) { return srow(slabel(label, '', ic), '<span class="flex items-center gap-2">' + right + chev + '</span>').replace('<div class="', '<div data-go="' + id + '" class="s-go cursor-pointer ' + (id === 'character' ? 's-char ' : '')); };
+        /* which build this is and where its update stands, on the list itself: Check for updates when there is nothing to
+           say, Update, a ring while it downloads, Restart to update. A local test build has no updater: its version only,
+           and none at all when the notch already says it is a test build. */
+        var ver = snap && !snap.testBuild && snap.version ? 'Perch ' + esc(snap.version) : '';
+        var upd = snap && snap.canUpdate ? srow(slabel(ver || 'Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
+          : ver ? srow(slabel(ver, '', 'refresh'), '') : '';
         rows = axRow + SET_PAGES.map(function (p) { return go(p[0], p[1], p[2], sum[p[0]]); }).join('') +
-          '<div class="h-2"></div>' + go('feedback', 'Send feedback', 'chat', fbState === 'sent' ? small('Sent. Thank you', COLORS.done) : fbHas() ? small('Draft') : '');
+          '<div class="h-2"></div>' + upd + go('feedback', 'Send feedback', 'chat', fbState === 'sent' ? small('Sent. Thank you', COLORS.done) : fbHas() ? small('Draft') : '');
         foot = setHints([['\u2191\u2193', 'Choose'], ['\u2192', 'Open']]) + '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done');
       } else {
         /* the page says which it is under the notch's line (beside the notch there is room only for Settings), with Left as
@@ -3223,9 +3224,7 @@
           '<span class="flex size-4 items-center justify-center">' + (y ? svg('check', 'size-3.5') : '') + '</span>'), 'role="menuitemradio" aria-checked="' + y + '" data-show="' + x.id + '"');
       }).join('');
       var hover = o.hasExternal ? stap(drow(slabel('Hover opens on external displays', '', '-'), 'Rest the pointer on its top edge and Perch opens there', swHtml(!!o.hoverExternal, 'hover', 'Hover opens on external displays'))) : '';
-      /* a build that can update says where it stands; a local test build has no updater and no row */
-      var upd = snap && snap.canUpdate ? srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>') : '';
-      return srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login')) + upd + gap + shead('Show Perch on') + screens + hover;
+      return srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login')) + gap + shead('Show Perch on') + screens + hover;
     }
     return '';
   }
@@ -3392,7 +3391,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff, upd, fbState]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff, fbState]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
