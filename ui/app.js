@@ -3280,7 +3280,10 @@
     var ta = box.querySelector('.fb-in'), mail = box.querySelector('.fb-mail');
     ta.value = fbText; mail.value = fbMail; fbAtt(); fbPaint(true);
     ta.oninput = function () { fbText = ta.value; if (fbState === 'failed') fbState = ''; fbGrow(ta); fbPaint(); };
-    mail.oninput = function () { fbMail = mail.value; };
+    /* An email that does not look like one is said once you leave the field or press Send, never while you type; said,
+       it goes away the moment the address is right (or the field is empty: an email is not needed) */
+    mail.oninput = function () { fbMail = mail.value; if (fbMailSaid) { if (!fbMailBad()) fbMailSaid = false; fbPaint(); } };
+    mail.onblur = function () { if (fbMailBad() && !fbMailSaid) { fbMailSaid = true; fbPaint(); } };
     var keys = function (e, el) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); fbSend(); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setGo(''); }
@@ -3321,18 +3324,24 @@
   var FB_CAP = 4 * 1024 * 1024, fileSizes = {};
   function fbBig() { var sum = 0, out = []; fbFiles.forEach(function (f, i) { var b = fileSizes[f] || 0; if (sum + b > FB_CAP) out.push(i); else sum += b; }); return out; }
   function fbMB(b) { return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
-  /* Send: faint until there is something to send, and while a file is too big; Try again after a failure (the words
-     morph). Either way the line above says what is wrong and Email it instead appears beside it. */
+  var fbMailSaid = false;
+  function fbMailBad() { var m = fbMail.trim(); return !!m && !/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(m); }
+  /* Send: faint until there is something to send, while a file is too big, and while the email is wrong; Try again after a
+     failure (the words morph). The line above says what is wrong; Email it instead appears beside a file too big or a
+     failure, the two it gets round. */
   function fbPaint(still) {
     var b = q('.set .fb-send'); if (!b) return;
-    var go = fbState === 'sending', big = fbBig(), failed = fbState === 'failed';
-    b.classList.toggle('opacity-50', !fbHas() || go || big.length > 0);
+    var go = fbState === 'sending', big = fbBig(), failed = fbState === 'failed', mailBad = fbMailSaid && fbMailBad();
+    b.classList.toggle('opacity-50', !fbHas() || go || big.length > 0 || mailBad);
     morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : failed && !big.length ? 'Try again' : 'Send', still);
     var err = big.length ? 'Too big to send, 4 MB at most. Remove ' + (big.length === 1 ? 'it' : 'them') + ', or email it instead.'
+      : mailBad ? 'That email doesn\u2019t look right. Fix it, or leave it empty.'
       : failed ? 'Couldn\u2019t send. Your words are kept.' : '';
     var e = q('.set .fb-err'), had = !e.classList.contains('hidden');
     e.textContent = err; e.classList.toggle('hidden', !err);
-    q('.set .fb-mailit').classList.toggle('hidden', !err);
+    /* the field itself in orange too, so the eye goes to it */
+    q('.set .fb-mail').style.boxShadow = mailBad ? 'inset 0 0 0 1px rgba(233,168,119,.75)' : '';
+    q('.set .fb-mailit').classList.toggle('hidden', !(big.length || (failed && !mailBad)));
     q('.set .fb-in').readOnly = q('.set .fb-mail').readOnly = go;
     if (had !== !!err && snap && lastSt === 'set') layout('set', snap);
   }
@@ -3347,6 +3356,7 @@
     var shake = function (el) { if (el && el.animate && !STILL) el.animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); };
     if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); shake(q('.set .fb-box')); } return; }
     if (fbBig().length) { shake(q('.set .fb-err')); return; }
+    if (fbMailBad()) { var m = q('.set .fb-mail'); fbMailSaid = true; fbPaint(); if (m) { m.focus({ preventScroll: true }); shake(m); } return; }
     fbState = 'sending';
     post({ type: 'feedback', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
     /* then the list again, coming in from the left, on the Send feedback row, which says Sending */
@@ -3783,7 +3793,7 @@
         devScBack();
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
-        if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
+        if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
