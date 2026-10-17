@@ -3114,7 +3114,7 @@
         var upd = snap && snap.canUpdate ? srow(slabel('Version', ver, 'tag'), '<span class="flex items-center gap-2"><span class="s-updsub min-w-0 truncate text-xs text-muted-foreground">' + updSub(snap) + '</span><span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span></span>')
           : ver ? srow(slabel('Version', ver, 'tag'), '') : '';
         rows = axRow + SET_PAGES.map(function (p) { return go(p[0], p[1], p[2], sum[p[0]]); }).join('') +
-          '<div class="h-2"></div>' + upd + go('feedback', 'Send feedback', 'chat', '<span class="fb-st flex items-center text-xs"><span class="fb-ic t-ic"></span><span class="t-swap"></span></span>');
+          upd + go('feedback', 'Send feedback', 'chat', '<span class="fb-st flex items-center text-xs"><span class="fb-ic t-ic"></span><span class="t-swap"></span></span>');
         foot = setHints([['\u2191\u2193', 'Choose'], ['\u2192', 'Open']]) + '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done');
       } else {
         /* the page says which it is under the notch's line (beside the notch there is room only for Settings), with Left as
