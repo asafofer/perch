@@ -1552,8 +1552,10 @@
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
-    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
-    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
+    /* a question on the row or in the wings: the shortcut that opens Perch opens it on the card instead */
+    var toCard = (mode === 'full' || mode === 'wings') && act.keys.indexOf('card') >= 0;
+    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join(), toCard].join('|');
+    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys, card: toCard }); }
     if (st === 'open') markChoice();
   }
 

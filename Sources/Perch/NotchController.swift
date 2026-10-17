@@ -217,6 +217,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: the live activity
     /// What the notch shows beside the camera when an answer or a request arrives (app.js activity): "", "wings" or "full".
     private var activityMode = ""
+    /// The activity shows a question (its row, or the wings): the shortcut that opens Perch opens it on the card.
+    private var activityCard = false
     private var activitySize = CGSize.zero
     /// Registers the Command+Option keys its buttons answer to, and drops them when it goes.
     var onActivityKeys: (([String]) -> Void)?
@@ -343,12 +345,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         RunLoop.main.add(t, forMode: .common)
     }
-    /// Command+Option tapped: close whatever is showing, or bring back what you put away a moment ago, else open the list.
+    /// Command+Option tapped: close whatever is showing, open the question the notch shows on its card, or bring back what
+    /// you put away a moment ago, else open the list.
     func chordTap() {
         // Recording a shortcut: the old one does nothing. On the shortcut step of setup, it is the thing to try.
         if recorder != nil { return }
         if machine.phase == .onboarding, onbStep == 3 { shortcutTried = true; shortcutSaved = false; push(); return }
         guard machine.phase == .idle else { send(.dismiss); return }
+        if activityCard { activityKey("card"); return }   // as a click on the question: its card, with the keyboard
         if !reopen() { toggleSwitcher() }
     }
 
@@ -1210,6 +1214,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "activity":
             let wasShowing = activityMode != ""
             activityMode = body["mode"] as? String ?? ""
+            activityCard = body["card"] as? Bool ?? false
             // Following the active window, an activity that just arrived goes where that window is now: it may have
             // moved, or another of the same app's windows come forward, since the app last switched.
             if !wasShowing, activityMode != "", Prefs.showOn == .window, machine.phase == .idle, !awayForHover {
