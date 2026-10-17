@@ -148,6 +148,65 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 <script>
 (function () {
   var d = window.perchDev; if (!d) return;
+  /* Stand-ins for the thumbnails macOS makes of each sample file (the app sends the real ones, Quick Look's, as fileIcons):
+     a picture or a film shows a little of itself, a text file, a PDF or a scan its first lines on a white page */
+  (function () {
+    var W = {}, names = ['blue-distortion-1', 'red-distortion-1', 'chromatic-dark-1'], left = names.length;
+    names.forEach(function (n) { var im = new Image(); im.onload = im.onerror = function () { W[n] = im.naturalWidth ? im : null; if (!--left) draw(); }; im.src = 'wallpapers/' + n + '.webp'; });
+    function cv() { var c = document.createElement('canvas'); c.width = c.height = 64; return c; }
+    function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+    function wall(g, n, x) { var im = W[n]; if (!im) { g.fillStyle = '#2a2d45'; g.fillRect(0, 0, 64, 64); return; } var h = im.naturalHeight; g.drawImage(im, x * (im.naturalWidth - h), 0, h, h, 0, 0, 64, 64); }
+    /* a screen: the wallpaper, the menu bar, and Perch's card under the notch, or a window */
+    function screen(n, x, what) {
+      var c = cv(), g = c.getContext('2d'); wall(g, n, x);
+      g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(0, 0, 64, 4);
+      if (what === 'card') { g.fillStyle = '#000'; rr(g, 13, -8, 38, 34, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.6)'; [5, 11, 17].forEach(function (y, i) { g.fillRect(18, y, [14, 24, 20][i], 2.5); }); }
+      else { g.fillStyle = 'rgba(18,18,22,.94)'; rr(g, 7, 13, 50, 40, 4); g.fill(); g.fillStyle = 'rgba(255,255,255,.55)'; for (var y = 22, i = 0; y < 48; y += 6, i++) g.fillRect(12, y, [30, 22, 34, 16, 26][i % 5], 2.5); }
+      return c.toDataURL('image/png');
+    }
+    /* a poster: a picture with its headline across it */
+    function poster(n, x) {
+      var c = cv(), g = c.getContext('2d'); wall(g, n, x);
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 30, 64, 34); g.fillStyle = '#fff'; g.fillRect(8, 38, 44, 6); g.fillRect(8, 48, 28, 3);
+      return c.toDataURL('image/png');
+    }
+    /* a page as Quick Look draws it: white, its first lines in grey (code in colour, a table as a grid, a PDF with its title) */
+    function page(kind) {
+      var c = cv(), g = c.getContext('2d');
+      g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 2; g.fillStyle = kind === 'scan' ? '#f3efe6' : '#fff'; g.fillRect(11, 3, 42, 58); g.shadowBlur = 0;
+      if (kind === 'csv') {
+        g.fillStyle = '#e8eef8'; g.fillRect(14, 7, 36, 6); g.strokeStyle = '#b8bec8'; g.lineWidth = 1;
+        for (var r = 7; r <= 55; r += 6) { g.beginPath(); g.moveTo(14, r + .5); g.lineTo(50, r + .5); g.stroke(); }
+        for (var k = 14; k <= 50; k += 12) { g.beginPath(); g.moveTo(k + .5, 7); g.lineTo(k + .5, 55); g.stroke(); }
+        return c.toDataURL('image/png');
+      }
+      var y = 8;
+      if (kind === 'pdf' || kind === 'scan') { g.fillStyle = '#1f2937'; g.fillRect(15, 8, 24, 4); y = 16; }
+      if (kind === 'zip') { g.fillStyle = '#9ca3af'; for (var z = 5; z < 40; z += 4) g.fillRect(z % 8 ? 30 : 32, z, 2, 2); g.fillStyle = '#6b7280'; rr(g, 28, 40, 8, 10, 2); g.fill(); return c.toDataURL('image/png'); }
+      var ink = kind === 'code' ? ['#a855f7', '#2563eb', '#6b7280', '#6b7280'] : ['#71717a'], w = [30, 24, 33, 18, 28, 22, 31, 14, 26];
+      for (var i = 0; y < 57; y += 4, i++) { var ind = kind === 'code' && i % 4 > 1 ? 4 : 0; g.fillStyle = ink[i % ink.length]; g.fillRect(15 + ind, y, w[i % w.length] - ind, 1.6); }
+      return c.toDataURL('image/png');
+    }
+    function draw() {
+      window.perch.fileIcons({
+        '/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png': screen('blue-distortion-1', .5, 'card'),
+        '/Users/you/Desktop/notch on the LG.png': screen('chromatic-dark-1', .4, 'card'),
+        '/Users/you/Desktop/notch on the LG.mov': screen('red-distortion-1', .5, 'card'),
+        '/Users/you/Desktop/walkthrough.mov': screen('blue-distortion-1', .2, 'window'),
+        '/Users/you/Desktop/hero-poster.png': poster('red-distortion-1', .7),
+        '/Users/you/Desktop/hero-poster-1440.png': poster('chromatic-dark-1', .7),
+        '/Users/you/Desktop/invoice-scan.png': page('scan'),
+        '/Users/you/Library/Logs/Perch/perch.log': page('text'),
+        '/Users/you/Desktop/crash-log.txt': page('text'),
+        '/Users/you/Code/website/notes.md': page('text'),
+        '/Users/you/Code/website/src/Hero.swift': page('code'),
+        '/Users/you/Documents/launch-brief.pdf': page('pdf'),
+        '/Users/you/Documents/Landing page brief (final, v3).pdf': page('pdf'),
+        '/Users/you/Downloads/analytics-export.csv': page('csv'),
+        '/Users/you/Downloads/press-kit.zip': page('zip')
+      });
+    }
+  })();
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
   function reply(typed) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); } }, 700); }; }
   /* selects the words `from` to `to` (found in the text) inside the element, as a drag across them would */
