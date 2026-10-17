@@ -131,6 +131,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket. |
 | `ui/` | The interface: plain JavaScript and Tailwind, Inter bundled. |
 | `scripts/` | Run, package, install, signing certificate, app icon and the README GIF. |
+| `feedback/` | The small Vercel function Send feedback posts to; it emails the message on. |
 
 <details>
 <summary><strong>Troubleshooting</strong></summary>
@@ -141,6 +142,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 - **Accessibility is on but Perch still waits.** Remove Perch from the list with the minus button, add it again and restart Perch. Setup has a Restart button for this.
 - **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database and `~/.pi/agent/sessions`, and which agents are running, in which terminal, herdr or tmux pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
 - **Status lags or guesses.** Turn on live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
+- **Something else is wrong, or you have an idea.** Settings, Send feedback: your words and any screenshots go straight to the maker of Perch, with your email if you'd like an answer.
 
 </details>
 
