@@ -55,14 +55,17 @@ enum FeedbackSender {
         }
     }
 
-    /// Email it instead: Mail with a new message to the maker of Perch, the words, the versions and the files (as they are:
-    /// Mail has no 4 MB limit). Without a mail account set up it falls back to a mailto: link, files left out.
+    /// Email it instead, in your own mail app. Mail takes the files: a new message with the words, the versions and the
+    /// files as they are (Mail has no 4 MB limit). Any other app (a browser's Gmail, Superhuman, Spark) gets a mailto: link,
+    /// which carries no files, so Finder shows them alongside to drag in.
     @MainActor
     static func mail(text: String, paths: [String], version: String?, macOS: String?) {
         var words = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let version, let macOS { words += (words.isEmpty ? "" : "\n\n") + "Perch \(version), macOS \(macOS)" }
+        let handler = URL(string: "mailto:").flatMap { NSWorkspace.shared.urlForApplication(toOpen: $0) }
+        let usesMail = handler.flatMap { Bundle(url: $0)?.bundleIdentifier } == "com.apple.mail"
         let items: [Any] = [words] + paths.map { URL(fileURLWithPath: $0) }
-        if let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: items) {
+        if usesMail, let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: items) {
             if !mailTo.isEmpty { service.recipients = [mailTo] }
             service.subject = Feedback.subject(text)
             service.perform(withItems: items); return
@@ -70,6 +73,7 @@ enum FeedbackSender {
         var c = URLComponents(); c.scheme = "mailto"; c.path = mailTo
         c.queryItems = [.init(name: "subject", value: Feedback.subject(text)), .init(name: "body", value: words)]
         if let link = c.url { NSWorkspace.shared.open(link) }
+        if !paths.isEmpty { NSWorkspace.shared.activateFileViewerSelecting(paths.map { URL(fileURLWithPath: $0) }) }
     }
 
     private static func isPicture(_ path: String) -> Bool {

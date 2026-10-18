@@ -38,7 +38,8 @@ Version row's update states in [updates.md](updates.md).
   (`feedbackOpen`): Return sends, Shift+Return is a new line, Esc (or Left in an empty field) goes back and keeps it all as
   a draft, which the row says.
 - Files come as on a reply: dropped on the card, pasted (a file copied in Finder, or a picture on the clipboard), or with
-  Attach (the Mac's picker). Folders are left out. Each chip wears the file's thumbnail (`AppIcons.file`, Quick Look's for
+  Attach or Command+O (the Mac's picker). Perch is the app in front while the page is open, as for a reply (the picker can
+  only come forward then), and gives the front back when it closes. Folders are left out. Each chip wears the file's thumbnail (`AppIcons.file`, Quick Look's for
   anything that is not a picture).
 - Perch sends 4 MB of files at most (a Vercel function takes 4.5 MB per request). Pictures go smaller first, their longest
   side 2000 px as JPEG (`FeedbackSender.size`, `attachment`), and the page shows the size each goes at. A file that takes
@@ -51,9 +52,10 @@ Version row's update states in [updates.md](updates.md).
   spinner, then a green check and Sent. Thank you, the card glowing green for a moment.
 - Not sent (offline, the function refused it): the row says Couldn't send in orange and the card glows orange. Open it and
   everything is there, with Try again and Email it instead.
-- Email it instead, beside a file too big or a failure: Mail opens a new message (`NSSharingService` compose) with the
-  words, the versions and the files as they are, and Perch steps aside. Without a mail account it is a mailto: link, files
-  left out.
+- Email it instead, beside a file too big or a failure, uses your own mail app (the one that opens mailto: links). Mail gets
+  a new message (`NSSharingService` compose) with the words, the versions and the files as they are; any other app (a
+  browser's Gmail, Spark) gets a mailto: link, which cannot carry files, so Finder shows them alongside to drag in. Perch
+  steps aside and does not bring back the app you were in over it.
 
 ## Where feedback goes
 

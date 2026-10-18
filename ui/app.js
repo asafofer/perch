@@ -3272,7 +3272,7 @@
       '<p class="fb-err mt-1 hidden px-1 text-[12px] leading-4" style="color:' + COLORS.attention + '"></p>' +
       '</div>' +
       '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
-        Button('ghost', svg('clip', 'size-3') + 'Attach', '', 'fb-attach -ml-1') + '<span class="flex-1"></span>' +
+        Button('ghost', svg('clip', 'size-3') + 'Attach', Kbd('\u2318O'), 'fb-attach -ml-1') + '<span class="flex-1"></span>' +
         /* the way round both: Mail, with a new message to the maker of Perch, your words and files in it */
         Button('ghost', 'Email it instead', '', 'fb-mailit hidden') +
         Button('default', '<span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
@@ -3288,6 +3288,7 @@
     mail.onblur = function () { if (fbMailBad() && !fbMailSaid) { fbMailSaid = true; fbPaint(); } };
     var keys = function (e, el) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); fbSend(); }
+      else if (e.metaKey && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); e.stopPropagation(); post({ type: 'feedbackAttach' }); }   /* the app takes Command+O first */
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setGo(''); }
       /* Left is Back here too, once there is nothing in the field for it to move through */
       else if (e.key === 'ArrowLeft' && !el.value && !(el === ta && fbFiles.length)) { e.preventDefault(); e.stopPropagation(); setGo(''); }

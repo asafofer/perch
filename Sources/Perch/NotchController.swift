@@ -729,7 +729,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         let old = machine.phase
         machine.send(event)
-        if machine.phase != .settings { feedbackOpen = false }
+        if machine.phase != .settings { setFeedbackOpen(false) }
         if machine.phase != old { phaseChanged(old, machine.phase) }
         push()
     }
@@ -955,7 +955,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSApp.activate(ignoringOtherApps: true)
             let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
             NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
-                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen { self.panel.makeKey() } } }
+                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen || self.feedbackOpen { self.panel.makeKey() } } }
             }
         } else {
             guard replyFrontFrom != nil else { return }
@@ -1156,9 +1156,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             else if body["action"] as? String == "said" { access.markSaid(); saveAccess(); push() }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
         case "settings": if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
-        case "feedbackOpen":
-            feedbackOpen = body["open"] as? Bool ?? false
-            if feedbackOpen { panel.makeKey() }
+        case "feedbackOpen": setFeedbackOpen(body["open"] as? Bool ?? false)
         case "feedback":
             let info = body["info"] as? Bool ?? true
             FeedbackSender.send(text: body["text"] as? String ?? "", email: body["email"] as? String ?? "", paths: body["files"] as? [String] ?? [],
@@ -1170,7 +1168,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             let info = body["info"] as? Bool ?? true
             FeedbackSender.mail(text: body["text"] as? String ?? "", paths: body["files"] as? [String] ?? [],
                                 version: info ? UISnapshot.appVersion : nil, macOS: info ? UISnapshot.macOSVersion : nil)
-            feedbackOpen = false; send(.dismiss)
+            // Mail is in front now with the message: the app you were in is not brought back over it
+            replyFrontFrom = nil; replyBack = nil; feedbackOpen = false; send(.dismiss)
         case "feedbackAttach": chooseFiles()
         case "setting":
             if let key = body["key"] as? String {
@@ -1502,8 +1501,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// Send feedback is open: its fields have the keyboard (the page says when it opens and closes).
+    /// Send feedback is open: its fields have the keyboard (the page says when it opens and closes), and Perch is the app
+    /// in front, as for a reply, so the Mac's file picker can come forward and a launcher's paste lands in the field.
     private var feedbackOpen = false
+    private func setFeedbackOpen(_ on: Bool) {
+        guard on != feedbackOpen else { return }
+        feedbackOpen = on
+        if !replyOpen { frontForReply(on) }
+        if on { panel.makeKey() }
+    }
     /// Attach on Send feedback: the Mac's own picker, any number of files.
     private func chooseFiles() {
         pickingUntil = .distantFuture
@@ -1511,6 +1517,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         p.canChooseDirectories = false; p.canChooseFiles = true; p.allowsMultipleSelection = true; p.prompt = "Attach"
         p.directoryURL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Desktop")
         NSApp.activate(ignoringOtherApps: true)
+        // macOS may not let Perch become the app in front from a key in its panel: the picker comes up over whatever is in
+        // front anyway, with the keyboard, rather than open behind it unseen
+        defer { p.orderFrontRegardless(); p.makeKey() }
         p.begin { [weak self] r in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -1835,6 +1844,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // friends are sent to the field here; a file copied in Finder or a picture on the clipboard is attached.
                 if self.feedbackOpen {
                     let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                    if flags == .command, KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "o" { self.chooseFiles(); return nil }   // Attach
                     let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                     if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
                         if action == "paste:", let paths = Clipboard.pastedFiles() { self.addPaths(paths); return nil }
@@ -2050,7 +2060,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil, !wnHoldsForAccess else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
