@@ -87,11 +87,10 @@ export function render(m: { text: string; replyTo?: string; version?: string; ma
   const words = m.text
     ? m.text.split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px;">${esc(p).replace(/\n/g, '<br>')}</p>`).join('')
     : `<p style="margin:0 0 14px;color:#a1a1aa;">Only files, no words.</p>`
+  // pictures in the message, each the full width, one under another: screenshots come in every shape, and a bug is read
+  // in their details. Every file is also attached, where the mail app lists them by name.
   const pictures = m.files.filter((f) => f.id).map((f) =>
-    `<img src="cid:${f.id}" alt="${esc(f.name)}" width="512" style="display:block;width:100%;max-width:512px;height:auto;border:1px solid #ececef;border-radius:10px;margin:6px 0 0;">` +
-    `<div style="font:400 12px/18px ${font};color:#a1a1aa;margin:6px 0 10px;">${esc(f.name)} \u00b7 ${size(f.size)}</div>`).join('')
-  const others = m.files.filter((f) => !f.id).map((f) =>
-    `<div style="font:400 13px/20px ${font};color:#52525b;">${esc(f.name)} <span style="color:#a1a1aa;">\u00b7 ${size(f.size)}, attached</span></div>`).join('')
+    `<img src="cid:${f.id}" alt="" width="512" style="display:block;width:100%;max-width:512px;height:auto;border:1px solid #ececef;border-radius:10px;margin:6px 0 10px;">`).join('')
   const answer = m.replyTo
     ? `Reply to answer <a href="mailto:${esc(m.replyTo)}" style="color:#18181b;text-decoration:none;font-weight:500;">${esc(m.replyTo)}</a>`
     : `No email given, so there is no way to answer.`
@@ -104,7 +103,7 @@ export function render(m: { text: string; replyTo?: string; version?: string; ma
 <img src="https://perchapp.dev/apple-touch-icon.png" width="20" height="20" alt="" style="display:inline-block;vertical-align:-5px;border-radius:5px;margin-right:8px;">Perch feedback</td></tr>
 <tr><td style="background:#ffffff;border-radius:14px;padding:24px 24px 22px;">
 <div style="font:400 15px/24px ${font};color:#18181b;">${words}</div>
-${pictures}${others ? `<div style="margin:4px 0 6px;">${others}</div>` : ''}
+${pictures}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr><td style="background:#f4f4f5;border-radius:10px;padding:12px 14px;font:400 13px/21px ${font};color:#52525b;">${answer}<br><span style="color:#a1a1aa;">${esc(build)}</span></td></tr></table>
 </td></tr>
 <tr><td style="padding:14px 6px 0;font:400 12px/18px ${font};color:#a1a1aa;">Sent from Send feedback, in Perch\u2019s Settings.</td></tr>
