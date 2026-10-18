@@ -777,7 +777,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         tookKeysForAsk = askTakesKeys
-        guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
+        // Keys in a fixed order: the page tells a change by comparing JSON (What's new, Settings), and JSONEncoder's own order
+        // varies from one encode to the next, which redrew the What's new list on every push and threw its scroll back up.
+        guard let data = try? Self.encoder.encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
         if revealPending { revealPending = false; web.evaluateJavaScript("window.perch && window.perch.painted(\(revealToken))", completionHandler: nil) }
     }
@@ -1526,6 +1528,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Command+Option tap and replies to Claude stop. Perch reads it every two seconds, remembers that it had it, and says once
     /// per loss that it is gone (AccessLoss): on the update's own What's new card, or in a notch row at a quiet moment.
     private var access = AccessLoss.seeded(had: Prefs.accessHad, hadOn: Prefs.accessHadOn, said: Prefs.accessSaid, onboarded: Prefs.onboarded)
+    private static let encoder: JSONEncoder = { let e = JSONEncoder(); e.outputFormatting = .sortedKeys; return e }()
     private static let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
     private let launchedAt = Date()
     /// What's new showed the loss, so it says Accessibility is on once it is, and closing it counts as said.
