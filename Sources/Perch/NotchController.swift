@@ -659,9 +659,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         redecorate()
     }
 
-    private func notSent(_ id: String) {
+    private func notSent(_ id: String) { tellPage("notSent", id) }
+    /// A reply went in the background: the card closes into the Sent line. Handed over instead (the session comes forward
+    /// to paste into), the line goes without a word.
+    private func replying(_ id: String) { tellPage("replying", id) }
+    private func replyHanded(_ id: String) { tellPage("replyHanded", id) }
+    private func tellPage(_ fn: String, _ id: String) {
         guard let data = try? JSONEncoder().encode(id), let arg = String(data: data, encoding: .utf8) else { return }
-        web.evaluateJavaScript("window.perch && window.perch.notSent(\(arg))", completionHandler: nil)
+        web.evaluateJavaScript("window.perch && window.perch.\(fn)(\(arg))", completionHandler: nil)
     }
 
     private func startRefreshing() {
@@ -1010,6 +1015,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, needsYou: { [weak self] in
                 MainActor.assumeIsolated { self?.startingAsks() }
+            }, declined: { [weak self] in
+                // Cancel in the app: it will not start, so the line says so now rather than after the long wait.
+                MainActor.assumeIsolated { if self?.starting?.state == "confirm" { self?.finishStarting(false) } }
             })
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
@@ -1307,7 +1315,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     MainActor.assumeIsolated {
                         guard let self else { return }
                         guard done else { self.pasteReply(text, to: p.id); return }
-                        // The words are already in the terminal; the card closes once they have flown into the notch.
+                        // The words are already in the terminal; the card closes once they have flown into the notch,
+                        // into the line that says Sent.
+                        self.replying(p.id)
                         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, closeAfter - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
                             let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push()
@@ -1323,6 +1333,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if p.app == "claude", let id = p.desktopSessionId {
             let cli = p.sessionId, topic = p.topic, back = whereYouWere()
             markSeen(p)
+            // The card closes into Sent at once; if the composer cannot take it, the line goes and the session comes forward.
+            replying(p.id)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
@@ -1330,7 +1342,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if r.sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
+                        if r.sent { self.shownQuietly[id] = Date() } else { self.replyHanded(p.id); self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
                     }
                 }
             }
