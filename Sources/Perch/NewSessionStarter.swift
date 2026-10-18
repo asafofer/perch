@@ -10,8 +10,9 @@ import PerchCore
 enum NewSessionStarter {
     /// Runs off the main thread. False when the words could not be sent: the app is left in front with them in its field,
     /// so nothing is lost. `needsYou` runs (on the main thread) when the app first asks you to trust the folder: a link
-    /// that names a folder asks, and that is yours to answer, so Perch waits for it and presses Send after.
-    static func start(_ choice: NewSession.Choice, folder: String?, prompt: String, sessionId: String?, needsYou: @escaping @Sendable () -> Void) -> Bool {
+    /// that names a folder asks, and that is yours to answer, so Perch waits for it and presses Send after. `declined`
+    /// runs (on the main thread) when you answer Cancel there: the session will not start.
+    static func start(_ choice: NewSession.Choice, folder: String?, prompt: String, sessionId: String?, needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void = {}) -> Bool {
         if choice.terminal {
             let cwd = folder ?? NSHomeDirectory()
             Terminals.open(NewSession.command(agent: choice.agent, prompt: prompt, sessionId: sessionId), in: cwd, app: Terminals.preferred)
@@ -30,7 +31,7 @@ enum NewSessionStarter {
         guard let url = c.url else { return false }
         let bundle = choice.agent == "codex" ? Restorer.codexApp : Restorer.claudeApp
         DispatchQueue.main.sync { _ = NSWorkspace.shared.open(url) }
-        return pressSend(in: bundle, words: prompt, folder: folder.map { ($0 as NSString).lastPathComponent }, needsYou: needsYou)
+        return pressSend(in: bundle, words: prompt, folder: folder.map { ($0 as NSString).lastPathComponent }, needsYou: needsYou, declined: declined)
     }
 
     /// Waits for the app's message field to hold exactly these words, then presses its Send. When the app asks you to
@@ -38,7 +39,7 @@ enum NewSessionStarter {
     /// folder menu names your folder and the words are still in the field, and Perch sends them; a Cancel leaves no such
     /// folder, so it stays a Cancel. Codex shows no folder to check, so after its question Send is yours. (Trust pressed
     /// through Accessibility is not taken as yours: Claude then starts the session with no folder.)
-    private static func pressSend(in bundle: String, words: String, folder: String?, needsYou: @escaping @Sendable () -> Void) -> Bool {
+    private static func pressSend(in bundle: String, words: String, folder: String?, needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
         var asked = false, sawField = false, folderBy: Date?
@@ -64,7 +65,10 @@ enum NewSessionStarter {
                     if !shown.contains(folder) {
                         if folderBy == nil { folderBy = Date().addingTimeInterval(6) }
                         if Date() < folderBy! { continue }
-                        NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you"); return false
+                        NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you")
+                        // Asked, and now on another folder: that was Cancel.
+                        if asked { DispatchQueue.main.async { declined() } }
+                        return false
                     }
                     if asked { NSLog("Perch: trusted in Claude, on \(folder); sending") }
                 }

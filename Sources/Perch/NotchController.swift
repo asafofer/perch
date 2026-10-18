@@ -1006,6 +1006,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, needsYou: { [weak self] in
                 MainActor.assumeIsolated { self?.startingAsks() }
+            }, declined: { [weak self] in
+                // Cancel in the app: it will not start, so the line says so now rather than after the long wait.
+                MainActor.assumeIsolated { if self?.starting?.state == "confirm" { self?.finishStarting(false) } }
             })
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
