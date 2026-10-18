@@ -34,9 +34,10 @@ enum NewSessionStarter {
     }
 
     /// Waits for the app's message field to hold exactly these words, then presses its Send. When the app asks you to
-    /// trust the folder, the answer is yours, in the app (the notch says Confirm in Claude), and Perch never presses Send
-    /// after it: a Cancel there stays a Cancel. (Trust pressed through Accessibility is not taken as yours: Claude then
-    /// starts the session with no folder.)
+    /// trust the folder, the answer is yours, in the app (the notch says Confirm in Claude). Once you trust it, Claude's
+    /// folder menu names your folder and the words are still in the field, and Perch sends them; a Cancel leaves no such
+    /// folder, so it stays a Cancel. Codex shows no folder to check, so after its question Send is yours. (Trust pressed
+    /// through Accessibility is not taken as yours: Claude then starts the session with no folder.)
     private static func pressSend(in bundle: String, words: String, folder: String?, needsYou: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
@@ -54,8 +55,8 @@ enum NewSessionStarter {
             let field = windows.lazy.compactMap { w in first(in: w, { role($0) == "AXTextArea" && classes($0).contains("ProseMirror") && squash(value($0)) == want }) }.first
             if let field {
                 sawField = true
-                // Asked to trust and answered: the rest is yours there.
-                if asked, !asking { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
+                // Asked to trust and answered: in Claude, the folder check below tells Trust (your folder) from Cancel.
+                if asked, !asking, folder == nil || bundle != Restorer.claudeApp { NSLog("Perch: the trust question was answered in the app; Send is left to you"); return false }
                 // Never into another folder than the one you chose: Claude's own folder menu by the field must name it
                 // (after a trust question it can take a moment). Not there in a few seconds, Send is left to you.
                 if let folder, bundle == Restorer.claudeApp, !asking {
@@ -65,6 +66,7 @@ enum NewSessionStarter {
                         if Date() < folderBy! { continue }
                         NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you"); return false
                     }
+                    if asked { NSLog("Perch: trusted in Claude, on \(folder); sending") }
                 }
                 if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
                     guard AXUIElementPerformAction(send, kAXPressAction as CFString) == .success else { NSLog("Perch: new session not sent (Send did not press)"); return false }
@@ -85,14 +87,19 @@ enum NewSessionStarter {
         NSLog("Perch: new session not sent (\(sawField ? "no Send to press" : "its words never showed in the field"))")
         return false
     }
-    /// The titles of the menus by the message field (Claude: Local, the folder, ...), a few levels up from it.
+    /// The titles of the menus by the message field (Claude: Local, the folder, ...), a few levels up from it. Claude now
+    /// leaves the folder menu's title empty and names it in its description, "Folder: ~/path": that counts as the folder's name.
     private static func folderMenus(near field: AXUIElement) -> [String] {
         var box = field
         for _ in 0..<7 { guard let up = attr(box, kAXParentAttribute) else { break }; box = up as! AXUIElement }
         var out: [String] = [], stack = [box], seen = 0
         while let e = stack.popLast(), seen < 600 {
             seen += 1
-            if role(e) == "AXPopUpButton" { let t = string(e, kAXTitleAttribute); if !t.isEmpty { out.append(t) } }
+            if role(e) == "AXPopUpButton" {
+                let t = string(e, kAXTitleAttribute), d = string(e, kAXDescriptionAttribute)
+                if !t.isEmpty { out.append(t) }
+                if d.hasPrefix("Folder: ") { out.append((String(d.dropFirst(8)) as NSString).lastPathComponent) }
+            }
             stack.append(contentsOf: (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
         }
         return out
