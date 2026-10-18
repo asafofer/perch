@@ -218,7 +218,7 @@
   }
   function PRIcon(pr, cls) {
     var w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state];
-    return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
+    return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
   }
   /* One label for every PR icon, drawn above the one under the pointer (below it when there is no room). It is Perch's own, since a
      card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
