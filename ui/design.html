@@ -320,6 +320,21 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Your words: you asked', 'Your last message was a question (a sentence ending in a question mark): You asked.', function () { d.variant(1, { topic: 'Hero jump on Safari', headline: '', context: 'You asked: \u201cwhy does the hero jump on Safari when the poster loads?\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
       ['Working, a long title', 'A title that runs long has its whole line: the status sits on the grey line under it, at the right.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
+    ['Pull requests', [
+      ['PR, open', 'Green icon at the right of the grey line: the branch has an open pull request. Hover it for the number and state; click opens it.', function () { d.project(10); d.show('open', false, true); }],
+      ['PR, ready to merge', 'Approved and checks green: the same green icon.', function () { d.project(1); d.show('open'); }],
+      ['PR, checks failing', 'The icon turns orange: it is yours to look at. Hover for the words.', function () { d.project(7); d.show('open', false, true); }],
+      ['PR, changes requested', 'A reviewer asked for changes: orange.', function () { d.project(8); d.show('open'); }],
+      ['PR, merge conflicts', 'The branch no longer merges cleanly: orange.', function () { d.project(9); d.show('open'); }],
+      ['PR, checks running', 'Plain green while CI runs.', function () { d.project(0); d.show('open'); }],
+      ['PR, draft', 'Grey icon with dots.', function () { d.project(2); d.show('open'); }],
+      ['PR, merged', 'Purple icon.', function () { d.project(4); d.show('open'); }],
+      ['PR, closed', 'Red icon, not merged.', function () { d.project(6); d.show('open'); }],
+      ['All sessions, with PRs', 'Each row carries its PR icon beside the time. Hover one for its label.', function () { d.show('switcher'); }],
+      ['Settings: Pull requests on', 'Off until switched on: it asks GitHub through the GitHub CLI you are signed in with. The icon then shows on each session whose branch has a pull request.', function () { d.settings({ prs: 'on' }); }],
+      ['Settings: needs the CLI', 'No GitHub CLI found: the switch is greyed and the line says what to do.', function () { d.settings({ prs: 'nogh' }); }],
+      ['Settings: not signed in', 'The GitHub CLI is there but logged out.', function () { d.settings({ prs: 'login' }); }]
+    ]],
     ['More agents', [
       ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
       ['OpenCode needs your OK', 'OpenCode asks before running a command. Allow with A or Deny with D from the notch, or answer in OpenCode: whichever comes first.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode wants to run a command', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'OpenCode wants to run a command', subject: 'rm -rf dist && bun run build', options: [], answerable: true } }); }],

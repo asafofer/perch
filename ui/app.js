@@ -20,6 +20,7 @@
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
+    pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     /* Settings rows (Lucide, lucide.dev, ISC) */
@@ -194,6 +195,47 @@
     var c = k === 'done' ? COLORS.done : k === 'down' ? COLORS.running : COLORS.attention;
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
   }
+  /* A session's pull request (p.pr: number, url, state open|draft|merged|closed, checks pass|fail|running, review approved|changes,
+     conflict). Icon only. Its colour is the PR's state, in GitHub's: green open, purple merged, red closed, grey draft. When it is
+     yours to act on (checks failing, changes requested, conflicts) the whole icon turns orange. The number and the words show in a
+     small label while the pointer is on it (prTip); clicking it opens the pull request. */
+  var PRC = { open: '#3FB950', merged: '#A371F7', closed: '#F85149', draft: '#8B949E' };
+  var PRI = { open: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
+    merged: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+    draft: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="M18 5.5v.01"/><path d="M18 8.5v.01"/><path d="M18 11.5v.01"/>',
+    closed: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v12"/><path d="M21 3l-6 6"/><path d="M21 9l-6-6"/><path d="M18 11.5V15"/>' };
+  function prWord(pr) {
+    if (pr.state === 'merged') return { t: 'Merged' };
+    if (pr.state === 'closed') return { t: 'Closed' };
+    if (pr.state === 'draft') return { t: 'Draft' };
+    if (pr.conflict) return { t: 'Conflicts', c: COLORS.attention };
+    if (pr.checks === 'fail') return { t: 'Checks failing', c: COLORS.attention };
+    if (pr.review === 'changes') return { t: 'Changes requested', c: COLORS.attention };
+    if (pr.checks === 'running') return { t: 'Checks running' };
+    if (pr.review === 'approved' && pr.checks === 'pass') return { t: 'Ready to merge', c: COLORS.done };
+    if (pr.review === 'approved') return { t: 'Approved', c: COLORS.done };
+    return { t: 'Open' };
+  }
+  function PRIcon(pr, cls) {
+    var w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state];
+    return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
+  }
+  /* One label for every PR icon, drawn above the one under the pointer (below it when there is no room). It is Perch's own, since a
+     card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
+  var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
+  function prHover(el) {
+    if (el.dataset.b) return; el.dataset.b = '1';
+    el.onmouseenter = function () {
+      var pr = el._pr; if (!pr) return; var w = prWord(pr);
+      prTip.innerHTML = '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span> <span' + (w.c ? ' style="color:' + w.c + '"' : '') + '>' + esc(w.t) + '</span>';
+      var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
+      prTip.style.left = Math.max(6, Math.min(r.right - tw, innerWidth - tw - 6)) + 'px';
+      prTip.style.top = (r.top - th - 5 < 4 ? r.bottom + 5 : r.top - th - 5) + 'px'; prTip.style.opacity = 1;
+    };
+    el.onmouseleave = function () { prTip.style.opacity = 0; };
+    el.onclick = function (e) { e.stopPropagation(); if (el._pr && el._pr.url) post({ type: 'openpr', url: el._pr.url }); };
+  }
+  function PRChip(pr) { return '<span class="flex">' + PRIcon(pr, 'size-4') + '</span>'; }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
@@ -282,7 +324,7 @@
          to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
         '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
-        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr flex-none self-center"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -869,6 +911,7 @@
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    var pre = q('.o-pr'), pc = p.pr ? PRChip(p.pr) : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._pr = p.pr || null; prHover(pre);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -1048,7 +1091,7 @@
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
         '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
-        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span><span class="pr flex-none"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
         (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
@@ -1097,6 +1140,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
+      var pe = r.querySelector('.pr'); if (pe) { var pm = p.pr ? PRIcon(p.pr, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._pr = p.pr || null; prHover(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -3054,6 +3098,7 @@
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
+  function prsSub(o) { return o.prs === 'on' ? 'on' : o.prs === 'nogh' ? 'needs the GitHub CLI' : o.prs === 'login' ? 'run gh auth login' : 'off'; }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance */
   function stile(ic) { return ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
@@ -3089,6 +3134,8 @@
       /* which moments the notch announces (the list and the cards say all of them) */
       srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
       srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
+      /* off until switched on: it asks GitHub, with the GitHub CLI's login, whether the branch each session is on has a pull request */
+      srow(slabel('Pull requests', '<span class="s-prs">' + prsSub(o) + '</span>', 'pr'), swHtml(o.prs === 'on', 'prs', 'Pull requests').replace('class="s-sw sw"', 'class="s-sw sw' + (o.prs === 'nogh' || o.prs === 'login' ? ' opacity-40" disabled="' : '') + '"')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -3115,10 +3162,12 @@
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
+      if (b.disabled) return;
       var on = b.getAttribute('aria-checked') !== 'true';
       setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
       if (b.dataset.k === 'login') post({ type: 'setting', key: b.dataset.k, value: on });
       else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
+      else if (b.dataset.k === 'prs') post({ type: 'setting', key: 'pullRequests', value: on });
     }; });
     bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
     var sb0 = box.querySelector('.s-show'); if (sb0) { sb0._k = showKey(o); showClamp(sb0.querySelector('.s-showmenu')); }
@@ -3354,10 +3403,11 @@
     if (!o) return;
     var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked]); if (sig === setSig) return;
     /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var shape = JSON.stringify([o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate, o.prs === 'nogh' || o.prs === 'login']), box = q('.set');
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
-      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
+      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : b.dataset.k === 'prs' ? o.prs === 'on' : o.live === 'on'); });
+      var ps = box.querySelector('.s-prs'); if (ps) ps.textContent = prsSub(o);
       var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
       var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
       var sw2 = box.querySelector('.s-show'), skey = showKey(o);
@@ -3489,7 +3539,7 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
     if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
@@ -3537,6 +3587,12 @@
       { id: 'phoenix', name: 'conductor-test', opens: 'conductor', branch: 'asafofer/ls-files', away: '6m', at: '1:30 PM', headline: 'Ls files.', context: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.', next: '', topic: 'Ls files', app: 'claude', attention: false, fresh: true, line: 'Finished 6m ago', status: { kind: 'done', text: 'Claude Code replied', app: 'claude' },
         asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
     ];
+    /* sample pull requests: one of each state */
+    var DEMO_PR = { onboarding: { number: 452, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }, website: { number: 448, state: 'open', checks: 'pass', review: 'approved' },
+      docs: { number: 455, state: 'draft' }, planner: { number: 431, state: 'merged' }, lukatz: { number: 12, state: 'closed' },
+      api: { number: 460, state: 'open', checks: 'fail' }, fluid: { number: 87, state: 'open', checks: 'pass', review: 'changes' },
+      gaps: { number: 23, state: 'open', conflict: true }, tui: { number: 9, state: 'open', checks: 'pass' } };
+    P.forEach(function (p) { if (DEMO_PR[p.id]) p.pr = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -3666,7 +3722,7 @@
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */

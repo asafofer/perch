@@ -488,3 +488,7 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
 .nw .nrow.dz .nw-rt { display: none; }
 .nw .nrow.dz .nw-dz { display: inline-flex; }
+
+/* the label over a pull request icon (app.js prTip) */
+.pr-tip { position: fixed; z-index: 60; left: 0; top: 0; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .12s; padding: 2px 7px; border-radius: 6px;
+  background: #27272a; color: #e4e4e7; font: 500 11.5px/16px Inter, sans-serif; box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 4px 12px rgba(0,0,0,.45); }
