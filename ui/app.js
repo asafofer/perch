@@ -2173,14 +2173,16 @@
     var a0 = q('.wn-a'), bare = function (x) { var o = JSON.parse(x); delete o.access; return JSON.stringify(o); };
     if (was && a0 && w.access && bare(was) === bare(sig)) { a0.outerHTML = wnAccess(w.access); return; }
     var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
-    var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
+    /* the fade sits on a still wrapper, not on the list that scrolls: a mask on the scroller itself makes WebKit repaint it
+       every frame of a scroll, and the lines judder behind the trackpad */
+    var list = rows.length ? '<div class="wn-lw rv mx-4 mt-1.5 overflow-hidden rounded-lg bg-black/[0.18]" style="--i:2"><div class="wn-l o-said-in max-h-[150px] overflow-y-auto px-3 py-1.5">' + rows.map(function (b) {
       return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
-    }).join('') + '</div>' : '';
+    }).join('') + '</div></div>' : '';
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
       '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
       '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
-    var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
+    var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
     /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
