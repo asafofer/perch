@@ -323,8 +323,8 @@
          the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
          to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
-        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr flex-none self-center"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<span dir="auto" class="o-name fade min-w-0 text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub fade min-w-0 flex-1 text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr flex-none self-center"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -1090,11 +1090,11 @@
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '" data-k="' + esc(p.id) + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
-        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span><span class="pr flex-none"></span></span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm fade min-w-0 text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
+        '<span class="pr flex-none"></span><span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
+        (second ? '<span dir="auto" class="mq tp fade min-w-0 text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
     /* The list stays open and sorts itself again (a session starts needing you): the rows glide to their new places and a new
        section header fades in, and each row keeps its mark so a change of mark still moves (no transitions.dev recipe: its
@@ -3434,6 +3434,15 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
+  /* A title that does not fit fades at its end (.fade, input.css); one that fits is left whole. Checked again whenever the notch's words change. */
+  var fadeRaf = 0;
+  function fadeSweep() {
+    fadeRaf = 0;
+    n.querySelectorAll('.fade').forEach(function (el) { el.classList.toggle('cut', el.scrollWidth - el.clientWidth > 1); });
+  }
+  new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
+  window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
   window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
