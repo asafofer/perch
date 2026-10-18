@@ -122,6 +122,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
+/* pull request marks */
+.prgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.prc{display:flex;align-items:center;gap:12px;background:var(--pg-card);border-radius:12px;box-shadow:0 0 0 1px var(--pg-line);padding:10px 12px}
+.prc .tile{display:grid;place-items:center;width:44px;height:44px;border-radius:10px;background:#0b0e0d;flex:none}
+.prc b{display:block;font:500 13px Inter,sans-serif}
+.prc span{display:block;font-size:12px;line-height:1.4;color:var(--pg-muted)}
+.prc i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-0.5px}
 </style>
 <main class="wrap">
   <header>
@@ -139,6 +146,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     <h2>Scenarios</h2>
     <div class="groups" id="groups"></div>
     <p class="what" id="what"></p>
+  </section>
+
+  <section>
+    <h2>Pull request marks</h2>
+    <p class="note" style="margin-bottom:10px">Icon only on the row and the card; the words show in a small label on hover. The colour is the pull request's state, and orange means it is yours to act on.</p>
+    <div class="prgrid" id="prgrid"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -831,6 +844,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
     at(5500, function () { now.textContent = 'Perch is in Applications: open it from there'; });
   }
+  var MEAN = {"Open": "Open pull request, nothing to do yet", "Checks running": "Open, CI still running", "Ready to merge": "Approved and checks green", "Approved": "Approved, checks not finished", "Checks failing": "CI failed: yours to look at", "Changes requested": "A reviewer asked for changes", "Conflicts": "The branch no longer merges cleanly", "Draft": "Draft, not ready for review", "Merged": "Merged into its base branch", "Closed": "Closed without merging"};
+  document.getElementById('prgrid').innerHTML = d.prLegend().map(function (x) {
+    return '<div class="prc"><div class="tile">' + x.icon + '</div><div><b>' + x.word + '</b><span>' + (MEAN[x.word] || '') + '</span><span><i style="background:' + x.color + '"></i>' + x.color.toLowerCase() + '</span></div></div>';
+  }).join('');
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);

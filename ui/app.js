@@ -3697,6 +3697,11 @@
       });
     }
     window.perchDev = {
+      /* every pull request mark with its words and colour, for the design page's grid */
+      prLegend: function () {
+        return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
+          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: c }; });
+      },
       /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
          index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
       listChange: function (over, sel) {
