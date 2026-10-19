@@ -11,7 +11,7 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 
 ## Where sessions come from
 
-- Claude: the Claude app's own list (`~/Library/Application Support/Claude/claude-code-sessions`) decides, archived ones skipped. Transcripts are `~/.claude/projects/*/<id>.jsonl`.
+- Claude: the Claude app's own list (`~/Library/Application Support/Claude/claude-code-sessions`) decides, archived ones skipped. So are its side chats (`spawnedFrom.btw`): one copies its session's transcript, so its row read just like the session and a reply from the notch landed in the side chat. Transcripts are `~/.claude/projects/*/<id>.jsonl`.
 - Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. `codex exec` runs and subagent threads are skipped (`SessionDigest.headless`). Thread names come from `~/.codex/session_index.jsonl`.
 - Codex 0.162's terminal app writes `source: "vscode"` like the Codex app; `originator: "codex-tui"` is what says terminal.
 - A chat started without a project (Claude scratch workspace, Codex dated folder) is named by its title (`Recap.isFolderless`).
