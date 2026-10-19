@@ -218,6 +218,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: the live activity
     /// What the notch shows beside the camera when an answer or a request arrives (app.js activity): "", "wings" or "full".
     private var activityMode = ""
+    /// The activity shows a question (its row, or the wings): the shortcut that opens Perch opens it on the card.
+    private var activityCard = false
     private var activitySize = CGSize.zero
     /// Registers the Command+Option keys its buttons answer to, and drops them when it goes.
     var onActivityKeys: (([String]) -> Void)?
@@ -344,12 +346,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         RunLoop.main.add(t, forMode: .common)
     }
-    /// Command+Option tapped: close whatever is showing, or bring back what you put away a moment ago, else open the list.
+    /// Command+Option tapped: close whatever is showing, open the question the notch shows on its card, or bring back what
+    /// you put away a moment ago, else open the list.
     func chordTap() {
         // Recording a shortcut: the old one does nothing. On the shortcut step of setup, it is the thing to try.
         if recorder != nil { return }
         if machine.phase == .onboarding, onbStep == 3 { shortcutTried = true; shortcutSaved = false; push(); return }
         guard machine.phase == .idle else { send(.dismiss); return }
+        if activityCard { activityKey("card"); return }   // as a click on the question: its card, with the keyboard
         if !reopen() { toggleSwitcher() }
     }
 
@@ -656,9 +660,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         redecorate()
     }
 
-    private func notSent(_ id: String) {
+    private func notSent(_ id: String) { tellPage("notSent", id) }
+    /// A reply went in the background: the card closes into the Sent line. Handed over instead (the session comes forward
+    /// to paste into), the line goes without a word.
+    private func replying(_ id: String) { tellPage("replying", id) }
+    private func replyHanded(_ id: String) { tellPage("replyHanded", id) }
+    private func tellPage(_ fn: String, _ id: String) {
         guard let data = try? JSONEncoder().encode(id), let arg = String(data: data, encoding: .utf8) else { return }
-        web.evaluateJavaScript("window.perch && window.perch.notSent(\(arg))", completionHandler: nil)
+        web.evaluateJavaScript("window.perch && window.perch.\(fn)(\(arg))", completionHandler: nil)
     }
 
     private func startRefreshing() {
@@ -779,7 +788,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let askTakesKeys = machine.phase == .open && openedByHover && cardTakesKeys
         if askTakesKeys, !tookKeysForAsk, panel.allowsKey, !panel.isKeyWindow { panel.makeKey() }
         tookKeysForAsk = askTakesKeys
-        guard let data = try? JSONEncoder().encode(sent), let json = String(data: data, encoding: .utf8) else { return }
+        // Keys in a fixed order: the page tells a change by comparing JSON (What's new, Settings), and JSONEncoder's own order
+        // varies from one encode to the next, which redrew the What's new list on every push and threw its scroll back up.
+        guard let data = try? Self.encoder.encode(sent), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.apply(\(json))", completionHandler: nil)
         if revealPending { revealPending = false; web.evaluateJavaScript("window.perch && window.perch.painted(\(revealToken))", completionHandler: nil) }
     }
@@ -1008,6 +1019,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, needsYou: { [weak self] in
                 MainActor.assumeIsolated { self?.startingAsks() }
+            }, declined: { [weak self] in
+                // Cancel in the app: it will not start, so the line says so now rather than after the long wait.
+                MainActor.assumeIsolated { if self?.starting?.state == "confirm" { self?.finishStarting(false) } }
             })
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
@@ -1227,6 +1241,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "activity":
             let wasShowing = activityMode != ""
             activityMode = body["mode"] as? String ?? ""
+            activityCard = body["card"] as? Bool ?? false
             // Following the active window, an activity that just arrived goes where that window is now: it may have
             // moved, or another of the same app's windows come forward, since the app last switched.
             if !wasShowing, activityMode != "", Prefs.showOn == .window, machine.phase == .idle, !awayForHover {
@@ -1319,7 +1334,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     MainActor.assumeIsolated {
                         guard let self else { return }
                         guard done else { self.pasteReply(text, to: p.id); return }
-                        // The words are already in the terminal; the card closes once they have flown into the notch.
+                        // The words are already in the terminal; the card closes once they have flown into the notch,
+                        // into the line that says Sent.
+                        self.replying(p.id)
                         DispatchQueue.main.asyncAfter(deadline: .now() + max(0, closeAfter - Date().timeIntervalSince(sentAt))) {
                             guard self.machine.phase == .open else { return }
                             let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push()
@@ -1335,6 +1352,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if p.app == "claude", let id = p.desktopSessionId {
             let cli = p.sessionId, topic = p.topic, back = whereYouWere()
             markSeen(p)
+            // The card closes into Sent at once; if the composer cannot take it, the line goes and the session comes forward.
+            replying(p.id)
             let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let titles = [cli.flatMap { DesktopSessions.shared.index()[$0]?.title }, topic].compactMap { $0 }
@@ -1342,7 +1361,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        if r.sent { self.shownQuietly[id] = Date() } else { self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
+                        if r.sent { self.shownQuietly[id] = Date() } else { self.replyHanded(p.id); self.pasteReply(text, to: p.id, claudeShown: r.shown, back: back, send: !r.draft) }
                     }
                 }
             }
@@ -1584,6 +1603,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Command+Option tap and replies to Claude stop. Perch reads it every two seconds, remembers that it had it, and says once
     /// per loss that it is gone (AccessLoss): on the update's own What's new card, or in a notch row at a quiet moment.
     private var access = AccessLoss.seeded(had: Prefs.accessHad, hadOn: Prefs.accessHadOn, said: Prefs.accessSaid, onboarded: Prefs.onboarded)
+    private static let encoder: JSONEncoder = { let e = JSONEncoder(); e.outputFormatting = .sortedKeys; return e }()
     private static let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
     private let launchedAt = Date()
     /// What's new showed the loss, so it says Accessibility is on once it is, and closing it counts as said.

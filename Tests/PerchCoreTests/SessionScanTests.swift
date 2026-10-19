@@ -33,9 +33,11 @@ private final class Home {
     }
 
     /// A Claude app session: its entry in the app's list and its transcript where Claude Code keeps it.
-    func claude(_ cli: String, cwd: String, title: String, ago: TimeInterval = 60, archived: Bool = false, dir: String? = nil) {
-        let entry: [String: Any] = ["sessionId": "local_\(cli)", "cliSessionId": cli, "cwd": cwd, "title": title, "isArchived": archived,
+    func claude(_ cli: String, cwd: String, title: String, ago: TimeInterval = 60, archived: Bool = false, dir: String? = nil,
+                spawnedFrom: [String: Any]? = nil) {
+        var entry: [String: Any] = ["sessionId": "local_\(cli)", "cliSessionId": cli, "cwd": cwd, "title": title, "isArchived": archived,
                                     "lastFocusedAt": (now.timeIntervalSince1970 - ago - 30) * 1000]
+        if let spawnedFrom { entry["spawnedFrom"] = spawnedFrom }
         write("Library/Application Support/Claude/claude-code-sessions/acct/org/local_\(cli).json",
               String(data: try! JSONSerialization.data(withJSONObject: entry), encoding: .utf8)!)
         let folder = dir ?? String(cwd.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
@@ -175,6 +177,16 @@ private final class Home {
         h.claude("a", cwd: site, title: "Hero spacing")
         h.claude("b", cwd: site, title: "Old idea", archived: true)
         #expect(h.scanner.claude(limit: 15, now: h.now).map(\.project.topic) == ["Hero spacing"])
+    }
+
+    /// A side chat is a copy of its session's transcript, so as a row it reads just like that session, and a reply to it
+    /// lands in the side chat. A session started from another (start_session) is a session of its own and keeps its row.
+    @Test func sideChatsAreLeftOut() {
+        let h = Home(), site = h.folder("code/site")
+        h.claude("a", cwd: site, title: "Hero spacing")
+        h.claude("b", cwd: site, title: "Side chat", spawnedFrom: ["sessionId": "local_a", "sideSession": true, "userFork": true, "btw": true])
+        h.claude("c", cwd: site, title: "Footer links", spawnedFrom: ["sessionId": "local_a", "taskId": "task_1"])
+        #expect(Set(h.scanner.claude(limit: 15, now: h.now).map(\.project.topic)) == ["Hero spacing", "Footer links"])
     }
 
     @Test func busyFoldersCannotCrowdOutAnAppSession() {

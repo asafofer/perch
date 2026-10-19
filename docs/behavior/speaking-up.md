@@ -12,7 +12,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 ## The live activity
 
 - While you work, an answer or a request in a session you are not in shows as a live activity (`UISnapshot.activeIds`, app.js `inside`). The notch grows with the project beside the camera and what happened; below, the session's title and a row of buttons on Command+Option keys registered only while it shows (app.js `activity`; `./scripts/run.sh --activity` plays it).
-- Open <app> at the right of the row opens the session in its app, on Command+Option+O on every row. With three choices on the row there is no room for the button, so the key works alone, and hovering the question says so. The key shows on no button when Perch's own open or new-session shortcut uses it or another app holds it. Clicking the question opens it on the card, all of it.
+- Open <app> at the right of the row opens the session in its app, on Command+Option+O on every row. With three choices on the row there is no room for the button, so the key works alone, and hovering the question says so. The key shows on no button when Perch's own open or new-session shortcut uses it or another app holds it. Clicking the question opens it on the card, all of it; so does the shortcut that opens Perch, on the row or in the wings.
 - Where Pick up is already a button (a finish), a small cross at the left of the row puts it away. Command+Option+. puts any row away.
 - The button under the pointer is lit from where the pointer is (app.js `markAct`), not WebKit's hover, which stays on a button the pointer left when the panel was never clicked.
 - A finish folds away. A request folds to wings until answered. A stop on an error (nothing to answer) says so once and folds away, and does not come back for the same error (`actErr`).
@@ -21,6 +21,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 
 - An answer from the notch or a card says it went: the chosen button lights for a beat, then the notch folds to one line, the session on the left and Sent with a blue paper plane on the right, whatever the answer (a choice, Allow, Deny), for about two seconds (app.js `sentShow`). From a card, the plane waits until the notch has settled.
 - It is said to the end: a request or a finish that arrives meanwhile, or while the button lights, is said in full right after it (`sentDone`, measured against what had been said when you answered, `sentBase`).
+- A reply sent from the notch ends the same way, after its words have flown up into the notch (details in [replies.md](replies.md#sending)).
 - If the answer reached nothing (the request was settled or let go a moment before, `HookServer.answer` reports it), the line says Didn't send in orange (`notSent`).
 
 ## The welcome card

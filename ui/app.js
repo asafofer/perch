@@ -385,8 +385,9 @@
     });
     var long = head.map(function (h, j) { return [h].concat(body.map(function (r) { return r[j]; })).some(function (v) { return v.length > 28; }); });
     var cell = function (tag, v, j) { return '<' + tag + ' dir="auto"' + (align[j] ? ' data-a="' + align[j] + '"' : '') + (long[j] ? ' data-w="1"' : '') + '>' + md(v) + '</' + tag + '>'; };
-    return '<div class="md-tbl -mx-3 my-1.5 px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
-      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+    /* the fades sit on a still wrapper (md-tw), not on the table that scrolls: WebKit repaints a masked scroller every frame */
+    return '<div class="md-tw -mx-3 my-1.5"><div class="md-tbl px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
+      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div></div>';
   }
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -551,7 +552,7 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
@@ -570,7 +571,7 @@
     var set = function () {
       var x = w.scrollLeft, mx = w.scrollWidth - w.clientWidth, my = w.scrollHeight - w.clientHeight;
       var f = [x > 1 ? 'l' : '', x < mx - 1 ? 'r' : '', w.scrollTop < my - 1 ? 'b' : ''].join(' ').trim();
-      if (f) w.dataset.f = f; else delete w.dataset.f;
+      if (f) w.parentNode.dataset.f = f; else delete w.parentNode.dataset.f;
     };
     set(); w.onscroll = set;
   }
@@ -1557,8 +1558,10 @@
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
-    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
-    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
+    /* a question on the row or in the wings: the shortcut that opens Perch opens it on the card instead */
+    var toCard = (mode === 'full' || mode === 'wings') && act.keys.indexOf('card') >= 0;
+    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join(), toCard].join('|');
+    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys, card: toCard }); }
     if (st === 'open') markChoice();
   }
 
@@ -1997,6 +2000,18 @@
     var p = snap && snap.projects[snap.selected]; if (!p) return;
     delete sentLate[p.id]; sentNext = { p: p, words: sentWords(m), at: Date.now() };
   }
+  /* Swift: a reply is on its way to the session in the background (typed into its terminal, or Claude's composer took it).
+     Like an answer, the card closes into the line that says it went. */
+  function replying(id) {
+    var p = snap && snap.projects.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    delete sentLate[p.id]; sentNext = { p: p, words: 'Sent', at: Date.now() };
+  }
+  /* Swift: it could not go in the background, so the session comes forward with the words to paste. The line was early:
+     it goes without a word (the session in front, or Reply copied, says the rest). */
+  function replyHanded(id) {
+    if (sentNext && sentNext.p.id === id) sentNext = null;
+    if (act.mode === 'sent' && act.p && act.p.id === id) { clearTimeout(sentT); sentDone(); }
+  }
   /* Swift: that answer reached nothing (the request was settled or let go a moment before). The line says so, however far it got. */
   var sentLate = {};
   function notSent(id) {
@@ -2177,14 +2192,16 @@
     var a0 = q('.wn-a'), bare = function (x) { var o = JSON.parse(x); delete o.access; return JSON.stringify(o); };
     if (was && a0 && w.access && bare(was) === bare(sig)) { a0.outerHTML = wnAccess(w.access); return; }
     var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
-    var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
+    /* the fade sits on a still wrapper, not on the list that scrolls: a mask on the scroller itself makes WebKit repaint it
+       every frame of a scroll, and the lines judder behind the trackpad */
+    var list = rows.length ? '<div class="wn-lw rv mx-4 mt-1.5 overflow-hidden rounded-lg bg-black/[0.18]" style="--i:2"><div class="wn-l o-said-in max-h-[150px] overflow-y-auto px-3 py-1.5">' + rows.map(function (b) {
       return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
-    }).join('') + '</div>' : '';
+    }).join('') + '</div></div>' : '';
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
       '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
       '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
-    var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
+    var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
@@ -3515,7 +3532,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3597,9 +3614,10 @@
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { replying(snap.projects[snap.selected].id); setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
     /* without Accessibility the card stays, waiting for it; the words stay in the field */
     if (m.type === 'reply' && snap.canSend === false) { s.allowing = true; s.timerToken++; apply(s); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected]) replying(snap.projects[snap.selected].id);   /* the Claude app takes it in the background */
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */

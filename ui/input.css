@@ -372,7 +372,8 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .o-said .o-said-in { padding-top: 10px; padding-bottom: 10px; }
 .o-said-in { scrollbar-width: none; overscroll-behavior: contain; }
 .o-said-in::-webkit-scrollbar { display: none; }
-.o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
+/* the fade goes on the still box around a list that scrolls, never on the scroller: WebKit repaints a masked scroller every frame */
+.o-said.ov, .wn-lw.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
 /* a file dragged over the card (app.js dragOver, nwDragOver): the reply field, or the new session's prompt, lights up as where it goes */
 .f-rep .r-in.drop, .p-ns .nw-box.drop, .p-set .fb-box.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
 .f-rep .r-in.drop::placeholder, .p-ns .nw-box.drop .nw-in::placeholder, .p-set .fb-box.drop .fb-in::placeholder { color: rgba(255, 255, 255, .62); }
@@ -386,11 +387,11 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .md-tbl { max-height: 138px; overflow: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .md-tbl::-webkit-scrollbar { display: none; }
 /* a table taller than the message's window scrolls in its own, as tall as that window, its header staying put */
-.md-tbl[data-f] { --l: 0px; --r: 0px; --b: 0px;
+.md-tw[data-f] { --l: 0px; --r: 0px; --b: 0px;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
   mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
   -webkit-mask-composite: source-in; mask-composite: intersect; }
-.md-tbl[data-f~="l"] { --l: 24px; } .md-tbl[data-f~="r"] { --r: 24px; } .md-tbl[data-f~="b"] { --b: 16px; }
+.md-tw[data-f~="l"] { --l: 24px; } .md-tw[data-f~="r"] { --r: 24px; } .md-tw[data-f~="b"] { --b: 16px; }
 .md-tbl table { border-collapse: separate; border-spacing: 0; font-size: 12px; line-height: 17px; font-variant-numeric: tabular-nums; }
 .md-tbl th, .md-tbl td { padding: 2px 8px; text-align: left; vertical-align: top; white-space: nowrap; }
 /* the message's own colour (white at 5% on the card's black), so rows pass under it */

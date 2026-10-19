@@ -16,6 +16,17 @@ else:
     except ValueError:
         args = cmd.split()
     body = None
+    # A PR into another repo (the website's, say) has its own rules: only Perch's template is enforced here.
+    repo = None
+    for i, a in enumerate(args):
+        if a in ("--repo", "-R") and i + 1 < len(args):
+            repo = args[i + 1]
+        elif a.startswith("--repo=") or a.startswith("-R="):
+            repo = a.split("=", 1)[1]
+        elif a.startswith("-R") and len(a) > 2:
+            repo = a[2:]
+    if repo and "/".join(repo.rstrip("/").split("/")[-2:]).lower() != "asafofer/perch":
+        sys.exit(0)
 for i, a in enumerate(args):
     for flag in ("--body-file", "-F"):
         if a == flag and i + 1 < len(args):

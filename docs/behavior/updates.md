@@ -13,7 +13,7 @@
 ## Signing
 
 - A release build (`CONFIG=release ./scripts/run.sh`) is signed with a Developer ID certificate when the Mac has one, with the hardened runtime and `Resources/Perch.entitlements` (Apple Events, for the AppleScript that drives Terminal, iTerm2 and cmux).
-- Debug builds keep the self-signed "Perch Dev" certificate and no hardened runtime: that certificate has no team, and the hardened runtime then refuses to load Sparkle.
+- Test builds (`run.sh`) are signed with the Developer ID certificate when the Mac has one, without the hardened runtime and timestamp. A test build signed another way than the installed Perch took its permissions over (Documents, Accessibility) each time one or the other ran, so macOS asked again after every Allow. Without Developer ID they use the self-signed "Perch Dev" certificate and no hardened runtime: that certificate has no team, and the hardened runtime then refuses to load Sparkle.
 - Every release must be signed with the same Developer ID certificate, otherwise macOS asks for Accessibility again after the update (the move from "Perch Dev" to Developer ID does this once). How Perch says so: [Accessibility lost after an update](#accessibility-lost-after-an-update).
 
 ## Perch's own face
