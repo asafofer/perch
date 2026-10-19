@@ -1,4 +1,5 @@
 import AppKit
+import QuickLookThumbnailing
 import UniformTypeIdentifiers
 import PerchCore
 
@@ -44,7 +45,19 @@ enum AppIcons {
         if values?.contentType?.conforms(to: .image) == true, (values?.fileSize ?? .max) < 40_000_000, let picture = NSImage(contentsOf: url) {
             return dataURL(for: picture, points: 32, fill: true)
         }
+        // anything else Quick Look can show (a film's frame, a text file's first lines, a PDF's first page) as Finder draws it
+        if let thumb = quickLook(url) { return dataURL(for: thumb, points: 32, fill: true) }
         return dataURL(for: NSWorkspace.shared.icon(forFile: path), points: 32)
+    }
+
+    private final class Box: @unchecked Sendable { var image: NSImage? }
+    /// Quick Look's thumbnail of a file, waited for here (this runs off the main thread); nothing when it has none in time.
+    private static func quickLook(_ url: URL) -> NSImage? {
+        let req = QLThumbnailGenerator.Request(fileAt: url, size: CGSize(width: 32, height: 32), scale: 2, representationTypes: .thumbnail)
+        let box = Box(), done = DispatchSemaphore(value: 0)
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: req) { rep, _ in box.image = rep?.nsImage; done.signal() }
+        _ = done.wait(timeout: .now() + 1.5)
+        return box.image
     }
 
     /// The design page's stand-ins for attachments, by kind (file.png, file.pdf, ...): this Mac's own icons, and for a

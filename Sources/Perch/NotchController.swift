@@ -132,6 +132,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // A card that offers Reply (one asking you something has no field to drop into), or a new session's prompt.
         web.takesFiles = { [weak self] in
             if self?.machine.phase == .newSession { return true }
+            if self?.machine.phase == .settings { return self?.feedbackOpen == true }   // Send feedback's field
             guard let self, self.machine.phase == .open, self.projects.indices.contains(self.machine.selected) else { return false }
             return self.projects[self.machine.selected].ask == nil
         }
@@ -139,7 +140,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             self?.web.evaluateJavaScript("window.perch && window.perch.dragOver(\(n), \(at.x), \(at.y))", completionHandler: nil)
         }
         web.onFiles = { [weak self] paths in
-            guard let self, self.machine.phase == .open || self.machine.phase == .newSession else { return false }
+            guard let self, self.machine.phase == .open || self.machine.phase == .newSession || (self.machine.phase == .settings && self.feedbackOpen) else { return false }
             // Dropped on the card: it takes the keyboard, as a click on it would, so you can type around the path.
             self.addPaths(paths); self.panel.makeKey(); return true
         }
@@ -737,6 +738,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         let old = machine.phase
         machine.send(event)
+        if machine.phase != .settings { setFeedbackOpen(false) }
         if machine.phase != old { phaseChanged(old, machine.phase) }
         push()
     }
@@ -964,7 +966,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSApp.activate(ignoringOtherApps: true)
             let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
             NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
-                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen { self.panel.makeKey() } } }
+                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen || self.feedbackOpen { self.panel.makeKey() } } }
             }
         } else {
             guard replyFrontFrom != nil else { return }
@@ -1168,6 +1170,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             else if body["action"] as? String == "said" { access.markSaid(); saveAccess(); push() }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
         case "settings": if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
+        case "feedbackOpen": setFeedbackOpen(body["open"] as? Bool ?? false)
+        case "feedback":
+            let info = body["info"] as? Bool ?? true
+            FeedbackSender.send(text: body["text"] as? String ?? "", email: body["email"] as? String ?? "", paths: body["files"] as? [String] ?? [],
+                                version: info ? UISnapshot.appVersion : nil, macOS: info ? UISnapshot.macOSVersion : nil) { [weak self] ok in
+                self?.web.evaluateJavaScript("window.perch && window.perch.feedbackSent(\(ok))", completionHandler: nil)
+            }
+        case "feedbackMail":
+            // Mail comes forward with the message; Perch steps aside
+            let info = body["info"] as? Bool ?? true
+            FeedbackSender.mail(text: body["text"] as? String ?? "", paths: body["files"] as? [String] ?? [],
+                                version: info ? UISnapshot.appVersion : nil, macOS: info ? UISnapshot.macOSVersion : nil)
+            // Mail is in front now with the message: the app you were in is not brought back over it
+            replyFrontFrom = nil; replyBack = nil; feedbackOpen = false; send(.dismiss)
+        case "feedbackAttach": chooseFiles()
         case "setting":
             if let key = body["key"] as? String {
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
@@ -1479,16 +1496,57 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
-    /// Files dropped on the card or pasted from Finder: attached to the reply (which opens for them if it can) or the new
-    /// session's prompt. Their icons follow a moment later, read off the main thread (a picture is a thumbnail of it).
+    /// Files dropped on the card or pasted from Finder: attached to the reply (which opens for them if it can), the new
+    /// session's prompt, or Send feedback. Their icons follow a moment later, read off the main thread (a picture is a
+    /// thumbnail of it); for feedback, first the size each goes at, so the page can say what will not fit.
     private func addPaths(_ paths: [String]) {
-        guard let data = try? JSONEncoder().encode(paths), let json = String(data: data, encoding: .utf8) else { return }
+        let feedback = machine.phase == .settings
+        // feedback goes by email, which takes files, not folders
+        let paths = feedback ? paths.filter { (try? URL(fileURLWithPath: $0).resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory != true } : paths
+        guard !paths.isEmpty, let data = try? JSONEncoder().encode(paths), let json = String(data: data, encoding: .utf8) else { return }
         web.evaluateJavaScript("window.perch && window.perch.paths(\(json))", completionHandler: nil)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            if feedback {
+                var sizes: [String: Int] = [:]
+                for p in paths { sizes[p] = FeedbackSender.size(p) }
+                if let data = try? JSONEncoder().encode(sizes), let json = String(data: data, encoding: .utf8) {
+                    DispatchQueue.main.async { MainActor.assumeIsolated { self?.web.evaluateJavaScript("window.perch && window.perch.fileSizes(\(json))", completionHandler: nil) } }
+                }
+            }
             var icons: [String: String] = [:]
             for p in paths { icons[p] = AppIcons.file(p) }
             guard let data = try? JSONEncoder().encode(icons), let json = String(data: data, encoding: .utf8) else { return }
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.web.evaluateJavaScript("window.perch && window.perch.fileIcons(\(json))", completionHandler: nil) } }
+        }
+    }
+
+    /// Send feedback is open: its fields have the keyboard (the page says when it opens and closes), and Perch is the app
+    /// in front, as for a reply, so the Mac's file picker can come forward and a launcher's paste lands in the field.
+    private var feedbackOpen = false
+    private func setFeedbackOpen(_ on: Bool) {
+        guard on != feedbackOpen else { return }
+        feedbackOpen = on
+        if !replyOpen { frontForReply(on) }
+        if on { panel.makeKey() }
+    }
+    /// Attach on Send feedback: the Mac's own picker, any number of files.
+    private func chooseFiles() {
+        pickingUntil = .distantFuture
+        let p = NSOpenPanel()
+        p.canChooseDirectories = false; p.canChooseFiles = true; p.allowsMultipleSelection = true; p.prompt = "Attach"
+        p.directoryURL = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Desktop")
+        NSApp.activate(ignoringOtherApps: true)
+        // macOS may not let Perch become the app in front from a key in its panel: the picker comes up over whatever is in
+        // front anyway, with the keyboard, rather than open behind it unseen
+        defer { p.orderFrontRegardless(); p.makeKey() }
+        p.begin { [weak self] r in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.pickingUntil = Date().addingTimeInterval(1.5)
+                NSApp.activate(ignoringOtherApps: true); self.panel.makeKey()
+                guard r == .OK, self.machine.phase == .settings else { return }
+                self.addPaths(p.urls.map(\.path))
+            }
         }
     }
 
@@ -1802,6 +1860,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if self.machine.phase == .settings {
                 // The shortcut that opened Settings closes it, as Esc does.
                 if e.modifierFlags.contains(.command), KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "," { self.send(.back); return nil }
+                // Send feedback: its fields take the keys (the page goes back on Esc). Perch has no Edit menu, so Command+V and
+                // friends are sent to the field here; a file copied in Finder or a picture on the clipboard is attached.
+                if self.feedbackOpen {
+                    let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                    if flags == .command, KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "o" { self.chooseFiles(); return nil }   // Attach
+                    let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
+                    if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
+                        if action == "paste:", let paths = Clipboard.pastedFiles() { self.addPaths(paths); return nil }
+                        NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
+                    }
+                    return e
+                }
                 // Settings works from the keyboard: arrows choose a row, Return or Space changes it, Esc is Done (or closes the
                 // Apps menu first; the page decides and says "back").
                 let keys: [UInt16: String] = [36: "enter", 76: "enter", 49: "enter", 123: "left", 124: "right", 125: "down", 126: "up"]
@@ -2010,7 +2080,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, waitingReply == nil, !wnHoldsForAccess else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.

@@ -158,7 +158,14 @@ struct UISnapshot: Encodable {
     /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports; =2 paints the shape Perch really draws.
     /// Either way any overhang past the hardware shows.
     var guide: String? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"]
-    var version: String? = {
+    /// The macOS this is, "26.1": Send feedback says it goes along, when you let it.
+    var macOS: String = UISnapshot.macOSVersion
+    var version: String? = UISnapshot.appVersion
+    static let macOSVersion: String = {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.patchVersion > 0 ? "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)" : "\(v.majorVersion).\(v.minorVersion)"
+    }()
+    static let appVersion: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
         return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short

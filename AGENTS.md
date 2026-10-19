@@ -29,6 +29,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   Shortcut            The shortcut that opens Perch, its rules, ModifierTap and ShortcutRecorder.
   ScreenTarget        Which screen Perch opens on (ShowOn: the mouse's, the active window's, or a display by its UUID), with fallbacks to the mouse; window-list rects to Cocoa's.
   NewSession          Starting a session from the notch: the agents on this Mac (Choice), the folders to offer, what it starts on, a terminal agent's command, and which scanned session is the new one (started).
+  Feedback            What Send feedback sends: the 4 MB limit for files, the email check, the subject, the multipart form.
   InstalledCopy       A test build's way back (its menu's Back to installed Perch): which other copy is the installed one.
   Place               Where a running agent lives (herdr pane, tmux pane, cmux surface, tab) from its environment; what a tmux server says (TmuxServer); which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
@@ -41,6 +42,7 @@ Sources/Perch       The AppKit shell.
   Terminals           Running agents from the process table (LiveSessions), going back to them (tab, herdr or tmux pane, cmux surface), typing into them.
   ClaudeComposer      A reply into a Claude app session through Accessibility, Claude's window left behind.
   NewSessionStarter   Starts a new session: the Claude or Codex app's own link with your words, then Send through Accessibility; or a terminal window running the agent.
+  FeedbackSender      Send feedback: posts it to the feedback function (pictures made smaller first), or opens Mail with it.
   Snapshot            The JSON Swift sends to the page. The page never decides anything.
   Preferences         UserDefaults: onboarded, character, enabled apps, idle minutes.
   HotkeyService       Carbon hotkeys and the Command+Option tap (needs Accessibility).
@@ -51,6 +53,7 @@ ui/                 The interface, plain JS and Tailwind v3 (shadcn-style classe
   orbs.js             Thinking Orbs (thinkingorbs.com, MIT), vendored as a plain script: the orb beside a working step.
   design.html         The design page. Scenarios for every state; the Motion category plays each small motion.
   motion.html         Before and after of each motion taken from transitions.dev, the page they were approved on.
+feedback/           The Vercel function Send feedback posts to; it emails the message through Resend (feedback/README.md).
 ```
 
 Data flow: Swift decides state (`NotchMachine`), builds a `UISnapshot`, calls `window.perch.apply(json)`. The page draws and posts events (`confirm`, `snooze`, `reply`, `settings`, `onb`, `character`, `source`, `setting`, ...). Handle new events in `NotchController.userContentController`.
@@ -68,6 +71,7 @@ Before changing an area, read its file in `docs/behavior/`:
 - [speaking-up.md](docs/behavior/speaking-up.md): the session you are in, the live activity, Sent, the welcome card.
 - [keyboard.md](docs/behavior/keyboard.md): the shortcut that opens Perch, and when a card takes the keyboard.
 - [displays.md](docs/behavior/displays.md): which screen Perch shows on, hover, displays without a notch.
+- [settings.md](docs/behavior/settings.md): the Settings list and its pages, their keys, Send feedback and where it goes.
 - [updates.md](docs/behavior/updates.md): Sparkle, signing, What's new, update errors, Accessibility lost after an update.
 
 ## Running and building
@@ -110,7 +114,7 @@ Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello)
 - Tailwind classes are generated from strings in `app.js`. Rebuild CSS after adding classes.
 - macOS TCC permissions are tied to the code signature: a test build signed another way than the installed Perch takes its permissions over, and macOS asks again after every Allow, so `run.sh` signs with Developer ID when the Mac has it. Without it or the "Perch Dev" certificate the app is signed ad hoc and macOS asks again after every build. An update signed another way drops Accessibility without a word ([updates.md](docs/behavior/updates.md)).
 - Accessibility is needed for Command+Option and for pasting replies. `AXIsProcessTrusted()` can lag after granting; onboarding offers a restart.
-- The panel is one fixed transparent window (480 x 440 plus a 10 pt overscan above the screen). Cards must fit inside it, the settings and onboarding cards too. Settings rows are 30 pt apart whatever shows (378 pt with ten rows, 438 with all twelve: an external display and no Accessibility), so adding a row needs the panel to grow. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
+- The panel is one fixed transparent window (480 x 440 plus a 10 pt overscan above the screen). Cards must fit inside it, the settings and onboarding cards too. Settings is a list of pages, each as tall as its rows: the list 288 pt (318 without Accessibility), Notifications 362, General 371 with three displays and an external one (each more display adds 30), Send feedback up to 394 with its field full, files and a line in orange. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
 - Self-signed and ad-hoc builds cannot register for launch at login reliably.
 - Opening a notch app over full-screen apps depends on window level and collection behavior; see `NotchPanel`.
 - Hooks only change behaviour once installed (Settings, Live status). Codex skips a new hook until you trust it once. Never write to `~/.claude/settings.json` or `~/.codex/hooks.json` except through `HookInstaller`, which only touches its own entries; for OpenCode and pi it writes and removes only its own file (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`, first line `// Perch:`). An installed plugin file is written again at launch when this Perch carries a newer one (`HookInstaller.upgrade`). Try the installer with `PERCH_HOME=<folder> .build/debug/Perch --install-hooks`, and a plugin against a stand-in socket before it reaches real config.
