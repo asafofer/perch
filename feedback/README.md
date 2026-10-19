@@ -13,8 +13,10 @@ files on the card and, while that switch is on, Perch's and macOS's versions; th
    - `FEEDBACK_TO`: your inbox.
    - `FEEDBACK_FROM` (optional): a sender on a domain you verified in Resend, like `Perch feedback <feedback@yourdomain>`.
      Without it, mail comes from `onboarding@resend.dev`, which Resend lets you send only to your own account's email.
-4. A rate limit (Vercel: Firewall, Rate Limiting): `/api/feedback`, POST, a handful per IP per minute. The address is
-   in the app, so anyone can post to it.
+4. Two firewall rules (Vercel: Firewall), since the address is in the app and anyone can post to it:
+   - `Feedback: Perch only`: deny `/api/feedback` when the User-Agent does not start with `Perch/` (Perch sends
+     `Perch/<version>`; the function checks the same).
+   - `Feedback: 5 per IP per minute`: `POST /api/feedback`, rate limit 5 per 60 s by IP, answering 429.
 5. Deploy to production. If the URL is not `https://perch-feedback.vercel.app/api/feedback`, change
    `FeedbackSender.endpoint` in `Sources/Perch/FeedbackSender.swift`. `PERCH_FEEDBACK_URL` overrides it for one run.
 
@@ -40,5 +42,5 @@ logs), 503 not set up. Perch shows anything but 200 as Couldn't send, with Email
 
 ## Try it
 
-`npm install`, then `npm run check` type-checks. To see the email without sending one, run the handler with `fetch`
+`npm install`, then `npm run check` type-checks. A request by hand needs Perch's User-Agent: `curl -A Perch/0.0 ...`. To see the email without sending one, run the handler with `fetch`
 stubbed, or point a test build at a `vercel dev` here: `PERCH_FEEDBACK_URL=http://localhost:3000/api/feedback`.

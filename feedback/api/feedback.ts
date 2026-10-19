@@ -12,7 +12,12 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/
 
 const say = (status: number, error: string) => Response.json({ ok: false, error }, { status })
 
+// Only Perch posts here, and it says so in its User-Agent ("Perch/0.5.0"). Two Vercel firewall rules stand in front:
+// "Feedback: Perch only" turns anything else away, and "Feedback: 5 per IP per minute" answers 429 past that. This
+// check is the same first rule again, for when the firewall is not there (a preview, `vercel dev`).
 export async function POST(request: Request) {
+  if (!(request.headers.get('user-agent') ?? '').startsWith('Perch/')) return say(403, 'not Perch')
+
   const key = process.env.RESEND_API_KEY
   const to = process.env.FEEDBACK_TO
   if (!key || !to) return say(503, 'not set up')
