@@ -18,6 +18,18 @@ files on the card and, while that switch is on, Perch's and macOS's versions; th
 5. Deploy to production. If the URL is not `https://perch-feedback.vercel.app/api/feedback`, change
    `FeedbackSender.endpoint` in `Sources/Perch/FeedbackSender.swift`. `PERCH_FEEDBACK_URL` overrides it for one run.
 
+## hello@perchapp.dev
+
+Email it instead writes to `hello@perchapp.dev`. Resend receives mail for perchapp.dev (its MX records point at Resend)
+and calls `api/inbound.ts` through its `email.received` webhook; that sends it on to `FEEDBACK_TO` with its words,
+pictures and files, from "Dana via hello@perchapp.dev", Reply-To Dana. Resend keeps what it received, so a failed call
+can be replayed from its dashboard. It needs, besides the above:
+
+- `RESEND_INBOUND_KEY`: a Full access key (reading received mail needs it; `RESEND_API_KEY` only sends).
+- `RESEND_WEBHOOK_SECRET`: the signing secret of the webhook (Resend: Webhooks, endpoint `/api/inbound`, event
+  `email.received`). Calls without a valid signature get 400 or 401 and are never read.
+- perchapp.dev added in Resend with Receiving on, and its records in Vercel DNS (`vercel dns add perchapp.dev ...`).
+
 ## What it checks
 
 At most 6 files and 4 MB of them (a function takes 4.5 MB per request), 20,000 characters of words, something to send.

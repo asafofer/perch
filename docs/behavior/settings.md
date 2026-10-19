@@ -52,7 +52,8 @@ Version row's update states in [updates.md](updates.md).
   spinner, then a green check and Sent. Thank you, the card glowing green for a moment.
 - Not sent (offline, the function refused it): the row says Couldn't send in orange and the card glows orange. Open it and
   everything is there, with Try again and Email it instead.
-- Email it instead, beside a file too big or a failure, uses your own mail app (the one that opens mailto: links). Mail gets
+- Email it instead, beside a file too big or a failure, writes to `hello@perchapp.dev` (Resend receives it and the function's
+  `api/inbound.ts` sends it on, Reply-To the sender) and uses your own mail app (the one that opens mailto: links). Mail gets
   a new message (`NSSharingService` compose) with the words, the versions and the files as they are; any other app (a
   browser's Gmail, Spark) gets a mailto: link, which cannot carry files, so Finder shows them alongside to drag in. Perch
   steps aside and does not bring back the app you were in over it.

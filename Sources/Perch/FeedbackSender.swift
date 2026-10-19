@@ -12,8 +12,9 @@ enum FeedbackSender {
     static var endpoint: URL? {
         URL(string: ProcessInfo.processInfo.environment["PERCH_FEEDBACK_URL"] ?? "https://perch-feedback.vercel.app/api/feedback")
     }
-    /// Who Email it instead writes to. Empty, the message opens with no one in To, for you to fill in.
-    static let mailTo = ""
+    /// Who Email it instead writes to. Resend receives mail for perchapp.dev and the feedback function sends it on to the
+    /// maker of Perch (feedback/api/inbound.ts).
+    static let mailTo = "hello@perchapp.dev"
 
     /// The size a file goes at, for the page's limit: a picture's once made smaller, anything else its own.
     static func size(_ path: String) -> Int {
@@ -43,6 +44,8 @@ enum FeedbackSender {
             var req = URLRequest(url: url, timeoutInterval: 30)
             req.httpMethod = "POST"
             req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            // the function, and Vercel's firewall in front of it, take only what says it is Perch
+            req.setValue("Perch/" + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"), forHTTPHeaderField: "User-Agent")
             let body = Feedback.body(text: text, email: Feedback.isEmail(email) ? email.trimmingCharacters(in: .whitespaces) : nil,
                                      version: version, macOS: macOS, files: files, boundary: boundary)
             var ok = false
