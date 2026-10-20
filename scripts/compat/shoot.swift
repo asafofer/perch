@@ -24,7 +24,7 @@ func save(_ name: String, _ done: @escaping () -> Void) {
     }
 }
 
-func file(_ s: String) -> String { s.replacingOccurrences(of: "/", with: "--").replacingOccurrences(of: " ", with: "_").filter { $0.isASCII } }
+func file(_ s: String) -> String { s.replacingOccurrences(of: "/", with: "--").replacingOccurrences(of: ":", with: "").replacingOccurrences(of: " ", with: "_").filter { $0.isASCII } }
 
 func run(_ i: Int) {
     guard i < scenarios.count else {

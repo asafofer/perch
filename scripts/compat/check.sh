@@ -48,7 +48,7 @@ ls -la ~/.config/perch/perch.sock
 osascript -e 'tell application "System Events" to key code 36' >/dev/null 2>&1; sleep 3
 kill $HOOK 2>/dev/null; echo "hook answered: $(cat "$OUT/hook-answer.txt")"
 shot after-permission
-osascript -e 'tell application "System Events" to tell process "Perch" to get name of menu bar items of menu bar 2' 2>&1
+osascript -e 'tell application "System Events" to tell process "Perch" to get name of menu bar items of menu bar 1' 2>&1
 quit
 
 say Updates: an older version looks for one
@@ -58,8 +58,8 @@ codesign --force --deep --sign - "$OLD" >/dev/null 2>&1
 defaults write app.perch.mac SULastCheckTime -date "2020-01-01 00:00:00 +0000"
 open "$OLD"; sleep 20; alive; shot update-scheduled
 defaults read app.perch.mac SULastCheckTime 2>&1
-osascript -e 'tell application "System Events" to tell process "Perch" to click menu bar item 1 of menu bar 2' -e 'delay 1' \
-  -e 'tell application "System Events" to tell process "Perch" to click menu item "Check for updates…" of menu 1 of menu bar item 1 of menu bar 2' 2>&1
+osascript -e 'tell application "System Events" to tell process "Perch" to click menu bar item 1 of menu bar 1' -e 'delay 1' \
+  -e 'tell application "System Events" to tell process "Perch" to click menu item "Check for updates…" of menu 1 of menu bar item 1 of menu bar 1' 2>&1
 sleep 8; shot update-asked
 quit
 
