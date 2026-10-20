@@ -6,7 +6,7 @@ Thanks for wanting to help. Perch is small on purpose: the bar is polish and res
 
 ## Set up
 
-Perch runs on macOS 15 (Sequoia) or later. To build it you need a Mac on Apple silicon with Xcode 26 (Swift 6.2) and Node 20 or later.
+Perch runs on macOS 15 (Sequoia) or later. To build it you need a Mac on Apple silicon with Xcode 26 or later (Swift 6.2) and Node 20 or later.
 
 ```bash
 cd ui && npm install && cd ..       # once
