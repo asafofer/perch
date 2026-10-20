@@ -22,6 +22,7 @@ func save(_ name: String, _ done: @escaping () -> Void) {
     web.takeSnapshot(with: nil) { image, error in
         if let image, let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
             try? png.write(to: URL(fileURLWithPath: out + "/" + name + ".png"))
+            if png.count < 40_000 { print("blank? \(name)") }
         } else { print("snapshot failed: \(name) \(error?.localizedDescription ?? "")") }
         done()
     }
@@ -61,5 +62,16 @@ func run(_ i: Int) {
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: ready)
 }
 
-web.evaluateJavaScript("1") { _, _ in run(0) }
+// A fresh WebKit on a CI runner hands back blank snapshots for its first minute or so: warm up on the first scenario until
+// a snapshot has something in it, and say how long that took.
+let started = Date()
+func warm() {
+    web.takeSnapshot(with: nil) { image, _ in
+        let size = image?.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])?.count } ?? 0
+        if size > 40_000 || Date().timeIntervalSince(started) > 180 { print("warm after \(Int(Date().timeIntervalSince(started))) s"); run(0) }
+        else { DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: warm) }
+    }
+}
+web.load(URLRequest(url: URL(string: "\(base)/design.html?record&play=\(scenarios[0].addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)&hold=600")!))
+DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: warm)
 app.run()
