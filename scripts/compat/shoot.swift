@@ -16,7 +16,10 @@ let config = WKWebViewConfiguration()
 config.userContentController.addUserScript(WKUserScript(source: "window.__errs = []; addEventListener('error', function (e) { __errs.push(e.message + ' @' + e.lineno) }); addEventListener('unhandledrejection', function (e) { __errs.push('rejection: ' + e.reason) });", injectionTime: .atDocumentStart, forMainFrameOnly: true))
 let web = WKWebView(frame: win.contentView!.bounds, configuration: config)
 win.contentView!.addSubview(web)
+// In front of everything: WebKit stops painting a window macOS counts as hidden, and snapshots of it come back blank.
+win.level = .floating
 win.makeKeyAndOrderFront(nil)
+NSApp.activate(ignoringOtherApps: true)
 
 func save(_ name: String, _ done: @escaping () -> Void) {
     web.takeSnapshot(with: nil) { image, error in
