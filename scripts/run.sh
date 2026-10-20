@@ -9,8 +9,11 @@ swift build -c "$CONFIG"
 APP=build/Perch.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/ui"
-cp ".build/$CONFIG/Perch" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# SwiftPM records the SDK as the deployment target (15.0), which makes macOS 26 treat Perch as an older app and keep the old look
+# for its menus and alerts. Record the SDK it was really built with.
+vtool -set-build-version macos "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)" "$(xcrun --show-sdk-version)" \
+  -replace -output "$APP/Contents/MacOS/Perch" ".build/$CONFIG/Perch"
 # The build number is the commit count, so a build says which commit it came from (the list shows it at its foot).
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(git rev-list --count HEAD 2>/dev/null || echo 1)" "$APP/Contents/Info.plist"
 # A build that is not a release says so (menu bar, Settings): which branch and commit this running copy came from.
