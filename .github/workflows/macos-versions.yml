@@ -1,0 +1,44 @@
+name: macOS versions
+# Perch is built with the newest Xcode and runs on macOS 15 and later. This builds a release once and runs it on the oldest
+# and newest macOS, keeping what each saw (scripts/compat/check.sh) to compare. Run it after a change to the minimum macOS,
+# to Package.swift or to how the app is built; it runs by itself on a pull request that changes one of them.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: [Package.swift, Resources/Info.plist, scripts/run.sh, scripts/compat/**, .github/workflows/macos-versions.yml]
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: cd ui && npm ci
+      - run: CONFIG=release ./scripts/run.sh --package-only
+      - run: ditto -c -k --keepParent build/Perch.app Perch.zip
+      - uses: actions/upload-artifact@v6
+        with:
+          name: perch-app
+          path: Perch.zip
+  run:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: perch-app
+      - run: ditto -x -k Perch.zip build
+      - run: ./scripts/compat/check.sh build/Perch.app out
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: seen-on-${{ matrix.os }}
+          path: out

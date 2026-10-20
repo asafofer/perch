@@ -10,6 +10,13 @@
 - A test build (`PerchTestBuild`) and any `--fake`, `--demo` or `--snapshot` run never update.
 - Sparkle's version compare uses the build number, the commit count, so a release must be cut from a commit newer than the last.
 
+## Which macOS
+
+- Perch runs on macOS 15 and later: `LSMinimumSystemVersion` in `Resources/Info.plist` and `platforms` in `Package.swift` say so, and the two move together. Building needs Xcode 26 or later. An API newer than macOS 15 goes behind `if #available` with a fallback.
+- The appcast copies each release's minimum into its item, so a Mac older than a release is told so (`UpdateProblem.noUpdate`). Releases up to 0.4.5 asked for macOS 26.
+- SwiftPM records the SDK in the binary as the deployment target, which would make macOS 26 treat Perch as an older app and give its menus and alerts the old look. `run.sh` records the SDK it really built with (`vtool -set-build-version`).
+- The macOS versions workflow (`.github/workflows/macos-versions.yml`: by hand, and on a pull request that changes the floor or the build) builds a release and runs it on macOS 15 and 26 with `scripts/compat/check.sh`: onboarding, the card, a permission asked through the hook socket, an update check, and design-page scenarios filmed in that macOS's own WebKit. Its artifacts are the screenshots to compare.
+
 ## Signing
 
 - A release build (`CONFIG=release ./scripts/run.sh`) is signed with a Developer ID certificate when the Mac has one, with the hardened runtime and `Resources/Perch.entitlements` (Apple Events, for the AppleScript that drives Terminal, iTerm2 and cmux).

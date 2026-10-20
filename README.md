@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="macOS 26+" src="https://img.shields.io/badge/macOS-26%2B-black?logo=apple&logoColor=white">
+  <img alt="macOS 15+" src="https://img.shields.io/badge/macOS-15%2B-black?logo=apple&logoColor=white">
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-required-black">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
@@ -53,9 +53,9 @@ Perch never takes the keyboard unless you ask for it, and it stays quiet about t
 
 | Requirement | |
 |---|---|
-| macOS | 26 or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
+| macOS | 15 (Sequoia) or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
 | Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux and cmux included). |
-| To build | Xcode 26 and Node 20 or later. |
+| To build | Xcode 26 or later and Node 20 or later. |
 
 **Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications (the window shows you where). Perch is signed and notarized by Apple, so it opens like any app from the internet. After that Perch looks for a new version every hour and tells you with a quick peek in the notch; press Update (in the list, or click the peek) and it installs and restarts when nothing is on screen (the menu has Check for updates).
 
