@@ -1,11 +1,11 @@
 name: macOS versions
 # Perch is built with the newest Xcode and runs on macOS 15 and later. This builds a release once and runs it on the oldest
 # and newest macOS, keeping what each saw (scripts/compat/check.sh) to compare. Run it after a change to the minimum macOS,
-# to Package.swift or to how WebKit draws the page.
+# to Package.swift or to how the app is built; it runs by itself on a pull request that changes one of them.
 on:
   workflow_dispatch:
-  push:
-    branches: [claude/happy-albattani-0db076]
+  pull_request:
+    paths: [Package.swift, Resources/Info.plist, scripts/run.sh, scripts/compat/**, .github/workflows/macos-versions.yml]
 jobs:
   build:
     runs-on: macos-26
