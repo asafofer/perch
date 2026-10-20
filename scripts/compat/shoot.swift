@@ -11,7 +11,10 @@ try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectorie
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
-let web = WKWebView(frame: win.contentView!.bounds)
+// Errors the page throws, read back after each scenario: a script this WebKit cannot run shows up here, not as a blank shot.
+let config = WKWebViewConfiguration()
+config.userContentController.addUserScript(WKUserScript(source: "window.__errs = []; addEventListener('error', function (e) { __errs.push(e.message + ' @' + e.lineno) }); addEventListener('unhandledrejection', function (e) { __errs.push('rejection: ' + e.reason) });", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+let web = WKWebView(frame: win.contentView!.bounds, configuration: config)
 win.contentView!.addSubview(web)
 win.makeKeyAndOrderFront(nil)
 
@@ -34,16 +37,28 @@ func run(_ i: Int) {
     let s = scenarios[i]
     let q = s.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
     web.load(URLRequest(url: URL(string: "\(base)/design.html?record&play=\(q)&hold=60")!))
-    // Each frame a fixed time after the scenario starts playing (the page waits 300 ms before it plays).
-    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+    // Frames start once the page, its fonts and its wallpaper have loaded (a cold runner takes a while), plus a moment to play.
+    var waited = 0.0
+    func ready() {
+        web.evaluateJavaScript("document.readyState === 'complete' && document.fonts.status === 'loaded'") { r, _ in
+            if (r as? Bool) == true || waited > 30 { if waited > 30 { print("not loaded after 30 s: \(s)") }; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: shoot) }
+            else { waited += 0.25; DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: ready) }
+        }
+    }
+    func shoot() {
         var k = 0
         func next() {
-            guard k < frames.count else { return run(i + 1) }
+            guard k < frames.count else {
+                return web.evaluateJavaScript("window.__errs.join(' | ')") { e, _ in
+                    print("\(s): loaded in \(waited) s\((e as? String).map { $0.isEmpty ? "" : ", errors: " + $0 } ?? "")"); run(i + 1)
+                }
+            }
             let at = frames[k]; let prev = k == 0 ? 0 : frames[k - 1]; k += 1
             DispatchQueue.main.asyncAfter(deadline: .now() + (at - prev)) { save("\(file(s))@\(at)", next) }
         }
         next()
     }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: ready)
 }
 
 web.evaluateJavaScript("1") { _, _ in run(0) }
