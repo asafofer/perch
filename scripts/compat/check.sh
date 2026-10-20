@@ -58,8 +58,10 @@ codesign --force --deep --sign - "$OLD" >/dev/null 2>&1
 defaults write app.perch.mac SULastCheckTime -date "2020-01-01 00:00:00 +0000"
 open "$OLD"; sleep 20; alive; shot update-scheduled
 defaults read app.perch.mac SULastCheckTime 2>&1
-osascript -e 'tell application "System Events" to tell process "Perch" to click menu bar item 1 of menu bar 1' -e 'delay 1' \
-  -e 'tell application "System Events" to tell process "Perch" to click menu item "Check for updates…" of menu 1 of menu bar item 1 of menu bar 1' 2>&1
+# The status menu open: on macOS 26 it should have the current look (run.sh records the real SDK).
+osascript -e 'tell application "System Events" to tell process "Perch" to click menu bar item 1 of menu bar 1' 2>&1
+sleep 1; shot status-menu
+osascript -e 'tell application "System Events" to tell process "Perch" to click menu item "Check for updates…" of menu 1 of menu bar item 1 of menu bar 1' 2>&1
 sleep 8; shot update-asked
 quit
 
