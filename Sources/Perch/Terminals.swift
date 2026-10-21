@@ -190,6 +190,8 @@ enum Terminals {
 
     /// Types a line into what runs this session and presses Return, without bringing it forward, the clipboard or
     /// Accessibility: a herdr or tmux pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder. False where it cannot.
+    /// Return goes a moment after the words, as for tmux: Codex takes words that arrive at once as a paste, and a Return
+    /// inside a paste is a new line, not Send. Terminal cannot type without its own Return, so Codex gets one more, alone.
     static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
         switch live.place {
         case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
@@ -206,7 +208,7 @@ enum Terminals {
               repeat with w in windows
                 repeat with t in tabs of w
                   if tty of t is \(tty) then
-                    do script \(text) in t
+                    do script \(text) in t\(live.agent == Agent.codex.id ? "\n                    delay 0.3\n                    do script \"\" in t" : "")
                     return "ok"
                   end if
                 end repeat
@@ -220,7 +222,9 @@ enum Terminals {
                 repeat with t in tabs of w
                   repeat with s in sessions of t
                     if tty of s is \(tty) then
-                      tell s to write text \(text)
+                      tell s to write text \(text) newline no
+                      delay 0.1
+                      tell s to write text \"\"
                       return "ok"
                     end if
                   end repeat
@@ -234,7 +238,9 @@ enum Terminals {
             tell application "\(name)"
               set hits to (every terminal whose working directory is \(cwd))
               if (count of hits) is 0 then return "no"
-              input text \(appleQuote(line + "\r")) to item 1 of hits
+              input text \(text) to item 1 of hits
+              delay 0.1
+              input text \(appleQuote("\r")) to item 1 of hits
               return "ok"
             end tell
             """
