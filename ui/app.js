@@ -555,7 +555,7 @@
     if (was === on && key === saidKey) return;
     var box = q('.o-said-in'), sel = window.getSelection();
     /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
-    if (was && on && sel && !sel.isCollapsed && box.contains(sel.anchorNode)) return;
+    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) return;
     /* drawn again in place: where your message was, and the words that were already there */
     var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
     saidKey = key;
