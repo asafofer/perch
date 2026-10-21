@@ -1066,6 +1066,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     tabs.querySelectorAll(':scope > button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
+  /* ?c=<category>&s=<scenario> opens that scenario, so a link can point straight at it. Either can be the name as written or
+     its slug ("claude-app-spike", "cowork-finished"); a scenario without its category is looked for everywhere. Choosing
+     a scenario puts its own link in the address bar. Not while a demo plays or films (?play, ?record). */
+  function slug(t) { return String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  var filming = /[?&](play|record)\b/.test(location.search);
+  function linkTo(c, sc) {
+    if (filming || !history.replaceState) return;
+    history.replaceState(null, '', location.pathname + '?c=' + slug(c) + '&s=' + slug(sc) + location.hash);
+  }
   /* each category's scenarios in alphabetical order */
   var newest = GROUPS.map(function (g) { return g[1][0]; });
   GROUPS.forEach(function (g) { g[1].sort(function (a, b) { return a[0].localeCompare(b[0], 'en', { sensitivity: 'base', numeric: true }); }); });
@@ -1077,7 +1086,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       b.innerHTML = '<b>' + s[0] + '</b>';
       /* a scenario says what it shows in its first sentence; the rest was detail */
       var says = s[1].split(/(?<=[.!?])\s/)[0];
-      b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; };
+      b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; linkTo(g[0], s[0]); };
       btns.push(b); box.appendChild(b);
     });
     wrap.appendChild(box);
@@ -1087,7 +1096,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
      whatever the sorting puts first) */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
   /* a demo being filmed (?play=) starts on its own scenarios: this one's timers would play over them */
-  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click();
+  var qp = new URLSearchParams(location.search), qc = qp.get('c'), qs = qp.get('s'), hit = null;
+  if ((qc || qs) && !filming) GROUPS.some(function (g, gi) {
+    if (qc && slug(g[0]) !== slug(qc)) return false;
+    var si = qs ? g[1].findIndex(function (x) { return slug(x[0]) === slug(qs); }) : g[1].indexOf(newest[gi]);
+    if (si >= 0) hit = [gi, si];
+    return !!hit;
+  });
+  if (hit) { showTab(hit[0]); boxes[hit[0]].children[hit[1]].click(); }
+  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
