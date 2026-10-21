@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Minimal: review comments on the code and little else. The PR body stays on the template (pr-body.yml).
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: false
+  review_status: false
+  review_info: false
+  review_details: false
+  review_progress: false
+  collapse_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  assess_linked_issues: false
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  suggested_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  slop_detection:
+    enabled: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+  tools:
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!ui/dist/**"
+    - "!ui/wallpapers/**"
+    - "!ui/orbs.js"
+    - "!Package.resolved"
+    - "!release-notes/**"
+  path_instructions:
+    - path: "Sources/PerchCore/**"
+      instructions: "Pure logic with no UI. Flag any AppKit, WebKit or UI import, and logic that is not covered by Tests/."
+    - path: "Sources/Perch/**"
+      instructions: "AppKit shell. Swift decides state and builds the snapshot; the page never decides anything. Watch for main-thread blocking and Accessibility misuse."
+    - path: "ui/app.js"
+      instructions: "Must be ASCII only. Rendering only: it draws the snapshot and posts events, it must not hold app logic."
+    - path: "docs/behavior/**"
+      instructions: "Check the doc still matches the code change in the same PR."
+chat:
+  art: false
+  auto_reply: true
