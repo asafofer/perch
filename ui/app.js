@@ -547,16 +547,23 @@
     if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
+  var saidKey = '';
   function showSaid(open) {
-    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && p.said);
-    if ((pane.dataset.rep === '1') === on) return;
+    /* a first message with nothing said back yet opens it too, with only your words */
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && (p.said || p.asked));
+    var key = on ? [p.id, p.said, p.asked, !!p.askedLast].join('\u0001') : '', was = pane.dataset.rep === '1';
+    if (was === on && key === saidKey) return;
+    var box = q('.o-said-in'), sel = window.getSelection();
+    /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
+    if (was && on && sel && !sel.isCollapsed && box.contains(sel.anchorNode)) return;
+    saidKey = key;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '';
+    if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
       /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
-      box.innerHTML = p.askedLast ? mdBlock(p.said) + you : you + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
     if (snap && lastSt === 'open') layout('open', snap);
-    if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
+    if (on && !was && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
@@ -917,6 +924,7 @@
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+    if (repOn) showSaid(true);   /* an open reply follows the snapshot: its answer arriving, your message moving up */
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -3847,6 +3855,8 @@
         autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      /* the next refresh of the same card, a reply left open as it is */
+      refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other

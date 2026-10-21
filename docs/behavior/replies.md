@@ -4,7 +4,7 @@ Selecting and copying the agent's words is in [card.md](card.md). Replies into h
 
 ## What the reply shows
 
-- The agent's own last message as written (`Project.said`, line breaks kept), with your own last message above it as a bubble, a scroll up (`Project.asked`). A message it has not answered yet (sent, and it is working on it) goes below instead, so the reply opens on it (`askedLast`).
+- The agent's own last message as written (`Project.said`, line breaks kept), with your own last message above it as a bubble, a scroll up (`Project.asked`). A message it has not answered yet (sent, and it is working on it) goes below instead, so the reply opens on it (`askedLast`); with nothing said back yet at all, the box holds only yours. An open reply follows each refresh: when the answer lands, it takes the box and yours moves above it (never while you are selecting words there).
 - While it works, the step it is on stays under the message, orb and shimmer as on the card (`.o-nx.live`).
 - Markdown (`mdLines`): a table scrolls in its own window both ways, header kept (`mdTable`). Bullet (`-`, `*`, `•`) and numbered lists draw with grey markers. Code takes the character's colour (`.md-code`, `--cr`). Deeper indents nest, an indented line carries on its item, a list may follow a bold line with no blank line, and a `#` heading is a bold line.
 
