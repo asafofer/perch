@@ -1685,7 +1685,7 @@
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'access') { renderAccess(p.access); return; }
-    if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
+    if (k === 'run') body = '<span class="act-cmd">' + esc(a.brief || a.subject || 'a command') + '</span>';   /* the command without its output plumbing (Ask.brief); the card shows it all */
     else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q" data-a="card" title="Show it all">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);

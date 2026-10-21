@@ -68,6 +68,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var asked: String?
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
+    /// Its transcript ends on a tool call with no result yet: running, or waiting for your OK.
+    public var toolOpen = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
@@ -78,6 +80,17 @@ public struct Project: Identifiable, Equatable, Sendable {
     }
 
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
+
+    /// A terminal session no process runs any more (the scan found none): a tool call it left open waits on no one, so it
+    /// is neither asking you anything nor at work. Sample data (no session id) is left as it is.
+    public func agentGone() -> Project {
+        guard terminal, pid == nil, sessionId != nil, needsAttention || status.kind == "running", ask != nil || toolOpen else { return self }
+        if ask?.answerable == true { return self }   // held by its hook, which settles it when it goes
+        var p = self
+        p.agents = [AgentStatus(kind: .idle, text: "\(Agent.of(app).name) stopped mid-task", app: app)]
+        p.ask = nil; p.next = ""; p.now = nil
+        return p
+    }
 
     /// The one status worth showing: whatever needs you, else what finished, else idle.
     public var status: (kind: String, text: String, app: String) {
@@ -161,11 +174,20 @@ public enum ListFilter {
         return calendar.isDate(at, inSameDayAs: now) ? .today : .earlier
     }
     /// The rows that stay, in the order the list draws them: by section, newest first in each. Up and Down follow it.
+    /// Sessions at work lead their section and keep their places, newest begun first: each writes all the time, so by
+    /// last activity two of them would trade places on every refresh.
     public static func ordered(_ list: [Project], _ query: String, now: Date, calendar: Calendar = .current) -> [Int] {
         let rank: (Int) -> Int = { [.needsYou: 0, .today: 1, .earlier: 2][section(list[$0], now: now, calendar: calendar)] ?? 2 }
+        let working: (Int) -> Bool = { list[$0].status.kind == "running" }
         return shown(list, query).sorted { a, b in
             let ra = rank(a), rb = rank(b)
             if ra != rb { return ra < rb }
+            let wa = working(a), wb = working(b)
+            if wa != wb { return wa }
+            if wa {
+                let sa = list[a].startedAt ?? .distantPast, sb = list[b].startedAt ?? .distantPast
+                return sa != sb ? sa > sb : list[a].id < list[b].id
+            }
             let ta = list[a].lastActive ?? .distantPast, tb = list[b].lastActive ?? .distantPast
             return ta != tb ? ta > tb : a < b
         }

@@ -142,6 +142,23 @@ public struct Ask: Equatable, Sendable {
         return line.map { Recap.clip($0, 120) }
     }
 
+    static let shells: Set<String> = ["Bash", "bash", "shell", "exec_command", "local_shell", "container.exec"]
+
+    /// What the live activity's row says: a command without the plumbing that only shapes its output for the agent
+    /// (`2>&1`, `| tail -20`, `; echo "EXIT: $?"`). The card shows the command in full.
+    public var brief: String { kind == .permission && Ask.shells.contains(tool) ? Ask.plainCommand(subject) : subject }
+
+    /// `npm run build 2>&1 | tail -n 30; echo "EXIT: ${PIPESTATUS[0]}"` reads as `npm run build`. Only what trails the
+    /// command goes; a command that is nothing but plumbing is left as it is.
+    public static func plainCommand(_ command: String) -> String {
+        let trailing = [#"\s*;\s*echo\b[^;|&]*$"#, #"\s*\|\s*(tail|head)(\s+-{0,2}[\w=]+)*\s*$"#, #"\s+2>&1\s*$"#, #"\s+2>\s*/dev/null\s*$"#]
+        var c = command.trimmingCharacters(in: .whitespaces)
+        while let r = trailing.lazy.compactMap({ c.range(of: $0, options: .regularExpression) }).first, r.lowerBound > c.startIndex {
+            c.removeSubrange(r)
+        }
+        return c.isEmpty ? command : c
+    }
+
     /// A verb for the title and the thing it acts on, in plain words.
     static func describe(tool: String, input: [String: Any]) -> (String, String) {
         let path = ["file_path", "filePath", "path", "notebook_path"].lazy.compactMap { input[$0] as? String }.first
@@ -155,7 +172,7 @@ public struct Ask: Equatable, Sendable {
             return input["cmd"] as? String ?? ""
         }
         switch tool {
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec":
+        case _ where shells.contains(tool):
             let c = command().split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return ("run a command", Recap.clip(c.isEmpty ? (input["description"] as? String ?? "a command") : c, 140))
         case "Edit", "MultiEdit", "edit", "multiedit": return ("edit \(file(""))", path ?? "")
@@ -227,7 +244,11 @@ public struct LiveStatus: Equatable, Sendable {
         s.at = e.at
         switch e.kind {
         case .started: s.kind = .working; s.asks = []; s.outcome = nil
-        case .toolRan: s.asks = []; s.kind = .working
+        case .toolRan:
+            // OpenCode runs other tools while a request waits on you, and says when each request is answered (its plugin lets
+            // the held request go): a tool finishing beside it settles nothing.
+            s.asks.removeAll { !($0.agent == "opencode" && $0.answerable) }
+            s.kind = s.asks.isEmpty ? .working : .asking
         case .asks(let a): s.asks.removeAll { $0.id == a.id }; s.asks.append(a); s.kind = .asking
         case .finished(let m): s.kind = .finished; s.asks = []; s.outcome = m
         case .failed: s.kind = .failed; s.asks = []
@@ -252,6 +273,18 @@ extension LiveStatus {
         guard at >= (p.lastActive ?? .distantPast).addingTimeInterval(-30) else { return false }
         if let stop = p.stoppedAt, stop.addingTimeInterval(2) >= at { return false }
         return true
+    }
+}
+
+extension LiveStatus {
+    /// What still stands once the agent that asked is gone (a terminal session no process runs any more): its requests wait
+    /// on no one, so they settle. A held request (OpenCode's) settles by itself when its hook goes away. Nil: nothing stands,
+    /// and the transcript says how the session was left.
+    public func agentGone() -> LiveStatus? {
+        guard kind == .asking else { return self }
+        var s = self
+        s.asks.removeAll { !$0.answerable }
+        return s.asks.isEmpty ? nil : s
     }
 }
 

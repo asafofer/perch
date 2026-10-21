@@ -592,8 +592,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Live hook status over the transcript's guess, then what needs you first.
     private func decorate(_ list: [Project]) -> [Project] {
         let withLive = list.map { p -> Project in
-            guard let l = live[p.sessionId ?? p.id], l.holds(for: p) else { return p }
-            return p.applying(l)
+            let key = p.sessionId ?? p.id
+            // A terminal session no process runs: what it asked waits on no one, and does not come back if it is resumed.
+            if p.terminal, p.pid == nil, p.sessionId != nil, let l = live[key] { live[key] = l.agentGone() }
+            guard let l = live[key], l.holds(for: p) else { return p.agentGone() }
+            return p.applying(l).agentGone()
         }
         let since = newsSince
         let settled = withLive.map { $0.settled(since: since) }

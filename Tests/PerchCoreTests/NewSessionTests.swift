@@ -78,4 +78,22 @@ import Testing
         n.send(.openNew); n.send(.back); #expect(n.phase == .idle)
         n.send(.openNew); n.send(.dismiss); #expect(n.phase == .idle)
     }
+
+    @Test func findsTheClaudeProjectForAFolder() {
+        let presets = Data("""
+        {"byAccount": {"a": {"presets": [
+          {"id": "1", "name": "perch", "lastUsedAt": 10, "target": {"kind": "local", "cwd": "/u/perch"}},
+          {"id": "2", "name": "Law scheduling", "lastUsedAt": 5, "target": {"kind": "local", "cwd": "/u/Business/law-scheduling/"}},
+          {"id": "3", "name": "perch again", "lastUsedAt": 20, "target": {"kind": "local", "cwd": "/u/perch"}},
+          {"id": "4", "name": "site cloud", "target": {"kind": "cloud", "cwd": "/u/site"}}
+        ]}}}
+        """.utf8)
+        // the most recently used of the projects on that folder
+        #expect(NewSession.claudeProject(for: "/u/perch", presets: presets) == "perch again")
+        #expect(NewSession.claudeProject(for: "/u/Business/law-scheduling", presets: presets) == "Law scheduling")
+        // only one on this Mac; none for the folder; not Claude's file
+        #expect(NewSession.claudeProject(for: "/u/site", presets: presets) == nil)
+        #expect(NewSession.claudeProject(for: "/u/other", presets: presets) == nil)
+        #expect(NewSession.claudeProject(for: "/u/perch", presets: Data("nope".utf8)) == nil)
+    }
 }

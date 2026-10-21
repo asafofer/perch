@@ -25,7 +25,7 @@ Every PR is read by the owner deciding whether to merge and by agents reviewing 
    - Checks: tick only what you ran; give the test count.
    - Leave `<!-- demo -->` and `<!-- /demo -->` in place; the script fills between them.
    End the body with the attribution line the session asks for, if any.
-5. **Open it:** `gh pr create --title "<sentence-case title>" --body-file <file>` (the hook checks the body).
+5. **Open it:** `gh pr create --title "<sentence-case title>" --body-file <file>` (the hook checks the body). The hook reads the file before the command runs, so write it in an earlier step, never in the same command.
 6. **Publish the demo:** `./scripts/pr-demo.sh --publish [names...]`. It pushes the media to the `pr-media` branch
    (never main) and writes the Demo section into the PR. Open the PR page and check the GIF and stills render.
 7. Later commits that change what is shown: run step 6 again; it replaces that PR's media and Demo section.
