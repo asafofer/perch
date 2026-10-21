@@ -547,7 +547,7 @@
     if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
-  var saidKey = '';
+  var saidKey = '', saidLater = false;   /* a redraw held for a selection, made when it ends (selCheck) */
   function showSaid(open) {
     /* a first message with nothing said back yet opens it too, with only your words */
     var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && (p.said || p.asked));
@@ -555,10 +555,10 @@
     if (was === on && key === saidKey) return;
     var box = q('.o-said-in'), sel = window.getSelection();
     /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
-    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) return;
+    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) { saidLater = true; return; }
     /* drawn again in place: where your message was, and the words that were already there */
     var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
-    saidKey = key;
+    saidKey = key; saidLater = false;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
     if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
@@ -2431,6 +2431,7 @@
     if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
     if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
     hlDraw();
+    if (saidLater && (!s || s.isCollapsed) && repOn) showSaid(true);
   }
   document.addEventListener('selectionchange', selCheck);
   document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
