@@ -248,14 +248,18 @@
       prTip.innerHTML = list.map(function (pr) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
-        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="tabular-nums text-muted-foreground">\u00b7 ' + repo + '#' + pr.number + '</span></div></div>';
-        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span></div>';
+        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div></div>';
+        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div>';
       }).join('');
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
       /* below the icon, right edges together; above it when there is no room below */
-      var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
-      prTip.style.left = Math.max(6, Math.min(r.right - tw + 4, innerWidth - tw - 6)) + 'px';
-      prTip.style.top = (r.bottom + 6 + th > innerHeight - 6 ? r.top - th - 6 : r.bottom + 6) + 'px'; prTip.classList.add('on');
+      /* inside the card, whatever the page around it: the panel is the notch's width */
+      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.maxWidth = Math.min(340, nb.width - 16) + 'px';
+      var tw = prTip.offsetWidth, th = prTip.offsetHeight;
+      prTip.style.left = Math.max(nb.left + 8, Math.min(r.right - tw + 4, nb.right - tw - 8)) + 'px';
+      /* below the icon; above it when that is where the room is; else held inside the card */
+      var below = r.bottom + 6, above = r.top - th - 6, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
+      prTip.style.top = top + 'px'; prTip.classList.add('on');
     };
     el.onmouseleave = function () { prTip.classList.remove('on'); };
     el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
