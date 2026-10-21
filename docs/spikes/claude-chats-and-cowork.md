@@ -77,7 +77,33 @@ inside the panel.
    wrapping). If it changes, chats quietly disappear (there are tests for a damaged blob), and nothing else breaks.
    Cowork's layout is plain JSON next to Claude Code's own format, so it's much less likely to break.
 
+## Tested live (2026-10-21, 18:07 to 18:12)
+
+One new Cowork task (fetch example.com, then ask a colour question), one chat ("pong"), with every file change under
+`~/Library/Application Support/Claude` and every Perch hook call timed.
+
+| Claim | Result |
+|---|---|
+| Cowork writes a transcript on disk as it runs | **Wrong for new tasks.** Nothing changed in `local-agent-mode-sessions`. New tasks are `cse_…` sessions the app lists from the server; `local-agent-mode-sessions` holds only the old (June) ones, and the app's own `cowork-local-sessions` list is now empty. |
+| Where new Cowork tasks show up | claude.ai's persisted cache, the same blob as the chat list: query `cowork-remote-sessions` with `title`, `isRunning`, `liveStatus`, `lastActivityAt`, `unread`, `isArchived`, `userSelectedFolders`. Cached 3 s after the task's last activity. |
+| What a Cowork task said | Cached in LevelDB (`000118.log`) as `cowork:cse_…`, the task's event stream with its final `result` ("The page title is **\"Example Domain\"**. For your colour, you chose **Blue**."). Needs a LevelDB reader. |
+| Perch's hooks don't reach Cowork | **Holds.** No hook ran during the task. |
+| Cowork doesn't record the task in front of you | **Holds, but there's something better.** No `lastFocusedAt`. Each task carries the app's own `unread` flag instead, false once you've looked at it. |
+| A chat reaches the cached list quickly | **Holds** while the app is open: "Pong response" was cached at the second its reply finished. |
+| A chat's words get cached | **Holds** for a chat you've just had: "pong" is in LevelDB's log. Again, it needs the LevelDB reader. |
+| Scheduled runs each become a task | **Not tested.** The shortest repeat is hourly. |
+
+What this changes:
+
+- **Read Cowork from the chat cache, not `local-agent-mode-sessions`.** The blob Perch already decodes has the task list
+  with its status (`isRunning`, `liveStatus`, `unread`). The prototype's on-disk Cowork reader only finds old tasks.
+- **For the words of either one** (a task's result, a chat's last reply), Perch needs a small read-only LevelDB reader
+  (log and table files) for `https_claude.ai_0.indexeddb.leveldb`. It covers what was open on this Mac lately.
+- **`unread` can decide whether Perch speaks up** about a Cowork task, which answers the "task you're watching" problem.
+- The cache also lists Claude Code cloud sessions (`sessions_api_list_sessions`: from the phone, with `status_bucket`
+  and `unread`). They're another possible source, out of scope here.
+
 ## Recommendation
 
-Ship Cowork (on by default). Ship chats only behind the switch, off by default, or leave them out until question 2 has an
+Ship Cowork (on by default), read from `cowork-remote-sessions` (see Tested live). Ship chats only behind the switch, off by default, or leave them out until question 2 has an
 answer. The behaviour docs (`sessions.md`, `settings.md`) already describe the prototype.
