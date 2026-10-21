@@ -111,6 +111,28 @@ public enum NewSession {
         }
     }
 
+    /// The Claude app's own list of projects ("environments" in its menu by the message field: a name, a folder, settings).
+    public static let claudePresets = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/Claude/ccd-session-presets.json")
+
+    /// The name the Claude app gives the project on this folder, the most recently used if several: its link names a folder
+    /// but starts the session with none, so Perch picks the project in Claude's menu instead. Nil when Claude has none for it.
+    public static func claudeProject(for folder: String, presets: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: presets) as? [String: Any],
+              let accounts = json["byAccount"] as? [String: Any] else { return nil }
+        let want = root(folder)
+        var best: (name: String, used: Double)?
+        for case let account as [String: Any] in accounts.values {
+            for case let p as [String: Any] in (account["presets"] as? [Any]) ?? [] {
+                guard let name = p["name"] as? String, !name.isEmpty, let target = p["target"] as? [String: Any],
+                      target["kind"] as? String == "local", let cwd = target["cwd"] as? String, root(cwd) == want else { continue }
+                let used = (p["lastUsedAt"] as? Double) ?? 0
+                if best == nil || used > best!.used { best = (name, used) }
+            }
+        }
+        return best?.name
+    }
+
     /// How long to wait for the new session to show before saying it did not start.
     public static let waits: TimeInterval = 40
 }
