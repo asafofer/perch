@@ -1930,6 +1930,7 @@
   function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
   function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
   /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
+  function nCol(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMono(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
     var m = NMARK[k];
@@ -3219,7 +3220,7 @@
   }
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'icons', notifyMenuOpen = false;
+  var notifyStyle = 'icons', notifyMenuOpen = false, ntFocus = 0;
   /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
   function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
@@ -3229,9 +3230,10 @@
     if (st === 'icons') {
       /* one row like the two below it: the moments as a group of icons in one quiet colour, lit when on. The line under it says
          what is off, and names an icon while the pointer is on it. */
-      var grp = '<span class="flex gap-0.5 rounded-lg bg-white/[0.06] p-0.5">' + list.map(function (x) {
+      var grp = '<span class="flex gap-0.5 rounded-lg bg-white/[0.06] p-0.5">' + list.map(function (x, i) {
         var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o), name = esc(x[1]) + (dis ? ' (needs Checks)' : '');
-        return '<button class="' + (dis ? '' : 's-nt cursor-pointer ') + 'grid h-7 w-8 place-items-center rounded-md transition-colors ' + (dis ? 'text-muted-foreground/30' : y ? 'bg-white/[0.14] text-foreground' : 'text-muted-foreground/70 hover:text-foreground') + '" data-k="' + x[0] + '" data-name="' + name + '" aria-pressed="' + y + '" aria-label="' + name + '"' + (dis ? ' disabled' : '') + '>' + nMono(x[0]) + '</button>';
+        return '<button class="' + (dis ? '' : 's-nt cursor-pointer ') + 'grid h-7 w-8 place-items-center rounded-md transition-colors ' + (y && !dis ? 'bg-white/[0.12]' : dis ? '' : 'hover:bg-white/[0.06]') + '" data-i="' + i + '" data-k="' + x[0] + '" data-name="' + name + '" aria-pressed="' + y + '" aria-label="' + name + '"' + (dis ? ' disabled' : '') + '>' +
+          '<span class="grid transition-opacity ' + (dis ? 'opacity-25' : y ? '' : 'opacity-35') + '">' + nCol(x[0]) + '</span></button>';
       }).join('') + '</span>';
       return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list.filter(function (x) { return !(x[0] === 'ci' && ciOff(o)); })) + '</span>', grp);
     }
@@ -3672,6 +3674,8 @@
     var rows = q('.set').querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
     rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot)); });
+    /* in the icon row, the icon the keys are on */
+    q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) { var on = setKb && rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus; b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
   function settingsKey(k) {
@@ -3679,9 +3683,15 @@
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
     var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
-    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
+    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
+    /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
+    var nts = row.querySelectorAll('.s-nt');
+    if (nts.length) {
+      if (k === 'right') { ntFocus = Math.min(ntFocus + 1, nts.length - 1); paintFocus(); return; }
+      var cur = nts[Math.min(ntFocus, nts.length - 1)]; if (cur) cur.click(); return;
+    }
     /* Pull requests: the same, over the choices that can be made (Checks needs the GitHub CLI) */
     if (row.querySelector('.s-prm') && setLast) {
       var pm = ['off', 'marks'].concat(setLast.prs === 'nogh' || setLast.prs === 'login' ? [] : ['checks']), pi = pm.indexOf(prsMode(setLast));
