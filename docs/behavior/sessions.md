@@ -5,13 +5,13 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 ## The list
 
 - One row per session, up to 15. About five show at a time.
-- It goes by section, what needs you, today, earlier, newest first in each (`ListFilter.ordered`). Typing in the list narrows it (`ListFilter`).
+- It goes by section, what needs you, today, earlier, newest first in each (`ListFilter.ordered`). Sessions at work lead their section in a steady order, newest begun first, so two working at once do not trade places every time one writes; a session takes its place by last activity once it stops. Typing in the list narrows it (`ListFilter`).
 - A row leads with the session's title and how long ago. At the right, a ring for its status (`rowMark`: the spinner while it works, a check when it finished and you have not seen it, ? for a question, the prompt for a command waiting for your OK, ! for anything else waiting) and its project in grey.
 - A file watcher (FSEvents) refreshes within about half a second.
 
 ## Where sessions come from
 
-- Claude: the Claude app's own list (`~/Library/Application Support/Claude/claude-code-sessions`) decides, archived ones skipped. Transcripts are `~/.claude/projects/*/<id>.jsonl`.
+- Claude: the Claude app's own list (`~/Library/Application Support/Claude/claude-code-sessions`) decides, archived ones skipped. So are its side chats (`spawnedFrom.btw`): one copies its session's transcript, so its row read just like the session and a reply from the notch landed in the side chat. Transcripts are `~/.claude/projects/*/<id>.jsonl`.
 - Codex writes `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. `codex exec` runs and subagent threads are skipped (`SessionDigest.headless`). Thread names come from `~/.codex/session_index.jsonl`.
 - Codex 0.162's terminal app writes `source: "vscode"` like the Codex app; `originator: "codex-tui"` is what says terminal.
 - A chat started without a project (Claude scratch workspace, Codex dated folder) is named by its title (`Recap.isFolderless`).

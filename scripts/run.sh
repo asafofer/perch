@@ -9,8 +9,11 @@ swift build -c "$CONFIG"
 APP=build/Perch.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/ui"
-cp ".build/$CONFIG/Perch" "$APP/Contents/MacOS/Perch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# SwiftPM records the SDK as the deployment target (15.0), which makes macOS 26 treat Perch as an older app and keep the old look
+# for its menus and alerts. Record the SDK it was really built with.
+vtool -set-build-version macos "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' Resources/Info.plist)" "$(xcrun --show-sdk-version)" \
+  -replace -output "$APP/Contents/MacOS/Perch" ".build/$CONFIG/Perch"
 # The build number is the commit count, so a build says which commit it came from (the list shows it at its foot).
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(git rev-list --count HEAD 2>/dev/null || echo 1)" "$APP/Contents/Info.plist"
 # A build that is not a release says so (menu bar, Settings): which branch and commit this running copy came from.
@@ -28,15 +31,18 @@ cp ui/index.html ui/app.js ui/orbs.js "$APP/Contents/Resources/ui/"
 cp -R ui/dist "$APP/Contents/Resources/ui/dist"
 # What each release says about itself, for the What's new card on the first start after an update.
 cp -R release-notes "$APP/Contents/Resources/release-notes"
-# A release build is signed with the Developer ID certificate when this Mac has one.
-# Anything else uses the stable local "Perch Dev" certificate, so macOS remembers privacy permissions across rebuilds.
+# Every build is signed with the Developer ID certificate when this Mac has one, test builds too. macOS keeps a permission
+# (Documents, Accessibility) for app.perch.mac together with the signature that got it, so a test build signed another way
+# than the installed Perch took the permission over each time one or the other ran, and macOS asked again after every Allow.
+# Without it, the stable local "Perch Dev" certificate, so macOS remembers permissions across rebuilds.
 # (An ad-hoc signature changes on every build, which makes macOS ask for permission again each time.)
 DEVID=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)
-if [ "$CONFIG" = release ] && [ -n "$DEVID" ]; then SIGN="$DEVID"
+if [ -n "$DEVID" ]; then SIGN="$DEVID"
 elif security find-identity -p codesigning 2>/dev/null | grep -q '"Perch Dev"'; then SIGN="Perch Dev"; else SIGN=-; fi
-# A Developer ID build runs with the hardened runtime and a timestamp, as notarization needs. A "Perch Dev" build cannot:
-# its certificate has no team, and the hardened runtime then refuses to load Sparkle ("different Team IDs").
-FLAGS=(); [ "$SIGN" = "$DEVID" ] && FLAGS=(--options runtime --timestamp)
+# A release build runs with the hardened runtime and a timestamp, as notarization needs (the timestamp asks Apple's server,
+# so a test build goes without). A "Perch Dev" build cannot: its certificate has no team, and the hardened runtime then
+# refuses to load Sparkle ("different Team IDs").
+FLAGS=(); [ "$SIGN" = "$DEVID" ] && [ "$CONFIG" = release ] && FLAGS=(--options runtime --timestamp)
 # Inside out: Sparkle's helpers, then its framework, then the app. If "Perch Dev" refuses, fall back to ad hoc; a Developer ID signature never does.
 sign() {
   if [ "$SIGN" = "$DEVID" ]; then codesign --force --sign "$SIGN" ${FLAGS[@]+"${FLAGS[@]}"} "$@"

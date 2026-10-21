@@ -229,6 +229,19 @@ import Foundation
         #expect(ListFilter.ordered(list, "", now: now, calendar: cal) == [2, 3, 1, 0])
         #expect(list.map { ListFilter.section($0, now: now, calendar: cal) } == [.earlier, .today, .needsYou, .today])
     }
+    @Test func sessionsAtWorkKeepTheirPlaces() {
+        let now = Date()
+        func p(_ id: String, _ ago: TimeInterval, began: TimeInterval, kind: AgentStatus.Kind) -> Project {
+            var x = Project(id: id, name: id, branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: "claude",
+                            agents: [AgentStatus(kind: kind, text: "", app: "claude")], steps: [])
+            x.lastActive = now.addingTimeInterval(-ago); x.startedAt = now.addingTimeInterval(-began); return x
+        }
+        // two at work, each writing a moment after the other, and one that finished a second ago
+        var list = [p("done", 1, began: 100, kind: .done), p("a", 5, began: 3600, kind: .running), p("b", 2, began: 600, kind: .running)]
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
+        list[1].lastActive = now
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")
@@ -295,6 +308,33 @@ import Foundation
         #expect(status([prompt, toolCall("Edit")], quiet: 5).kind == "running")
         let s = status([prompt, toolCall("Edit")], quiet: 90)
         #expect(s.kind == "attention"); #expect(s.text == "Claude is waiting for your OK")
+    }
+    @Test func aTerminalSessionNoProcessRunsAsksNothing() throws {
+        // Killed while its Bash call waited for your OK, resumed and closed without a word: the transcript still ends on that call.
+        var p = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 900))
+        p.terminal = true
+        #expect(p.toolOpen)
+        p.pid = 4242
+        #expect(p.agentGone().status.kind == "attention")   // still running there: it waits for you
+        p.pid = nil
+        #expect(p.agentGone().status.kind == "idle"); #expect(p.agentGone().status.text == "Claude Code stopped mid-task")
+        // Killed a moment ago, its call still within its time: not at work either.
+        var fresh = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 5))
+        fresh.terminal = true
+        #expect(fresh.status.kind == "running"); #expect(fresh.agentGone().status.kind == "idle")
+        fresh.pid = 4242
+        #expect(fresh.agentGone().status.kind == "running")
+        // What its hook said goes too, so resuming it later does not bring the request back.
+        var live = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s2", kind: .asks({ var a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build"]); a.answerable = false; return a }())), to: nil)
+        #expect(live.agentGone() == nil)
+        let asked = p.applying(live)
+        #expect(asked.agentGone().status.kind == "idle"); #expect(asked.agentGone().ask == nil)
+        // A request held by its hook (OpenCode's) is settled by that hook, not by this.
+        live = LiveStatus.apply(HookEvent(agent: "opencode", sessionId: "s2", kind: .asks(Ask(id: "o", agent: "opencode", tool: "bash", input: ["command": "ls"]))), to: nil)
+        #expect(live.agentGone()?.asks.map(\.id) == ["o"])
+        // An app session is never a terminal one: nothing changes.
+        p.terminal = false
+        #expect(p.agentGone().status.kind == "attention")
     }
     @Test func aLongCommandIsWorkingUntilItsOwnTimeout() {
         let build = toolCall("Bash", #"{"command":"swift build","timeout":600000}"#)

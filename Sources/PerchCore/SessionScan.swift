@@ -36,8 +36,11 @@ public final class DesktopSessions: @unchecked Sendable {
                           let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                           let cli = o["cliSessionId"] as? String, let id = o["sessionId"] as? String else { continue }
                     let focused = (o["lastFocusedAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
+                    // A side chat (`btw`) copies its session's transcript and is answered in that session's side panel,
+                    // so it gets no row of its own: it would read just like the session, and a reply would land in it.
+                    let sideChat = (o["spawnedFrom"] as? [String: Any])?["btw"] as? Bool ?? false
                     fresh[url.path] = (mtime, cli, Entry(id: id, title: o["title"] as? String, cwd: o["cwd"] as? String,
-                                                         archived: o["isArchived"] as? Bool ?? false, focusedAt: focused))
+                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused))
                 }
             }
         }

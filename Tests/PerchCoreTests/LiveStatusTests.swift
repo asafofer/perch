@@ -25,10 +25,35 @@ import Foundation
         guard case .asks(let a)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"shell","tool_input":{"command":["bash","-lc","rm -rf build"]}}"#, agent: "codex")?.kind else { Issue.record("not an ask"); return }
         #expect(a.title == "Codex wants to run a command"); #expect(a.subject == "rm -rf build"); #expect(!a.answerable)
     }
+    @Test func theRowSaysTheCommandWithoutItsOutputPlumbing() {
+        #expect(Ask.plainCommand("npm run build 2>&1 | tail -20") == "npm run build")
+        #expect(Ask.plainCommand(#"npm run build 2>&1 | tail -n 30; echo "EXIT: ${PIPESTATUS[0]}""#) == "npm run build")
+        #expect(Ask.plainCommand("swift test 2>/dev/null | head -n 40") == "swift test")
+        #expect(Ask.plainCommand("git log | grep fix") == "git log | grep fix")   // a pipe that does work stays
+        #expect(Ask.plainCommand("echo hi") == "echo hi")
+        let a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build 2>&1 | tail -20"])
+        #expect(a.subject == "npm run build 2>&1 | tail -20"); #expect(a.brief == "npm run build")   // the card keeps it all
+        #expect(Ask(id: "r", agent: "claude", tool: "Edit", input: ["file_path": "/a/x 2>&1"]).brief == "/a/x 2>&1")
+    }
     @Test func editsWebAndToolsReadPlainly() {
         #expect(Ask.describe(tool: "Edit", input: ["file_path": "/a/b/Settings.swift"]).0 == "edit Settings.swift")
         #expect(Ask.describe(tool: "WebFetch", input: ["url": "https://docs.swift.org/x"]).0 == "open docs.swift.org")
         #expect(Ask.describe(tool: "mcp__linear__save_issue", input: [:]) == ("use issue", "From linear"))
+    }
+
+    @Test func anOpenCodeRequestOutlivesAToolRunBesideIt() throws {
+        // OpenCode asked to run the build and, in the same step, ran a tool that needs no OK: that tool finishing settles nothing.
+        let ask = try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"bash","tool_input":{"command":"npm run build"}}"#, agent: "opencode"))
+        var s = LiveStatus.apply(ask, to: nil)
+        s = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"codegraph_codegraph_node"}"#, agent: "opencode")), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["r1"])
+        // Answered: its plugin lets the request go, and only then is it settled.
+        s.settle("r1", at: Date())
+        #expect(s.kind == .working); #expect(s.asks.isEmpty)
+        // A Claude tool run after a request still means it was answered.
+        let claude = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash"}"#)),
+                                      to: LiveStatus.apply(try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#)), to: nil))
+        #expect(claude.kind == .working); #expect(claude.asks.isEmpty)
     }
 
     @Test func aSingleQuestionCanBeAnsweredFromTheNotch() throws {

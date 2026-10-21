@@ -8,7 +8,7 @@ struct UISnapshot: Encodable {
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
     struct UIQuestion: Encodable { let text: String; let header: String; let multi: Bool; let options: [String]; let notes: [String] }
-    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let questions: [UIQuestion]; let answerable: Bool
+    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let brief: String; let questions: [UIQuestion]; let answerable: Bool
         /// Why a question with choices cannot be answered here, for the card to say under them.
         let why: String? }
     struct UIProject: Encodable {
@@ -158,7 +158,14 @@ struct UISnapshot: Encodable {
     /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports; =2 paints the shape Perch really draws.
     /// Either way any overhang past the hardware shows.
     var guide: String? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"]
-    var version: String? = {
+    /// The macOS this is, "26.1": Send feedback says it goes along, when you let it.
+    var macOS: String = UISnapshot.macOSVersion
+    var version: String? = UISnapshot.appVersion
+    static let macOSVersion: String = {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.patchVersion > 0 ? "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)" : "\(v.majorVersion).\(v.minorVersion)"
+    }()
+    static let appVersion: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
         return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
@@ -182,7 +189,7 @@ struct UISnapshot: Encodable {
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
                       status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
-                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
+                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject, brief: $0.brief,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
