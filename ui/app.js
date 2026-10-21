@@ -2900,10 +2900,10 @@
       h = shortcutStep(o);
     } else if (st === 4) {
       var rows = o.sources.map(function (x) {
-        var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
+        var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button>';
         return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
       }).join('');
-      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
+      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +
         /* more than two agents sit two to a row, so the card keeps its height */
         oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
@@ -2935,6 +2935,7 @@
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
+    box.querySelectorAll('.o-tile').forEach(function (t) { t.classList.add('cursor-pointer'); t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
@@ -3063,6 +3064,11 @@
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
     b.setAttribute('aria-checked', String(on));   /* .sw in input.css draws it from this */
+  }
+  /* the same setting as a plain check at the right, nothing while it is off (the look of the Notifications menu's moments):
+     a click anywhere on its row flips it, as with a switch */
+  function ckHtml(on, key, label) {
+    return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw ck">' + svg('check', 'size-4') + '</button>';
   }
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
@@ -3211,9 +3217,9 @@
     if (setPage === 'agents') {
       return o.sources.map(function (x) {
         var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
-        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), swHtml(x.enabled, 'src:' + x.id, x.name)));
+        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
       }).join('') + gap +
-        drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'));
+        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', ckHtml(o.live === 'on', 'live', 'Live status')));
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
