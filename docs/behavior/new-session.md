@@ -25,6 +25,13 @@
 
 - It opens in a new window of your terminal: `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
 
+## The model
+
+- Claude Code, Codex and OpenCode in a terminal can start on a model (`NewSession.takesModel`): `claude --model`, `codex -m`, `opencode --model`. The apps' links take none and pi is left to its own, so they show no model.
+- It sits by the prompt's field, as in a composer: Default, then what that is as the agent's config names it (`"model"` in ~/.claude/settings.json, the top-level `model` in ~/.codex/config.toml), or the model chosen. A click on it, or Command+M in the field, opens the models (`NewSession.models`): Default first, then Claude Code's own names for its latest models (fable, opus, sonnet, haiku, which Claude Code itself keeps current), or every model `opencode models` lists (asked in the background when New session opens, kept ten minutes, `NewSessionModels`), then ones chosen before.
+- Up and Down choose, typing narrows, Return uses one and goes back to the prompt, Esc goes back without changing it. A name nothing matches can be used as typed (a model's full name), and from then on it is offered (`Prefs.usedModels`).
+- Each agent starts on the model it started on last (`Prefs.lastModel`); a draft keeps its own.
+
 ## Started, or not
 
 - It is Started only once the scan finds the new session (`NewSession.started`: one not seen before, of that agent, in that folder, begun since; by id where the agent takes one), else Didn't start after 40 s, and your words come back as the draft.

@@ -32,6 +32,15 @@ enum Prefs {
     /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).
     static var lastNewChoice: String? { get { d.string(forKey: "new.choice") } set { d.set(newValue, forKey: "new.choice") } }
     static var lastNewFolder: String? { get { d.string(forKey: "new.folder") } set { d.set(newValue, forKey: "new.folder") } }
+    /// The model a new session of this choice started on last ("" for the agent's own default).
+    static func lastModel(_ choice: String) -> String? { d.string(forKey: "new.model.\(choice)") }
+    static func setLastModel(_ model: String, for choice: String) { d.set(model, forKey: "new.model.\(choice)") }
+    /// Models you chose for an agent, newest first, a few of them: one typed once is offered from then on.
+    static func usedModels(_ agent: String) -> [String] { d.stringArray(forKey: "new.models.\(agent)") ?? [] }
+    static func noteModel(_ model: String, agent: String) {
+        guard !model.isEmpty else { return }
+        d.set(Array(([model] + usedModels(agent).filter { $0 != model }).prefix(6)), forKey: "new.models.\(agent)")
+    }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or

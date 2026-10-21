@@ -84,16 +84,64 @@ public enum NewSession {
     }
 
     /// The command a terminal agent starts with, your words as its first message. Claude Code and pi are given the new
-    /// session's id, so Perch knows exactly which session to wait for.
-    public static func command(agent: String, prompt: String, sessionId: String? = nil) -> String {
-        let q = quote(prompt)
+    /// session's id, so Perch knows exactly which session to wait for. `model`: the one chosen, else the agent's own default.
+    public static func command(agent: String, prompt: String, sessionId: String? = nil, model: String? = nil) -> String {
+        let q = quote(prompt), m = model.flatMap { $0.isEmpty || !takesModel(agent) ? nil : quote($0) }
         switch agent {
-        case "claude": return "claude" + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
-        case "codex": return "codex " + q
-        case "opencode": return "opencode --prompt " + q
+        case "claude": return "claude" + (m.map { " --model \($0)" } ?? "") + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
+        case "codex": return "codex" + (m.map { " -m \($0)" } ?? "") + " " + q
+        case "opencode": return "opencode" + (m.map { " --model \($0)" } ?? "") + " --prompt " + q
         case "pi": return "pi" + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
         default: return q
         }
+    }
+
+    /// A model to start a session on. `id` is what the agent is given; empty is its own default, whose name `note` says.
+    public struct Model: Equatable, Sendable {
+        public let id: String, name: String, note: String
+        public init(id: String, name: String, note: String = "") { self.id = id; self.name = name; self.note = note }
+    }
+
+    /// The terminal agents a model can be chosen for. The apps' links take none, and pi is left to its own default.
+    public static func takesModel(_ agent: String) -> Bool { ["claude", "codex", "opencode"].contains(agent) }
+
+    /// Claude Code's own names for its latest models (`claude --model fable`): there from the start, a model you have
+    /// never used among them, and never stale, since Claude Code itself says which model each stands for.
+    public static let claudeAliases = ["fable", "opus", "sonnet", "haiku"]
+
+    /// What to offer for an agent: its own default first (named by its config), then Claude Code's names or the models
+    /// OpenCode lists, then ones you typed before, each once. Empty for an agent that takes no model.
+    public static func models(agent: String, configured: String?, available: [String] = [], used: [String] = []) -> [Model] {
+        guard takesModel(agent) else { return [] }
+        var out = [Model(id: "", name: "Default", note: configured ?? "")], seen: Set<String> = [""]
+        let named = agent == "claude" ? claudeAliases : agent == "opencode" ? available : []
+        for id in named + used where !id.isEmpty && seen.insert(id.lowercased()).inserted { out.append(Model(id: id, name: id)) }
+        return out
+    }
+
+    /// Claude Code's default model: `"model"` in ~/.claude/settings.json.
+    public static func claudeDefault(settings: Data) -> String? {
+        guard let o = try? JSONSerialization.jsonObject(with: settings) as? [String: Any], let m = o["model"] as? String, !m.isEmpty else { return nil }
+        return m
+    }
+
+    /// Codex's default model: the top-level `model = "..."` in ~/.codex/config.toml, before any [table].
+    public static func codexDefault(config: String) -> String? {
+        for raw in config.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("[") { return nil }
+            guard line.hasPrefix("model"), let eq = line.firstIndex(of: "=") else { continue }
+            guard line[..<eq].trimmingCharacters(in: .whitespaces) == "model" else { continue }
+            let v = line[line.index(after: eq)...].split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let m = v.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            return m.isEmpty ? nil : m
+        }
+        return nil
+    }
+
+    /// What `opencode models` prints: one `provider/model` a line.
+    public static func opencodeModels(_ output: String) -> [String] {
+        output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.contains("/") && !$0.contains(" ") }
     }
     static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
