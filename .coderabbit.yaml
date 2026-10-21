@@ -21,7 +21,7 @@ reviews:
   in_progress_fortune: false
   poem: false
   slop_detection:
-    enabled: false
+    enabled: true
   pre_merge_checks:
     docstrings:
       mode: "off"
