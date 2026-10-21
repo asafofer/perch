@@ -70,6 +70,21 @@ private func cache(_ chats: [Any], starred: [Any] = [], projects: [Any] = [], ta
     return ["timestamp": 1, "buster": "conversations_v2:1", "clientState": ["mutations": [] as [Any], "queries": [list, star, proj, local, remote] as [Any]] as KeyValuePairs<String, Any>]
 }
 
+
+/// LevelDB's write-ahead log as Chromium leaves it: one batch per record, each record in a 32 KB block behind its header.
+private func leveldbLog(_ puts: [(key: [UInt8], value: [UInt8])], seq: UInt64 = 1) -> Data {
+    var batch = [UInt8](withUnsafeBytes(of: seq.littleEndian, Array.init)) + withUnsafeBytes(of: UInt32(puts.count).littleEndian, Array.init)
+    for p in puts { batch += [1] + V8.varint(p.key.count) + p.key + V8.varint(p.value.count) + p.value }
+    precondition(batch.count < 32_000)
+    return Data([0, 0, 0, 0, UInt8(batch.count & 0xFF), UInt8(batch.count >> 8), 1] + batch)
+}
+
+/// One conversation as claude.ai caches it: a version number, Blink's and V8's headers, the object.
+private func conversation(_ id: String, product: String, tree: KeyValuePairs<String, Any>, writtenAt: Int = 1) -> [UInt8] {
+    let o: KeyValuePairs<String, Any> = ["conversationUuid": id, "product": product, "accountUuid": "acct", "tree": tree, "writtenAt": writtenAt]
+    return [0x40, 0xFF, 0x15, 0xFE] + [UInt8](repeating: 0, count: 12) + [0xFF, 0x0F] + V8.encode(o)
+}
+
 private final class Home {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("perch-claudeapp-\(UUID().uuidString)")
     let now = Date()
@@ -115,6 +130,51 @@ private final class Home {
         let found = Dictionary(uniqueKeysWithValues: h.scanner.tasks(limit: 10).map { ($0.project.sessionId ?? "", $0.project) })
         #expect(found["cse_a"]?.focusedAt == at)
         #expect(found["cse_b"]?.focusedAt == nil)
+    }
+
+    @Test func whatATaskAndAChatSaidComesFromTheAppsLevelDB() throws {
+        let ts = "2026-10-21T17:10:00.000Z"
+        let taskTree: KeyValuePairs<String, Any> = ["kind": "events", "events": [
+            ["kind": "message", "seq": 1, "payload": ["type": "user", "timestamp": ts, "message": ["role": "user", "content": "fetch example.com and tell me its title"] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+            ["kind": "message", "seq": 2, "payload": ["type": "system", "subtype": "status"] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+            ["kind": "message", "seq": 3, "payload": ["type": "assistant", "timestamp": ts, "message": ["role": "assistant", "stop_reason": "end_turn",
+                "content": [["type": "text", "text": "The page title is Example Domain."] as KeyValuePairs<String, Any>] as [Any]] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+        ] as [Any]]
+        let chatTree: KeyValuePairs<String, Any> = ["uuid": "c1", "current_leaf_message_uuid": "m2",
+            "messageByUuid": ["m1": ["uuid": "m1", "sender": "human", "content": [["type": "text", "text": "Reply with one word: pong"] as KeyValuePairs<String, Any>] as [Any]] as KeyValuePairs<String, Any>,
+                              "m2": ["uuid": "m2", "sender": "assistant", "created_at": ts, "content": [["type": "text", "text": "Pong."] as KeyValuePairs<String, Any>] as [Any]] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+            "parentByChildUuid": ["m2": "m1"] as KeyValuePairs<String, Any>]
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-ldb-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ldb = dir.appendingPathComponent("https_claude.ai_0.indexeddb.leveldb")
+        try FileManager.default.createDirectory(at: ldb, withIntermediateDirectories: true)
+        try leveldbLog([(Array("k1".utf8), conversation("cowork:cse_a", product: "cowork", tree: taskTree)),
+                        (Array("k2".utf8), conversation("c1", product: "chat", tree: chatTree)),
+                        (Array("k3".utf8), conversation("code:cse_z", product: "code", tree: taskTree))]).write(to: ldb.appendingPathComponent("000003.log"))
+        let words = ClaudeWords(idb: dir).read()
+        #expect(Set(words.keys) == ["cse_a", "c1"])          // Claude Code's cloud sessions are not read
+        #expect(words["cse_a"]?.lastAssistantText == "The page title is Example Domain.")
+        #expect(words["c1"]?.lastAssistantText == "Pong.")
+        #expect(words["c1"]?.lastUserText == "Reply with one word: pong")
+        let task = Recap.task(ClaudeCache.Task(id: "cse_a", title: "Example title", folders: [], created: nil, lastActivity: Date(), state: .idle, unread: true, archived: false),
+                              words: words["cse_a"], now: Date())
+        #expect(task.context == "The page title is Example Domain.")
+        #expect(task.headline == "")
+        let bare = Recap.task(ClaudeCache.Task(id: "cse_b", title: "Elsewhere", folders: [], created: nil, lastActivity: Date(), state: .idle, unread: true, archived: false), now: Date())
+        #expect(bare.headline == "Not opened on this Mac yet")
+    }
+
+    @Test func aLaterWriteOfAKeyWinsAndADeleteRemovesIt() {
+        var log = [UInt8](leveldbLog([(Array("a".utf8), Array("old".utf8)), (Array("b".utf8), Array("gone".utf8))], seq: 1))
+        // A second batch: a new value for a, b deleted.
+        var batch = [UInt8](withUnsafeBytes(of: UInt64(10).littleEndian, Array.init)) + withUnsafeBytes(of: UInt32(2).littleEndian, Array.init)
+        batch += [1] + V8.varint(1) + Array("a".utf8) + V8.varint(3) + Array("new".utf8)
+        batch += [0] + V8.varint(1) + Array("b".utf8)
+        log += [0, 0, 0, 0, UInt8(batch.count), 0, 1] + batch
+        var got: [Data: (UInt64, Data?)] = [:]
+        LevelDB.log(log) { k, seq, v in if (got[k]?.0 ?? 0) <= seq { got[k] = (seq, v) } }
+        #expect(got[Data("a".utf8)]?.1 == Data("new".utf8))
+        #expect(got[Data("b".utf8)]?.1 == nil)
     }
 
     @Test func recentChatsComeFromTheAppsCachedList() throws {

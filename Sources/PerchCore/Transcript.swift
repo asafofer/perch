@@ -444,21 +444,32 @@ public enum Recap {
         return p
     }
 
-    /// A chat in the Claude app: only its title and when it last moved are known, so the card is its title and nothing more.
-    public static func chat(_ c: ClaudeCache.Chat, now: Date, calendar: Calendar = .current) -> Project {
+    /// A chat in the Claude app: its title, and Claude's last reply where this Mac has it (`ClaudeWords`), else the title alone.
+    /// A chat is never news: its reply comes while you watch, so the notch never speaks up about one.
+    public static func chat(_ c: ClaudeCache.Chat, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
         var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
-                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: "", next: "",
-                        topic: clip(c.title, 90), app: Agent.chat.id, agents: [AgentStatus(kind: .idle, text: "Chat in Claude", app: Agent.chat.id)],
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: words.flatMap(said(from:)) ?? "", next: "",
+                        topic: clip(c.title, 90), app: Agent.chat.id,
+                        agents: [AgentStatus(kind: .idle, text: words?.lastAssistantText != nil ? "Claude replied" : "Chat in Claude", app: Agent.chat.id)],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your chat")],
                         sessionId: c.id, cwd: nil, desktopSessionId: nil)
         p.lastActive = c.updated
         p.startedAt = c.created
+        p.focusedAt = c.updated
+        p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText)
+        p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)
         return p
+    }
+
+    /// The card's line from what was said: Claude's outcome, else what you asked.
+    static func said(from d: SessionDigest) -> String? {
+        outcome(d.lastAssistantFull ?? d.lastAssistantText) ?? answer(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map(youSaid)
     }
 
     /// A task in the Claude app (what was Cowork): its title, its folder, and the app's own word on it: at work, waiting for
     /// your OK, or done. One you have already looked at in the app is not news (`focusedAt`), so Perch keeps quiet about it.
-    public static func task(_ t: ClaudeCache.Task, now: Date, calendar: Calendar = .current) -> Project {
+    /// What it said comes from `ClaudeWords` when this Mac has it; without it, a quiet line says so.
+    public static func task(_ t: ClaudeCache.Task, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
         let a = Agent.cowork.id
         let status: AgentStatus = switch t.state {
         case .running: AgentStatus(kind: .running, text: "Claude is working", app: a)
@@ -467,13 +478,21 @@ public enum Recap {
         }
         let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
         var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
-                        at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar), headline: "", context: "", next: "",
+                        at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
+                        headline: words == nil && t.state == .idle ? "Not opened on this Mac yet" : "", context: words.flatMap(said(from:)) ?? "", next: "",
                         topic: clip(t.title, 90), app: a, agents: [status],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
                         sessionId: t.id, cwd: t.folders.first, desktopSessionId: t.id)
         p.lastActive = t.lastActivity
         p.startedAt = t.created
         if !t.unread { p.focusedAt = t.lastActivity }
+        if let w = words {
+            p.said = Recap.said(w.lastAssistantFull ?? w.lastAssistantText)
+            p.asked = Recap.asked(w.lastUserFull ?? w.lastUserText)
+            if t.state == .running { p.now = w.step }
+            // What it waits on, to read on the card (Perch cannot answer it: Cowork's hooks are not Perch's).
+            if t.state == .awaiting, w.turnOpen, let pending = w.pendingTool, var q = Ask(pending: pending, agent: a) { q.transcriptAt = pending.at ?? t.lastActivity; p.ask = q }
+        }
         return p
     }
 

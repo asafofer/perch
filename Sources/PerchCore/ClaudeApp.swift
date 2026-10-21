@@ -146,9 +146,119 @@ public final class ClaudeCache: @unchecked Sendable {
     }
 }
 
+/// What was said in the Claude app's tasks and chats, where this Mac has it: claude.ai caches the conversations opened lately
+/// in its IndexedDB, in LevelDB's files (`https_claude.ai_0.indexeddb.leveldb`) and, for the large ones, in the blob folder.
+/// A task's is the Claude Code stream it ran (read like any transcript), a chat's its message tree. Keyed by the
+/// conversation's id: a task's session id (`cse_…`), a chat's uuid. Read only, like `ClaudeCache`.
+public final class ClaudeWords: @unchecked Sendable {
+    public static let shared = ClaudeWords(idb: FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/Claude/IndexedDB"))
+    let idb: URL
+    private var cache: (stamp: [Date], words: [String: SessionDigest], read: Date)?
+    private let lock = NSLock()
+    /// Read at most this often: the files change with every message the app shows.
+    public var every: TimeInterval = 5
+
+    public init(idb: URL) { self.idb = idb }
+
+    var leveldb: URL { idb.appendingPathComponent("https_claude.ai_0.indexeddb.leveldb") }
+    var blobs: URL { idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob") }
+
+    public func read() -> [String: SessionDigest] {
+        let fm = FileManager.default
+        var files = ((try? fm.contentsOfDirectory(at: leveldb, includingPropertiesForKeys: nil)) ?? []).filter { ["log", "ldb", "sst"].contains($0.pathExtension) }
+        if let e = fm.enumerator(at: blobs, includingPropertiesForKeys: nil) { for case let u as URL in e { files.append(u) } }
+        let stamp = files.compactMap(SessionScanner.mtime).sorted()
+        lock.lock(); let hit = cache; lock.unlock()
+        if let hit, hit.stamp == stamp || Date().timeIntervalSince(hit.read) < every { return hit.words }
+        var values = Array(LevelDB.read(leveldb).values)
+        for f in files where f.path.hasPrefix(blobs.path) { if let d = try? Data(contentsOf: f, options: .alwaysMapped) { values.append(d) } }
+        let words = Self.words(values)
+        lock.lock(); cache = (stamp, words, Date()); lock.unlock()
+        return words
+    }
+
+    /// The conversations among IndexedDB values (a version number, then Blink's envelope), newest copy of each.
+    static func words(_ values: [Data]) -> [String: SessionDigest] {
+        var out: [String: (at: Double, words: SessionDigest)] = [:]
+        for v in values {
+            // The conversation's id and product come first in its object: only the Claude app's own (`chat`, `cowork`) are
+            // decoded, not Claude Code's cloud sessions (`code`) or the app's other caches, which are large.
+            guard let head = Self.raw(v, upTo: 160), Self.product(head) != nil, let raw = Self.raw(v), var c = Optional(V8Clone(raw)),
+                  let o = c.read() as? [String: Any], let id = o["conversationUuid"] as? String, let tree = o["tree"] as? [String: Any] else { continue }
+            let at = (o["writtenAt"] as? Double) ?? 0
+            let words = o["product"] as? String == "cowork" ? Self.task(tree) : Self.chat(tree)
+            let key = id.hasPrefix("cowork:") ? String(id.dropFirst(7)) : id
+            guard let words, (out[key]?.at ?? -1) < at else { continue }
+            out[key] = (at, words)
+        }
+        return out.mapValues(\.words)
+    }
+
+    /// One value's structured clone: after its version number, compressed with Snappy (0xFF 0x11 0x02) or as it is. A value
+    /// moved to a blob file (0xFF 0x11 0x01) is read there instead.
+    static func raw(_ v: Data, upTo cap: Int? = nil) -> [UInt8]? {
+        let b = [UInt8](v.prefix(16))
+        guard let j = b.firstIndex(of: 0xFF) else { return nil }
+        let start = v.startIndex + j
+        if j + 2 < b.count, b[j + 1] == 0x11 {
+            guard b[j + 2] == 0x02 else { return nil }
+            return Snappy.decompress([UInt8](v[(start + 3)...])[...], upTo: cap)
+        }
+        return cap.map { [UInt8](v[start...].prefix($0)) } ?? [UInt8](v[start...])
+    }
+
+    /// "chat" or "cowork" when the value is one of the Claude app's conversations, from the first bytes of its object.
+    static func product(_ raw: [UInt8]) -> String? {
+        let head = Data(raw.prefix(160))
+        guard head.range(of: Data("conversationUuid".utf8)) != nil else { return nil }
+        if head.range(of: Data("product\"\u{04}chat".utf8)) != nil { return "chat" }
+        if head.range(of: Data("product\"\u{06}cowork".utf8)) != nil { return "cowork" }
+        return nil
+    }
+
+    /// A task's cached events are the messages its Claude Code run streamed: read as a transcript, they say what it did,
+    /// found and asks, the same as for a Code session.
+    static func task(_ tree: [String: Any]) -> SessionDigest? {
+        guard let events = tree["events"] as? [Any] else { return nil }
+        let lines: [String] = events.compactMap { e in
+            guard let p = (e as? [String: Any])?["payload"] as? [String: Any], ["user", "assistant"].contains(p["type"] as? String ?? ""),
+                  JSONSerialization.isValidJSONObject(p), let d = try? JSONSerialization.data(withJSONObject: p) else { return nil }
+            return String(data: d, encoding: .utf8)
+        }
+        let d = TranscriptParser.digest(lines: lines)
+        return d.lastAssistantText == nil && d.lastUserText == nil ? nil : d
+    }
+
+    /// A chat's message tree: the branch you are on ends at its current leaf. Its last reply and your message before it.
+    static func chat(_ tree: [String: Any]) -> SessionDigest? {
+        let byId = tree["messageByUuid"] as? [String: Any] ?? [:], parents = tree["parentByChildUuid"] as? [String: Any] ?? [:]
+        var path: [[String: Any]] = []
+        var at = tree["current_leaf_message_uuid"] as? String
+        while let id = at, let m = byId[id] as? [String: Any], path.count < 4 { path.append(m); at = parents[id] as? String }
+        if path.isEmpty { path = ((tree["chat_messages"] as? [Any]) ?? []).compactMap { $0 as? [String: Any] }.reversed() }
+        func text(_ m: [String: Any]) -> String? {
+            let blocks = (m["content"] as? [Any] ?? []).compactMap { b -> String? in
+                guard let b = b as? [String: Any], b["type"] as? String == "text" else { return nil }
+                return b["text"] as? String
+            }
+            let t = blocks.isEmpty ? (m["text"] as? String ?? "") : blocks.joined(separator: "\n\n")
+            return t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : t
+        }
+        var d = SessionDigest()
+        if let m = path.first(where: { $0["sender"] as? String == "assistant" }), let t = text(m) {
+            d.lastAssistantText = t; d.lastAssistantFull = t
+            d.lastTimestamp = (m["created_at"] as? String).flatMap(ClaudeCache.date)
+        }
+        if let m = path.first(where: { $0["sender"] as? String == "human" }), let t = text(m) { d.lastUserText = t; d.lastUserFull = t; d.lastAsk = t }
+        return d.lastAssistantText == nil && d.lastUserText == nil ? nil : d
+    }
+}
+
 /// Snappy's raw format (no framing), as Chromium writes IndexedDB values.
 enum Snappy {
-    static func decompress(_ input: ArraySlice<UInt8>) -> [UInt8]? {
+    /// With `upTo`, it stops once that much is out and returns just that: enough to see what a value is before unpacking it.
+    static func decompress(_ input: ArraySlice<UInt8>, upTo cap: Int? = nil) -> [UInt8]? {
         let b = Array(input)
         var i = 0
         func varint() -> Int? {
@@ -159,6 +269,7 @@ enum Snappy {
         guard let n = varint(), n < 256 << 20 else { return nil }
         var out = [UInt8](); out.reserveCapacity(n)
         while i < b.count {
+            if let cap, out.count >= cap { return out }
             let t = Int(b[i]); i += 1
             if t & 3 == 0 {
                 var len = t >> 2

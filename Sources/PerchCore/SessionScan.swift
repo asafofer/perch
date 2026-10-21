@@ -63,12 +63,15 @@ public final class SessionScanner: @unchecked Sendable {
     let desktop: DesktopSessions
     let conductor: ConductorSessions
     let claudeCache: ClaudeCache
+    let claudeWords: ClaudeWords
 
     /// The Claude app's tasks and chats are read from `home` unless given, so a test's home folder holds them too.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared,
                 claudeCache: ClaudeCache? = nil) {
         self.home = home; self.desktop = desktop; self.conductor = conductor
-        self.claudeCache = claudeCache ?? ClaudeCache(root: home.appendingPathComponent("Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"))
+        let idb = home.appendingPathComponent("Library/Application Support/Claude/IndexedDB")
+        self.claudeCache = claudeCache ?? ClaudeCache(root: idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob"))
+        self.claudeWords = ClaudeWords(idb: idb)
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -217,20 +220,22 @@ public final class SessionScanner: @unchecked Sendable {
     /// you gave it; one without a folder goes by its title alone.
     public func tasks(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let words = claudeWords.read()
         return claudeCache.read().tasks.filter { !$0.archived && $0.lastActivity > cutoff }.prefix(limit).map { t in
-            var d = SessionDigest()
+            var d = words[t.id] ?? SessionDigest()
             d.sessionId = t.id; d.title = t.title; d.lastTimestamp = t.lastActivity
-            return (Recap.task(t, now: now), d, nil, t.lastActivity)
+            return (Recap.task(t, words: words[t.id], now: now), d, nil, t.lastActivity)
         }
     }
 
     /// The recent chats the Claude app last fetched: a title and a time each.
     public func chats(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let words = claudeWords.read()
         return claudeCache.read().chats.filter { $0.updated > cutoff }.prefix(limit).map { c in
-            var d = SessionDigest()
+            var d = words[c.id] ?? SessionDigest()
             d.sessionId = c.id; d.title = c.title; d.lastTimestamp = c.updated
-            return (Recap.chat(c, now: now), d, nil, c.updated)
+            return (Recap.chat(c, words: words[c.id], now: now), d, nil, c.updated)
         }
     }
 
