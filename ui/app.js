@@ -1927,7 +1927,8 @@
     ci: [PRI.open, COLORS.attention]
   };
   /* Checks failing is a moment only while PR checks is on: nothing else knows when a check fails */
-  function notifyList(o) { return o.prs === 'on' && o.showPRs !== false ? NOTIFY.concat([['ci', 'Checks failing']]) : NOTIFY; }
+  function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
+  function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
@@ -3217,8 +3218,12 @@
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
   var notifyStyle = 'ticks', notifyMenuOpen = false;
+  /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
+  function ntBox(on) { return on ? '<span class="grid size-4 place-items-center rounded-[5px] bg-foreground" style="color:#0a0a0a">' + svg('check', 'size-3') + '</span>' : '<span class="block size-4 rounded-[5px] border border-muted-foreground/40"></span>'; }
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
+    /* only the ticks list Checks failing before Checks is chosen (greyed, with where to turn it on); the other looks wait for it */
+    if (ciOff(o) && st !== 'ticks') list = list.filter(function (x) { return x[0] !== 'ci'; });
     if (st === 'icons') {
       var chips = list.map(function (x) {
         var y = notifyOn(x[0]);
@@ -3248,14 +3253,16 @@
       if (!notifyMenuOpen) return head;
       return head + '<div class="mx-2 mb-1 rounded-lg bg-white/[0.05] p-1">' + list.map(function (x) {
         var y = notifyOn(x[0]);
-        return '<div class="s-nt flex h-7 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors hover:bg-white/[0.06]" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) + '<span class="flex-none">' + (y ? Ring('done') : '<span class="block size-4 rounded-full border border-muted-foreground/35"></span>') + '</span></div>';
+        return '<div class="s-nt flex h-7 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors hover:bg-white/[0.06]" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) + '<span class="flex-none">' + ntBox(y) + '</span></div>';
       }).join('') + '</div>';
     }
     if (st === 'ticks') {
       return shead('Notify me about') + list.map(function (x) {
         var y = notifyOn(x[0]);
+        /* Checks failing before Checks is chosen: greyed, and it says where to turn it on */
+        if (x[0] === 'ci' && ciOff(o)) return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] opacity-60">' + sthing(nMark('ci'), x[1], false) + '<span class="flex-none text-xs text-muted-foreground">Needs Checks</span></div>';
         return '<div class="s-row s-nt s-tap mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) +
-          '<span class="flex-none">' + (y ? Ring('done') : '<span class="block size-4 rounded-full border border-muted-foreground/35"></span>') + '</span></div>';
+          '<span class="flex-none">' + ntBox(y) + '</span></div>';
       }).join('');
     }
     if (st === 'grid') {
@@ -3286,7 +3293,7 @@
       var rows, foot;
       if (!setPage) {
         var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]); });
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); });
         var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
@@ -3697,7 +3704,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length, notifyStyle, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyStyle, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
