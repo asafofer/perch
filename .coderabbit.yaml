@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  # Keep the summary in CodeRabbit's own comment: the PR body must stay on the template (pr-body.yml).
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!ui/dist/**"
+    - "!ui/wallpapers/**"
+    - "!ui/orbs.js"
+    - "!Package.resolved"
+    - "!release-notes/**"
+  path_instructions:
+    - path: "Sources/PerchCore/**"
+      instructions: "Pure logic with no UI. Flag any AppKit, WebKit or UI import, and logic that is not covered by Tests/."
+    - path: "Sources/Perch/**"
+      instructions: "AppKit shell. Swift decides state and builds the snapshot; the page never decides anything. Watch for main-thread blocking and Accessibility misuse."
+    - path: "ui/app.js"
+      instructions: "Must be ASCII only. Rendering only: it draws the snapshot and posts events, it must not hold app logic."
+    - path: "docs/behavior/**"
+      instructions: "Check the doc still matches the code change in the same PR."
+chat:
+  auto_reply: true
