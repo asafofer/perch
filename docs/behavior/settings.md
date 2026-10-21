@@ -23,8 +23,10 @@ Version row's update states in [updates.md](updates.md).
   back from the left (transitions.dev page side by side).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
-  - Agents: a switch for each agent Perch reads, with how many sessions it has; Live status. Cowork and Claude chats are
-    rows here too (`sources.disabled`, and `sources.optedIn` for Claude chats, which starts off: `Agent.onByDefault`).
+  - Agents: a check for each agent Perch reads, with how many sessions it has (Claude Code, Claude tasks and Claude chats
+    first), and Live status; under them "Also works in" with the places on this Mac (Conductor, herdr, tmux, cmux) and
+    their marks, nothing to choose. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats, which starts off.
+    Onboarding's apps step shows Claude as one tile with Code, Tasks and Chats as small checks, and the same places line.
   - Notifications: a switch for each moment the notch announces (`NotifyKind`); Welcome back after; Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.
 - Return or Space flips a switch, picks a screen or presses a row's button. Left is always Back: a segmented choice moves

@@ -128,7 +128,7 @@ private final class Home {
         let h = Home(), at = h.now.addingTimeInterval(-60)
         h.lists(cache([], tasks: [task("cse_a", "Seen", at: at, unread: false), task("cse_b", "Not seen", at: at)]))
         let found = Dictionary(uniqueKeysWithValues: h.scanner.tasks(limit: 10).map { ($0.project.sessionId ?? "", $0.project) })
-        #expect(found["cse_a"]?.focusedAt == at)
+        #expect(abs((found["cse_a"]?.focusedAt ?? .distantPast).timeIntervalSince(at)) < 0.01)   // through milliseconds and back
         #expect(found["cse_b"]?.focusedAt == nil)
     }
 
