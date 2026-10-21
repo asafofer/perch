@@ -34,7 +34,7 @@ for i, a in enumerate(args):
         if path is None:
             continue
         try:
-            body = open(os.path.expanduser(path)).read()
+            body = open(os.path.expanduser(os.path.expandvars(path))).read()   # $HOME/x.md as Bash would see it, nothing run
         except OSError:
             body, unread = "", path
     if a in ("--body", "-b") and i + 1 < len(args):

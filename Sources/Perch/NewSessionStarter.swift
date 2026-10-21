@@ -39,7 +39,8 @@ enum NewSessionStarter {
             if pick == nil { NSLog("Perch: Claude has no project on \(folder); the folder is yours to pick there") }
             name = pick
         }
-        return pressSend(in: bundle, words: prompt, folder: folder == nil ? nil : name, pick: folder != nil && bundle == Restorer.claudeApp, needsYou: needsYou, declined: declined)
+        return pressSend(in: bundle, words: prompt, folder: folder == nil ? nil : name, base: folder.map { ($0 as NSString).lastPathComponent },
+                         pick: folder != nil && bundle == Restorer.claudeApp, needsYou: needsYou, declined: declined)
     }
 
     /// Waits for the app's message field to hold exactly these words, then presses its Send. When the app asks you to
@@ -48,8 +49,8 @@ enum NewSessionStarter {
     /// folder, so it stays a Cancel. Codex shows no folder to check, so after its question Send is yours. (Trust pressed
     /// through Accessibility is not taken as yours: Claude then starts the session with no folder.)
     /// folder: the name Claude's menu shows for it (nil in Claude: none it knows, so you pick it there). pick: Perch chooses it
-    /// in Claude's project menu before Send.
-    private static func pressSend(in bundle: String, words: String, folder: String?, pick: Bool = false, needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void) -> Bool {
+    /// in Claude's project menu before Send. base: the folder's own name, which Claude's menu may show after a trust question.
+    private static func pressSend(in bundle: String, words: String, folder: String?, base: String? = nil, pick: Bool = false, needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void) -> Bool {
         guard AXIsProcessTrusted() else { NSLog("Perch: new session not sent (no Accessibility)"); return false }
         let want = squash(words), began = Date()
         var asked = false, sawField = false, folderBy: Date?, picked = false
@@ -73,10 +74,15 @@ enum NewSessionStarter {
                 // Never into another folder than the one you chose: Claude's own folder menu by the field must name it
                 // (after a trust question it can take a moment). Not there in a few seconds, Send is left to you.
                 if let folder, bundle == Restorer.claudeApp, !asking {
-                    // Not after a trust question: there the menu tells your Trust from your Cancel.
-                    if pick, !picked, !asked { picked = true; choose(folder, near: field, in: app) }
+                    // Not after a trust question: there the menu tells your Trust from your Cancel. Not chosen, Send is
+                    // yours: the menu may name the project all the same while the session would start with none.
+                    if pick, !picked, !asked {
+                        guard choose(folder, near: field, in: app) else { DispatchQueue.main.async { needsYou() }; return false }
+                        picked = true
+                    }
                     let shown = folderMenus(near: field)
-                    if !shown.contains(folder) {
+                    // After Trust, Claude may name the folder itself ("Folder: ~/path") rather than its project.
+                    if !shown.contains(folder), !(pick && !picked && asked && base.map(shown.contains) == true) {
                         if folderBy == nil { folderBy = Date().addingTimeInterval(6) }
                         if Date() < folderBy! { continue }
                         NSLog("Perch: Claude shows \(shown) rather than \(folder); Send is left to you")
@@ -85,7 +91,10 @@ enum NewSessionStarter {
                         return false
                     }
                     // Trusted: chosen in the menu again all the same, as the link's folder alone starts it with none.
-                    if pick, !picked { picked = true; choose(folder, near: field, in: app); continue }
+                    if pick, !picked {
+                        guard choose(folder, near: field, in: app) else { DispatchQueue.main.async { needsYou() }; return false }
+                        picked = true; continue
+                    }
                     if asked { NSLog("Perch: trusted in Claude, on \(folder); sending") }
                 }
                 if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
@@ -127,8 +136,8 @@ enum NewSessionStarter {
         return out
     }
     /// Chooses the project by this name in Claude's menu by the field (Environment: ...), looking under More when it is not
-    /// among the recent ones. Not found, the menu is closed again; the check after it leaves Send to you.
-    private static func choose(_ name: String, near field: AXUIElement, in app: NSRunningApplication) {
+    /// among the recent ones. False when it could not: the menu is closed again and Send is left to you.
+    private static func choose(_ name: String, near field: AXUIElement, in app: NSRunningApplication) -> Bool {
         var box = field, menu: AXUIElement?
         for _ in 0..<7 {
             guard let up = attr(box, kAXParentAttribute) else { break }
@@ -136,7 +145,7 @@ enum NewSessionStarter {
             menu = first(in: box, limit: 600, { role($0) == "AXPopUpButton" && string($0, kAXDescriptionAttribute).hasPrefix("Environment: ") })
             if menu != nil { break }
         }
-        guard let menu, AXUIElementPerformAction(menu, kAXPressAction as CFString) == .success else { NSLog("Perch: no project menu in Claude"); return }
+        guard let menu, AXUIElementPerformAction(menu, kAXPressAction as CFString) == .success else { NSLog("Perch: no project menu in Claude"); return false }
         // An item reads "perch , edit environment, right arrow".
         func item(_ match: @escaping (String) -> Bool) -> AXUIElement? {
             wait(1.5, { windowsOf(app).lazy.compactMap { w in first(in: w, { role($0) == "AXMenuItem" && match(string($0, kAXTitleAttribute)) }) }.first })
@@ -147,9 +156,10 @@ enum NewSessionStarter {
             _ = AXUIElementPerformAction(more, kAXPressAction as CFString)
             found = item(mine)
         }
-        if let found, AXUIElementPerformAction(found, kAXPressAction as CFString) == .success { NSLog("Perch: chose \(name) in Claude"); return }
+        if let found, AXUIElementPerformAction(found, kAXPressAction as CFString) == .success { NSLog("Perch: chose \(name) in Claude"); return true }
         NSLog("Perch: \(name) is not in Claude's project menu")
         for down in [true, false] { CGEvent(keyboardEventSource: nil, virtualKey: 53, keyDown: down)?.postToPid(app.processIdentifier) }
+        return false
     }
     /// The app's windows, the question a new session asks among them.
     private static func windowsOf(_ app: NSRunningApplication) -> [AXUIElement] {
