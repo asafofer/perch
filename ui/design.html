@@ -208,7 +208,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     }
   })();
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
-  function read(i, o, then) { return function () { var me = charRun; if (o) d.variant(i, o); else { d.project(i); d.show('open'); } setTimeout(function () { if (me !== charRun) return; window.perch.readMenu(true); if (then) setTimeout(function () { if (me === charRun) then(); }, 900); }, 700); }; }
+  function preview(i, o, then) { return function () { var me = charRun; if (o) d.variant(i, o); else { d.project(i); d.show('open'); } setTimeout(function () { if (me !== charRun) return; window.perch.previewMenu(true); if (then) setTimeout(function () { if (me === charRun) then(); }, 900); }, 700); }; }
   function reply(typed, send) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); if (send) setTimeout(function () { r.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 1200); } }, 700); }; }
   /* selects the words `from` to `to` (found in the text) inside the element, as a drag across them would */
   function selectWords(sel, from, to) {
@@ -406,11 +406,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings: four agents', 'Settings, Agents: each agent Perch reads, how many sessions it has, and a switch. An agent switched off dims.', function () { d.settings({ sources: FOUR, page: 'agents' }); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
-    ['Reading', [
-      ['Read all', 'The card is a gist. Space, Read all, or a click on the summary shows the agent’s whole last message, as tall as the panel lets it be, with no field under it. Your own message is above it as a bubble.', read(1)],
-      ['Read: a long one', 'A message taller than the panel scrolls: Space and Shift+Space page, the arrows go a few lines, Command+Up and Down to the ends.', read(1, { said: SAID_LONG }, function () { window.perch.readKey('pageDown'); })],
-      ['Read: copy', 'Command+C copies the whole message as written, markdown and all, or only what you selected.', read(1, null, function () { window.perch.readKey('copy'); })],
-      ['Read, then reply', 'R turns Read into a reply: the message stays where you scrolled it and the field comes in under it.', read(1, { said: SAID_LONG }, function () { window.perch.readKey('pageDown'); setTimeout(function () { window.perch.readKey('reply'); }, 900); })]
+    ['Preview', [
+      ['Preview', 'The card is a gist. Space, Preview, or a click on the summary shows the agent\u2019s whole last message, as tall as the panel lets it be, with no field under it. Your own message is above it as a bubble.', preview(1)],
+      ['Preview: a long one', 'A message taller than the panel scrolls: Space and Shift+Space page, the arrows go a few lines, Command+Up and Down to the ends.', preview(1, { said: SAID_LONG }, function () { window.perch.previewKey('pageDown'); })],
+      ['Preview: copy', 'Command+C copies the whole message as written, markdown and all, or only what you selected. The Copy button says Copied.', preview(1, null, function () { window.perch.previewKey('copy'); })],
+      ['Preview, then reply', 'R turns Preview into a reply: the message stays where you scrolled it and the field comes in under it.', preview(1, { said: SAID_LONG }, function () { window.perch.previewKey('pageDown'); setTimeout(function () { window.perch.previewKey('reply'); }, 900); })],
+      ['Preview from the list', 'In the list, Space previews the row you are on without opening its card first; Esc goes back to the list on the same row. Once you type to filter, Space is a space.', function () { var me = charRun; d.show('switcher'); var on = function () { var s = window.perch._snap(), p = s && s.projects[s.selected]; return p && p.said && !p.ask; }; setTimeout(function () { if (me !== charRun) return; for (var k = 0; k < 8 && !on(); k++) window.perchDev.step(1); }, 900); setTimeout(function () { if (me !== charRun) return; window.perchDev.show('open', false, true); window.perch.previewMenu(true, 'list'); }, 2000); }]
     ]],
     ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
