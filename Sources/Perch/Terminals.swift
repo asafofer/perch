@@ -70,8 +70,19 @@ enum Terminals {
             if Cmux.focus(workspace: workspace, surface: surface) { return cmux }
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         case .tab:
+            if live.app == warp, let url = live.warpFocus, focusWarp(url) { return warp }
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         }
+    }
+
+    /// Opens a session's own Warp link, which lands on its tab exactly. True once Warp is in front.
+    private static func focusWarp(_ url: URL) -> Bool {
+        NSWorkspace.shared.open(url)
+        for _ in 0..<30 {
+            if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == warp { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return false
     }
 
     /// The terminal showing a herdr client, brought forward at that client's tab.
@@ -504,6 +515,8 @@ enum LiveSessions {
         let bin: String?
         /// tmux: the session its pane is in.
         var tmuxSession: String? = nil
+        /// Warp: the link that brings its own tab forward (`WarpTabs.focusLink`).
+        var warpFocus: URL? = nil
     }
     /// A herdr or tmux client in a terminal: what shows a herdr server's panes, or a tmux session. `tmux` is the socket of
     /// that tmux server and `bin` its CLI; nil for herdr, whose `session` names the server.
@@ -571,7 +584,7 @@ enum LiveSessions {
             default: app = terminalApp(above: f.ppid)
             }
             return Hit(pid: f.pid, cwd: f.cwd, tty: f.tty, agent: f.agent.id, app: app, place: place, argv: f.args.argv, started: f.started,
-                       viewer: viewer, bin: bin, tmuxSession: tmuxSession)
+                       viewer: viewer, bin: bin, tmuxSession: tmuxSession, warpFocus: WarpTabs.focusLink(f.args.environment))
         }
         return (hits, viewers)
     }

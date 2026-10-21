@@ -25,7 +25,7 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 - A terminal session (`Project.terminal`) goes back to where it runs while it runs, found from the process table in `Terminals.swift`:
   - a herdr or tmux pane or cmux surface, exactly;
   - Terminal and iTerm2 by tty, Ghostty by folder;
-  - Warp by switching tabs with Command+1 to 9 and reading each one's title and text through Accessibility (`WarpTabs`: Warp has no way to be asked, so it needs Accessibility, and reaches the first nine tabs of a window);
+  - Warp by the link to its own tab that Warp puts in the session's environment (`WARP_FOCUS_URL`, `warp://session/<id>`, read by `WarpTabs.focusLink`), exactly; without one (an older Warp), by switching tabs with Command+1 to 9 and reading each one's title and text through Accessibility (`WarpTabs`: it needs Accessibility, and reaches the first nine tabs of a window);
   - any other terminal by bringing it forward.
 - One running where Perch cannot follow brings forward the terminal you used last and is never started a second time.
 - A terminal session that no longer runs opens again where it last ran (`Restorer.reopen`, `Prefs.places`) with its agent's resume command, else in the terminal you used last.
