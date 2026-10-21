@@ -266,12 +266,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         CGRect(x: info.frame.midX - activitySize.width / 2, y: info.frame.maxY - activitySize.height, width: activitySize.width, height: activitySize.height)
     }
 
-    /// Opens that session's card as if you asked for it, with the keyboard, so A, D and Esc answer it; Reply opens its field.
-    private func openCard(for id: String, reply: Bool) {
+    /// Opens that session's card as if you asked for it, with the keyboard, so A, D and Esc answer it; Reply opens its field, Preview the whole message.
+    private func openCard(for id: String, reply: Bool, preview: Bool = false) {
         guard machine.phase == .idle, let i = projects.firstIndex(where: { $0.id == id }) else { return }
         projects.insert(projects.remove(at: i), at: 0)
         comeBack()
         if reply { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in self?.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } }
+        else if preview { DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in self?.web.evaluateJavaScript("window.perch && window.perch.previewMenu(true)", completionHandler: nil) } }
     }
 
     /// Calls and presentations, checked at most every few seconds: push() runs often.
@@ -1261,7 +1262,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if !activityTakesPointer { hoverLatched = true }   // what it folds to under the cursor is not a hover
             onActivityKeys?(body["keys"] as? [String] ?? [])
         case "activityOpen":
-            if let id = body["id"] as? String { openCard(for: id, reply: body["reply"] as? Bool ?? false) }
+            if let id = body["id"] as? String { openCard(for: id, reply: body["reply"] as? Bool ?? false, preview: body["preview"] as? Bool ?? false) }
         case "activityPick":
             if let id = body["id"] as? String, machine.phase == .idle, let i = projects.firstIndex(where: { $0.id == id }) { pickUp(i) }
         case "activityAnswer":
