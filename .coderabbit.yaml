@@ -1,14 +1,49 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Minimal: review comments on the code and little else. The PR body stays on the template (pr-body.yml).
 language: en-US
 reviews:
   profile: chill
   request_changes_workflow: false
-  # Keep the summary in CodeRabbit's own comment: the PR body must stay on the template (pr-body.yml).
-  high_level_summary: true
+  high_level_summary: false
   high_level_summary_in_walkthrough: true
-  poem: false
-  review_status: true
+  review_status: false
+  review_info: false
+  review_details: false
+  review_progress: false
   collapse_walkthrough: true
+  changed_files_summary: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  assess_linked_issues: false
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  suggested_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  slop_detection:
+    enabled: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: false
+  tools:
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
   auto_review:
     enabled: true
     drafts: false
@@ -28,4 +63,5 @@ reviews:
     - path: "docs/behavior/**"
       instructions: "Check the doc still matches the code change in the same PR."
 chat:
+  art: false
   auto_reply: true
