@@ -41,6 +41,7 @@
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
+    chevD: '<path d="m6 9 6 6 6-6"/>',
     tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
     clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
@@ -3215,7 +3216,7 @@
   }
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'ticks';
+  var notifyStyle = 'ticks', notifyMenuOpen = false;
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
     if (st === 'icons') {
@@ -3224,6 +3225,31 @@
         return '<button class="s-nt grid size-9 cursor-pointer place-items-center rounded-lg transition-colors ' + (y ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '" data-k="' + x[0] + '" data-name="' + esc(x[1]) + '" aria-pressed="' + y + '" aria-label="' + esc(x[1]) + '"><span class="grid transition-opacity ' + (y ? '' : 'opacity-35') + '">' + nMark(x[0]) + '</span></button>';
       }).join('');
       return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list) + '</span>', '') .replace('</span></span><span class="block', '</span></span><span class="mt-2 flex gap-1.5 pl-[26px]">' + chips + '</span><span class="block');
+    }
+    if (st === 'presets') {
+      /* three presets over the same moments; none lit means a mix you made */
+      var keys = list.map(function (x) { return x[0]; }), offs = keys.filter(function (k) { return !notifyOn(k); }).join(',');
+      var cur = offs === '' ? 'all' : offs === 'done' ? 'needs' : offs === keys.join(',') ? 'none' : '';
+      var seg = '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + [['all', 'All'], ['needs', 'Needs me'], ['none', 'Off']].map(function (x) {
+        return '<button class="s-np h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (cur === x[0] ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-m="' + x[0] + '">' + x[1] + '</button>';
+      }).join('') + '</span>';
+      return drow(slabel('Notify me about', '', 'bell'), notifyLine(list) === 'All of them' ? 'Everything: finished, a command, a question, a plan, an error' : cur === 'needs' ? 'Everything but Finished' : notifyLine(list), seg);
+    }
+    if (st === 'pills') {
+      return shead('Notify me about') + '<div class="mx-2 flex flex-wrap gap-1.5 px-2 pb-1">' + list.map(function (x) {
+        var y = notifyOn(x[0]);
+        return '<button class="s-nt flex h-7 cursor-pointer items-center gap-1.5 rounded-full pl-2 pr-3 text-[13px] transition-colors ' + (y ? 'bg-white/[0.1]' : 'bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07]') + '" data-k="' + x[0] + '" aria-pressed="' + y + '"><span class="grid flex-none transition-opacity ' + (y ? '' : 'opacity-40') + '">' + nMark(x[0]) + '</span>' + esc(x[1]) + '</button>';
+      }).join('') + '</div>';
+    }
+    if (st === 'menu') {
+      var faces = list.filter(function (x) { return notifyOn(x[0]); }).map(function (x) { return nMark(x[0]); }).join('');
+      var head = '<div class="s-row s-menu s-tap mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
+        '<span class="flex flex-none items-center gap-[3px]">' + (faces || '<span class="text-xs text-muted-foreground">Nothing</span>') + '</span>' + svg(notifyMenuOpen ? 'chevD' : 'chevR', 'size-3 flex-none text-muted-foreground/60') + '</div>';
+      if (!notifyMenuOpen) return head;
+      return head + '<div class="mx-2 mb-1 rounded-lg bg-white/[0.05] p-1">' + list.map(function (x) {
+        var y = notifyOn(x[0]);
+        return '<div class="s-nt flex h-7 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors hover:bg-white/[0.06]" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) + '<span class="flex-none">' + (y ? Ring('done') : '<span class="block size-4 rounded-full border border-muted-foreground/35"></span>') + '</span></div>';
+      }).join('') + '</div>';
     }
     if (st === 'ticks') {
       return shead('Notify me about') + list.map(function (x) {
@@ -3337,6 +3363,10 @@
       var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
       if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
     });
+    box.querySelectorAll('.s-np').forEach(function (b) { b.onclick = function () {
+      var m = b.dataset.m; notifyList(setLast).forEach(function (x) { post({ type: 'notify', kind: x[0], enabled: m === 'all' || (m === 'needs' && x[0] !== 'done') }); });
+    }; });
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function () { notifyMenuOpen = !notifyMenuOpen; setSig = ''; settingsApply(setLast); }; });
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3667,7 +3697,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length, notifyStyle, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length, notifyStyle, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -3968,7 +3998,7 @@
     }
     window.perchDev = {
       /* which look the Notifications moments have, for comparing them (switches is today's) */
-      notifyStyle: function (st) { notifyStyle = st; setSig = ''; },
+      notifyStyle: function (st) { notifyStyle = st; notifyMenuOpen = false; setSig = ''; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
