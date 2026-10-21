@@ -253,11 +253,11 @@
       }).join('');
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
       /* below the icon, right edges together; above it when there is no room below */
-      /* a panel across the card, under the icon: it covers whole lines instead of leaving pieces of text beside it */
-      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.width = prTip.style.maxWidth = (nb.width - 24) + 'px';
+      /* only as wide as its words, right edges together with the icon, and never past the card */
+      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.width = ''; prTip.style.maxWidth = (nb.width - 24) + 'px';
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
-      var th = prTip.offsetHeight;
-      prTip.style.left = (nb.left + 12) + 'px';
+      var tw = prTip.offsetWidth, th = prTip.offsetHeight;
+      prTip.style.left = Math.max(nb.left + 12, Math.min(r.right - tw + 6, nb.right - tw - 12)) + 'px';
       /* below the icon; above it when that is where the room is; else held inside the card */
       var below = r.bottom + 6, above = r.top - th - 6, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
       prTip.style.top = top + 'px'; prTip.classList.add('on');
