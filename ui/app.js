@@ -1619,7 +1619,7 @@
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
-    /* a question on the row or in the wings: the shortcut that opens Perch opens it on the card instead */
+    /* a question or a finish on the row (a question in the wings too): the shortcut that opens Perch opens it on its card instead */
     var toCard = (mode === 'full' || mode === 'wings') && act.keys.indexOf('card') >= 0;
     var sig = [mode, w, h, act.p ? act.p.id : '', keys.join(), toCard].join('|');
     if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys, card: toCard }); }
@@ -1663,7 +1663,7 @@
   /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
      is already there moves (the pointer would lose it). */
   function actExtra(p, k) {
-    if (actMore && actMore.pv && act.mode === 'full' && k === 'done') return '<div class="act-ex">Click to preview' + (actNoKeys.indexOf('preview') < 0 ? ' \u00b7 ' + CMDOPT + 'P' : '') + '</div>';
+    if (actMore && actMore.pv && act.mode === 'full' && k === 'done') return '<div class="act-ex">Click to preview</div>';
     if (!actMore || act.mode !== 'full' || k !== 'ask') return '';
     var qs = p.ask && p.ask.questions && p.ask.questions[0]; if (!qs) return '';
     if (actMore.c != null) {
@@ -1692,8 +1692,8 @@
        button already does (then a cross at the left puts it away); three choices need the room, so there it is the key alone. Command+Option+. puts it
        away either way. Clicking the question opens the whole of it on the card ('card'). */
     var toApp = !bs.some(function (b) { return b[0] === 'pick'; }), opener = toApp && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);   /* three choices: the key alone */
-    var pv = k === 'done' && canPreview(p);   /* a finish: its title, clicked (or Command+Option+P), previews the whole message on the card */
-    act.keys = ['gone'].concat(toApp ? ['app'] : [], k === 'ask' ? ['card'] : [], pv ? ['preview'] : [], bs.map(function (b) { return b[0]; }));
+    var pv = k === 'done' && canPreview(p);   /* a finish: its title, clicked, previews the whole message on the card */
+    act.keys = ['gone'].concat(toApp ? ['app'] : [], k === 'ask' || k === 'done' ? ['card'] : [], pv ? ['preview'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();

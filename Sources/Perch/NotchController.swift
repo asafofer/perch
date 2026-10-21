@@ -356,7 +356,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if recorder != nil { return }
         if machine.phase == .onboarding, onbStep == 3 { shortcutTried = true; shortcutSaved = false; push(); return }
         guard machine.phase == .idle else { send(.dismiss); return }
-        if activityCard { activityKey("card"); return }   // as a click on the question: its card, with the keyboard
+        if activityCard { activityKey("card"); return }   // what the notch shows (a question, a finish) on its card, with the keyboard
         if !reopen() { toggleSwitcher() }
     }
 
