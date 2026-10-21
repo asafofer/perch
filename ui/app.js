@@ -247,7 +247,7 @@
       var repos = {}; list.forEach(function (x) { repos[x.repo || ''] = 1; });
       prTip.innerHTML = list.map(function (pr) {
         var w = prWord(pr), r = Object.keys(repos).length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '';
-        return '<div class="r">' + PRIcon(pr, 'size-3.5') + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span><span style="color:' + prColor(pr) + '">' + esc(w.t) + '</span></div>';
+        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + prColor(pr) + '">' + esc(w.t) + '</span>' + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span></div>';
       }).join('');
       /* below the icon, right edges together; above it when there is no room below */
       var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
