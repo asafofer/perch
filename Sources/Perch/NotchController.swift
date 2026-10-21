@@ -822,7 +822,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             wnCarriedAccess = false
         }
         if old == .switcher { pendingPicked = false }
-        if old == .open, new != .open { frontForReply(false) }
+        // Preview belongs to the card: leaving it (for the list, say) ends it here too, or its keys would take the list's.
+        if old == .open, new != .open { frontForReply(false); previewOpen = false }
         // Done setting up a new session: the app you were in is the one in front again.
         if old == .newSession, new != .newSession {
             if NSApp.isActive, let app = newFrontFrom, !app.isTerminated { app.activate() }

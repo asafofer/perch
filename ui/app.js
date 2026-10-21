@@ -558,10 +558,21 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var box = q('.o-said-in'); drawSaid(box, p); box.scrollTop = box.scrollHeight; }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
+  }
+  function drawSaid(box, p) {
+    box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.dataset.k = p.id + '\n' + p.asked + '\n' + p.said;
+    box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.querySelectorAll('.md-tbl').forEach(tblEdge);
+  }
+  /* the agent said more while the message is open (it went on in its terminal): the new words, read from where you were */
+  function redrawSaid(p) {
+    var box = q('.o-said-in');
+    if (q('.p-open').dataset.rep !== '1' || !p || !p.said || box.dataset.k === p.id + '\n' + p.asked + '\n' + p.said) return;
+    var top = box.scrollTop; drawSaid(box, p); box.scrollTop = top;
+    if (snap && lastSt === 'open') layout('open', snap);
   }
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
      three) so its header shows too; the rows it gave up are a scroll away in the table. */
@@ -618,7 +629,8 @@
     if (k === 'close') previewMenu(false);
     else if (k === 'reply') replyMenu(true);
     else if (k === 'copy') previewCopy();
-    else saidScroll({ pageDown: page, pageUp: -page, down: 57, up: -57, end: 1e6, top: -1e6 }[k] || 0);
+    else if (k === 'end' || k === 'top') saidScroll(k === 'end' ? 1e6 : -1e6, box);   /* the message's ends, past any table */
+    else saidScroll({ pageDown: page, pageUp: -page, down: 57, up: -57 }[k] || 0);
   }
   /* the summary and its Preview open Preview; dragging over the words to select them does not */
   q('.p-open').addEventListener('click', function (e) {
@@ -667,8 +679,8 @@
   q('.x-rclose').onclick = function () { replyMenu(false); };
   /* Eased by hand, frame by frame, toward where the keys want it; a held key keeps adding to the same glide. */
   var glide = { el: null, to: 0, at: 0, raf: 0 };
-  function saidScroll(d) {
-    var el = saidTarget(q('.o-said-in'), d);
+  function saidScroll(d, to) {
+    var el = to || saidTarget(q('.o-said-in'), d);
     if (glide.el !== el) { cancelAnimationFrame(glide.raf); glide.raf = 0; glide.el = el; }
     var max = Math.max(0, el.scrollHeight - el.clientHeight);
     if (!glide.raf) glide.at = glide.to = el.scrollTop;   /* start from wherever a trackpad left it */
@@ -926,6 +938,7 @@
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    q('.o-more').style.display = canPreview(p) ? '' : 'none';   /* never on a request: canPreview says no to one */
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -963,7 +976,6 @@
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
     setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
-    q('.o-more').style.display = canPreview(p) && !a ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
@@ -2280,6 +2292,7 @@
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
+    if (st === 'open') redrawSaid(p);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
