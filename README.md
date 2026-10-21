@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/asafofer/perch-releases/releases/latest/download/Perch.dmg"><img alt="Download for macOS" src="https://img.shields.io/badge/Download_for_macOS-ffffff?style=flat&logo=apple&logoColor=000000" height="36"></a><br>
+  <a href="https://github.com/asafofer/perch-releases/releases/latest/download/Perch.dmg"><img alt="Download for macOS" src="docs/assets/download-button.svg" width="232"></a><br>
   <sub>macOS 15+ on Apple silicon · Free and MIT · Local-only, no account · Signed and notarized by Apple</sub>
 </p>
 
