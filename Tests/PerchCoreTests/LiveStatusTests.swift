@@ -31,6 +31,21 @@ import Foundation
         #expect(Ask.describe(tool: "mcp__linear__save_issue", input: [:]) == ("use issue", "From linear"))
     }
 
+    @Test func anOpenCodeRequestOutlivesAToolRunBesideIt() throws {
+        // OpenCode asked to run the build and, in the same step, ran a tool that needs no OK: that tool finishing settles nothing.
+        let ask = try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"bash","tool_input":{"command":"npm run build"}}"#, agent: "opencode"))
+        var s = LiveStatus.apply(ask, to: nil)
+        s = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"codegraph_codegraph_node"}"#, agent: "opencode")), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["r1"])
+        // Answered: its plugin lets the request go, and only then is it settled.
+        s.settle("r1", at: Date())
+        #expect(s.kind == .working); #expect(s.asks.isEmpty)
+        // A Claude tool run after a request still means it was answered.
+        let claude = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash"}"#)),
+                                      to: LiveStatus.apply(try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#)), to: nil))
+        #expect(claude.kind == .working); #expect(claude.asks.isEmpty)
+    }
+
     @Test func aSingleQuestionCanBeAnsweredFromTheNotch() throws {
         let body = #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which database?","header":"DB","multiSelect":false,"options":[{"label":"Postgres","description":""},{"label":"SQLite","description":""}]}]}}"#
         guard case .asks(let a)? = event("PermissionRequest", body)?.kind else { Issue.record("not an ask"); return }

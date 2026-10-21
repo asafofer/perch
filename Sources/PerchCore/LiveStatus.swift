@@ -227,7 +227,11 @@ public struct LiveStatus: Equatable, Sendable {
         s.at = e.at
         switch e.kind {
         case .started: s.kind = .working; s.asks = []; s.outcome = nil
-        case .toolRan: s.asks = []; s.kind = .working
+        case .toolRan:
+            // OpenCode runs other tools while a request waits on you, and says when each request is answered (its plugin lets
+            // the held request go): a tool finishing beside it settles nothing.
+            s.asks.removeAll { !($0.agent == "opencode" && $0.answerable) }
+            s.kind = s.asks.isEmpty ? .working : .asking
         case .asks(let a): s.asks.removeAll { $0.id == a.id }; s.asks.append(a); s.kind = .asking
         case .finished(let m): s.kind = .finished; s.asks = []; s.outcome = m
         case .failed: s.kind = .failed; s.asks = []
