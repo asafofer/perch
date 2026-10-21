@@ -296,6 +296,27 @@ import Foundation
         let s = status([prompt, toolCall("Edit")], quiet: 90)
         #expect(s.kind == "attention"); #expect(s.text == "Claude is waiting for your OK")
     }
+    @Test func aTerminalSessionNoProcessRunsAsksNothing() throws {
+        // Killed while its Bash call waited for your OK, resumed and closed without a word: the transcript still ends on that call.
+        var p = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 900))
+        p.terminal = true
+        #expect(p.toolOpen)
+        p.pid = 4242
+        #expect(p.agentGone().status.kind == "attention")   // still running there: it waits for you
+        p.pid = nil
+        #expect(p.agentGone().status.kind == "idle"); #expect(p.agentGone().status.text == "Claude Code stopped mid-task")
+        // What its hook said goes too, so resuming it later does not bring the request back.
+        var live = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s2", kind: .asks({ var a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build"]); a.answerable = false; return a }())), to: nil)
+        #expect(live.agentGone() == nil)
+        let asked = p.applying(live)
+        #expect(asked.agentGone().status.kind == "idle"); #expect(asked.agentGone().ask == nil)
+        // A request held by its hook (OpenCode's) is settled by that hook, not by this.
+        live = LiveStatus.apply(HookEvent(agent: "opencode", sessionId: "s2", kind: .asks(Ask(id: "o", agent: "opencode", tool: "bash", input: ["command": "ls"]))), to: nil)
+        #expect(live.agentGone()?.asks.map(\.id) == ["o"])
+        // An app session is never a terminal one: nothing changes.
+        p.terminal = false
+        #expect(p.agentGone().status.kind == "attention")
+    }
     @Test func aLongCommandIsWorkingUntilItsOwnTimeout() {
         let build = toolCall("Bash", #"{"command":"swift build","timeout":600000}"#)
         #expect(status([prompt, build], quiet: 400).kind == "running")

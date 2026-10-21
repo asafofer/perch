@@ -259,6 +259,18 @@ extension LiveStatus {
     }
 }
 
+extension LiveStatus {
+    /// What still stands once the agent that asked is gone (a terminal session no process runs any more): its requests wait
+    /// on no one, so they settle. A held request (OpenCode's) settles by itself when its hook goes away. Nil: nothing stands,
+    /// and the transcript says how the session was left.
+    public func agentGone() -> LiveStatus? {
+        guard kind == .asking else { return self }
+        var s = self
+        s.asks.removeAll { !$0.answerable }
+        return s.asks.isEmpty ? nil : s
+    }
+}
+
 extension Project {
     /// The same project with what its hooks said in place of what the transcript suggested.
     public func applying(_ live: LiveStatus) -> Project {
