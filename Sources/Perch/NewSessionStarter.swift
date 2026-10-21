@@ -84,6 +84,8 @@ enum NewSessionStarter {
                         if asked { DispatchQueue.main.async { declined() } }
                         return false
                     }
+                    // Trusted: chosen in the menu again all the same, as the link's folder alone starts it with none.
+                    if pick, !picked { picked = true; choose(folder, near: field, in: app); continue }
                     if asked { NSLog("Perch: trusted in Claude, on \(folder); sending") }
                 }
                 if let send = sendButton(near: field), (attr(send, kAXEnabledAttribute) as? Bool) != false, !asking {
