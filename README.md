@@ -93,7 +93,12 @@ While the notch shows something that finished or asks for you, its buttons answe
 
 ## Privacy and permissions
 
-Perch reads the session files your agents already keep on your Mac and sends nothing anywhere. The card's words are your agents' own: the session's title, what the agent said it did, and a next step only when the agent stated one.
+Perch reads the session files your agents already keep on your Mac, and your sessions, prompts and code never leave it. There is no account, analytics or telemetry. Perch goes online for two things only:
+
+- **Updates.** About once an hour it fetches the release list, `appcast.xml` in the public [perch-releases](https://github.com/asafofer/perch-releases) repo on GitHub, and downloads a new version only when you press Update.
+- **Send feedback,** when you use it. Your message, any screenshots you attach, your email if you give one and, if you choose, the Perch and macOS versions go to a small function (`feedback/`, on Vercel) that emails them to the maker of Perch.
+
+The card's words are your agents' own: the session's title, what the agent said it did, and a next step only when the agent stated one.
 
 **Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
 
