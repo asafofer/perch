@@ -5,7 +5,6 @@ reviews:
   profile: chill
   request_changes_workflow: false
   high_level_summary: false
-  high_level_summary_in_walkthrough: true
   review_status: false
   review_info: false
   review_details: false
