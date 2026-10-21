@@ -3213,6 +3213,38 @@
     if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
     return false;
   }
+  /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
+     a row of icons, ticks, or a grid of tiles. */
+  var notifyStyle = 'switches';
+  function notifyMoments(o) {
+    var list = notifyList(o), st = notifyStyle;
+    if (st === 'icons') {
+      var chips = list.map(function (x) {
+        var y = notifyOn(x[0]);
+        return '<button class="s-nt grid size-9 cursor-pointer place-items-center rounded-lg transition-colors ' + (y ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '" data-k="' + x[0] + '" data-name="' + esc(x[1]) + '" aria-pressed="' + y + '" aria-label="' + esc(x[1]) + '"><span class="grid transition-opacity ' + (y ? '' : 'opacity-35') + '">' + nMark(x[0]) + '</span></button>';
+      }).join('');
+      return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list) + '</span>', '') .replace('</span></span><span class="block', '</span></span><span class="mt-2 flex gap-1.5 pl-[26px]">' + chips + '</span><span class="block');
+    }
+    if (st === 'ticks') {
+      return shead('Notify me about') + list.map(function (x) {
+        var y = notifyOn(x[0]);
+        return '<div class="s-row s-nt s-tap mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) +
+          '<span class="flex-none">' + (y ? Ring('done') : '<span class="block size-4 rounded-full border border-muted-foreground/35"></span>') + '</span></div>';
+      }).join('');
+    }
+    if (st === 'grid') {
+      return shead('Notify me about') + '<div class="mx-2 grid grid-cols-2 gap-1.5 px-2 pb-1">' + list.map(function (x) {
+        var y = notifyOn(x[0]);
+        return '<button class="s-nt flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-left text-[13px] transition-colors ' + (y ? 'bg-white/[0.1]' : 'bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07]') + '" data-k="' + x[0] + '" aria-pressed="' + y + '"><span class="grid flex-none transition-opacity ' + (y ? '' : 'opacity-40') + '">' + nMark(x[0]) + '</span><span class="min-w-0 truncate">' + esc(x[1]) + '</span></button>';
+      }).join('') + '</div>';
+    }
+    return list.map(function (x) {
+      var y = notifyOn(x[0]);
+      return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
+    }).join('');
+  }
+  /* what the icon row says under it: the moments that are on, by name */
+  function notifyLine(list) { var on = list.filter(function (x) { return notifyOn(x[0]); }).map(function (x) { return x[1]; }); return on.length === list.length ? 'All of them' : on.length ? esc(on.join(', ')) : 'Nothing'; }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
@@ -3300,6 +3332,11 @@
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
+    box.querySelectorAll('.s-nt').forEach(function (b) {
+      b.onclick = function () { post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
+      var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
+      if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
+    });
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3341,10 +3378,7 @@
         }).join('') + '</span>';
       };
       /* which moments the notch announces (the list and the cards say all of them) */
-      return notifyList(o).map(function (x) {
-        var y = notifyOn(x[0]);
-        return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
-      }).join('') + gap +
+      return notifyMoments(o) + gap +
         /* the minutes are how long you are away, not a reminder after an agent replies */
         drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -3633,7 +3667,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length, notifyStyle, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -3933,6 +3967,8 @@
       });
     }
     window.perchDev = {
+      /* which look the Notifications moments have, for comparing them (switches is today's) */
+      notifyStyle: function (st) { notifyStyle = st; setSig = ''; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
