@@ -25,6 +25,19 @@ import Foundation
         let d = TranscriptParser.digest(lines: lines)
         #expect(d.lastUserText != "ignored meta"); #expect(d.lastUserText != "ignored sidechain")
     }
+    @Test func aTurnThatSaysMoreThanOnceIsKeptWhole() {
+        // an answer, then a stop hook speaks (meta) and the agent answers again: Preview shows both; your next message starts afresh
+        let turn = [
+            #"{"type":"user","message":{"content":"hi"}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Hi! What can I help with?"}]}}"#,
+            #"{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback: ..."}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Nothing to publish."}],"stop_reason":"end_turn"}}"#,
+        ]
+        #expect(TranscriptParser.digest(lines: turn).turnFull == "Hi! What can I help with?\n\nNothing to publish.")
+        #expect(TranscriptParser.digest(lines: turn).lastAssistantFull == "Nothing to publish.")
+        let next = turn + [#"{"type":"user","message":{"content":"thanks"}}"#, #"{"type":"assistant","message":{"content":[{"type":"text","text":"Any time."}]}}"#]
+        #expect(TranscriptParser.digest(lines: next).turnFull == "Any time.")
+    }
     @Test func stripsInjectedReminders() {
         let t = TranscriptParser.text(from: "hello <system-reminder>secret</system-reminder> world")
         #expect(t == "hello  world".replacingOccurrences(of: "  ", with: " ") || t == "hello  world")

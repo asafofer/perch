@@ -12,6 +12,9 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastAssistantText: String?
     /// The same message with its line breaks, for showing it as written.
     public var lastAssistantFull: String?
+    /// Everything the agent wrote since your last message, as written: a turn can say more than once (an answer, then
+    /// another after a stop hook spoke), and Preview shows it all.
+    public var turnFull: String?
     public var lastTimestamp: Date?
     /// "user" or "assistant": who spoke last.
     public var lastRole: String?
@@ -303,8 +306,8 @@ public enum TranscriptParser {
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: message?["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
-            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
+            if type == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: message?["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text; d.turnFull = Self.joined(d.turnFull, d.lastAssistantFull) }
             d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
@@ -322,6 +325,12 @@ public enum TranscriptParser {
 
     /// Plain text of a message, without injected reminders or command wrappers. Tool results count as no text.
     /// `keepLines`: as written, line breaks and all (the card shows it while you reply); otherwise one line, for summaries.
+    /// Two things the agent wrote in one turn, as one message, a blank line between.
+    static func joined(_ a: String?, _ b: String?) -> String? {
+        guard let b, !b.isEmpty else { return a }
+        guard let a, !a.isEmpty else { return b }
+        return a + "\n\n" + b
+    }
     static func text(from content: Any?, keepLines: Bool = false) -> String? {
         var raw = ""
         if let s = content as? String { raw = s }
@@ -438,7 +447,7 @@ public enum Recap {
         // At work with its turn over: it waits on what it left in the background.
         p.waiting = working && !d.turnOpen
         p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
-        p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
+        p.said = Recap.said(d.turnFull ?? d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
         return p
     }
@@ -795,8 +804,8 @@ public enum CodexTranscript {
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
             if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
-            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
+            if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text; d.turnFull = TranscriptParser.joined(d.turnFull, d.lastAssistantFull) }
             if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
