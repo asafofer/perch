@@ -342,11 +342,13 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['PR, checks running', 'Plain green while CI runs.', function () { d.project(0); d.show('open'); }],
       ['PR, draft', 'Grey icon with dots.', function () { d.project(2); d.show('open'); }],
       ['PR, merged', 'Purple icon.', function () { d.project(4); d.show('open'); }],
+      ['PR, two merged', 'One session, two pull requests: the icon with a small count; hover lists them.', function () { d.project(4); d.show('open'); }],
+      ['PR, failing and merged', 'The one that needs you leads (orange); the count says there is another. Hover lists both.', function () { d.project(7); d.show('open', false, true); }],
       ['PR, closed', 'Red icon, not merged.', function () { d.project(6); d.show('open'); }],
       ['All sessions, with PRs', 'Each row carries its PR icon beside the time. Hover one for its label.', function () { d.show('switcher'); }],
-      ['Settings: Pull requests on', 'Off until switched on: it asks GitHub through the GitHub CLI you are signed in with. The icon then shows on each session whose branch has a pull request.', function () { d.settings({ prs: 'on' }); }],
-      ['Settings: needs the CLI', 'No GitHub CLI found: the switch is greyed and the line says what to do.', function () { d.settings({ prs: 'nogh' }); }],
-      ['Settings: not signed in', 'The GitHub CLI is there but logged out.', function () { d.settings({ prs: 'login' }); }]
+      ['Settings: PR checks on', 'The icon itself comes from the Claude app and needs no setting. This one is off until switched on: it asks GitHub, through the GitHub CLI you are signed in with, whether checks fail, a review wants changes or the branch conflicts, and it finds pull requests for terminal sessions too.', function () { d.settings({ prs: 'on' }); }],
+      ['Settings: PR checks, needs the CLI', 'No GitHub CLI found: the switch is greyed and the line says what to do. The icons from the Claude app still show.', function () { d.settings({ prs: 'nogh' }); }],
+      ['Settings: PR checks, not signed in', 'The GitHub CLI is there but logged out.', function () { d.settings({ prs: 'login' }); }]
     ]],
     ['More agents', [
       ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
@@ -844,7 +846,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
     at(5500, function () { now.textContent = 'Perch is in Applications: open it from there'; });
   }
-  var MEAN = {"Open": "Open pull request, nothing to do yet", "Checks running": "Open, CI still running", "Ready to merge": "Approved and checks green", "Approved": "Approved, checks not finished", "Checks failing": "CI failed: yours to look at", "Changes requested": "A reviewer asked for changes", "Conflicts": "The branch no longer merges cleanly", "Draft": "Draft, not ready for review", "Merged": "Merged into its base branch", "Closed": "Closed without merging"};
+  var MEAN = {"Open": "Open pull request, nothing to do yet", "Checks running": "Open, CI still running", "Ready to merge": "Approved and checks green", "Approved": "Approved, checks not finished", "Checks failing": "CI failed: yours to look at", "Changes requested": "A reviewer asked for changes", "Conflicts": "The branch no longer merges cleanly", "Draft": "Draft, not ready for review", "Merged": "Merged into its base branch", "Closed": "Closed without merging", "Several": "Several pull requests: the one that needs you shows, with a count"};
   document.getElementById('prgrid').innerHTML = d.prLegend().map(function (x) {
     return '<div class="prc"><div class="tile">' + x.icon + '</div><div><b>' + x.word + '</b><span>' + (MEAN[x.word] || '') + '</span><span><i style="background:' + x.color + '"></i>' + x.color.toLowerCase() + '</span></div></div>';
   }).join('');

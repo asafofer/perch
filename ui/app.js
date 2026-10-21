@@ -195,7 +195,7 @@
     var c = k === 'done' ? COLORS.done : k === 'down' ? COLORS.running : COLORS.attention;
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
   }
-  /* A session's pull request (p.pr: number, url, state open|draft|merged|closed, checks pass|fail|running, review approved|changes,
+  /* A session's pull requests (p.prs, a list; each: number, repo, url, state open|draft|merged|closed, checks pass|fail|running, review approved|changes,
      conflict). Icon only. Its colour is the PR's state, in GitHub's: green open, purple merged, red closed, grey draft. When it is
      yours to act on (checks failing, changes requested, conflicts) the whole icon turns orange. The number and the words show in a
      small label while the pointer is on it (prTip); clicking it opens the pull request. */
@@ -220,22 +220,37 @@
     var w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state];
     return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
   }
-  /* One label for every PR icon, drawn above the one under the pointer (below it when there is no room). It is Perch's own, since a
-     card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
+  /* One session can open several pull requests. Its mark shows the one that matters most (it needs you, then open, draft,
+     merged, closed) with a small count when there are more; the label lists them all. */
+  var PRRANK = { open: 1, draft: 2, merged: 3, closed: 4 };
+  function prTop(list) {
+    return list.slice().sort(function (a, b) {
+      var ra = prWord(a).c === COLORS.attention ? 0 : PRRANK[a.state] || 5, rb = prWord(b).c === COLORS.attention ? 0 : PRRANK[b.state] || 5;
+      return ra - rb;
+    })[0];
+  }
+  function PRMark(list, cls) {
+    return '<span class="flex items-center gap-1">' + PRIcon(prTop(list), cls) + (list.length > 1 ? '<span class="text-[11px] tabular-nums leading-none text-muted-foreground">' + list.length + '</span>' : '') + '</span>';
+  }
+  /* One label for every PR mark, drawn above the one under the pointer (below it when there is no room). It is Perch's own,
+     since a card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
   function prHover(el) {
     if (el.dataset.b) return; el.dataset.b = '1';
     el.onmouseenter = function () {
-      var pr = el._pr; if (!pr) return; var w = prWord(pr);
-      prTip.innerHTML = '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span> <span' + (w.c ? ' style="color:' + w.c + '"' : '') + '>' + esc(w.t) + '</span>';
+      var list = el._prs; if (!list || !list.length) return;
+      var repos = {}; list.forEach(function (x) { repos[x.repo || ''] = 1; });
+      prTip.innerHTML = list.map(function (pr) {
+        var w = prWord(pr), r = Object.keys(repos).length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span> ' : '';
+        return '<div class="flex items-center gap-1.5">' + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span> <span' + (w.c ? ' style="color:' + w.c + '"' : '') + '>' + esc(w.t) + '</span></div>';
+      }).join('');
       var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
       prTip.style.left = Math.max(6, Math.min(r.right - tw, innerWidth - tw - 6)) + 'px';
       prTip.style.top = (r.top - th - 5 < 4 ? r.bottom + 5 : r.top - th - 5) + 'px'; prTip.style.opacity = 1;
     };
     el.onmouseleave = function () { prTip.style.opacity = 0; };
-    el.onclick = function (e) { e.stopPropagation(); if (el._pr && el._pr.url) post({ type: 'openpr', url: el._pr.url }); };
+    el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
   }
-  function PRChip(pr) { return '<span class="flex">' + PRIcon(pr, 'size-4') + '</span>'; }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
@@ -911,7 +926,7 @@
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    var pre = q('.o-pr'), pc = p.pr ? PRChip(p.pr) : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._pr = p.pr || null; prHover(pre);
+    var pre = q('.o-pr'), pc = p.prs && p.prs.length ? PRMark(p.prs, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = p.prs || null; prHover(pre);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -1140,7 +1155,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      var pe = r.querySelector('.pr'); if (pe) { var pm = p.pr ? PRIcon(p.pr, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._pr = p.pr || null; prHover(pe); }
+      var pe = r.querySelector('.pr'); if (pe) { var pm = p.prs && p.prs.length ? PRMark(p.prs, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = p.prs || null; prHover(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -3135,7 +3150,7 @@
       srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
       srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
       /* off until switched on: it asks GitHub, with the GitHub CLI's login, whether the branch each session is on has a pull request */
-      srow(slabel('Pull requests', '<span class="s-prs">' + prsSub(o) + '</span>', 'pr'), swHtml(o.prs === 'on', 'prs', 'Pull requests').replace('class="s-sw sw"', 'class="s-sw sw' + (o.prs === 'nogh' || o.prs === 'login' ? ' opacity-40" disabled="' : '') + '"')),
+      srow(slabel('PR checks', '<span class="s-prs">' + prsSub(o) + '</span>', 'pr'), swHtml(o.prs === 'on', 'prs', 'PR checks').replace('class="s-sw sw"', 'class="s-sw sw' + (o.prs === 'nogh' || o.prs === 'login' ? ' opacity-40" disabled="' : '') + '"')),
       /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
       srow(slabel('Welcome back after', '', 'timer'), awaySeg),
       /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -3597,11 +3612,16 @@
         asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
     ];
     /* sample pull requests: one of each state */
-    var DEMO_PR = { onboarding: { number: 452, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }, website: { number: 448, state: 'open', checks: 'pass', review: 'approved' },
-      docs: { number: 455, state: 'draft' }, planner: { number: 431, state: 'merged' }, lukatz: { number: 12, state: 'closed' },
-      api: { number: 460, state: 'open', checks: 'fail' }, fluid: { number: 87, state: 'open', checks: 'pass', review: 'changes' },
-      gaps: { number: 23, state: 'open', conflict: true }, tui: { number: 9, state: 'open', checks: 'pass' } };
-    P.forEach(function (p) { if (DEMO_PR[p.id]) p.pr = DEMO_PR[p.id]; });
+    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
+      website: [{ number: 448, repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
+      docs: [{ number: 455, repo: PR0, state: 'draft' }],
+      planner: [{ number: 431, repo: PR0, state: 'merged' }, { number: 436, repo: PR0, state: 'merged' }],
+      lukatz: [{ number: 12, repo: PR0, state: 'closed' }],
+      api: [{ number: 460, repo: PR0, state: 'open', checks: 'fail' }, { number: 441, repo: PR0, state: 'merged' }],
+      fluid: [{ number: 87, repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
+      gaps: [{ number: 23, repo: PR0, state: 'open', conflict: true }],
+      tui: [{ number: 9, repo: PR0, state: 'open', checks: 'pass' }, { number: 7, repo: 'asafofer/perch-landing', state: 'merged' }] };
+    P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -3700,7 +3720,7 @@
       /* every pull request mark with its words and colour, for the design page's grid */
       prLegend: function () {
         return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
-          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: c }; });
+          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: c }; }).concat([{ icon: PRMark([{ number: 107, state: 'merged' }, { number: 109, state: 'merged' }], 'size-5'), word: 'Several', color: PRC.merged }]);
       },
       /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
          index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
