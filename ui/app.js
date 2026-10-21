@@ -890,6 +890,8 @@
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
+    if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -931,7 +933,6 @@
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
-    if (repOn) showSaid(true);   /* an open reply follows the snapshot: its answer arriving, your message moving up */
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
