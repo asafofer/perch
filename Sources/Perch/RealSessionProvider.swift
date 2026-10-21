@@ -19,6 +19,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
 
     func parkedProjects() -> [Project] {
         var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
+            + scanner.cowork(limit: maxProjects) + scanner.chats(limit: maxProjects)
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
         for item in all where !item.project.smallTalk {
@@ -167,11 +168,20 @@ enum Restorer {
             else { done(.none) }
             return
         }
-        if let id = p.desktopSessionId, let url = URL(string: "claude://code/continue?session=\(id)") {
+        if let url = link(p) {
             NSWorkspace.shared.open(url); done(.app(claudeApp, exact: true))
             return
         }
         done(.none)   // sample data does nothing
+    }
+
+    /// Where a session in the Claude app opens: a Code session, a Cowork task, a chat. Nil for anything else.
+    nonisolated static func link(_ p: Project) -> URL? {
+        switch p.app {
+        case Agent.cowork.id: return p.desktopSessionId.flatMap { URL(string: "claude://claude.ai/local_sessions/\($0)") }
+        case Agent.chat.id: return p.sessionId.flatMap { URL(string: "claude://claude.ai/chat/\($0)") }
+        default: return p.desktopSessionId.flatMap { URL(string: "claude://code/continue?session=\($0)") }
+        }
     }
 
     /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, a new window in its

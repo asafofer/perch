@@ -8,6 +8,9 @@ enum AppIcons {
     /// Found by bundle id: Codex installs as Codex.app or ChatGPT.app, in /Applications or ~/Applications.
     private static let apps: [String: (bundle: String, fallback: String)] = [
         "claude": ("com.anthropic.claudefordesktop", "/Applications/Claude.app"),
+        // Cowork and chats are the Claude app's own.
+        "cowork": ("com.anthropic.claudefordesktop", "/Applications/Claude.app"),
+        "chat": ("com.anthropic.claudefordesktop", "/Applications/Claude.app"),
         "codex": ("com.openai.codex", "/Applications/Codex.app"),
         // The OpenCode desktop app, when it is installed. pi has no app: the page draws its own mark.
         "opencode": ("ai.opencode.desktop", "/Applications/OpenCode.app"),
@@ -105,7 +108,11 @@ enum AgentPresence {
         let folders: [String: [String]] = [
             "claude": [home + "/.claude"], "codex": [home + "/.codex"],
             "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"],
+            "cowork": [home + "/Library/Application Support/Claude/local-agent-mode-sessions"],
+            "chat": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
         ]
+        // Only the folder says Cowork or chats were used: the Claude app alone is not enough (it may be Code only).
+        if ["cowork", "chat"].contains(a.id) { return (folders[a.id] ?? []).contains(where: fm.fileExists(atPath:)) }
         if (folders[a.id] ?? []).contains(where: fm.fileExists(atPath:)) { return true }
         if AppIcons.url(a.id) != nil { return true }
         return ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.bun/bin/"].contains { fm.isExecutableFile(atPath: $0 + a.id) }

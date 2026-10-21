@@ -12,12 +12,17 @@ public struct Agent: Equatable, Sendable {
     let resumeCommand: String
     /// Perch can answer what it asks from the notch: allow, deny, a question's choices.
     public let answersFromNotch: Bool
+    /// Read from the start. Off until you switch it on: Claude chats, which are not coding work and can be personal.
+    public var onByDefault = true
 
     public static let claude = Agent(id: "claude", name: "Claude Code", short: "Claude", resumeCommand: "claude --resume", answersFromNotch: true)
     public static let codex = Agent(id: "codex", name: "Codex", short: "Codex", resumeCommand: "codex resume", answersFromNotch: false)
     public static let opencode = Agent(id: "opencode", name: "OpenCode", short: "OpenCode", resumeCommand: "opencode -s", answersFromNotch: true)
     public static let pi = Agent(id: "pi", name: "pi", short: "pi", resumeCommand: "pi --session", answersFromNotch: false)
-    public static let all = [claude, codex, opencode, pi]
+    /// Cowork and chats live in the Claude app: they open there, and have no command and no hooks.
+    public static let cowork = Agent(id: "cowork", name: "Cowork", short: "Claude", resumeCommand: "", answersFromNotch: false)
+    public static let chat = Agent(id: "chat", name: "Claude chats", short: "Claude", resumeCommand: "", answersFromNotch: false, onByDefault: false)
+    public static let all = [claude, codex, opencode, pi, cowork, chat]
 
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }

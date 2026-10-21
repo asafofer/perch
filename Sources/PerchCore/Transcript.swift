@@ -444,6 +444,18 @@ public enum Recap {
         return p
     }
 
+    /// A chat in the Claude app: only its title and when it last moved are known, so the card says no more than that.
+    public static func chat(_ c: ClaudeChats.Chat, now: Date, calendar: Calendar = .current) -> Project {
+        var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: c.title, context: "", next: "",
+                        topic: clip(c.title, 90), app: Agent.chat.id, agents: [AgentStatus(kind: .idle, text: "Chat in Claude", app: Agent.chat.id)],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your chat")],
+                        sessionId: c.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = c.updated
+        p.startedAt = c.created
+        return p
+    }
+
     /// The project's name: its folder's, or for a worktree, the project it belongs to. A worktree's own name ("wizardly-
     /// williams-42a0c0") says nothing, so with no project to show the name is empty.
     public static func projectName(cwd: String, repo: String?) -> String {
@@ -463,7 +475,7 @@ public enum Recap {
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
     public static func isFolderless(_ cwd: String) -> Bool {
-        cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
+        cwd.contains("/Claude/scratch-workspaces/") || cwd.contains("/Claude/local-agent-mode-sessions/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
     /// The agent's outcome in a sentence or two, picked from its last message as written. A Summary, TL;DR or Result section
