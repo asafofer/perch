@@ -3223,6 +3223,8 @@
      a row of icons, ticks, or a grid of tiles. */
   var notifyStyle = 'menu', notifyMenuOpen = false, ntFocus = 0;
   /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
+  /* the card is measured again after the menu opens or folds, so it has room for all of it */
+  function ntRelayout() { if (snap && lastSt === 'set') layout('set', snap); }
   function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
@@ -3385,8 +3387,8 @@
     box.querySelectorAll('.s-np').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; notifyList(setLast).forEach(function (x) { post({ type: 'notify', kind: x[0], enabled: m === 'all' || (m === 'needs' && x[0] !== 'done') }); });
     }; });
-    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); }; });
-    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); } };
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3695,7 +3697,7 @@
     /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
     if (notifyMenuOpen) {
       var its = q('.set').querySelectorAll('.nt-menu .s-nt');
-      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); return; }
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
       if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
       if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
       return;
