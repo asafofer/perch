@@ -444,10 +444,10 @@ public enum Recap {
         return p
     }
 
-    /// A chat in the Claude app: only its title and when it last moved are known, so the card says no more than that.
+    /// A chat in the Claude app: only its title and when it last moved are known, so the card is its title and nothing more.
     public static func chat(_ c: ClaudeChats.Chat, now: Date, calendar: Calendar = .current) -> Project {
         var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
-                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: c.title, context: "", next: "",
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: "", next: "",
                         topic: clip(c.title, 90), app: Agent.chat.id, agents: [AgentStatus(kind: .idle, text: "Chat in Claude", app: Agent.chat.id)],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your chat")],
                         sessionId: c.id, cwd: nil, desktopSessionId: nil)

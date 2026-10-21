@@ -134,7 +134,7 @@ private final class Home {
         let found = h.scanner.chats(limit: 10)
         #expect(found.count == 1)
         #expect(found[0].project.app == "chat")
-        #expect(found[0].project.headline == "Anniversary dinner ideas")
+        #expect(found[0].project.topic == "Anniversary dinner ideas")
         #expect(found[0].project.sessionId == "c1")
     }
 

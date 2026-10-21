@@ -1571,7 +1571,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
         let on = Prefs.enabledSources
         return Agent.all.filter { ["claude", "codex"].contains($0.id) || (counts[$0.id]?.count ?? 0) > 0 || AgentPresence.installed($0) }.map { a in
-            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: counts[a.id]?.names ?? [], enabled: on.contains(a.id))
+            // Chats go by count alone: their titles can be personal, and onboarding shows them before you choose.
+            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: a.id == Agent.chat.id ? [] : counts[a.id]?.names ?? [], enabled: on.contains(a.id))
         }
     }
 
