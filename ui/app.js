@@ -3219,7 +3219,7 @@
      a row of icons, ticks, or a grid of tiles. */
   var notifyStyle = 'ticks', notifyMenuOpen = false;
   /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
-  function ntBox(on) { return on ? '<span class="grid size-4 place-items-center rounded-[5px] bg-foreground" style="color:#0a0a0a">' + svg('check', 'size-3') + '</span>' : '<span class="block size-4 rounded-[5px] border border-muted-foreground/40"></span>'; }
+  function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
     /* only the ticks list Checks failing before Checks is chosen (greyed, with where to turn it on); the other looks wait for it */
