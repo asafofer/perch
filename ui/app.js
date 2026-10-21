@@ -556,12 +556,19 @@
     var box = q('.o-said-in'), sel = window.getSelection();
     /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
     if (was && on && sel && !sel.isCollapsed && box.contains(sel.anchorNode)) return;
+    /* drawn again in place: where your message was, and the words that were already there */
+    var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
     saidKey = key;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
     if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
       /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
-      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge);
+      /* the answer landed: your message glides to its new place and the answer comes in softly, as words do on the card */
+      if (redraw && p.said && box.textContent !== before) [].forEach.call(box.children, function (el) {
+        if (el.classList.contains('o-you')) { var dy = from != null ? from - el.getBoundingClientRect().top : 0; if (dy) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1)' }); }
+        else el.animate([{ opacity: 0, filter: 'blur(2px)', transform: 'translateY(14px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }], { duration: 340, delay: 60, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      }); }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !was && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
