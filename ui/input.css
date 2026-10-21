@@ -505,3 +505,8 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .pr-tip .p2 .r { font-size: 12px; }
 .pr-tip .m { color: #85858d; }
 @media (prefers-reduced-motion: reduce) { .pr-tip { transform: none; transition: none; } }
+
+/* a title or line that does not fit fades out at its end, as Claude's own list does, instead of ending in an ellipsis */
+.fade { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+.fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }
