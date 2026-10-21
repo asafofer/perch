@@ -50,6 +50,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
+    /// Read: the agent's whole last message on the card, with no reply field.
+    private var readOpen = false
     /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
     /// the card (a click in Finder to copy a path) keeps it, and the reply field opens with it again.
     private var drafts: [String: String] = [:]
@@ -762,7 +764,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let away = awaySinceForCard, now = Date()
         let fresh = Set(projects.filter(isFresh).map(\.id))
         let lines = Dictionary(projects.map { p in (p.id, WhileAway.line(kind: p.status.kind, lastActive: p.lastActive, now: now, awaySince: away, fresh: fresh.contains(p.id))) }, uniquingKeysWith: { a, _ in a })
-        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen && !textSelected,
+        let snap = UISnapshot(machine: machine, projects: projects, screen: info, timerToken: timerToken, icons: iconsToSend(), allowAutoCollapse: proactiveOpen && !holdOpen && !openedByHover && !snoozeMenuOpen && !replyOpen && !readOpen && !textSelected,
                           activeId: nil, activeIds: machine.phase == .idle ? youAreIn().maybe.sorted() : [],
                           scanning: !scannedOnce, canSend: AXIsProcessTrusted(), fresh: fresh, lines: lines,
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
@@ -833,7 +835,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 putAway = PutAway(phase: old, session: projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil,
                                   query: listQuery, replying: replyOpen, at: Date())
             }
-            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; listQuery = ""; pointerOnCard = false
+            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; readOpen = false; listQuery = ""; pointerOnCard = false
             // The card shrinks away where it was; the task below takes the panel home once that has played.
             closedAt = Date(); awayForHover = false
             Task { [weak self] in
@@ -882,7 +884,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
         // Only a card Perch opened on its own counts down. One you asked for stays until you are done with it.
-        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen, !textSelected else { return }
+        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen, !readOpen, !textSelected else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -1147,8 +1149,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
+            if replyOpen { readOpen = false }
             if replyOpen { timer?.cancel(); frontForReply(true); panel.makeKey() } else { restartTimer(); cancelWaiting(); frontForReply(false) }
             push()
+        case "readMenu":
+            readOpen = body["open"] as? Bool ?? false
+            if readOpen { timer?.cancel(); panel.makeKey() } else { restartTimer() }
+            push()
+        case "copy":
+            guard let t = body["text"] as? String, !t.isEmpty else { break }
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(t, forType: .string)
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
         case "snoozeMenu":
@@ -1905,6 +1915,22 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return e
             }
+            // Read: Space and the arrows page through the message, Command+C copies it, R turns it into a reply, Esc or Left goes back.
+            if self.readOpen {
+                let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                let letter = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
+                let key: String?
+                switch e.keyCode {
+                case 53, 123: key = "close"
+                case 49: key = flags.contains(.shift) ? "pageUp" : "pageDown"
+                case 125: key = flags.contains(.command) ? "end" : "down"
+                case 126: key = flags.contains(.command) ? "top" : "up"
+                case 36, 76: key = nil
+                default: key = flags == .command && letter == "c" ? "copy" : flags.isEmpty && letter == "r" ? "reply" : nil
+                }
+                if let key { self.web.evaluateJavaScript("window.perch && window.perch.readKey('\(key)')", completionHandler: nil); return nil }
+                if e.keyCode != 36, e.keyCode != 76 { return nil }
+            }
             // Words selected on the card: Command+C copies them. Perch has no Edit menu to do it.
             if self.textSelected, e.modifierFlags.intersection([.command, .option, .control, .shift]) == .command,
                KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) == "c" {
@@ -1962,6 +1988,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 let asking = self.projects.indices.contains(self.machine.selected) && self.projects[self.machine.selected].ask != nil
                 if self.machine.phase == .open, !asking { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
+            case (49, _):
+                // Space reads the agent's whole message, as Quick Look does in Finder. Not over a request: that card is for answering.
+                let p = self.projects.indices.contains(self.machine.selected) ? self.projects[self.machine.selected] : nil
+                if self.machine.phase == .open, let p, p.ask == nil, !(p.said ?? "").isEmpty { self.web.evaluateJavaScript("window.perch && window.perch.readMenu(true)", completionHandler: nil) } else { return e }
             case (_, "a"), (_, "d"):
                 // A permission on the card: A allows, D denies.
                 guard self.machine.phase == .open, self.projects.indices.contains(self.machine.selected),
@@ -2219,7 +2249,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pointerOnCard = inside
         // Writing a reply, or words selected to copy, make the card yours: it stays when the pointer wanders off, until a
         // click elsewhere or Esc.
-        if openedByHover, !replyOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
+        if openedByHover, !replyOpen, !readOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }

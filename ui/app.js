@@ -288,6 +288,8 @@
         '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
+      /* the summary is a gist: Space (or a click on it) reads the whole message */
+      '<div class="o-more rv mt-1 flex px-3" style="--i:2">' + Button('ghost', 'Read all', Kbd('space'), 'x-read h-6 pl-1') + '</div>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
@@ -296,6 +298,7 @@
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="f-read hidden h-9 items-center gap-0.5"><button aria-label="Back" title="Back (Esc)" class="x-rdback flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><span class="flex-1"></span><span class="o-racts flex items-center gap-0.5"></span></div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
@@ -407,6 +410,7 @@
     var a = b.dataset.act;
     if (a === 'go') post({ type: 'confirm' });
     else if (a === 'reply') replyMenu(true);
+    else if (a === 'copy') readCopy();
     else if (a === 'snooze') snoozeMenu(true);
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
@@ -417,7 +421,7 @@
     else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
-  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), footers = [fMain, fSnz, fRep];
+  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fRead = q('.f-read'), footers = [fMain, fSnz, fRep, fRead];
   /* The footer changes between its actions, Reply and Not now. The old row fades up and away while the new one rises in. */
   function footer(el) {
     footers.forEach(function (f) { if (f._out) { f._out.cancel(); f._out = null; f.style.position = f.style.left = f.style.right = f.style.top = ''; f.style.display = 'none'; } });
@@ -447,6 +451,8 @@
   var replyFor = '';
   function replyMenu(open, quiet) {
     if (asking.typing) { if (!open) otherMenu(false, quiet); return; }
+    /* from Read, the message stays where you scrolled it and the field comes in under it (Swift hears replyMenu and leaves Read) */
+    if (readOn) { readOn = false; q('.p-open').dataset.read = ''; if (!open && !quiet) post({ type: 'readMenu', open: false }); if (snap && lastSt === 'open') layout('open', snap); }
     footer(open ? fRep : fMain);
     showSaid(open);
     var p = snap && snap.projects[snap.selected];
@@ -575,6 +581,48 @@
     };
     set(); w.onscroll = set;
   }
+  /* Read: the agent's whole last message on the card, as tall as the panel lets it be, with no field under it. Space pages,
+     the arrows scroll, Command+C copies it (or what you selected), R turns it into a reply and Esc goes back. */
+  var readOn = false;
+  function canRead(p) { return !!(p && p.said && !p.ask && !asking.typing); }
+  function readMenu(open, quiet) {
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected];
+    if (open && (readOn || repOn || !canRead(p))) return;
+    if (!open && !readOn) return;
+    readOn = !!open; pane.dataset.read = readOn ? '1' : '';
+    if (readOn) {
+      setWords(q('.o-racts'), Act('ghost', 'Copy', '\u2318C', 'copy') + Act('ghost', 'Reply', 'R', 'reply') + Act('default', goLabel(p), ENTER, 'go'));
+      footer(fRead);
+      if (pane.dataset.rep === '1') layout('open', snap); else showSaid(true);
+      q('.o-said-in').scrollTop = 0;   /* read from the start, your own message first */
+    } else { footer(fMain); showSaid(false); }
+    if (!quiet) post({ type: 'readMenu', open: readOn });
+  }
+  function readCopy() {
+    var p = snap && snap.projects[snap.selected], box = q('.o-said-in'), sel = window.getSelection();
+    var picked = sel && !sel.isCollapsed && box.contains(sel.anchorNode) ? sel.toString() : '';
+    var t = picked || (p && p.said) || ''; if (!t) return;
+    post({ type: 'copy', text: t });
+    /* it says so where you are: a selection brightens as Command+C does elsewhere, and the button reads Copied for a beat */
+    if (picked) document.dispatchEvent(new Event('copy'));
+    var b = q('.o-racts [data-act=copy] span'), l = b && b.firstChild; if (!l) return;
+    l.nodeValue = 'Copied'; clearTimeout(readCopy.t); readCopy.t = setTimeout(function () { l.nodeValue = 'Copy'; }, 1400);
+  }
+  function readKey(k) {
+    if (!readOn) return;
+    var box = q('.o-said-in'), page = Math.max(57, box.clientHeight - 38);
+    if (k === 'close') readMenu(false);
+    else if (k === 'reply') replyMenu(true);
+    else if (k === 'copy') readCopy();
+    else saidScroll({ pageDown: page, pageUp: -page, down: 57, up: -57, end: 1e6, top: -1e6 }[k] || 0);
+  }
+  /* the summary and its Read all open Read; dragging over the words to select them does not */
+  q('.p-open').addEventListener('click', function (e) {
+    if (!e.target.closest('.o-h, .o-c, .x-read')) return;
+    var sel = window.getSelection(); if (sel && !sel.isCollapsed) return;
+    readMenu(true);
+  });
+  q('.x-rdback').onclick = function () { readMenu(false); };
   function sendReply() {
     if (asking.typing) { otherSend(); return; }
     var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
@@ -911,6 +959,7 @@
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
     setWords(q('.o-x'), md(nx) + (now ? '<span class="shine" aria-hidden="true">' + md(nx) + '</span>' : ''));   /* the light's copy of the words, markup and all */
     q('.o-nx').style.display = nx ? '' : 'none';
+    q('.o-more').style.display = canRead(p) && !a ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
       : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
@@ -1510,11 +1559,20 @@
     var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
     if (over > 0 && box.offsetHeight) { box.style.maxHeight = Math.max(120, box.offsetHeight - over) + 'px'; box.classList.add('fit'); }
   }
+  /* Read takes the height the panel has left; a message that fits shows whole */
+  function fitRead(pane) {
+    var box = pane.querySelector('.o-said-in');
+    if (pane.dataset.read !== '1') { box.style.maxHeight = ''; return; }
+    box.style.maxHeight = 'none';
+    var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
+    box.style.maxHeight = over > 0 ? Math.max(120, box.offsetHeight - over) + 'px' : 'none';
+    box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);
+  }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
-    if (st !== 'idle') { var pane = q('.p-' + st); if (st === 'open') fitAsk(pane); h = pane.querySelector('.inner').offsetHeight; }
+    if (st !== 'idle') { var pane = q('.p-' + st); if (st === 'open') { fitAsk(pane); fitRead(pane); } h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
@@ -2210,7 +2268,8 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
-    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
+    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); readMenu(false, true); }
+    else if (readOn && !canRead(p)) readMenu(false);
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
@@ -3532,7 +3591,7 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, readMenu: function (o) { readMenu(o); }, readKey: readKey, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -4021,6 +4080,11 @@
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
+      if (readOn && ph === 'open') {
+        var rk = e.key === 'Escape' || e.key === 'ArrowLeft' ? 'close' : e.key === ' ' ? (e.shiftKey ? 'pageUp' : 'pageDown') : e.key === 'ArrowDown' ? (e.metaKey ? 'end' : 'down') : e.key === 'ArrowUp' ? (e.metaKey ? 'top' : 'up') : e.metaKey && e.key === 'c' ? 'copy' : !e.metaKey && (e.key === 'r' || e.key === 'R') ? 'reply' : '';
+        if (rk) { e.preventDefault(); readKey(rk); return; }
+      }
+      if (e.key === ' ' && ph === 'open' && fRep.style.display !== 'flex') { e.preventDefault(); readMenu(true); return; }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }

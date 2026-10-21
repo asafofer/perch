@@ -363,7 +363,7 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 @media (prefers-reduced-motion: reduce) { .hl i { transition: none; } .hl.copied i { animation-duration: .25s; } }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
-.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
+.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx, .p-open[data-rep="1"] .o-more { display: none !important; }
 /* answering in your own words (Other): the agent's choices step back while you type */
 .p-open .o-ask button { transition: opacity 200ms ease, background-color 150ms ease; }
 .p-open[data-oth="1"] .o-ask button:not(.o-other) { opacity: .35; }

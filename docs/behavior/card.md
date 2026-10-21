@@ -10,6 +10,13 @@
 - While a session works, the card says what it last said it is doing, and a Now row shows the step (`Activity.step`) with a Thinking Orb beside it in the character's colour whose state follows the step (`orbFor`; `ui/orbs.js` is the MIT plain JS build of thinkingorbs.com, vendored). Background work it waits on: [status.md](status.md).
 - Permission asks in a terminal show on the card but are answered there.
 
+## Reading the whole message
+
+- The card's body is a gist. Under it, Read all (Space) shows the agent's whole last message on the card: the same view a reply has (`showSaid`, markdown and tables alike, your own last message above it as a bubble), without the field, as tall as the panel's 440 pt allows (app.js `fitRead`). A message that fits shows whole; a longer one scrolls with a soft edge.
+- It opens from Space, Read all, or a click on the summary (`.o-h`, `.o-c`); dragging over the words to select them does not open it. Not on a card with a request (permission or question): that card is for answering.
+- Space and Shift+Space page, Up and Down go a few lines, Command+Up and Down go to the ends (`readKey`, Swift's key monitor while `readOpen`). Command+C copies what you selected, else the whole message as written, markdown and all (`copy` to Swift's pasteboard); a selection brightens and the Copy button reads Copied for a beat. R turns it into a reply with the message where you scrolled it; Return opens the session; Esc or Left goes back to the card.
+- While Read is open the card is yours, as with a reply: it does not fold on its own or close when the pointer leaves.
+
 ## Selecting and copying
 
 - What the agent said (the card's body, Next, an ask's words, the expanded reply) can be selected, and Command+C copies it. Perch has no Edit menu, so the key monitor sends `copy:`. A copy brightens the highlight for a beat.
