@@ -42,6 +42,7 @@
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
     chevD: '<path d="m6 9 6 6 6-6"/>',
+    chevU: '<path d="m18 15-6-6-6 6"/>',
     tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
     clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
@@ -3220,13 +3221,13 @@
   }
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'icons', notifyMenuOpen = false, ntFocus = 0;
+  var notifyStyle = 'menu', notifyMenuOpen = false, ntFocus = 0;
   /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
   function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
     /* only the ticks list Checks failing before Checks is chosen (greyed, with where to turn it on); the other looks wait for it */
-    if (ciOff(o) && st !== 'ticks' && st !== 'icons') list = list.filter(function (x) { return x[0] !== 'ci'; });
+    if (ciOff(o) && st !== 'ticks' && st !== 'icons' && st !== 'menu') list = list.filter(function (x) { return x[0] !== 'ci'; });
     if (st === 'icons') {
       /* one row like the two below it: the moments as a group of icons in one quiet colour, lit when on. The line under it says
          what is off, and names an icon while the pointer is on it. */
@@ -3253,14 +3254,17 @@
       }).join('') + '</div>';
     }
     if (st === 'menu') {
-      var faces = list.filter(function (x) { return notifyOn(x[0]); }).map(function (x) { return nMark(x[0]); }).join('');
-      var head = '<div class="s-row s-menu s-tap mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
-        '<span class="flex flex-none items-center gap-[3px]">' + (faces || '<span class="text-xs text-muted-foreground">Nothing</span>') + '</span>' + svg(notifyMenuOpen ? 'chevD' : 'chevR', 'size-3 flex-none text-muted-foreground/60') + '</div>';
-      if (!notifyMenuOpen) return head;
-      return head + '<div class="mx-2 mb-1 rounded-lg bg-white/[0.05] p-1">' + list.map(function (x) {
-        var y = notifyOn(x[0]);
-        return '<div class="s-nt flex h-7 cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors hover:bg-white/[0.06]" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) + '<span class="flex-none">' + ntBox(y) + '</span></div>';
-      }).join('') + '</div>';
+      /* one row: the lit moments as icons and a chevron; it opens a menu over the rows below, a check for each moment that is on */
+      var faces = list.filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); }).map(function (x) { return nCol(x[0]); }).join('');
+      var items = list.map(function (x, i) {
+        var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o);
+        return '<div class="' + (dis ? '' : 's-nt cursor-pointer ') + 'nt-it flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors' + (dis ? '' : ' hover:bg-white/[0.07]') + '" data-i="' + i + '" data-k="' + x[0] + '" aria-pressed="' + y + '">' +
+          '<span class="grid flex-none transition-opacity ' + (y && !dis ? '' : dis ? 'opacity-25' : 'opacity-40') + '">' + nCol(x[0]) + '</span><span class="min-w-0 flex-1 truncate ' + (y && !dis ? '' : 'text-muted-foreground') + '">' + esc(x[1]) + '</span>' +
+          (dis ? '<span class="flex-none text-xs text-muted-foreground/70">Needs Checks</span>' : '<span class="grid size-4 flex-none place-items-center text-foreground/80">' + (y ? svg('check', 'size-4') : '') + '</span>') + '</div>';
+      }).join('');
+      var menu = notifyMenuOpen ? '<div class="nt-menu absolute right-0 top-[34px] z-30 w-[250px] rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]">' + items + '</div>' : '';
+      return '<div class="s-row s-menu relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
+        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5">' + (faces ? '<span class="flex items-center gap-1.5">' + faces + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>') + svg(notifyMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground') + '</span>' + menu + '</div>';
     }
     if (st === 'ticks') {
       return shead('Notify me about') + list.map(function (x) {
@@ -3335,6 +3339,8 @@
     var pane = q('.p-set'), slid = by && !STILL ? crossSeen(pane, ['.set']) : [];
     var box = q('.set');
     box.innerHTML = html; q('.s-title').innerHTML = title;
+    /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
+    box.style.minHeight = setPage === 'notify' && notifyStyle === 'menu' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
     slid.forEach(function (x) {
       if (!x.g) return;
       var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
@@ -3372,14 +3378,15 @@
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
     box.querySelectorAll('.s-nt').forEach(function (b) {
-      b.onclick = function () { post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
+      b.onclick = function (e) { if (e) e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
       var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
       if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
     });
     box.querySelectorAll('.s-np').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; notifyList(setLast).forEach(function (x) { post({ type: 'notify', kind: x[0], enabled: m === 'all' || (m === 'needs' && x[0] !== 'done') }); });
     }; });
-    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function () { notifyMenuOpen = !notifyMenuOpen; setSig = ''; settingsApply(setLast); }; });
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); }; });
+    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); } };
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3675,18 +3682,30 @@
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
     rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot)); });
     /* in the icon row, the icon the keys are on */
-    q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) { var on = setKb && rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus; b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); });
+    q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) {
+      var inMenu = !!b.closest('.nt-menu'), on = setKb && (inMenu ? +b.dataset.i === ntFocus : rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus);
+      if (inMenu) b.classList.toggle('bg-white/[0.09]', on); else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
+    });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
   function settingsKey(k) {
     keyPtr = ptrAt.slice(); setKb = true;
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
     var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
+    /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
+    if (notifyMenuOpen) {
+      var its = q('.set').querySelectorAll('.nt-menu .s-nt');
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); return; }
+      if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
+      if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
+      return;
+    }
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
     /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
+    if (row.classList.contains('s-menu')) { if (k === 'enter') row.click(); return; }
     var nts = row.querySelectorAll('.s-nt');
     if (nts.length) {
       if (k === 'right') { ntFocus = Math.min(ntFocus + 1, nts.length - 1); paintFocus(); return; }
