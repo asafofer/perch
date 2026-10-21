@@ -960,7 +960,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   var MEAN = {"Open": "Open pull request, nothing to do yet", "Checks running": "Open, CI still running", "Ready to merge": "Approved and checks green", "Approved": "Approved, checks not finished", "Checks failing": "CI failed: yours to look at", "Changes requested": "A reviewer asked for changes", "Conflicts": "The branch no longer merges cleanly", "Draft": "Draft, not ready for review", "Merged": "Merged into its base branch", "Closed": "Closed without merging", "Several": "Several pull requests: the one that needs you shows, with a count"};
   document.getElementById('prgrid').innerHTML = d.prLegend().map(function (x) {
-    return '<div class="prc"><div class="tile">' + x.icon + '</div><div><b>' + x.word + '</b><span>' + (MEAN[x.word] || '') + '</span><span><i style="background:' + x.color + '"></i>' + x.color.toLowerCase() + '</span></div></div>';
+    return '<div class="prc"><div class="tile">' + x.icon + '</div><div><b style="color:' + x.color + '">' + x.word + '</b><span>' + (MEAN[x.word] || '') + '</span><span><i style="background:' + x.color + '"></i>' + x.color.toLowerCase() + '</span></div></div>';
   }).join('');
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {

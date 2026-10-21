@@ -219,8 +219,10 @@
     if (pr.review === 'approved') return { t: 'Approved', c: COLORS.done };
     return { t: 'Open' };
   }
+  /* the icon's colour, and the words say it in the same colour */
+  function prColor(pr) { return prWord(pr).c === COLORS.attention ? COLORS.attention : PRC[pr.state]; }
   function PRIcon(pr, cls) {
-    var w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state];
+    var w = prWord(pr), c = prColor(pr);
     return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
   }
   /* One session can open several pull requests. Its mark shows the one that matters most (it needs you, then open, draft,
@@ -244,14 +246,15 @@
       var list = el._prs; if (!list || !list.length) return;
       var repos = {}; list.forEach(function (x) { repos[x.repo || ''] = 1; });
       prTip.innerHTML = list.map(function (pr) {
-        var w = prWord(pr), r = Object.keys(repos).length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span> ' : '';
-        return '<div class="flex items-center gap-1.5">' + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span> <span' + (w.c ? ' style="color:' + w.c + '"' : '') + '>' + esc(w.t) + '</span></div>';
+        var w = prWord(pr), r = Object.keys(repos).length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '';
+        return '<div class="r">' + PRIcon(pr, 'size-3.5') + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span><span style="color:' + prColor(pr) + '">' + esc(w.t) + '</span></div>';
       }).join('');
+      /* below the icon, right edges together; above it when there is no room below */
       var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
-      prTip.style.left = Math.max(6, Math.min(r.right - tw, innerWidth - tw - 6)) + 'px';
-      prTip.style.top = (r.top - th - 5 < 4 ? r.bottom + 5 : r.top - th - 5) + 'px'; prTip.style.opacity = 1;
+      prTip.style.left = Math.max(6, Math.min(r.right - tw + 4, innerWidth - tw - 6)) + 'px';
+      prTip.style.top = (r.bottom + 6 + th > innerHeight - 6 ? r.top - th - 6 : r.bottom + 6) + 'px'; prTip.classList.add('on');
     };
-    el.onmouseleave = function () { prTip.style.opacity = 0; };
+    el.onmouseleave = function () { prTip.classList.remove('on'); };
     el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
   }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
@@ -342,7 +345,7 @@
          to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
         '<span dir="auto" class="o-name fade min-w-0 text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
-        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub fade min-w-0 flex-1 text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr flex-none self-center"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub fade min-w-0 flex-1 text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr mt-px flex-none self-start"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -3895,7 +3898,7 @@
       /* every pull request mark with its words and colour, for the design page's grid */
       prLegend: function () {
         return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
-          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: c }; }).concat([{ icon: PRMark([{ number: 107, state: 'merged' }, { number: 109, state: 'merged' }], 'size-5'), word: 'Several', color: PRC.merged }]);
+          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: prColor(pr) }; }).concat([{ icon: PRMark([{ number: 107, state: 'merged' }, { number: 109, state: 'merged' }], 'size-5'), word: 'Several', color: PRC.merged }]);
       },
       /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
          index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
