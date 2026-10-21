@@ -417,7 +417,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['PR, merged', 'Purple icon.', function () { d.project(4); d.show('open'); }],
       ['PR, two merged', 'One session, two pull requests: the icon with a small count; hover lists them.', function () { d.project(4); d.show('open'); }],
       ['PR, failing and merged', 'The one that needs you leads (orange); the count says there is another. Hover lists both.', function () { d.project(7); d.show('open', false, true); }],
-      ['PR, two checks failing', 'The popover names each check that failed, under the status. Only required checks count; skipped and neutral ones never do.', function () { d.variant(1, { prs: [{ number: 448, title: 'Tighten the hero spacing at phone width', repo: 'asafofer/perch', state: 'open', checks: 'fail', failed: ['ci', 'Vercel \u2013 token-dashboard'] }], status: { kind: 'attention', text: 'Checks failing on #448', app: 'claude' }, attention: true, fresh: true, line: 'Checks failing' }); hoverPrWhenOpen(); }],
       ['PR, checks running, popover', 'Running is only a word in the popover: the icon stays the plain open one, so nothing flickers while CI runs.', function () { d.project(0); d.show('open'); hoverPrWhenOpen(); }],
       ['PR, closed', 'Red icon, not merged.', function () { d.project(6); d.show('open'); }],
       ['All sessions, with PRs', 'Each row carries its PR icon beside the time. Hover one for its label.', function () { d.show('switcher'); }],

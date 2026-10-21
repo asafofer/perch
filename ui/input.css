@@ -504,7 +504,6 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .pr-tip .p2 .t { max-width: 100%; font-size: 13px; color: #fafafa; }
 .pr-tip .p2 .r { font-size: 12px; }
 .pr-tip .m { color: #85858d; }
-.pr-tip .f { padding-left: 21px; font-size: 12px; line-height: 16px; overflow: hidden; text-overflow: clip; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { .pr-tip { transform: none; transition: none; } }
 
 /* a title or line that does not fit fades out at its end, as Claude's own list does, instead of ending in an ellipsis */

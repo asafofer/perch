@@ -248,7 +248,7 @@
       prTip.innerHTML = list.map(function (pr) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
-        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div>' + (pr.failed && pr.failed.length ? '<div class="m f">' + pr.failed.map(esc).join(', ') + '</div>' : '') + '</div>';
+        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div>' + '</div>';
         return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div>';
       }).join('');
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
@@ -3803,7 +3803,7 @@
       docs: [{ number: 455, title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
       planner: [{ number: 431, title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
       lukatz: [{ number: 12, title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
-      api: [{ number: 460, title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail', failed: ['ci'] }, { number: 441, title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
+      api: [{ number: 460, title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
       fluid: [{ number: 87, title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
       gaps: [{ number: 23, title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
       tui: [{ number: 9, title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
