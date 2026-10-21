@@ -234,6 +234,8 @@
       return ra - rb;
     })[0];
   }
+  /* a session's pull requests as the page shows them: none at all while Show pull requests is off */
+  function prsOf(p) { return snap && (snap.showPRs === false || snap.settings && snap.settings.showPRs === false) || !p.prs || !p.prs.length ? null : p.prs; }
   function PRMark(list, cls) {
     return '<span class="flex items-center gap-1">' + PRIcon(prTop(list), cls) + (list.length > 1 ? '<span class="text-[11px] tabular-nums leading-none text-muted-foreground">' + list.length + '</span>' : '') + '</span>';
   }
@@ -262,7 +264,7 @@
         return '<div class="pi" data-i="' + i + '"><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div></div>';
       }).join('');
       /* only as wide as its words, right edges together with the icon, and never past the card */
-      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.width = ''; prTip.style.maxWidth = (nb.width - 24) + 'px';
+      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.left = '0px'; prTip.style.width = 'max-content'; prTip.style.maxWidth = (nb.width - 24) + 'px';   /* from the edge, so where it was last never narrows it */
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
       var tw = prTip.offsetWidth, th = prTip.offsetHeight;
       prTip.style.left = Math.max(nb.left + 12, Math.min(r.right - tw + 6, nb.right - tw - 12)) + 'px';
@@ -950,7 +952,7 @@
     /* the grey line: the project, then (on a plain card) what you were doing */
     var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    var pre = q('.o-pr'), pc = p.prs && p.prs.length ? PRMark(p.prs, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = p.prs || null; prHover(pre);
+    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -1179,7 +1181,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      var pe = r.querySelector('.pr'); if (pe) { var pm = p.prs && p.prs.length ? PRMark(p.prs, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = p.prs || null; prHover(pe); }
+      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -1920,8 +1922,11 @@
     run: ['<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>', COLORS.attention],
     ask: ['<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', COLORS.attention],
     plan: ['<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>', '#B7A3F0'],
-    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A']
+    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A'],
+    ci: [PRI.open, COLORS.attention]
   };
+  /* Checks failing is a moment only while PR checks is on: nothing else knows when a check fails */
+  function notifyList(o) { return o.prs === 'on' && o.showPRs !== false ? NOTIFY.concat([['ci', 'Checks failing']]) : NOTIFY; }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
@@ -3192,7 +3197,7 @@
     if (k === 'login') return !!o.login;
     if (k === 'live') return o.live === 'on';
     if (k === 'prs') return o.prs === 'on';
-    if (k === 'prneeds') return o.prNeeds !== false;
+    if (k === 'showprs') return o.showPRs !== false;
     if (k === 'hover') return !!o.hoverExternal;
     if (k === 'fbinfo') return fbInfo;
     if (/^src:/.test(k)) return o.sources.some(function (x) { return x.id === k.slice(4) && x.enabled; });
@@ -3214,7 +3219,7 @@
       var rows, foot;
       if (!setPage) {
         var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-        var on = o.sources.filter(function (x) { return x.enabled; }), marks = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]); });
         var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
@@ -3275,7 +3280,7 @@
       if (k === 'login') post({ type: 'setting', key: k, value: on });
       else if (k === 'live') post({ type: 'hooks', on: on });
       else if (k === 'prs') post({ type: 'setting', key: 'pullRequests', value: on });
-      else if (k === 'prneeds') post({ type: 'setting', key: 'prNeedsYou', value: on });
+      else if (k === 'showprs') post({ type: 'setting', key: 'showPullRequests', value: on });
       else if (k === 'hover') post({ type: 'setting', key: 'hoverExternal', value: on });
       else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
       else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
@@ -3316,8 +3321,10 @@
       }).join('') + gap +
         drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status')) +
         /* off until switched on: it asks GitHub, through the GitHub CLI's login, how each pull request is doing */
-        drow(slabel('PR checks', '', 'pr'), prsDesc(o), prsSw(o)) +
-        (o.prs === 'on' ? drow(slabel('Failing checks need you', '', '-'), 'A failing check, or a review asking for changes, puts the session under Needs you', swHtml(o.prNeeds !== false, 'prneeds', 'Failing checks need you')) : '');
+        shead('Pull requests') +
+        /* the mark itself, from the Claude app's own list: on unless you switch it off */
+        drow(slabel('Show pull requests', '', 'pr'), 'A small mark on a session whose work is a pull request', swHtml(o.showPRs !== false, 'showprs', 'Show pull requests')) +
+        drow(slabel('PR checks', '', '-'), prsDesc(o), prsSw(o));
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
@@ -3327,7 +3334,7 @@
         }).join('') + '</span>';
       };
       /* which moments the notch announces (the list and the cards say all of them) */
-      return NOTIFY.map(function (x) {
+      return notifyList(o).map(function (x) {
         var y = notifyOn(x[0]);
         return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
       }).join('') + gap +
@@ -3613,7 +3620,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login'] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login'] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -3756,8 +3763,8 @@
     /* the real app opens the pull request in the browser; the design page does the same in a new tab */
     if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
     if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
-    if (m.type === 'setting' && m.key === 'prNeedsYou' && s.settings) s.settings.prNeeds = m.value;
-    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'prNeedsYou') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'setting' && m.key === 'showPullRequests') { s.showPRs = m.value; if (s.settings) s.settings.showPRs = m.value; }
+    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'showPullRequests') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }
@@ -3956,7 +3963,7 @@
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', prNeeds: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', showPRs: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
         if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
