@@ -552,7 +552,9 @@
     if ((pane.dataset.rep === '1') === on) return;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var box = q('.o-said-in'); var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '';
+      /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
+      box.innerHTML = p.askedLast ? mdBlock(p.said) + you : you + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
     if (snap && lastSt === 'open') layout('open', snap);
     if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
