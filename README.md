@@ -25,8 +25,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/asafofer/perch-releases/releases/latest/download/Perch.dmg"><strong>Download Perch.dmg</strong></a> · macOS 15+ on Apple silicon<br>
-  <sub>Free and MIT. Runs locally, no account. Signed and notarized by Apple.</sub>
+  <a href="https://github.com/asafofer/perch-releases/releases/latest/download/Perch.dmg"><img alt="Download for macOS" src="docs/assets/download-button.svg" width="232"></a><br>
+  <sub>macOS 15+ on Apple silicon · Free and MIT · Local-only, no account · Signed and notarized by Apple</sub>
 </p>
 
 <p align="center">
