@@ -142,6 +142,23 @@ public struct Ask: Equatable, Sendable {
         return line.map { Recap.clip($0, 120) }
     }
 
+    static let shells: Set<String> = ["Bash", "bash", "shell", "exec_command", "local_shell", "container.exec"]
+
+    /// What the live activity's row says: a command without the plumbing that only shapes its output for the agent
+    /// (`2>&1`, `| tail -20`, `; echo "EXIT: $?"`). The card shows the command in full.
+    public var brief: String { kind == .permission && Ask.shells.contains(tool) ? Ask.plainCommand(subject) : subject }
+
+    /// `npm run build 2>&1 | tail -n 30; echo "EXIT: ${PIPESTATUS[0]}"` reads as `npm run build`. Only what trails the
+    /// command goes; a command that is nothing but plumbing is left as it is.
+    public static func plainCommand(_ command: String) -> String {
+        let trailing = [#"\s*;\s*echo\b[^;|&]*$"#, #"\s*\|\s*(tail|head)(\s+-{0,2}[\w=]+)*\s*$"#, #"\s+2>&1\s*$"#, #"\s+2>\s*/dev/null\s*$"#]
+        var c = command.trimmingCharacters(in: .whitespaces)
+        while let r = trailing.lazy.compactMap({ c.range(of: $0, options: .regularExpression) }).first, r.lowerBound > c.startIndex {
+            c.removeSubrange(r)
+        }
+        return c.isEmpty ? command : c
+    }
+
     /// A verb for the title and the thing it acts on, in plain words.
     static func describe(tool: String, input: [String: Any]) -> (String, String) {
         let path = ["file_path", "filePath", "path", "notebook_path"].lazy.compactMap { input[$0] as? String }.first
@@ -155,7 +172,7 @@ public struct Ask: Equatable, Sendable {
             return input["cmd"] as? String ?? ""
         }
         switch tool {
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec":
+        case _ where shells.contains(tool):
             let c = command().split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return ("run a command", Recap.clip(c.isEmpty ? (input["description"] as? String ?? "a command") : c, 140))
         case "Edit", "MultiEdit", "edit", "multiedit": return ("edit \(file(""))", path ?? "")

@@ -25,6 +25,16 @@ import Foundation
         guard case .asks(let a)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"shell","tool_input":{"command":["bash","-lc","rm -rf build"]}}"#, agent: "codex")?.kind else { Issue.record("not an ask"); return }
         #expect(a.title == "Codex wants to run a command"); #expect(a.subject == "rm -rf build"); #expect(!a.answerable)
     }
+    @Test func theRowSaysTheCommandWithoutItsOutputPlumbing() {
+        #expect(Ask.plainCommand("npm run build 2>&1 | tail -20") == "npm run build")
+        #expect(Ask.plainCommand(#"npm run build 2>&1 | tail -n 30; echo "EXIT: ${PIPESTATUS[0]}""#) == "npm run build")
+        #expect(Ask.plainCommand("swift test 2>/dev/null | head -n 40") == "swift test")
+        #expect(Ask.plainCommand("git log | grep fix") == "git log | grep fix")   // a pipe that does work stays
+        #expect(Ask.plainCommand("echo hi") == "echo hi")
+        let a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build 2>&1 | tail -20"])
+        #expect(a.subject == "npm run build 2>&1 | tail -20"); #expect(a.brief == "npm run build")   // the card keeps it all
+        #expect(Ask(id: "r", agent: "claude", tool: "Edit", input: ["file_path": "/a/x 2>&1"]).brief == "/a/x 2>&1")
+    }
     @Test func editsWebAndToolsReadPlainly() {
         #expect(Ask.describe(tool: "Edit", input: ["file_path": "/a/b/Settings.swift"]).0 == "edit Settings.swift")
         #expect(Ask.describe(tool: "WebFetch", input: ["url": "https://docs.swift.org/x"]).0 == "open docs.swift.org")
