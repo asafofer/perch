@@ -417,8 +417,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['PR, merged', 'Purple icon.', function () { d.project(4); d.show('open'); }],
       ['PR, two merged', 'One session, two pull requests: the icon with a small count; hover lists them.', function () { d.project(4); d.show('open'); }],
       ['PR, failing and merged', 'The one that needs you leads (orange); the count says there is another. Hover lists both.', function () { d.project(7); d.show('open', false, true); }],
-      ['PR, two checks failing', 'The popover names each check that failed, under the status. Only required checks count; skipped and neutral ones never do.', function () { d.variant(1, { prs: [{ number: 448, title: 'Tighten the hero spacing at phone width', repo: 'asafofer/perch', state: 'open', checks: 'fail', failed: ['ci', 'Vercel \u2013 token-dashboard'] }], status: { kind: 'attention', text: 'Checks failing on #448', app: 'claude' }, attention: true, fresh: true, line: 'Checks failing' }); setTimeout(function () { var e = document.querySelector('.o-pr'); if (e && e.onmouseenter) e.onmouseenter(); }, 2300); }],
-      ['PR, checks running, popover', 'Running is only a word in the popover: the icon stays the plain open one, so nothing flickers while CI runs.', function () { d.project(0); d.show('open'); setTimeout(function () { var e = document.querySelector('.o-pr'); if (e && e.onmouseenter) e.onmouseenter(); }, 2300); }],
+      ['PR, two checks failing', 'The popover names each check that failed, under the status. Only required checks count; skipped and neutral ones never do.', function () { d.variant(1, { prs: [{ number: 448, title: 'Tighten the hero spacing at phone width', repo: 'asafofer/perch', state: 'open', checks: 'fail', failed: ['ci', 'Vercel \u2013 token-dashboard'] }], status: { kind: 'attention', text: 'Checks failing on #448', app: 'claude' }, attention: true, fresh: true, line: 'Checks failing' }); hoverPrWhenOpen(); }],
+      ['PR, checks running, popover', 'Running is only a word in the popover: the icon stays the plain open one, so nothing flickers while CI runs.', function () { d.project(0); d.show('open'); hoverPrWhenOpen(); }],
       ['PR, closed', 'Red icon, not merged.', function () { d.project(6); d.show('open'); }],
       ['All sessions, with PRs', 'Each row carries its PR icon beside the time. Hover one for its label.', function () { d.show('switcher'); }],
       ['Settings: PR checks off', 'Agents page, under Live status. Off until switched on: it asks GitHub, through the GitHub CLI you are signed in with, whether checks fail or a review wants changes. The icons from the Claude app need no setting.', function () { d.settings({ page: 'agents' }); }],
@@ -976,6 +976,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
     document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
   }; });
+  /* waits for the card to finish opening (the label is sized to it), then rests the pointer on the pull request icon */
+  function hoverPrWhenOpen() {
+    var t0 = Date.now();
+    (function wait() {
+      var nn = document.querySelector('.n'), e = document.querySelector('.o-pr');
+      if (nn && e && e.onmouseenter && nn.getBoundingClientRect().width >= 390 && e.getBoundingClientRect().width > 0) { setTimeout(e.onmouseenter, 250); return; }
+      if (Date.now() - t0 < 6000) setTimeout(wait, 120);
+    })();
+  }
   function run(b, name, fn) { var pt = document.querySelector('.pr-tip'); if (pt) pt.classList.remove('on'); lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
