@@ -205,6 +205,13 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .fly { position: absolute; z-index: 20; max-width: 260px; padding: 4px 10px; border-radius: 12px 12px 12px 4px; background: rgba(255,255,255,.14);
   color: #fafafa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transform-origin: 50% 50%; }
 /* switches: narrow, in the character's colour when on; the knob keeps a hairline so it reads on Cream */
+/* one of Claude's kinds on its onboarding tile: its name and a check, the name greyed while it is off */
+.o-chip { display: flex; height: 22px; align-items: center; gap: 3px; border-radius: 6px; padding: 0 5px 0 7px; font-size: 11.5px; cursor: pointer; background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); transition: color .18s, background-color .18s; }
+.o-chip[aria-checked="false"] { color: rgba(255,255,255,.45); background: rgba(255,255,255,.04); }
+.o-chip svg { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
+.o-chip[aria-checked="true"] svg { opacity: 1; scale: 1; }
+.o-chip:hover, .o-chip.hv { background: rgba(255,255,255,.11); }
+@media (prefers-reduced-motion: reduce) { .o-chip svg { transition: none; } }
 /* a check that stands for a switch: the mark when on, nothing when off, fading between */
 .ck { display: grid; place-items: center; width: 16px; height: 16px; flex: none; cursor: pointer; color: rgba(255,255,255,.8); }
 .ck svg { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
