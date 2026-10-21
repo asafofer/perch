@@ -908,6 +908,7 @@
     if (now) nx = now;
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     orbFor(now);
+    q('.o-nx').classList.toggle('live', !!now);   /* kept in the reply too */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
