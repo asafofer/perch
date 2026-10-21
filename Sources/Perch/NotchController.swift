@@ -1916,14 +1916,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return e
             }
-            // Preview: Space and the arrows page through the message, Command+C copies it, R turns it into a reply, Esc or Left goes back.
+            // Preview: Space closes it again, as Quick Look does; the arrows and Page Up and Down scroll, Command+C copies it, R turns it into a reply, Esc or Left goes back.
             if self.previewOpen {
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let letter = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
                 let key: String?
                 switch e.keyCode {
-                case 53, 123: key = "close"
-                case 49: key = flags.contains(.shift) ? "pageUp" : "pageDown"
+                case 53, 123, 49: key = "close"
+                case 121: key = "pageDown"
+                case 116: key = "pageUp"
                 case 125: key = flags.contains(.command) ? "end" : "down"
                 case 126: key = flags.contains(.command) ? "top" : "up"
                 case 36, 76: key = nil

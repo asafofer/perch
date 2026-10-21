@@ -581,8 +581,9 @@
     };
     set(); w.onscroll = set;
   }
-  /* Preview: the agent's whole last message on the card, as tall as the panel lets it be, with no field under it. Space pages,
-     the arrows scroll, Command+C copies it (or what you selected), R turns it into a reply and Esc goes back. */
+  /* Preview: the agent's whole last message on the card, as tall as the panel lets it be, with no field under it. Space closes
+     it again, as Quick Look does; the arrows and Page Up and Down scroll, Command+C copies it (or what you selected), R turns
+     it into a reply and Esc goes back. */
   var previewOn = false, previewFrom = '';
   function canPreview(p) { return !!(p && p.said && !p.ask && !asking.typing); }
   /* `from` 'list': opened by Space in the list, so going back goes back there, on the same row */
@@ -4088,7 +4089,7 @@
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (previewOn && ph === 'open') {
-        var rk = e.key === 'Escape' || e.key === 'ArrowLeft' ? 'close' : e.key === ' ' ? (e.shiftKey ? 'pageUp' : 'pageDown') : e.key === 'ArrowDown' ? (e.metaKey ? 'end' : 'down') : e.key === 'ArrowUp' ? (e.metaKey ? 'top' : 'up') : e.metaKey && e.key === 'c' ? 'copy' : !e.metaKey && (e.key === 'r' || e.key === 'R') ? 'reply' : '';
+        var rk = e.key === 'Escape' || e.key === 'ArrowLeft' || e.key === ' ' ? 'close' : e.key === 'PageDown' ? 'pageDown' : e.key === 'PageUp' ? 'pageUp' : e.key === 'ArrowDown' ? (e.metaKey ? 'end' : 'down') : e.key === 'ArrowUp' ? (e.metaKey ? 'top' : 'up') : e.metaKey && e.key === 'c' ? 'copy' : !e.metaKey && (e.key === 'r' || e.key === 'R') ? 'reply' : '';
         if (rk) { e.preventDefault(); previewKey(rk); return; }
       }
       if (e.key === ' ' && ph === 'switcher' && !devQuery) { e.preventDefault(); window.perchDev.show('open', false, true); previewMenu(true, false, 'list'); return; }
