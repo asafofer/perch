@@ -43,7 +43,7 @@ struct UISnapshot: Encodable {
 
     /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
     struct NewSession: Encodable {
-        struct Model: Encodable { let id: String; let name: String; let note: String }
+        struct Model: Encodable { let id: String; let name: String; let note: String; let more: Bool }
         /// `models`: what a terminal agent can start on, its own default first (none for the apps); `model`: the one chosen last.
         struct App: Encodable { let id: String; let app: String; let via: String?; let name: String; let models: [Model]; let model: String }
         struct Folder: Encodable { let name: String; let path: String; let label: String; let away: String }

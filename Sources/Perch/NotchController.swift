@@ -950,7 +950,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let via = Terminals.keys[Terminals.preferred] ?? "terminal"
         return UISnapshot.NewSession(
             apps: choices.map { c in
-                let models = c.terminal ? NewSessionModels.list(agent: c.agent).map { UISnapshot.NewSession.Model(id: $0.id, name: $0.name, note: $0.note) } : []
+                let models = c.terminal ? NewSessionModels.list(agent: c.agent).map { UISnapshot.NewSession.Model(id: $0.id, name: $0.name, note: $0.note, more: $0.more) } : []
                 return .init(id: c.id, app: c.agent, via: c.terminal ? via : nil, name: c.name, models: models, model: models.isEmpty ? "" : Prefs.lastModel(c.id) ?? "")
             },
             projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },

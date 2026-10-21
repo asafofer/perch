@@ -97,9 +97,10 @@ public enum NewSession {
     }
 
     /// A model to start a session on. `id` is what the agent is given; empty is its own default, whose name `note` says.
+    /// Another's `note` says what it is for. `more`: found only by typing, so the list shows what you use, not every model.
     public struct Model: Equatable, Sendable {
-        public let id: String, name: String, note: String
-        public init(id: String, name: String, note: String = "") { self.id = id; self.name = name; self.note = note }
+        public let id: String, name: String, note: String, more: Bool
+        public init(id: String, name: String, note: String = "", more: Bool = false) { self.id = id; self.name = name; self.note = note; self.more = more }
     }
 
     /// The terminal agents a model can be chosen for. The apps' links take none, and pi is left to its own default.
@@ -109,14 +110,28 @@ public enum NewSession {
     /// never used among them, and never stale, since Claude Code itself says which model each stands for.
     public static let claudeAliases = ["fable", "opus", "sonnet", "haiku"]
 
-    /// What to offer for an agent: its own default first (named by its config), then Claude Code's names or the models
-    /// OpenCode lists, then ones you typed before, each once. Empty for an agent that takes no model.
-    public static func models(agent: String, configured: String?, available: [String] = [], used: [String] = []) -> [Model] {
+    /// What to offer for an agent: its own default first (named by its config), then the agent's own list (Claude Code's
+    /// names, Codex's picker), then the ones used here, then what is only found by typing (every model OpenCode can reach,
+    /// the ones Codex's picker hides), each once. Empty for an agent that takes no model.
+    public static func models(agent: String, configured: String?, catalog: [Model] = [], available: [String] = [], used: [String] = []) -> [Model] {
         guard takesModel(agent) else { return [] }
-        var out = [Model(id: "", name: "Default", note: configured ?? "")], seen: Set<String> = [""]
-        let named = agent == "claude" ? claudeAliases : agent == "opencode" ? available : []
-        for id in named + used where !id.isEmpty && seen.insert(id.lowercased()).inserted { out.append(Model(id: id, name: id)) }
+        let own = agent == "claude" ? claudeAliases.map { Model(id: $0, name: $0) } : catalog
+        let all = own.filter { !$0.more } + used.map { id in own.first { $0.id == id } ?? Model(id: id, name: id) }
+            + own.filter(\.more) + available.map { Model(id: $0, name: $0, more: true) }
+        let named = configured.map { c in own.first { $0.id == c }?.name ?? c } ?? ""   /* as the agent's own list names it */
+        var out = [Model(id: "", name: "Default", note: named)], seen: Set<String> = [""]
+        for m in all where !m.id.isEmpty && seen.insert(m.id.lowercased()).inserted { out.append(m) }
         return out
+    }
+
+    /// Codex's own model picker, as it caches it (~/.codex/models_cache.json): in its order, each with what it is for;
+    /// the ones its picker hides are found by typing.
+    public static func codexCatalog(_ data: Data) -> [Model] {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let list = o["models"] as? [[String: Any]] else { return [] }
+        return list.compactMap { m -> (Int, Model)? in
+            guard let slug = m["slug"] as? String, !slug.isEmpty else { return nil }
+            return ((m["priority"] as? Int) ?? Int.max, Model(id: slug, name: (m["display_name"] as? String) ?? slug, note: (m["description"] as? String) ?? "", more: (m["visibility"] as? String) != "list"))
+        }.enumerated().sorted { ($0.element.0, $0.offset) < ($1.element.0, $1.offset) }.map(\.element.1)
     }
 
     /// Claude Code's default model: `"model"` in ~/.claude/settings.json.

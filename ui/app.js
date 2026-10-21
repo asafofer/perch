@@ -1220,7 +1220,8 @@
   function nwModels() { return nwAgent().models || []; }
   function nwModelRows() {
     var typed = nw.mq.trim(), words = typed.toLowerCase().split(/\s+/).filter(Boolean), all = nwModels();
-    var hit = all.filter(function (m) { var hay = (m.name + ' ' + m.note).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    /* the list is what you use; typing also finds the rest (every model OpenCode can reach, the ones Codex's picker hides) */
+    var hit = all.filter(function (m) { var hay = (m.id + ' ' + m.name + ' ' + m.note).toLowerCase(); return (words.length || !m.more) && words.every(function (w) { return hay.indexOf(w) >= 0; }); });
     if (typed && !hit.length) hit.push({ id: typed, name: typed, note: '', typed: true });
     return hit;
   }
@@ -1294,11 +1295,11 @@
     } else if (nw.step === 'model') {
       var ms = nwModelRows();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + ms.map(function (m, i) {
-        var now = !m.typed && m.id === nw.model, note = m.typed ? 'As typed' : !m.id ? (m.note ? 'Your default' : agentShort(a.app) + '\u2019s own') : '';
+        var now = !m.typed && m.id === nw.model, note = m.typed ? 'As typed' : !m.id ? (m.note ? 'Your default' : agentShort(a.app) + '\u2019s own') : m.note;
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.mi ? ' bg-accent' : '') + '" data-i="' + i + '">' + nwTile(m.typed ? 'plus' : 'model') +
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="ltr" class="nm min-w-0 truncate font-medium">' + (m.typed ? 'Use \u201c' + esc(m.name) + '\u201d' : esc(m.id ? m.name : 'Default')) + '</span>' +
           (!m.id && m.note ? '<span class="flex-none text-xs text-muted-foreground">' + esc(m.note) + '</span>' : '') + '</span>' +
-          '<span class="nw-rt flex flex-none items-center gap-2 text-xs text-muted-foreground">' + esc(note) + (now ? svg('check', 'size-3.5 text-foreground') : '') + '</span></div>';
+          '<span class="nw-rt flex min-w-0 max-w-[55%] flex-none items-center gap-2 text-xs text-muted-foreground"><span class="truncate">' + esc(note) + '</span>' + (now ? svg('check', 'size-3.5 flex-none text-foreground') : '') + '</span></div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Use'], ['esc', 'Back']);
     } else {
       /* the field is a box: the files attached along its top (nwPaths), then your words */
@@ -3748,7 +3749,8 @@
     }
     /* the new session flow: the agents on this Mac and the folders sessions ran in, newest first */
     var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code', model: '', models: [{ id: '', name: 'Default', note: 'opus' }].concat(['fable', 'opus', 'sonnet', 'haiku', 'claude-fable-5-1'].map(function (x) { return { id: x, name: x, note: '' }; })) }, { id: 'codex', app: 'codex', name: 'Codex' },
-      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode', model: '', models: [{ id: '', name: 'Default', note: '' }].concat(['github-copilot/claude-fable-5.1', 'github-copilot/claude-opus-4.8', 'openai/gpt-6', 'openai/gpt-6-mini', 'opencode/big-pickle', 'lmstudio/qwen3-coder'].map(function (x) { return { id: x, name: x, note: '' }; })) }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
+      { id: 'codex-cli', app: 'codex', via: 'ghostty', name: 'Codex CLI', model: '', models: [{ id: '', name: 'Default', note: 'GPT-6-Sol' }].concat([['gpt-6.1-sol', 'GPT-6.1-Sol', 'Latest workhorse model for coding and everyday work.'], ['gpt-6-astra', 'GPT-6-Astra', 'Frontier intelligence for the most demanding work.'], ['gpt-6-sol', 'GPT-6-Sol', 'Previous generation workhorse model.'], ['gpt-6-luna', 'GPT-6-Luna', 'Fast and affordable model for easier tasks.']].map(function (x) { return { id: x[0], name: x[1], note: x[2] }; })) },
+      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode', model: '', models: [{ id: '', name: 'Default', note: '' }].concat(['lmstudio/meta/muse-glimmer', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra'].map(function (x) { return { id: x, name: x, note: '' }; }), ['github-copilot/claude-fable-5.1', 'github-copilot/claude-opus-4.8', 'openai/gpt-6', 'openai/gpt-6-mini', 'opencode/big-pickle', 'lmstudio/qwen3-coder'].map(function (x) { return { id: x, name: x, note: '', more: true }; })) }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
     var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
       ['website', '~/Code/website', '48m'], ['room-planner-prototype', '~/Documents/room-planner-prototype', '5h'], ['lukatz_website', '~/Code/lukatz_website', '1d'], ['spec-gap-finder', '~/Code/spec-gap-finder', '2d'], ['finance', '~/Documents/finance', '3d']]
       .map(function (x) { return { name: x[0], path: x[1], away: x[2] }; });
