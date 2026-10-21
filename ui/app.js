@@ -3215,7 +3215,7 @@
   }
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'switches';
+  var notifyStyle = 'ticks';
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
     if (st === 'icons') {
