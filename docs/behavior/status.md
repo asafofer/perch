@@ -14,7 +14,12 @@
 - In Bypass permissions mode Claude sends no PermissionRequest for a question, so Perch also installs a PreToolUse hook on `AskUserQuestion` (`Ask.viaPreToolUse`, tested against a real `claude` with a temporary settings file: allow plus `updatedInput.answers` is taken as the answer). That hook blocks the app's own prompt until it returns, so it is held only for a Claude app session you are not in, for the notch's nine seconds plus the question time, and let go the moment you are in that session (`HookServer.keepHolding`). `HookInstaller.upgrade()` adds it to an earlier install at launch.
 - Codex's hook runs before its prompt, so Perch answers Codex at once with no decision and only shows the status.
 - Perch's OpenCode plugin never blocks OpenCode: a permission or question is held open beside OpenCode's own prompt, an answer from the notch goes back through OpenCode's client, and one given in OpenCode makes the plugin drop its request.
+- OpenCode runs other tools while a request waits on you, so a tool finishing does not settle an OpenCode request (`LiveStatus.apply`): only its answer does, here or in OpenCode, which lets the plugin's request go. A Claude tool run after a request still settles it.
 - pi has no permission prompts. Its extension reports turns, tools, stops and extension prompts (pi 1.0+, answered in the terminal).
+
+## A session no one runs
+
+- A terminal session the scan finds no process for asks nothing: what its hooks said it asked settles (`LiveStatus.agentGone`), and a tool call its transcript leaves open reads as stopped mid-task, not waiting for your OK (`Project.agentGone`). So a session killed while it waited stops holding the wings, and resuming it does not bring the old request back. A request held by its hook (OpenCode's) settles when that hook goes away instead.
 
 ## Background work
 
