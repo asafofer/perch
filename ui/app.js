@@ -3166,9 +3166,20 @@
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
-  /* PR checks: what it does, or what is missing; the switch is greyed while there is no GitHub CLI or no login */
-  function prsDesc(o) { return o.prs === 'nogh' ? 'Needs the GitHub CLI: install it, then switch this on' : o.prs === 'login' ? 'Run gh auth login in a terminal, then switch this on' : o.prs === 'on' ? 'Asks GitHub, with your gh login, how each pull request is doing. Read only' : 'Asks GitHub, with the gh login you already use, whether checks fail or a review wants changes'; }
-  function prsSw(o) { return swHtml(o.prs === 'on', 'prs', 'PR checks').replace('class="s-sw sw"', 'class="s-sw sw' + (o.prs === 'nogh' || o.prs === 'login' ? ' opacity-40" disabled="' : '') + '"'); }
+  /* Pull requests, one row, three choices: nothing, the mark (from the Claude app's own list), or the mark with checks (asks GitHub through
+     the GitHub CLI's login). Checks is greyed while there is no CLI or no login, and the line says what to do. */
+  function prsMode(o) { return o.showPRs === false ? 'off' : o.prs === 'on' ? 'checks' : 'marks'; }
+  function prsDesc(o) {
+    var no = o.prs === 'nogh' ? 'Checks needs the GitHub CLI: install it first' : o.prs === 'login' ? 'Checks needs a gh login: run gh auth login' : '';
+    return prsMode(o) === 'off' ? 'No mark on any session' + (no ? '. ' + no : '') : prsMode(o) === 'checks' ? 'Marks, and whether checks fail or a review wants changes, through your gh login' : 'A mark on a session whose work is a pull request' + (no ? '. ' + no : '. Checks asks GitHub through your gh login');
+  }
+  function prsSeg(o) {
+    var mode = prsMode(o), nocli = o.prs === 'nogh' || o.prs === 'login';
+    return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + [['off', 'Off'], ['marks', 'Marks'], ['checks', 'Checks']].map(function (x) {
+      var dis = x[0] === 'checks' && nocli;
+      return '<button class="s-prm h-5 rounded px-2 text-xs transition-colors ' + (mode === x[0] ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground' + (dis ? ' opacity-40' : ' cursor-pointer hover:text-foreground')) + (dis ? '" disabled="' : '') + '" data-m="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</span>';
+  }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
   function drow(left, desc, right) {
@@ -3196,8 +3207,6 @@
   function swVal(o, k) {
     if (k === 'login') return !!o.login;
     if (k === 'live') return o.live === 'on';
-    if (k === 'prs') return o.prs === 'on';
-    if (k === 'showprs') return o.showPRs !== false;
     if (k === 'hover') return !!o.hoverExternal;
     if (k === 'fbinfo') return fbInfo;
     if (/^src:/.test(k)) return o.sources.some(function (x) { return x.id === k.slice(4) && x.enabled; });
@@ -3279,8 +3288,6 @@
       if (dm) { dm.classList.toggle('opacity-40', !on); dm.nextSibling.classList.toggle('text-muted-foreground', !on); }
       if (k === 'login') post({ type: 'setting', key: k, value: on });
       else if (k === 'live') post({ type: 'hooks', on: on });
-      else if (k === 'prs') post({ type: 'setting', key: 'pullRequests', value: on });
-      else if (k === 'showprs') post({ type: 'setting', key: 'showPullRequests', value: on });
       else if (k === 'hover') post({ type: 'setting', key: 'hoverExternal', value: on });
       else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
       else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
@@ -3293,6 +3300,9 @@
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
+    box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
+      var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
+    }; });
     var on2 = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on2('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
     on2('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
@@ -3321,10 +3331,7 @@
       }).join('') + gap +
         drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status')) +
         /* off until switched on: it asks GitHub, through the GitHub CLI's login, how each pull request is doing */
-        shead('Pull requests') +
-        /* the mark itself, from the Claude app's own list: on unless you switch it off */
-        drow(slabel('Show pull requests', '', 'pr'), 'A small mark on a session whose work is a pull request', swHtml(o.showPRs !== false, 'showprs', 'Show pull requests')) +
-        drow(slabel('PR checks', '', '-'), prsDesc(o), prsSw(o));
+        gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
@@ -3600,6 +3607,12 @@
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
+    /* Pull requests: the same, over the choices that can be made (Checks needs the GitHub CLI) */
+    if (row.querySelector('.s-prm') && setLast) {
+      var pm = ['off', 'marks'].concat(setLast.prs === 'nogh' || setLast.prs === 'login' ? [] : ['checks']), pi = pm.indexOf(prsMode(setLast));
+      if (k === 'right' && pi >= pm.length - 1) return;
+      var to = pm[(pi + 1) % pm.length]; post({ type: 'setting', key: 'showPullRequests', value: to !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: to === 'checks' }); return;
+    }
     /* a segment: Right moves the choice along and stops at the end; Return comes round again from the start */
     var seg = row.querySelectorAll('.s-seg');
     if (seg.length && setLast) {
@@ -3620,7 +3633,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login'] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs === 'on', o.showPRs !== false, o.sources.length] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
