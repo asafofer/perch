@@ -229,6 +229,19 @@ import Foundation
         #expect(ListFilter.ordered(list, "", now: now, calendar: cal) == [2, 3, 1, 0])
         #expect(list.map { ListFilter.section($0, now: now, calendar: cal) } == [.earlier, .today, .needsYou, .today])
     }
+    @Test func sessionsAtWorkKeepTheirPlaces() {
+        let now = Date()
+        func p(_ id: String, _ ago: TimeInterval, began: TimeInterval, kind: AgentStatus.Kind) -> Project {
+            var x = Project(id: id, name: id, branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: "claude",
+                            agents: [AgentStatus(kind: kind, text: "", app: "claude")], steps: [])
+            x.lastActive = now.addingTimeInterval(-ago); x.startedAt = now.addingTimeInterval(-began); return x
+        }
+        // two at work, each writing a moment after the other, and one that finished a second ago
+        var list = [p("done", 1, began: 100, kind: .done), p("a", 5, began: 3600, kind: .running), p("b", 2, began: 600, kind: .running)]
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
+        list[1].lastActive = now
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
+    }
     @Test func awayFormatting() {
         let now = Date()
         #expect(RelativeTime.away(from: now.addingTimeInterval(-30), to: now) == "1m")

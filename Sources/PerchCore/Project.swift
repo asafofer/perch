@@ -161,11 +161,20 @@ public enum ListFilter {
         return calendar.isDate(at, inSameDayAs: now) ? .today : .earlier
     }
     /// The rows that stay, in the order the list draws them: by section, newest first in each. Up and Down follow it.
+    /// Sessions at work lead their section and keep their places, newest begun first: each writes all the time, so by
+    /// last activity two of them would trade places on every refresh.
     public static func ordered(_ list: [Project], _ query: String, now: Date, calendar: Calendar = .current) -> [Int] {
         let rank: (Int) -> Int = { [.needsYou: 0, .today: 1, .earlier: 2][section(list[$0], now: now, calendar: calendar)] ?? 2 }
+        let working: (Int) -> Bool = { list[$0].status.kind == "running" }
         return shown(list, query).sorted { a, b in
             let ra = rank(a), rb = rank(b)
             if ra != rb { return ra < rb }
+            let wa = working(a), wb = working(b)
+            if wa != wb { return wa }
+            if wa {
+                let sa = list[a].startedAt ?? .distantPast, sb = list[b].startedAt ?? .distantPast
+                return sa != sb ? sa > sb : list[a].id < list[b].id
+            }
             let ta = list[a].lastActive ?? .distantPast, tb = list[b].lastActive ?? .distantPast
             return ta != tb ? ta > tb : a < b
         }
