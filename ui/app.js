@@ -1929,6 +1929,8 @@
   /* Checks failing is a moment only while PR checks is on: nothing else knows when a check fails */
   function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
   function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
+  /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
+  function nMono(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
@@ -3217,19 +3219,21 @@
   }
   /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
      a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'ticks', notifyMenuOpen = false;
+  var notifyStyle = 'icons', notifyMenuOpen = false;
   /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
   function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
     var list = notifyList(o), st = notifyStyle;
     /* only the ticks list Checks failing before Checks is chosen (greyed, with where to turn it on); the other looks wait for it */
-    if (ciOff(o) && st !== 'ticks') list = list.filter(function (x) { return x[0] !== 'ci'; });
+    if (ciOff(o) && st !== 'ticks' && st !== 'icons') list = list.filter(function (x) { return x[0] !== 'ci'; });
     if (st === 'icons') {
-      var chips = list.map(function (x) {
-        var y = notifyOn(x[0]);
-        return '<button class="s-nt grid size-9 cursor-pointer place-items-center rounded-lg transition-colors ' + (y ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '" data-k="' + x[0] + '" data-name="' + esc(x[1]) + '" aria-pressed="' + y + '" aria-label="' + esc(x[1]) + '"><span class="grid transition-opacity ' + (y ? '' : 'opacity-35') + '">' + nMark(x[0]) + '</span></button>';
-      }).join('');
-      return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list) + '</span>', '') .replace('</span></span><span class="block', '</span></span><span class="mt-2 flex gap-1.5 pl-[26px]">' + chips + '</span><span class="block');
+      /* one row like the two below it: the moments as a group of icons in one quiet colour, lit when on. The line under it says
+         what is off, and names an icon while the pointer is on it. */
+      var grp = '<span class="flex gap-0.5 rounded-lg bg-white/[0.06] p-0.5">' + list.map(function (x) {
+        var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o), name = esc(x[1]) + (dis ? ' (needs Checks)' : '');
+        return '<button class="' + (dis ? '' : 's-nt cursor-pointer ') + 'grid h-7 w-8 place-items-center rounded-md transition-colors ' + (dis ? 'text-muted-foreground/30' : y ? 'bg-white/[0.14] text-foreground' : 'text-muted-foreground/70 hover:text-foreground') + '" data-k="' + x[0] + '" data-name="' + name + '" aria-pressed="' + y + '" aria-label="' + name + '"' + (dis ? ' disabled' : '') + '>' + nMono(x[0]) + '</button>';
+      }).join('') + '</span>';
+      return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list.filter(function (x) { return !(x[0] === 'ci' && ciOff(o)); })) + '</span>', grp);
     }
     if (st === 'presets') {
       /* three presets over the same moments; none lit means a mix you made */
@@ -3277,7 +3281,7 @@
     }).join('');
   }
   /* what the icon row says under it: the moments that are on, by name */
-  function notifyLine(list) { var on = list.filter(function (x) { return notifyOn(x[0]); }).map(function (x) { return x[1]; }); return on.length === list.length ? 'All of them' : on.length ? esc(on.join(', ')) : 'Nothing'; }
+  function notifyLine(list) { var off = list.filter(function (x) { return !notifyOn(x[0]); }).map(function (x) { return x[1]; }); return off.length === 0 ? 'All of them' : off.length === list.length ? 'Nothing' : 'Off: ' + esc(off.join(', ')); }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
