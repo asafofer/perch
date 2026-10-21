@@ -952,25 +952,30 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   var boxes = [];
   /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
-  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
+  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']],
+    'Updates': [['All', ''], ['The update', 'flow'], ['Found by itself', 'peek'], ['List and card', 'list'], ['What\u2019s new', 'new'], ['Settings', 'settings']] };
   var dd2 = document.createElement('div'); dd2.className = 'dd dd2'; dd2.hidden = true; dd.parentNode.insertBefore(dd2, dd.nextSibling);
   var ddb2 = document.createElement('button'); ddb2.setAttribute('aria-haspopup', 'listbox'); dd2.appendChild(ddb2);
   var menu2 = document.createElement('div'); menu2.className = 'menu'; menu2.setAttribute('role', 'listbox'); dd2.appendChild(menu2);
   var curGroup = 0;
-  function tagOf(s) { return /^Settings/.test(s[0]) ? 'settings' : 'notch'; }
+  /* which kind a scenario is, for the category's second drop-down */
+  function tagOf(s, g) {
+    if (g === 'Updates') return /^Settings/.test(s[0]) ? 'settings' : /^(Found by itself|The peek)/.test(s[0]) ? 'peek' : /^(In the list|On a card)/.test(s[0]) ? 'list' : /^What\u2019s new/.test(s[0]) ? 'new' : 'flow';
+    return /^Settings/.test(s[0]) ? 'settings' : 'notch';
+  }
   function setFilter(i, tag) {
     var f = FILTERS[GROUPS[i][0]]; if (!f) return;
-    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s) !== tag; });
+    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s, GROUPS[i][0]) !== tag; });
     menu2.querySelectorAll('button').forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tag === tag)); });
     var label = f.filter(function (x) { return x[1] === tag; })[0];
-    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s) === tag; }).length + '</span>' + CHEV;
+    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s, GROUPS[i][0]) === tag; }).length + '</span>' + CHEV;
   }
   function filterMenu(i) {
     var f = FILTERS[GROUPS[i][0]]; dd2.hidden = !f; menu2.innerHTML = '';
     if (!f) return;
     f.forEach(function (x) {
       var t = document.createElement('button'); t.setAttribute('role', 'option'); t.dataset.tag = x[1];
-      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s) === x[1]; }).length + '</span>';
+      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s, GROUPS[i][0]) === x[1]; }).length + '</span>';
       t.onclick = function () { setFilter(i, x[1]); dd2.classList.remove('open'); };
       menu2.appendChild(t);
     });
