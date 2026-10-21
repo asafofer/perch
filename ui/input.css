@@ -496,10 +496,11 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .pr-tip { position: fixed; z-index: 60; left: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 11px 7px 9px; border-radius: 10px; background: #1d1d20; color: #e4e4e7;
   font: 500 12px/18px Inter, sans-serif; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 10px 28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4); }
-.pr-tip.on { opacity: 1; transform: none; }
+.pr-tip.on { opacity: 1; transform: none; pointer-events: auto; }
 .pr-tip .r { display: flex; align-items: center; gap: 7px; height: 18px; }
-.pr-tip { width: max-content; max-width: 340px; padding: 9px 12px; gap: 9px; }
-.pr-tip .p2 { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pr-tip { width: max-content; max-width: 340px; padding: 5px; gap: 2px; pointer-events: none; }
+.pr-tip .pi { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background-color .12s; }
+.pr-tip .pi:hover, .pr-tip .pi.hv { background: rgba(255,255,255,.08); }
 
 .pr-tip .p2 .t { max-width: 100%; font-size: 13px; color: #fafafa; }
 .pr-tip .p2 .r { font-size: 12px; }

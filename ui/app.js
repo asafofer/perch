@@ -240,29 +240,37 @@
   /* One label for every PR mark, drawn above the one under the pointer (below it when there is no room). It is Perch's own,
      since a card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
+  /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
+     pull request in it lights on hover and opens that pull request on a click. */
+  var prHideT = 0, prShown = null;
+  function prHide() { clearTimeout(prHideT); prHideT = setTimeout(function () { prTip.classList.remove('on'); prShown = null; }, 160); }
+  function prKeep() { clearTimeout(prHideT); }
+  prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
+  prTip.onclick = function (e) {
+    var it = e.target.closest('.pi'), pr = it && prShown && prShown[+it.dataset.i];
+    e.stopPropagation(); if (pr && pr.url) post({ type: 'openpr', url: pr.url });
+  };
   function prHover(el) {
     if (el.dataset.b) return; el.dataset.b = '1';
     el.onmouseenter = function () {
       var list = el._prs; if (!list || !list.length) return;
-      var repos = {}; list.forEach(function (x) { repos[x.repo || ''] = 1; });
-      prTip.innerHTML = list.map(function (pr) {
+      prKeep(); prShown = list;
+      prTip.innerHTML = list.map(function (pr, i) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
-        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div>' + '</div>';
-        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div>';
+        if (pr.title) return '<div class="pi p2" data-i="' + i + '"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div></div>';
+        return '<div class="pi" data-i="' + i + '"><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div></div>';
       }).join('');
-      prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
-      /* below the icon, right edges together; above it when there is no room below */
       /* only as wide as its words, right edges together with the icon, and never past the card */
       var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.width = ''; prTip.style.maxWidth = (nb.width - 24) + 'px';
       prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
       var tw = prTip.offsetWidth, th = prTip.offsetHeight;
       prTip.style.left = Math.max(nb.left + 12, Math.min(r.right - tw + 6, nb.right - tw - 12)) + 'px';
       /* below the icon; above it when that is where the room is; else held inside the card */
-      var below = r.bottom + 6, above = r.top - th - 6, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
+      var below = r.bottom + 4, above = r.top - th - 4, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
       prTip.style.top = top + 'px'; prTip.classList.add('on');
     };
-    el.onmouseleave = function () { prTip.classList.remove('on'); };
+    el.onmouseleave = prHide;
     el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
   }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
@@ -3745,6 +3753,8 @@
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    /* the real app opens the pull request in the browser; the design page does the same in a new tab */
+    if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
     if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
     if (m.type === 'setting' && m.key === 'prNeedsYou' && s.settings) s.settings.prNeeds = m.value;
     if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'prNeedsYou') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
@@ -3798,15 +3808,15 @@
         asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
     ];
     /* sample pull requests: one of each state */
-    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
-      website: [{ number: 448, title: 'Tighten the hero spacing at phone width', repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
-      docs: [{ number: 455, title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
-      planner: [{ number: 431, title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
-      lukatz: [{ number: 12, title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
-      api: [{ number: 460, title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
-      fluid: [{ number: 87, title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
-      gaps: [{ number: 23, title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
-      tui: [{ number: 9, title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
+    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, url: 'https://github.com/asafofer/perch/pull/452', title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
+      website: [{ number: 448, url: 'https://github.com/asafofer/perch/pull/448', title: 'Tighten the hero spacing at phone width', repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
+      docs: [{ number: 455, url: 'https://github.com/asafofer/perch/pull/455', title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
+      planner: [{ number: 431, url: 'https://github.com/asafofer/perch/pull/431', title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, url: 'https://github.com/asafofer/perch/pull/436', title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
+      lukatz: [{ number: 12, url: 'https://github.com/asafofer/perch/pull/12', title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
+      api: [{ number: 460, url: 'https://github.com/asafofer/perch/pull/460', title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, url: 'https://github.com/asafofer/perch/pull/441', title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
+      fluid: [{ number: 87, url: 'https://github.com/asafofer/perch/pull/87', title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
+      gaps: [{ number: 23, url: 'https://github.com/asafofer/perch/pull/23', title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
+      tui: [{ number: 9, url: 'https://github.com/asafofer/perch/pull/9', title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, url: 'https://github.com/asafofer/perch/pull/7', title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
     P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
