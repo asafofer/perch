@@ -598,7 +598,8 @@ public enum Recap {
 
     /// `quietFor` is how long ago the session file last changed; nil when unknown.
     static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent a: Agent = .claude, quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
-        let short = a.short, agent = a.name, quiet = quietFor ?? .infinity
+        // A task in the Claude app is just Claude's: "Claude replied", not "Claude tasks replied".
+        let short = a.short, agent = a.id == Agent.cowork.id ? a.short : a.name, quiet = quietFor ?? .infinity
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.

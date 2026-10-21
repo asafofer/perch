@@ -352,7 +352,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onRow(name) { return function () { var r = [].filter.call(document.querySelectorAll('.nw .nrow'), function (x) { return (x.querySelector('.nm') || {}).textContent === name; })[0]; return deskPoint(r, 30, 0); }; }
   function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
-  var APP_SOURCES = [{ id: 'cowork', name: 'Cowork', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
+  var APP_SOURCES = [{ id: 'cowork', name: 'Claude tasks', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
     var UPD_ERR = [
@@ -406,12 +406,12 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
     ['Claude app (spike)', [
-      ['Cowork, finished', 'A Cowork task: the Claude icon, its folder as the project (Taxes), what it found. Open Claude goes to the task (claude://claude.ai/local_sessions/<id>). Cowork has no hooks Perch can reach, so its questions are read only.', function () { var at = d.claudeApp(); d.project(at); d.show('open', false, true); }],
-      ['Cowork, never opened here', 'A task whose words this Mac never cached (started on another device, or not opened lately): its title, its folder and a quiet grey line saying so. Status still comes through.', function () { var at = d.claudeApp(); d.project(at + 1); d.show('open', false, true); }],
+      ['A task, finished', 'A Claude task (what was Cowork): the same card as a chat or a Code session, the Claude icon, its folder as the project (Taxes), what it found. Open Claude goes to the task (claude://claude.ai/local_sessions/<id>). Cowork has no hooks Perch can reach, so its questions are read only.', function () { var at = d.claudeApp(); d.project(at); d.show('open', false, true); }],
+      ['A task, never opened here', 'A task whose words this Mac never cached (started on another device, or not opened lately): its title, its folder and a quiet grey line saying so. Status still comes through.', function () { var at = d.claudeApp(); d.project(at + 1); d.show('open', false, true); }],
       ['A chat', 'A chat in the Claude app: its title, and what Claude last said, like any session. Open Claude goes to the chat (claude://claude.ai/chat/<uuid>). What was said is cached only for chats opened lately on this Mac; see the spike notes.', function () { var at = d.claudeApp(); d.project(at + 2); d.show('open', false, true); }],
-      ['The list with Cowork and chats', 'Cowork tasks and chats among the coding sessions. A chat in a Claude project shows the project in grey (financials).', function () { d.claudeApp(); d.show('switcher'); }],
-      ['Settings: Cowork and chats', 'Settings, Agents, with Cowork on and Claude chats off, which is how they start. Each has its switch, like any agent.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), page: 'agents' }); }],
-      ['Onboarding: Cowork and chats', 'Choose your apps with all six. Claude chats starts off and says only how many it found, never their titles.', function () { d.onboarding(4, true, false, null, 'app'); }]
+      ['The list with tasks and chats', 'Claude tasks and chats among the coding sessions, looking alike. A chat in a Claude project shows the project in grey (financials).', function () { d.claudeApp(); d.show('switcher'); }],
+      ['Settings: tasks and chats', 'Settings, Agents: Claude tasks and Claude chats each have a switch, so you choose which Perch shows. Tasks start on, chats off.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), page: 'agents' }); }],
+      ['Onboarding: tasks and chats', 'Choose your apps with all six. Claude chats starts off and says only how many it found, never their titles.', function () { d.onboarding(4, true, false, null, 'app'); }]
     ]],
     ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
