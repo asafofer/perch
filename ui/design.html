@@ -96,6 +96,8 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .dd2{margin-left:8px}.dd2>button{min-width:150px}
 .sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
+i.sci{flex:none;display:grid;place-items:center;min-width:16px;height:16px;margin-right:9px;color:var(--pg-muted);font-style:normal}
+i.sci svg{width:16px;height:16px}
 .sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 
@@ -1004,12 +1006,28 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Feedback': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     'Accessibility': '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
+    'Pull requests': '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
+    'Which screen': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
     'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
+  /* each scenario leads with a mark: its category's, and for pull requests the very mark the card would show */
+  var PRSC = { 'PR, open': [{}], 'PR, ready to merge': [{ checks: 'pass', review: 'approved' }], 'PR, checks failing': [{ checks: 'fail' }], 'PR, changes requested': [{ review: 'changes' }], 'PR, merge conflicts': [{ conflict: true }],
+    'PR, checks running': [{ checks: 'running' }], 'PR, checks running, popover': [{ checks: 'running' }], 'PR, draft': [{ state: 'draft' }], 'PR, merged': [{ state: 'merged' }],
+    'PR, two merged': [{ state: 'merged' }, { state: 'merged' }], 'PR, failing and merged': [{ checks: 'fail' }, { state: 'merged' }], 'PR, closed': [{ state: 'closed' }],
+    'PR failing: needs you': [{ checks: 'fail' }], 'PR changes requested: needs you': [{ review: 'changes' }], 'All sessions, a PR needs you': [{ checks: 'fail' }] };
+  function scIcon(group, name) {
+    if (group === 'Pull requests') {
+      if (PRSC[name]) return d.prIcon(PRSC[name]);
+      if (/^Settings/.test(name)) return tabIcon('Settings');
+      if (/^Onboarding/.test(name)) return tabIcon('Onboarding');
+      return tabIcon('Reply formatting');
+    }
+    return tabIcon(group);
+  }
   var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
   var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
   var menu = document.createElement('div'); menu.className = 'menu'; dd.appendChild(menu);
@@ -1120,7 +1138,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
-      b.innerHTML = '<b>' + s[0] + '</b>';
+      b.innerHTML = '<i class="sci">' + scIcon(g[0], s[0]) + '</i><b>' + s[0] + '</b>';
       /* a scenario says what it shows in its first sentence; the rest was detail */
       var says = s[1].split(/(?<=[.!?])\s/)[0];
       b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; };

@@ -3903,6 +3903,8 @@
       });
     }
     window.perchDev = {
+      /* a pull request mark (or the mark of several) for a scenario's button on the design page */
+      prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
       prLegend: function () {
         return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
