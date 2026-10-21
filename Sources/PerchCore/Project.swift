@@ -68,6 +68,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var asked: String?
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
+    /// Its transcript ends on a tool call with no result yet: running, or waiting for your OK.
+    public var toolOpen = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
@@ -78,6 +80,17 @@ public struct Project: Identifiable, Equatable, Sendable {
     }
 
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
+
+    /// A terminal session no process runs any more (the scan found none): a tool call it left open waits on no one, so it
+    /// is neither asking you anything nor at work. Sample data (no session id) is left as it is.
+    public func agentGone() -> Project {
+        guard terminal, pid == nil, sessionId != nil, needsAttention || status.kind == "running", ask != nil || toolOpen else { return self }
+        if ask?.answerable == true { return self }   // held by its hook, which settles it when it goes
+        var p = self
+        p.agents = [AgentStatus(kind: .idle, text: "\(Agent.of(app).name) stopped mid-task", app: app)]
+        p.ask = nil; p.next = ""; p.now = nil
+        return p
+    }
 
     /// The one status worth showing: whatever needs you, else what finished, else idle.
     public var status: (kind: String, text: String, app: String) {
