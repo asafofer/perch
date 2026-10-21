@@ -17,7 +17,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* the desktop stays in view while you pick scenarios */
 .deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
 /* a real desktop: Raycast wallpapers (raycast.com/wallpapers), seen from the top of the screen like the notch sees it */
-.desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:340px;
+.desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:452px;
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
@@ -34,7 +34,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .now{position:absolute;z-index:6;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
 
 /* the disk image window (Installing): Finder's window as a stand-in, the picture inside is the real one that ships (install/background.html) */
-.desk.inst{height:500px}
+.desk.inst .fin{top:14px}
 .fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#161B19;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 0 0 .5px rgba(0,0,0,.6),0 26px 64px rgba(0,0,0,.6);transition:opacity .35s,transform .35s}
 .fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#9AA39E;letter-spacing:-.005em}
 .fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#3A423E;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
@@ -93,7 +93,20 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden],.sc[hidden],.dd[hidden]{display:none}
-.dd2{margin-left:8px}.dd2>button{min-width:150px}
+.pickrow{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pickrow .dd{margin:0}.dd2{margin-left:0}
+.sq{position:relative;flex:1 1 220px;max-width:340px}
+.sq input{display:block;width:100%;box-sizing:border-box;height:34px;font:400 13px Inter,sans-serif;color:var(--pg-fg);background:var(--pg-card);border:0;border-radius:9px;padding:0 10px 0 32px;outline:0;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.sq input:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.sq input::placeholder{color:var(--pg-muted)}
+.sq>svg{position:absolute;left:10px;top:10px;width:15px;height:15px;color:var(--pg-muted);pointer-events:none}
+.sq .res{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;padding:5px;max-height:min(380px,55vh);overflow-y:auto;background:var(--pg-card);border-radius:11px;box-shadow:0 0 0 1px var(--pg-line),0 14px 34px rgba(0,0,0,.45)}
+.sq.open .res{display:block}
+.sq .res button{display:flex;align-items:center;gap:9px;width:100%;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer;text-align:left}
+.sq .res button+button{margin-top:2px}
+.sq .res button:hover,.sq .res button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
+.sq .res button svg{width:15px;height:15px;flex:none;color:var(--pg-muted)}
+.sq .res .in{margin-left:auto;padding-left:12px;font-weight:400;font-size:12px;color:var(--pg-muted);white-space:nowrap}
+.sq .res .none{padding:8px 10px;font-size:13px;color:var(--pg-muted)}.dd2>button{min-width:150px}
 .sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
 i.sci{flex:none;display:grid;place-items:center;min-width:16px;height:16px;margin-right:9px;color:var(--pg-muted);font-style:normal}
@@ -117,7 +130,6 @@ i.sci svg{width:16px;height:16px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
-:root:not(.rec) .desk:has(.n[data-s=set]),:root:not(.rec) .desk:has(.n[data-s=onb]){height:452px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
@@ -1134,6 +1146,40 @@ i.sci svg{width:16px;height:16px}
   }
   ddb2.onclick = function (e) { e.stopPropagation(); dd2.classList.toggle('open'); ddOpen(false); };
   document.addEventListener('click', function () { dd2.classList.remove('open'); });
+  /* a search that is always there, beside the drop-downs: type, and every scenario whose name or words match is listed with its category */
+  var pickrow = document.createElement('div'); pickrow.className = 'pickrow'; dd.parentNode.insertBefore(pickrow, dd); pickrow.appendChild(dd); pickrow.appendChild(dd2);
+  var sq = document.createElement('div'); sq.className = 'sq'; pickrow.appendChild(sq);
+  sq.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Search scenarios" aria-label="Search scenarios" spellcheck="false"><div class="res"></div>';
+  var sqi = sq.querySelector('input'), sqr = sq.querySelector('.res'), sqAt = -1;
+  function sqFind() {
+    var t = sqi.value.trim(), found = [];
+    if (t) GROUPS.forEach(function (g, gi) { g[1].forEach(function (sc, si) {
+      var rank = matches(t, sc[0]) ? 0 : matches(t, sc[0] + ' ' + sc[1]) ? 1 : matches(t, g[0]) ? 2 : -1;
+      if (rank >= 0) found.push({ gi: gi, si: si, sc: sc, g: g, rank: rank });
+    }); });
+    found.sort(function (a, b) { return a.rank - b.rank; });
+    sqr.innerHTML = ''; sqAt = found.length ? 0 : -1;
+    found.slice(0, 40).forEach(function (f, k) {
+      var b = document.createElement('button'); b.className = k === 0 ? 'at' : '';
+      b.innerHTML = scIcon(f.g[0], f.sc[0]) + '<span>' + f.sc[0] + '</span><span class="in">' + f.g[0] + '</span>';
+      b.onclick = function () { sqPick(f); };
+      sqr.appendChild(b);
+    });
+    if (t && !found.length) sqr.innerHTML = '<div class="none">Nothing matches</div>';
+    sq.classList.toggle('open', !!t);
+  }
+  function sqPick(f) { sq.classList.remove('open'); sqi.value = ''; showTab(f.gi); boxes[f.gi].children[f.si].click(); boxes[f.gi].children[f.si].scrollIntoView({ block: 'nearest' }); sqi.blur(); }
+  sqi.addEventListener('input', sqFind);
+  sqi.addEventListener('focus', function () { if (sqi.value.trim()) sq.classList.add('open'); });
+  sqi.addEventListener('keydown', function (e) {
+    var bs = [].slice.call(sqr.querySelectorAll('button'));
+    e.stopPropagation();   /* typing here is not a key for the notch behind it */
+    if (e.key === 'Escape') { sq.classList.remove('open'); sqi.blur(); return; }
+    if (!bs.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sqAt = (sqAt + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length; bs.forEach(function (b, k) { b.classList.toggle('at', k === sqAt); }); bs[sqAt].scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (bs[Math.max(sqAt, 0)]) bs[Math.max(sqAt, 0)].click(); }
+  }, true);
+  document.addEventListener('click', function (e) { if (!sq.contains(e.target)) sq.classList.remove('open'); });
   function showTab(i) {
     curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
