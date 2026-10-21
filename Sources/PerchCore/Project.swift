@@ -82,9 +82,9 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
 
     /// A terminal session no process runs any more (the scan found none): a tool call it left open waits on no one, so it
-    /// is not asking you anything. Sample data (no session id) is left as it is.
+    /// is neither asking you anything nor at work. Sample data (no session id) is left as it is.
     public func agentGone() -> Project {
-        guard terminal, pid == nil, sessionId != nil, needsAttention, ask != nil || toolOpen else { return self }
+        guard terminal, pid == nil, sessionId != nil, needsAttention || status.kind == "running", ask != nil || toolOpen else { return self }
         if ask?.answerable == true { return self }   // held by its hook, which settles it when it goes
         var p = self
         p.agents = [AgentStatus(kind: .idle, text: "\(Agent.of(app).name) stopped mid-task", app: app)]

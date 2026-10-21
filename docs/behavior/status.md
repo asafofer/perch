@@ -19,7 +19,7 @@
 
 ## A session no one runs
 
-- A terminal session the scan finds no process for asks nothing: what its hooks said it asked settles (`LiveStatus.agentGone`), and a tool call its transcript leaves open reads as stopped mid-task, not waiting for your OK (`Project.agentGone`). So a session killed while it waited stops holding the wings, and resuming it does not bring the old request back. A request held by its hook (OpenCode's) settles when that hook goes away instead.
+- A terminal session the scan finds no process for asks nothing: what its hooks said it asked settles (`LiveStatus.agentGone`), and a tool call its transcript leaves open reads as stopped mid-task, not at work or waiting for your OK (`Project.agentGone`). So a session killed while it waited stops holding the wings, and resuming it does not bring the old request back. A request held by its hook (OpenCode's) settles when that hook goes away instead.
 
 ## Background work
 

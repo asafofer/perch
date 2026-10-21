@@ -305,6 +305,12 @@ import Foundation
         #expect(p.agentGone().status.kind == "attention")   // still running there: it waits for you
         p.pid = nil
         #expect(p.agentGone().status.kind == "idle"); #expect(p.agentGone().status.text == "Claude Code stopped mid-task")
+        // Killed a moment ago, its call still within its time: not at work either.
+        var fresh = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 5))
+        fresh.terminal = true
+        #expect(fresh.status.kind == "running"); #expect(fresh.agentGone().status.kind == "idle")
+        fresh.pid = 4242
+        #expect(fresh.agentGone().status.kind == "running")
         // What its hook said goes too, so resuming it later does not bring the request back.
         var live = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s2", kind: .asks({ var a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build"]); a.answerable = false; return a }())), to: nil)
         #expect(live.agentGone() == nil)
