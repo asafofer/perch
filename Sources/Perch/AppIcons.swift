@@ -108,10 +108,10 @@ enum AgentPresence {
         let folders: [String: [String]] = [
             "claude": [home + "/.claude"], "codex": [home + "/.codex"],
             "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"],
-            "cowork": [home + "/Library/Application Support/Claude/local-agent-mode-sessions"],
+            "cowork": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
             "chat": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
         ]
-        // Only the folder says Cowork or chats were used: the Claude app alone is not enough (it may be Code only).
+        // Only claude.ai's own data says tasks or chats were used: the Claude app alone is not enough (it may be Code only).
         if ["cowork", "chat"].contains(a.id) { return (folders[a.id] ?? []).contains(where: fm.fileExists(atPath:)) }
         if (folders[a.id] ?? []).contains(where: fm.fileExists(atPath:)) { return true }
         if AppIcons.url(a.id) != nil { return true }

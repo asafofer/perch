@@ -1,70 +1,13 @@
 import Foundation
 
-/// Cowork, the Claude app's agent for everyday work. Each task is a Claude Code session the app runs for you, kept in
-/// `local-agent-mode-sessions/<account>/<org>/local_<id>.json` beside a folder of the same name that holds its own
-/// `.claude/projects/*/<cliSessionId>.jsonl`, written like any Claude Code transcript (`entrypoint: local-agent`).
-public final class CoworkSessions: @unchecked Sendable {
-    public struct Entry: Sendable {
-        public let id: String
-        public let title: String?
-        /// The folders you gave it. Without one it works in its own `outputs` folder.
-        public let folders: [String]
-        public let cwd: String?
-        public let archived: Bool
-        public let transcript: URL?
-        public let lastActivity: Date?
-    }
-    public static let shared = CoworkSessions(root: FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/Claude/local-agent-mode-sessions"))
-    let root: URL
-    private var cache: [String: (mtime: Date, entry: Entry)] = [:]
-    private let lock = NSLock()
-
-    public init(root: URL) { self.root = root }
-
-    /// Whether Cowork was ever used on this Mac.
-    public var present: Bool { FileManager.default.fileExists(atPath: root.path) }
-
-    public func index() -> [Entry] {
-        let fm = FileManager.default
-        lock.lock(); defer { lock.unlock() }
-        var fresh: [String: (mtime: Date, entry: Entry)] = [:]
-        for account in (try? fm.contentsOfDirectory(atPath: root.path)) ?? [] {
-            let accountDir = root.appendingPathComponent(account)
-            for org in (try? fm.contentsOfDirectory(atPath: accountDir.path)) ?? [] {
-                let dir = accountDir.appendingPathComponent(org)
-                for file in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where file.hasPrefix("local_") && file.hasSuffix(".json") {
-                    let url = dir.appendingPathComponent(file)
-                    guard let mtime = SessionScanner.mtime(url) else { continue }
-                    if let hit = cache[url.path], hit.mtime == mtime { fresh[url.path] = hit; continue }
-                    guard let data = try? Data(contentsOf: url),
-                          let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                          let id = o["sessionId"] as? String else { continue }
-                    let folder = dir.appendingPathComponent(String(file.dropLast(5)))
-                    let transcript = (o["cliSessionId"] as? String).flatMap { cli -> URL? in
-                        let projects = folder.appendingPathComponent(".claude/projects")
-                        for d in (try? fm.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)) ?? [] {
-                            let f = d.appendingPathComponent(cli + ".jsonl")
-                            if fm.fileExists(atPath: f.path) { return f }
-                        }
-                        return nil
-                    }
-                    let last = (o["lastActivityAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
-                    fresh[url.path] = (mtime, Entry(id: id, title: o["title"] as? String, folders: o["userSelectedFolders"] as? [String] ?? [],
-                                                    cwd: o["cwd"] as? String, archived: o["isArchived"] as? Bool ?? false,
-                                                    transcript: transcript, lastActivity: last))
-                }
-            }
-        }
-        cache = fresh
-        return fresh.values.map(\.entry)
-    }
-}
-
-/// The chats in the Claude app (claude.ai). They live on Anthropic's servers; the app keeps its last fetch of the recent list
-/// (`chat_conversation_list`, 30 newest) in claude.ai's IndexedDB as a persisted react-query cache, refreshed while it runs.
-/// Only titles and times are there, no messages, and only for the account last signed in.
-public final class ClaudeChats: @unchecked Sendable {
+/// What the Claude app keeps of claude.ai on this Mac: its chats and its tasks (what was Cowork). Both live on Anthropic's
+/// servers; the app keeps its last fetch of each list in claude.ai's IndexedDB as a persisted react-query cache (one blob,
+/// `IndexedDB/https_claude.ai_0.indexeddb.blob/*/*/*`), refreshed while the app runs. Read only: Perch never writes there,
+/// never touches the app's login, and never asks the servers itself.
+/// - `chat_conversation_list`: the 30 newest chats, titles and times; `project_list` names their Claude projects.
+/// - `cowork-remote-sessions` (tasks run in the cloud) and `cowork-local-sessions`: each task's title, folders, times, its
+///   live state (`running`, `awaiting` an approval, `idle`) and whether you have seen its latest (`unread`).
+public final class ClaudeCache: @unchecked Sendable {
     public struct Chat: Sendable, Equatable {
         public let id: String
         public let title: String
@@ -74,16 +17,38 @@ public final class ClaudeChats: @unchecked Sendable {
         public let project: String?
         public let starred: Bool
     }
-    public static let shared = ClaudeChats(root: FileManager.default.homeDirectoryForCurrentUser
+    public struct Task: Sendable, Equatable {
+        public enum State: String, Sendable { case running, awaiting, idle }
+        public let id: String
+        public let title: String
+        /// The folders you gave it; empty when it works without one.
+        public let folders: [String]
+        public let created: Date?
+        public let lastActivity: Date
+        public let state: State
+        /// Something happened that you have not looked at in the app.
+        public let unread: Bool
+        public let archived: Bool
+    }
+    public struct Contents: Sendable, Equatable {
+        public var chats: [Chat] = []
+        public var tasks: [Task] = []
+        public init(chats: [Chat] = [], tasks: [Task] = []) { self.chats = chats; self.tasks = tasks }
+    }
+
+    public static let shared = ClaudeCache(root: FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"))
     let root: URL
-    private var cache: (path: String, mtime: Date, chats: [Chat], read: Date)?
+    private var cache: (path: String, mtime: Date, contents: Contents, read: Date)?
     private let lock = NSLock()
     /// The app rewrites the file whenever any of its queries changes, and reading it takes a moment, so it is read at most
-    /// this often. A chat's title and time are not urgent.
-    public var every: TimeInterval = 30
+    /// this often. Often enough that a task's working, waiting and done keep pace with the list.
+    public var every: TimeInterval = 5
 
     public init(root: URL) { self.root = root }
+
+    /// Whether claude.ai was ever opened in the Claude app on this Mac.
+    public var present: Bool { FileManager.default.fileExists(atPath: root.path) }
 
     /// The newest blob that holds the persisted query cache. Chromium writes a new file for each version of a large value.
     func cacheFile() -> (URL, Date)? {
@@ -93,60 +58,78 @@ public final class ClaudeChats: @unchecked Sendable {
         for case let url as URL in e {
             guard let m = SessionScanner.mtime(url), best.map({ m > $0.1 }) ?? true,
                   let h = try? FileHandle(forReadingFrom: url) else { continue }
-            let head = (try? h.read(upToCount: 96)) ?? Data(); try? h.close()
+            let head = (try? h.read(upToCount: 256)) ?? Data(); try? h.close()
             if head.range(of: Data("conversations_v".utf8)) != nil { best = (url, m) }
         }
         return best
     }
 
-    public func recent() -> [Chat] {
-        guard let (url, mtime) = cacheFile() else { return [] }
+    public func read() -> Contents {
+        guard let (url, mtime) = cacheFile() else { return Contents() }
         lock.lock(); let hit = cache; lock.unlock()
-        if let hit, (hit.path == url.path && hit.mtime == mtime) || Date().timeIntervalSince(hit.read) < every { return hit.chats }
-        guard let data = try? Data(contentsOf: url), let chats = Self.chats(fromBlob: data) else { return hit?.chats ?? [] }
-        lock.lock(); cache = (url.path, mtime, chats, Date()); lock.unlock()
-        return chats
+        if let hit, (hit.path == url.path && hit.mtime == mtime) || Date().timeIntervalSince(hit.read) < every { return hit.contents }
+        guard let data = try? Data(contentsOf: url), let contents = Self.contents(fromBlob: data) else { return hit?.contents ?? Contents() }
+        lock.lock(); cache = (url.path, mtime, contents, Date()); lock.unlock()
+        return contents
     }
 
-    /// The chat list out of one IndexedDB value: Blink's envelope, Snappy, then V8's structured clone.
-    public static func chats(fromBlob data: Data) -> [Chat]? {
+    /// The lists out of one IndexedDB value: Blink's envelope, Snappy, then V8's structured clone. Nil when it is not that.
+    public static func contents(fromBlob data: Data) -> Contents? {
         let b = [UInt8](data)
         // 0xFF 0x11 0x02: an IndexedDB value compressed with Snappy.
         guard b.count > 3, b[0] == 0xFF, b[1] == 0x11, b[2] == 0x02, let raw = Snappy.decompress(b[3...]) else { return nil }
         var clone = V8Clone(raw)
         guard let root = clone.read() as? [String: Any],
               let queries = (root["clientState"] as? [String: Any])?["queries"] as? [Any] else { return nil }
-        var projects: [String: String] = [:]
-        var lists: [[String: Any]] = []
+        /// Every row of a query's data, however it is paged: [row], {data: [row]}, {rows: [row]}, {pages: [[row] or {data}]}.
+        func rows(_ data: Any) -> [[String: Any]] {
+            if let a = data as? [Any] { return a.compactMap { $0 as? [String: Any] } }
+            guard let o = data as? [String: Any] else { return [] }
+            if let pages = o["pages"] as? [Any] { return pages.flatMap(rows) }
+            return rows(o["data"] ?? o["rows"] ?? o["sessions"] ?? [Any]())
+        }
+        var projects: [String: String] = [:], chats: [[String: Any]] = [], tasks: [[String: Any]] = []
         for case let q as [String: Any] in queries {
             guard let key = q["queryKey"] as? [Any], let kind = key.first as? String,
                   let data = (q["state"] as? [String: Any])?["data"] else { continue }
             switch kind {
             case "chat_conversation_list":
-                // The infinite list ({pages: [[chat]]}) is the sidebar's; a plain one ({data: [chat]}) is a filter (starred).
+                // The sidebar's list; one filtered to starred or archived chats is not it.
                 let filter: [String: Any] = key.count > 1 ? (key[key.count - 1] as? [String: Any] ?? [:]) : [:]
                 if filter["starred"] as? Bool == true || filter["archived"] as? Bool == true { continue }
-                let box = data as? [String: Any] ?? [:]
-                for page in box["pages"] as? [Any] ?? [box["data"] as Any] {
-                    let rows: [Any] = page as? [Any] ?? ((page as? [String: Any])?["data"] as? [Any]) ?? []
-                    lists += rows.compactMap { $0 as? [String: Any] }
-                }
+                chats += rows(data)
             case "project_list":
-                let box = data as? [String: Any] ?? [:]
-                var rows: [Any] = data as? [Any] ?? []
-                for page in box["pages"] as? [Any] ?? [] { rows += page as? [Any] ?? ((page as? [String: Any])?["data"] as? [Any]) ?? [] }
-                for case let p as [String: Any] in rows { if let id = p["uuid"] as? String, let n = p["name"] as? String { projects[id] = n } }
+                for p in rows(data) { if let id = p["uuid"] as? String, let n = p["name"] as? String { projects[id] = n } }
+            case "cowork-remote-sessions", "cowork-local-sessions":
+                tasks += rows(data)
             default: continue
             }
         }
-        var seen = Set<String>(), out: [Chat] = []
-        for c in lists {
+        var out = Contents(), seen = Set<String>()
+        for c in chats {
             guard let id = c["uuid"] as? String, seen.insert(id).inserted, let updated = (c["updated_at"] as? String).flatMap(Self.date) else { continue }
             let name = (c["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled"
-            out.append(Chat(id: id, title: name, updated: updated, created: (c["created_at"] as? String).flatMap(Self.date),
-                            project: (c["project_uuid"] as? String).flatMap { projects[$0] }, starred: c["is_starred"] as? Bool ?? false))
+            out.chats.append(Chat(id: id, title: name, updated: updated, created: (c["created_at"] as? String).flatMap(Self.date),
+                                  project: (c["project_uuid"] as? String).flatMap { projects[$0] }, starred: c["is_starred"] as? Bool ?? false))
         }
-        return out.sorted { $0.updated > $1.updated }
+        for t in tasks {
+            guard let id = t["sessionId"] as? String, seen.insert(id).inserted, let last = Self.millis(t["lastActivityAt"]) else { continue }
+            let live = (t["liveStatus"] as? String).flatMap(Task.State.init(rawValue:))
+            let state: Task.State = live == .awaiting ? .awaiting : (t["isRunning"] as? Bool == true || live == .running) ? .running : .idle
+            out.tasks.append(Task(id: id, title: (t["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled task",
+                                  folders: (t["userSelectedFolders"] as? [Any])?.compactMap { $0 as? String } ?? [],
+                                  created: Self.millis(t["createdAt"]), lastActivity: last, state: state,
+                                  unread: t["unread"] as? Bool ?? false, archived: t["isArchived"] as? Bool ?? false))
+        }
+        out.chats.sort { $0.updated > $1.updated }
+        out.tasks.sort { $0.lastActivity > $1.lastActivity }
+        return out
+    }
+
+    static func millis(_ v: Any?) -> Date? {
+        if let d = v as? Double { return Date(timeIntervalSince1970: d / 1000) }
+        if let i = v as? Int { return Date(timeIntervalSince1970: Double(i) / 1000) }
+        return nil
     }
 
     static func date(_ s: String) -> Date? {

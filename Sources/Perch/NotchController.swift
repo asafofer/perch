@@ -470,9 +470,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let home = FileManager.default.homeDirectoryForCurrentUser
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
-        // Not claude.ai's IndexedDB (Claude chats): the app writes it all the time while open, so chats wait for the timer.
-        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions",
-                     "Library/Application Support/Claude/local-agent-mode-sessions"]
+        // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
@@ -1576,8 +1575,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
     }
 
+    /// The places Perch follows a session into that are on this Mac: their apps, or their commands where they have none.
+    private func placesState() -> [UISnapshot.Place] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
+        let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
+        return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
+                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil)]
+            .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }
+    }
+
     private func settingsState() -> UISnapshot.Settings {
-        return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
+        return UISnapshot.Settings(sources: sourcesState(), places: placesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
@@ -1675,7 +1684,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingState() -> UISnapshot.Onboarding {
         // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
         // (and start a scan) every half second while an agent works.
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), places: placesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.

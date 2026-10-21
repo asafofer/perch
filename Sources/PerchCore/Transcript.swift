@@ -445,7 +445,7 @@ public enum Recap {
     }
 
     /// A chat in the Claude app: only its title and when it last moved are known, so the card is its title and nothing more.
-    public static func chat(_ c: ClaudeChats.Chat, now: Date, calendar: Calendar = .current) -> Project {
+    public static func chat(_ c: ClaudeCache.Chat, now: Date, calendar: Calendar = .current) -> Project {
         var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
                         at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: "", next: "",
                         topic: clip(c.title, 90), app: Agent.chat.id, agents: [AgentStatus(kind: .idle, text: "Chat in Claude", app: Agent.chat.id)],
@@ -453,6 +453,27 @@ public enum Recap {
                         sessionId: c.id, cwd: nil, desktopSessionId: nil)
         p.lastActive = c.updated
         p.startedAt = c.created
+        return p
+    }
+
+    /// A task in the Claude app (what was Cowork): its title, its folder, and the app's own word on it: at work, waiting for
+    /// your OK, or done. One you have already looked at in the app is not news (`focusedAt`), so Perch keeps quiet about it.
+    public static func task(_ t: ClaudeCache.Task, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.cowork.id
+        let status: AgentStatus = switch t.state {
+        case .running: AgentStatus(kind: .running, text: "Claude is working", app: a)
+        case .awaiting: AgentStatus(kind: .needsYou, text: "Claude is waiting for your OK", app: a)
+        case .idle: AgentStatus(kind: .done, text: "Claude finished", app: a)
+        }
+        let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
+        var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
+                        at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar), headline: "", context: "", next: "",
+                        topic: clip(t.title, 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
+                        sessionId: t.id, cwd: t.folders.first, desktopSessionId: t.id)
+        p.lastActive = t.lastActivity
+        p.startedAt = t.created
+        if !t.unread { p.focusedAt = t.lastActivity }
         return p
     }
 

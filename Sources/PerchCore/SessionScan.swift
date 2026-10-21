@@ -62,16 +62,13 @@ public final class SessionScanner: @unchecked Sendable {
     let home: URL
     let desktop: DesktopSessions
     let conductor: ConductorSessions
-    let cowork: CoworkSessions
-    let chats: ClaudeChats
+    let claudeCache: ClaudeCache
 
-    /// Cowork and chats are read from `home` unless given, so a test's home folder holds them too.
+    /// The Claude app's tasks and chats are read from `home` unless given, so a test's home folder holds them too.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared,
-                cowork: CoworkSessions? = nil, chats: ClaudeChats? = nil) {
-        let app = home.appendingPathComponent("Library/Application Support/Claude")
+                claudeCache: ClaudeCache? = nil) {
         self.home = home; self.desktop = desktop; self.conductor = conductor
-        self.cowork = cowork ?? CoworkSessions(root: app.appendingPathComponent("local-agent-mode-sessions"))
-        self.chats = chats ?? ClaudeChats(root: app.appendingPathComponent("IndexedDB/https_claude.ai_0.indexeddb.blob"))
+        self.claudeCache = claudeCache ?? ClaudeCache(root: home.appendingPathComponent("Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"))
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -215,41 +212,25 @@ public final class SessionScanner: @unchecked Sendable {
         return out
     }
 
-    // MARK: Cowork (Claude app, local-agent-mode-sessions)
-    /// Cowork's own list decides, archived tasks left out. A task with a folder you gave it is named after that folder;
-    /// one without works in its own `outputs` folder, so its title names it.
-    public func cowork(limit: Int, now: Date = Date()) -> [Found] {
+    // MARK: Claude tasks and chats (the Claude app's cached lists)
+    /// Tasks (what was Cowork), from the Claude app's own list, archived ones left out. Each is named after the first folder
+    /// you gave it; one without a folder goes by its title alone.
+    public func tasks(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let tasks = cowork.index().filter { !$0.archived }.compactMap { e -> (entry: CoworkSessions.Entry, url: URL, mtime: Date)? in
-            guard let url = e.transcript, let m = Self.mtime(url), m > cutoff else { return nil }
-            return (e, url, m)
-        }.sorted { $0.mtime > $1.mtime }
-        var out: [Found] = []
-        for t in tasks {
-            guard out.count < limit else { break }
-            guard var digest = cachedDigest(t.url, mtime: t.mtime, parse: TranscriptParser.digest), digest.lastTimestamp != nil,
-                  !Recap.isTrivial(digest), let cwd = t.entry.folders.first ?? t.entry.cwd ?? digest.cwd else { continue }
-            digest.cwd = cwd
-            if let title = t.entry.title, !title.isEmpty { digest.title = title }
-            let git = t.entry.folders.isEmpty ? nil : cachedGit(cwd).info
-            if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: t.entry.id, agent: .cowork, quietFor: now.timeIntervalSince(t.mtime)),
-               let last = digest.lastTimestamp {
-                p.startedAt = Self.created(t.url)
-                out.append((p, digest, git, last))
-            }
+        return claudeCache.read().tasks.filter { !$0.archived && $0.lastActivity > cutoff }.prefix(limit).map { t in
+            var d = SessionDigest()
+            d.sessionId = t.id; d.title = t.title; d.lastTimestamp = t.lastActivity
+            return (Recap.task(t, now: now), d, nil, t.lastActivity)
         }
-        return out
     }
 
-    // MARK: Claude chats (the Claude app's cached recent list)
-    /// The recent chats the Claude app last fetched: a title and a time each, nothing of what was said.
+    /// The recent chats the Claude app last fetched: a title and a time each.
     public func chats(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        return chats.recent().filter { $0.updated > cutoff }.prefix(limit).map { c in
+        return claudeCache.read().chats.filter { $0.updated > cutoff }.prefix(limit).map { c in
             var d = SessionDigest()
             d.sessionId = c.id; d.title = c.title; d.lastTimestamp = c.updated
-            let p = Recap.chat(c, now: now)
-            return (p, d, nil, c.updated)
+            return (Recap.chat(c, now: now), d, nil, c.updated)
         }
     }
 

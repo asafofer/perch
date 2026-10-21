@@ -13,6 +13,7 @@ private enum V8 {
             return [UInt8(ascii: "c")] + varint(u.count) + u
         case let b as Bool: return [UInt8(ascii: b ? "T" : "F")]
         case let n as Int: return [UInt8(ascii: "I")] + varint(n >= 0 ? n << 1 : (~n << 1) | 1)
+        case let d as Double: return [UInt8(ascii: "N")] + withUnsafeBytes(of: d.bitPattern.littleEndian, Array.init)
         case let a as [Any]: return [UInt8(ascii: "A")] + varint(a.count) + a.flatMap(encode) + [UInt8(ascii: "$")] + varint(0) + varint(a.count)
         case let o as KeyValuePairs<String, Any>:
             return [UInt8(ascii: "o")] + o.flatMap { encode($0.key) + encode($0.value) } + [UInt8(ascii: "{")] + varint(o.count)
@@ -36,7 +37,15 @@ private func chat(_ id: String, _ name: String, _ updated: String, project: Any 
     ["uuid": id, "name": name, "summary": "", "updated_at": updated, "created_at": updated, "project_uuid": project, "is_starred": false]
 }
 
-private func cache(_ chats: [Any], starred: [Any] = [], projects: [Any] = []) -> KeyValuePairs<String, Any> {
+/// A task as the app lists it (`cowork-remote-sessions`): times in milliseconds.
+private func task(_ id: String, _ title: String, at: Date, live: String = "idle", running: Bool = false, unread: Bool = true,
+                  folders: [Any] = [], archived: Bool = false) -> KeyValuePairs<String, Any> {
+    ["cwd": "", "userSelectedFolders": folders, "sessionId": id, "isRunning": running, "title": title, "model": "claude-opus-5-5",
+     "createdAt": at.timeIntervalSince1970 * 1000 - 60_000, "lastActivityAt": at.timeIntervalSince1970 * 1000, "isArchived": archived,
+     "liveStatus": live, "rawSessionStatus": live, "isStarred": false, "unread": unread]
+}
+
+private func cache(_ chats: [Any], starred: [Any] = [], projects: [Any] = [], tasks: [Any] = []) -> KeyValuePairs<String, Any> {
     let list: KeyValuePairs<String, Any> = [
         "queryKey": ["chat_conversation_list", ["orgUuid": "org"] as KeyValuePairs<String, Any>, "infinite",
                      ["limit": 30, "starred": NSNull(), "archived": false] as KeyValuePairs<String, Any>] as [Any],
@@ -50,7 +59,15 @@ private func cache(_ chats: [Any], starred: [Any] = [], projects: [Any] = []) ->
         "queryKey": ["project_list", ["orgUuid": "org"] as KeyValuePairs<String, Any>] as [Any],
         "state": ["data": projects] as KeyValuePairs<String, Any>,
     ]
-    return ["timestamp": 1, "buster": "conversations_v2:1", "clientState": ["mutations": [] as [Any], "queries": [list, star, proj] as [Any]] as KeyValuePairs<String, Any>]
+    let remote: KeyValuePairs<String, Any> = [
+        "queryKey": ["cowork-remote-sessions", "org", true] as [Any],
+        "state": ["data": tasks] as KeyValuePairs<String, Any>,
+    ]
+    let local: KeyValuePairs<String, Any> = [
+        "queryKey": ["cowork-local-sessions", "org"] as [Any],
+        "state": ["data": ["v": 1, "accountUuid": "acct", "rows": [] as [Any]] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+    ]
+    return ["timestamp": 1, "buster": "conversations_v2:1", "clientState": ["mutations": [] as [Any], "queries": [list, star, proj, local, remote] as [Any]] as KeyValuePairs<String, Any>]
 }
 
 private final class Home {
@@ -69,46 +86,35 @@ private final class Home {
         try? data.write(to: u)
         try? FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-ago)], ofItemAtPath: u.path)
     }
-    /// A Cowork task: its record, and its transcript in its own folder's `.claude/projects`.
-    func cowork(_ id: String, title: String, folders: [String] = [], archived: Bool = false, ago: TimeInterval = 60) {
-        let dir = app.appendingPathComponent("local-agent-mode-sessions/acct/org")
-        let own = dir.appendingPathComponent("local_\(id)")
-        let cwd = own.appendingPathComponent("outputs").path
-        let entry: [String: Any] = ["sessionId": "local_\(id)", "cliSessionId": "cli-\(id)", "cwd": cwd, "title": title,
-                                    "userSelectedFolders": folders, "isArchived": archived]
-        write(dir.appendingPathComponent("local_\(id).json"), try! JSONSerialization.data(withJSONObject: entry))
-        let ts = ISO8601DateFormatter().string(from: now.addingTimeInterval(-ago))
-        let lines = [
-            #"{"type":"user","sessionId":"cli-\#(id)","cwd":"\#(cwd)","entrypoint":"local-agent","timestamp":"\#(ts)","message":{"content":"find the venue's opening hours"}}"#,
-            #"{"type":"assistant","sessionId":"cli-\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"stop_reason":"tool_use","content":[{"type":"tool_use","id":"t1","name":"WebSearch","input":{"query":"venue hours"}}]}}"#,
-            #"{"type":"user","sessionId":"cli-\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}"#,
-            #"{"type":"assistant","sessionId":"cli-\#(id)","cwd":"\#(cwd)","timestamp":"\#(ts)","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"It opens at nine on weekdays."}]}}"#,
-        ]
-        write(own.appendingPathComponent(".claude/projects/-outputs/cli-\(id).jsonl"), Data((lines.joined(separator: "\n") + "\n").utf8), ago: ago)
+    /// The app's cached lists, where Chromium keeps them.
+    func lists(_ v: KeyValuePairs<String, Any>, ago: TimeInterval = 60) {
+        write(app.appendingPathComponent("IndexedDB/https_claude.ai_0.indexeddb.blob/1/bf/bf47"), V8.blob(v), ago: ago)
     }
 }
 
 @Suite struct ClaudeAppScanTests {
-    @Test func coworkTasksAreListedByTheirTitleAndOpenInTheClaudeApp() {
-        let h = Home()
-        h.cowork("a", title: "Venue opening hours")
-        h.cowork("b", title: "Old task", archived: true)
-        let found = h.scanner.cowork(limit: 10)
-        #expect(found.count == 1)
-        let p = found[0].project
-        #expect(p.app == "cowork")
-        #expect(p.name == "Venue opening hours")          // no folder of yours: its own outputs folder says nothing
-        #expect(p.desktopSessionId == "local_a")
-        #expect(p.context == "It opens at nine on weekdays.")
-    }
-
-    @Test func aCoworkTaskWithYourFolderIsNamedAfterIt() {
+    @Test func tasksComeFromTheAppsOwnListWithItsState() {
         let h = Home()
         let folder = h.url.appendingPathComponent("Documents/Taxes").path
-        h.cowork("a", title: "Sort the receipts", folders: [folder])
-        let p = h.scanner.cowork(limit: 10)[0].project
-        #expect(p.name == "Taxes")
-        #expect(p.topic == "Sort the receipts")
+        h.lists(cache([], tasks: [task("cse_a", "Sort the receipts", at: h.now.addingTimeInterval(-120), folders: [folder]),
+                                  task("cse_b", "Find a venue", at: h.now.addingTimeInterval(-60), live: "running", running: true),
+                                  task("cse_c", "Book the table", at: h.now.addingTimeInterval(-30), live: "awaiting"),
+                                  task("cse_d", "Old one", at: h.now.addingTimeInterval(-10), archived: true)]))
+        let found = h.scanner.tasks(limit: 10).map(\.project)
+        #expect(found.map(\.sessionId) == ["cse_c", "cse_b", "cse_a"])    // newest first, the archived one left out
+        #expect(found.map { $0.status.kind } == ["attention", "running", "done"])
+        #expect(found[2].name == "Taxes")                    // named after your folder
+        #expect(found[1].name == "")                         // no folder: its title alone
+        #expect(found[2].topic == "Sort the receipts")
+        #expect(found.allSatisfy { $0.app == "cowork" && $0.desktopSessionId == $0.sessionId })
+    }
+
+    @Test func aTaskYouHaveSeenInTheAppIsNotNews() {
+        let h = Home(), at = h.now.addingTimeInterval(-60)
+        h.lists(cache([], tasks: [task("cse_a", "Seen", at: at, unread: false), task("cse_b", "Not seen", at: at)]))
+        let found = Dictionary(uniqueKeysWithValues: h.scanner.tasks(limit: 10).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(found["cse_a"]?.focusedAt == at)
+        #expect(found["cse_b"]?.focusedAt == nil)
     }
 
     @Test func recentChatsComeFromTheAppsCachedList() throws {
@@ -117,12 +123,12 @@ private final class Home {
                                   chat("c3", "Caf\u{e9} \u{05e9}\u{05dc}\u{05d5}\u{05dd}", "2026-10-18T09:00:00Z")],
                                  starred: [chat("c9", "Starred only", "2026-10-21T16:00:00Z")],
                                  projects: [["uuid": "p1", "name": "financials"] as KeyValuePairs<String, Any>]))
-        let chats = try #require(ClaudeChats.chats(fromBlob: data))
+        let chats = try #require(ClaudeCache.contents(fromBlob: data)?.chats)
         #expect(chats.map(\.id) == ["c2", "c1", "c3"])      // newest first; the starred filter's own list is not the sidebar
         #expect(chats[0].project == "financials")
         #expect(chats[1].project == nil)
         #expect(chats[2].title == "Caf\u{e9} \u{05e9}\u{05dc}\u{05d5}\u{05dd}")
-        #expect(chats[1].updated == ClaudeChats.date("2026-10-19T12:50:19.139Z"))
+        #expect(chats[1].updated == ClaudeCache.date("2026-10-19T12:50:19.139Z"))
     }
 
     @Test func chatsAreFoundInTheIndexedDBBlobsAndOpenByTheirId() {
@@ -138,14 +144,14 @@ private final class Home {
         #expect(found[0].project.sessionId == "c1")
     }
 
-    @Test func aDamagedCacheReadsAsNoChats() {
-        #expect(ClaudeChats.chats(fromBlob: Data([0xFF, 0x11, 0x02, 0x05, 0x00])) == nil)
+    @Test func aDamagedCacheReadsAsNothing() {
+        #expect(ClaudeCache.contents(fromBlob: Data([0xFF, 0x11, 0x02, 0x05, 0x00])) == nil)
         var data = V8.blob(cache([chat("c1", "x", "2026-10-19T12:50:19Z")]))
         data.removeLast(20)
-        #expect(ClaudeChats.chats(fromBlob: data) == nil)
+        #expect(ClaudeCache.contents(fromBlob: data) == nil)
     }
 
-    @Test func chatsStartSwitchedOffAndCoworkOn() {
+    @Test func chatsStartSwitchedOffAndTasksOn() {
         #expect(Agent.chat.onByDefault == false)
         #expect(Agent.cowork.onByDefault)
     }
