@@ -246,9 +246,12 @@
       var list = el._prs; if (!list || !list.length) return;
       var repos = {}; list.forEach(function (x) { repos[x.repo || ''] = 1; });
       prTip.innerHTML = list.map(function (pr) {
-        var w = prWord(pr), r = Object.keys(repos).length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '';
-        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + prColor(pr) + '">' + esc(w.t) + '</span>' + r + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span></div>';
+        var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
+        /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
+        if (pr.title) return '<div class="p2"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="tabular-nums text-muted-foreground">\u00b7 ' + repo + '#' + pr.number + '</span></div></div>';
+        return '<div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="text-muted-foreground">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="tabular-nums text-muted-foreground">#' + pr.number + '</span></div>';
       }).join('');
+      prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
       /* below the icon, right edges together; above it when there is no room below */
       var r = el.getBoundingClientRect(), tw = prTip.offsetWidth, th = prTip.offsetHeight;
       prTip.style.left = Math.max(6, Math.min(r.right - tw + 4, innerWidth - tw - 6)) + 'px';
@@ -3790,15 +3793,15 @@
         asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
     ];
     /* sample pull requests: one of each state */
-    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
-      website: [{ number: 448, repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
-      docs: [{ number: 455, repo: PR0, state: 'draft' }],
-      planner: [{ number: 431, repo: PR0, state: 'merged' }, { number: 436, repo: PR0, state: 'merged' }],
-      lukatz: [{ number: 12, repo: PR0, state: 'closed' }],
-      api: [{ number: 460, repo: PR0, state: 'open', checks: 'fail' }, { number: 441, repo: PR0, state: 'merged' }],
-      fluid: [{ number: 87, repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
-      gaps: [{ number: 23, repo: PR0, state: 'open', conflict: true }],
-      tui: [{ number: 9, repo: PR0, state: 'open', checks: 'pass' }, { number: 7, repo: 'asafofer/perch-landing', state: 'merged' }] };
+    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
+      website: [{ number: 448, title: 'Tighten the hero spacing at phone width', repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
+      docs: [{ number: 455, title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
+      planner: [{ number: 431, title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
+      lukatz: [{ number: 12, title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
+      api: [{ number: 460, title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
+      fluid: [{ number: 87, title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
+      gaps: [{ number: 23, title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
+      tui: [{ number: 9, title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
     P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
