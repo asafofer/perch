@@ -95,6 +95,12 @@ public enum NewSession {
         default: return q
         }
     }
+    /// What a Claude Code session puts in the environment of what it runs, saying "you are inside me". Perch started from
+    /// one (`./scripts/run.sh` in a Claude Code terminal) would pass it on to every agent it starts, and to a terminal it
+    /// opens: Claude Code then takes the new session for that one's child and saves no transcript, so the session never
+    /// shows. Settings such as CLAUDE_CODE_USE_BEDROCK are left as they are.
+    public static let inheritedSession: Set<String> = ["CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID",
+        "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_VERSION", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_MESSAGING_SOCKET"]
     static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     /// The new session, once the scan finds it: one Perch had not seen before, of that agent, run where it was asked for

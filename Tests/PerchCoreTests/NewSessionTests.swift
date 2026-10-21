@@ -78,4 +78,9 @@ import Testing
         n.send(.openNew); n.send(.back); #expect(n.phase == .idle)
         n.send(.openNew); n.send(.dismiss); #expect(n.phase == .idle)
     }
+
+    @Test func whatACLaudeSessionPassesOnIsDroppedAndItsSettingsKept() {
+        let env = ["CLAUDECODE": "1", "CLAUDE_CODE_CHILD_SESSION": "1", "CLAUDE_CODE_SESSION_ID": "s", "CLAUDE_PID": "26411", "CLAUDE_CODE_USE_BEDROCK": "1", "PATH": "/bin"]
+        #expect(Set(env.keys.filter { NewSession.inheritedSession.contains($0) }) == ["CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID", "CLAUDE_PID"])
+    }
 }

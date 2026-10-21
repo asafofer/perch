@@ -24,6 +24,7 @@
 ## Starting a terminal agent
 
 - It opens in a new window of your terminal: `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
+- Perch started from inside a Claude Code session (`./scripts/run.sh` in its terminal) drops what that session put in its environment (`NewSession.inheritedSession`) as it launches. Passed on, to the agent or to a terminal Perch opens, it made every new Claude Code session that one's child, which saves no transcript, so it never showed.
 
 ## Started, or not
 
