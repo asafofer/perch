@@ -153,7 +153,7 @@ i.sci svg{width:16px;height:16px}
   <div class="deskwrap">
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div id="hw" title="The hardware notch"></div><div class="now" id="now">Welcome back</div></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
-      <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button><span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
+      <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button></div>
   </div>
 
   <section>
@@ -995,10 +995,7 @@ i.sci svg{width:16px;height:16px}
   document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); dispPicked = true; if (lastRun) lastRun(); dispPicked = false; }; });
   var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
-  document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
-    document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
-    document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-  }; });
+
   /* waits for the card to finish opening (the label is sized to it), then rests the pointer on the pull request icon */
   function hoverPrWhenOpen() {
     var t0 = Date.now();
