@@ -17,6 +17,8 @@ final class WarpTabsTests: XCTestCase {
         XCTAssertNil(WarpTabs.focusLink([:]))
         XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": ""]))
         XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session//"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/abc/def"]))
         XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://action/new_tab?path=/tmp"]))
         XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "https://example.com/session/abc"]))
     }

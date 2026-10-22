@@ -80,11 +80,14 @@ enum Terminals {
         }
     }
 
-    /// Opens a session's own Warp link, which lands on its tab exactly. True once Warp is in front.
+    /// Opens a session's own Warp link, which lands on its tab exactly. True once Warp is in front and has had time to switch
+    /// tabs: Warp in front already says nothing about which tab is, and it switches in about 0.2 s.
     private static func focusWarp(_ url: URL) -> Bool {
-        NSWorkspace.shared.open(url)
+        let wasFront = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == warp
+        guard NSWorkspace.shared.open(url) else { return false }
+        if wasFront { Thread.sleep(forTimeInterval: 0.35); return true }
         for _ in 0..<30 {
-            if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == warp { return true }
+            if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == warp { Thread.sleep(forTimeInterval: 0.1); return true }
             Thread.sleep(forTimeInterval: 0.05)
         }
         return false

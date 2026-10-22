@@ -8,7 +8,7 @@ public enum WarpTabs {
     /// The link to a session's own tab, from its environment. Nil when it has none, or it is not a Warp session link.
     public static func focusLink(_ environment: [String: String]) -> URL? {
         guard let s = environment["WARP_FOCUS_URL"], let url = URL(string: s), url.scheme == "warp", url.host == "session",
-              url.path.count > 1 else { return nil }
+              case let id = url.path.dropFirst(), !id.isEmpty, !id.contains("/") else { return nil }
         return url
     }
 
