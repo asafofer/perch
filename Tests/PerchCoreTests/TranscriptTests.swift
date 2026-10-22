@@ -25,6 +25,19 @@ import Foundation
         let d = TranscriptParser.digest(lines: lines)
         #expect(d.lastUserText != "ignored meta"); #expect(d.lastUserText != "ignored sidechain")
     }
+    @Test func aTurnThatSaysMoreThanOnceIsKeptWhole() {
+        // an answer, then a stop hook speaks (meta) and the agent answers again: Preview shows both; your next message starts afresh
+        let turn = [
+            #"{"type":"user","message":{"content":"hi"}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Hi! What can I help with?"}]}}"#,
+            #"{"type":"user","isMeta":true,"message":{"content":"Stop hook feedback: ..."}}"#,
+            #"{"type":"assistant","message":{"content":[{"type":"text","text":"Nothing to publish."}],"stop_reason":"end_turn"}}"#,
+        ]
+        #expect(TranscriptParser.digest(lines: turn).turnFull == "Hi! What can I help with?\n\nNothing to publish.")
+        #expect(TranscriptParser.digest(lines: turn).lastAssistantFull == "Nothing to publish.")
+        let next = turn + [#"{"type":"user","message":{"content":"thanks"}}"#, #"{"type":"assistant","message":{"content":[{"type":"text","text":"Any time."}]}}"#]
+        #expect(TranscriptParser.digest(lines: next).turnFull == "Any time.")
+    }
     @Test func stripsInjectedReminders() {
         let t = TranscriptParser.text(from: "hello <system-reminder>secret</system-reminder> world")
         #expect(t == "hello  world".replacingOccurrences(of: "  ", with: " ") || t == "hello  world")
@@ -199,6 +212,13 @@ import Foundation
         #expect(Activity.step(tool: "Bash", input: ["command": "S=/tmp/x; swift test", "description": "Run the test suite"]) == "Running the test suite")
         #expect(Activity.step(tool: "mcp__linear__save_issue", input: [:]) == "Using issue")
         #expect(Activity.step(tool: "TodoWrite", input: [:]) == nil)
+    }
+    @Test func aCodexPromptStartingWithATagStartsANewTurn() {
+        let msg = { (role: String, text: String) in #"{"type":"response_item","payload":{"type":"message","role":""# + role + #"","content":[{"type":""# + (role == "user" ? "input_text" : "output_text") + #"","text":""# + text + #""}]}}"# }
+        let turn = [msg("user", "fix the hero"), msg("assistant", "Fixed."), msg("user", "<hook_prompt hook_run_id=\"1\">Check the tests.</hook_prompt>"), msg("assistant", "Tests pass.")]
+        // what Codex adds itself goes on with the turn; your own prompt, even one that starts with a tag, starts a new one
+        #expect(CodexTranscript.digest(lines: turn).turnFull == "Fixed.\n\nTests pass.")
+        #expect(CodexTranscript.digest(lines: turn + [msg("user", "<div> is broken"), msg("assistant", "It lacks a width.")]).turnFull == "It lacks a width.")
     }
     @Test func codexStepsAndNarration() {
         let d = CodexTranscript.digest(lines: [

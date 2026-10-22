@@ -315,7 +315,9 @@ extension Project {
         p.lastActive = max(lastActive ?? live.at, live.at)
         p.ask = kind == .asking ? live.asks.last : nil
         p.now = kind == .working ? now : nil
-        p.said = Recap.said(live.outcome) ?? said   // the hook's last message is fresher than the transcript's
+        // the hook's last message is fresher than the transcript's, unless the transcript's turn already ends with it
+        let heard = Recap.said(live.outcome)
+        p.said = heard.map { h in said.map { $0.hasSuffix(h) ? $0 : h } ?? h } ?? said
         return p
     }
 }

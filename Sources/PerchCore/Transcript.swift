@@ -12,6 +12,9 @@ public struct SessionDigest: Equatable, Sendable {
     public var lastAssistantText: String?
     /// The same message with its line breaks, for showing it as written.
     public var lastAssistantFull: String?
+    /// Everything the agent wrote since your last message, as written: a turn can say more than once (an answer, then
+    /// another after a stop hook spoke), and Preview shows it all.
+    public var turnFull: String?
     public var lastTimestamp: Date?
     /// "user" or "assistant": who spoke last.
     public var lastRole: String?
@@ -303,8 +306,8 @@ public enum TranscriptParser {
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if type == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: message?["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
-            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text }
+            if type == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: message?["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: message?["content"], keepLines: true); d.narration = text; d.turnFull = Self.joined(d.turnFull, d.lastAssistantFull) }
             d.interrupted = false; d.stoppedAt = nil
             d.lastRole = type
             d.recent.append(.init(role: type ?? "user", text: Recap.clip(text, 420)))
@@ -322,6 +325,12 @@ public enum TranscriptParser {
 
     /// Plain text of a message, without injected reminders or command wrappers. Tool results count as no text.
     /// `keepLines`: as written, line breaks and all (the card shows it while you reply); otherwise one line, for summaries.
+    /// Two things the agent wrote in one turn, as one message, a blank line between.
+    static func joined(_ a: String?, _ b: String?) -> String? {
+        guard let b, !b.isEmpty else { return a }
+        guard let a, !a.isEmpty else { return b }
+        return a + "\n\n" + b
+    }
     static func text(from content: Any?, keepLines: Bool = false) -> String? {
         var raw = ""
         if let s = content as? String { raw = s }
@@ -439,7 +448,7 @@ public enum Recap {
         // At work with its turn over: it waits on what it left in the background.
         p.waiting = working && !d.turnOpen
         p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
-        p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
+        p.said = Recap.said(d.turnFull ?? d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
         p.askedLast = d.lastRole == "user"
         return p
@@ -618,10 +627,17 @@ public enum Recap {
         return longestAsk <= 24 && answered < 400
     }
 
-    /// The last message for the card to show while you reply: as written, trimmed, and only its end when it is very long.
+    /// The last message for the card to show while you reply or Preview it: as written and trimmed, all of it, but for its
+    /// end alone past a ceiling no answer reaches (a runaway paste).
     public static func said(_ text: String?) -> String? {
         guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
-        return t.count > 4000 ? "\u{2026}" + String(t.suffix(4000)) : t
+        return clipSaid(t, 100_000)
+    }
+
+    /// Only the end of a long one, for a session whose card is not open: the page gets the whole of it once it is.
+    public static func clipSaid(_ text: String?, _ limit: Int = 4000) -> String? {
+        guard let t = text else { return nil }
+        return t.count > limit ? "\u{2026}" + String(t.suffix(limit)) : t
     }
 
     /// Your last message for the card to show above it while you reply: as written, and only its start when it is very long.
@@ -817,6 +833,12 @@ public enum RelativeTime {
 /// Reads Codex session files (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl).
 /// The working folder and id sit in the first line (session_meta); messages are response_item records.
 public enum CodexTranscript {
+    /// A message that is one tag from start to end, as Codex wraps what it adds: `<name ...>...</name>`.
+    static func wrapped(_ text: String) -> Bool {
+        let name = text.dropFirst().prefix { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+        return !name.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("</\(name)>")
+    }
+
     public static func digest(lines: [String]) -> SessionDigest {
         var d = SessionDigest()
         let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -851,10 +873,15 @@ public enum CodexTranscript {
             guard type == "response_item", payload["type"] as? String == "message",
                   let role = payload["role"] as? String, role == "user" || role == "assistant",
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
-            if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
+            if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") {
+                // What Codex adds itself comes wrapped whole in its tag (<environment_context>...</environment_context>, a
+                // stop hook's <hook_prompt>): the turn goes on. A prompt of yours that only starts with one starts a new turn.
+                if text.hasPrefix("<"), !Self.wrapped(text) { d.turnFull = nil }
+                continue
+            }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
-            if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work() }
-            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text }
+            if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil }
+            else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text; d.turnFull = TranscriptParser.joined(d.turnFull, d.lastAssistantFull) }
             if role == "assistant" { d.interrupted = false; d.stoppedAt = nil }
             d.lastRole = role
             d.recent.append(.init(role: role, text: Recap.clip(text, 420)))
