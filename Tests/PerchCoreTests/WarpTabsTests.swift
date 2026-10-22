@@ -62,5 +62,7 @@ final class WarpTabsTests: XCTestCase {
     func testTwoTabsInTheSameFolderAreAGuess() {
         XCTAssertFalse(sure([tab("~/Documents/perch", "a shell"), tab("~/Documents/perch", "claude")], 0))
         XCTAssertFalse(sure([tab("~/Documents/perch"), tab("perch - claude")], 0))
+        // Two tabs that read the same, followed by another: two tabs, not one read twice.
+        XCTAssertFalse(sure([tab("~/Documents/perch"), tab("~/Documents/perch"), tab("~"), tab("~")], 0))
     }
 }

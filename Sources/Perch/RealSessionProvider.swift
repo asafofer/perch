@@ -178,12 +178,19 @@ enum Restorer {
     /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, the OpenCode app, or a new
     /// window of your terminal.
     /// Blocks on the tools it drives, so call it off the main thread.
+    /// Where a session opened again in a herdr or tmux client's terminal lands. A tab of that terminal that was only a guess
+    /// is no place to type into, so it lands as an app that is not exact.
+    nonisolated private static func shown(_ s: Terminals.Shown?, or preferred: String, cwd: String, agent: String) -> Landing {
+        guard let s else { return .newTerminal(preferred, cwd: cwd, agent: agent) }
+        return s.exact ? .newTerminal(s.app, cwd: cwd, agent: agent) : .app(s.app, exact: false)
+    }
+
     nonisolated static func reopen(agent: String, session id: String, cwd: String, command: String) -> Landing {
         let last = Prefs.places[id], preferred = Terminals.preferred
         if last?["kind"] == "herdr", let socket = last?["socket"], let name = last?["session"] {
             let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
             if Herdr.running(socket: socket, bin: bin), Herdr.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
-                if let v = LiveSessions.scan().viewers.first(where: { $0.tmux == nil && $0.session == name }) { return .newTerminal(Terminals.show(v)?.app ?? preferred, cwd: cwd, agent: agent) }
+                if let v = LiveSessions.scan().viewers.first(where: { $0.tmux == nil && $0.session == name }) { return shown(Terminals.show(v), or: preferred, cwd: cwd, agent: agent) }
                 Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
                 return .newTerminal(preferred, cwd: cwd, agent: agent)
             }
@@ -193,7 +200,7 @@ enum Restorer {
             if let pane = Tmux.run(command, cwd: cwd, session: last?["session"], socket: socket, bin: bin) {
                 // Shown in the client already on that session, else the one used last; with none, a terminal attaches to it.
                 if let c = Tmux.ask(socket: socket, bin: Tmux.bin(bin))?.viewer(of: pane), Tmux.show(pane: pane, socket: socket, client: c.tty, bin: bin) {
-                    return .newTerminal(Terminals.show(LiveSessions.viewer(c, socket: socket, bin: Tmux.bin(bin)))?.app ?? preferred, cwd: cwd, agent: agent)
+                    return shown(Terminals.show(LiveSessions.viewer(c, socket: socket, bin: Tmux.bin(bin))), or: preferred, cwd: cwd, agent: agent)
                 }
                 Terminals.open(Tmux.attach(pane: pane, socket: socket, bin: bin), in: cwd, app: preferred)
                 return .newTerminal(preferred, cwd: cwd, agent: agent)

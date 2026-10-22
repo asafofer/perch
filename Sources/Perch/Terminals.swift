@@ -88,7 +88,8 @@ enum Terminals {
     /// Warp has no way to ask for a tab, so Perch switches tabs with their own keys (Command+1 to 9) and reads each one through
     /// Accessibility: the window's title and the terminal text on screen. It stops on the tab that shows the session, and
     /// puts you back where you were when none does. Nil when no tab was picked; else whether it is surely the session's
-    /// (`WarpTabs.sure`). Blocks for a second or two.
+    /// (`WarpTabs.sure`). With several windows, only words that session alone has make it sure: the windows after the
+    /// one picked are never read. Blocks for a second or two.
     private static func switchWarpTab(cwd: String, hints: [String]) -> Bool? {
         guard AXIsProcessTrusted(), let running = NSRunningApplication.runningApplications(withBundleIdentifier: warp).first else { return nil }
         running.activate()
@@ -120,6 +121,7 @@ enum Terminals {
             if let hit {
                 // Pressing digits past the last tab does nothing, so a tab found early may not be where the keys ended.
                 if seen.count != hit + 1 { press(digit: hit + 1, with: .maskCommand) }
+                if windows.count > 1 { return WarpTabs.score(seen[hit], cwd: cwd, home: home, hints: hints) >= WarpTabs.certain }
                 return WarpTabs.sure(seen, hit, cwd: cwd, home: home, hints: hints)
             }
             // Nothing here: back to the tab this window was on.
