@@ -8,6 +8,21 @@ final class WarpTabsTests: XCTestCase {
         WarpTabs.best(tabs, cwd: cwd, home: home, hints: hints)
     }
 
+    func testASessionsOwnLinkFocusesItsTab() {
+        let url = WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/fd8db87f850b4f9bbadec5f488208d4c", "TERM_PROGRAM": "WarpTerminal"])
+        XCTAssertEqual(url?.absoluteString, "warp://session/fd8db87f850b4f9bbadec5f488208d4c")
+    }
+
+    func testOnlyAWarpSessionLinkCounts() {
+        XCTAssertNil(WarpTabs.focusLink([:]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": ""]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session//"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/abc/def"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://action/new_tab?path=/tmp"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "https://example.com/session/abc"]))
+    }
+
     func testIdleShellNamesItsFolderInTheTitle() {
         XCTAssertEqual(best([tab("~"), tab("~/Documents/perch"), tab("~/code/token")]), 1)
     }

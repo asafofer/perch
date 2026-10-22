@@ -1,9 +1,17 @@
 import Foundation
 
-/// Warp has no AppleScript, no command line and no link that focuses a tab it already has. What Perch can do is switch
-/// tabs with their own keys, one after another, and read each one through Accessibility: the window's title (the active
+/// Warp has no AppleScript and no command line. Each session it starts carries a link to its own tab in WARP_FOCUS_URL
+/// (`warp://session/<id>`), which brings that tab forward exactly. A session without one (an older Warp) is found by switching
+/// tabs with their own keys, one after another, and reading each one through Accessibility: the window's title (the active
 /// tab's folder, or the command running in it, `claude`) and the terminal text on screen. This picks the tab that shows a session.
 public enum WarpTabs {
+    /// The link to a session's own tab, from its environment. Nil when it has none, or it is not a Warp session link.
+    public static func focusLink(_ environment: [String: String]) -> URL? {
+        guard let s = environment["WARP_FOCUS_URL"], let url = URL(string: s), url.scheme == "warp", url.host == "session",
+              case let id = url.path.dropFirst(), !id.isEmpty, !id.contains("/") else { return nil }
+        return url
+    }
+
     /// What one tab showed when it was in front.
     public struct Reading: Equatable, Sendable {
         public let title: String, text: String

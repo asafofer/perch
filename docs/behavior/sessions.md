@@ -38,9 +38,9 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 - A terminal session (`Project.terminal`) goes back to where it runs while it runs, found from the process table in `Terminals.swift`:
   - a herdr or tmux pane or cmux surface, exactly;
   - Terminal and iTerm2 by tty, Ghostty by folder (with several of its terminals in that folder, the first is a guess);
-  - Warp by switching tabs with Command+1 to 9 and reading each one's title and text through Accessibility (`WarpTabs`: Warp has no way to be asked, so it needs Accessibility, and reaches the first nine tabs of a window);
+  - Warp by the link to its own tab that Warp puts in the session's environment (`WARP_FOCUS_URL`, `warp://session/<id>`, read by `WarpTabs.focusLink`), exactly; without one (an older Warp), by switching tabs with Command+1 to 9 and reading each one's title and text through Accessibility (`WarpTabs`: it needs Accessibility, and reaches the first nine tabs of a window);
   - any other terminal by bringing it forward.
-- Only the first two, and a Warp tab that shows words only that session has or, in Warp's only window, is the only tab that fits (`WarpTabs.sure`), count as the session's own tab (`Terminals.Shown.exact`). A reply is pasted only there; anywhere else it stays on the clipboard (Reply copied), so it never lands in whichever tab was in front, and you are put back where you were rather than left in a tab that may be another session's.
+- Only the first two, a Warp tab reached by its own link, and a Warp tab that shows words only that session has or, in Warp's only window, is the only tab that fits (`WarpTabs.sure`), count as the session's own tab (`Terminals.Shown.exact`). A reply is pasted only there; anywhere else it stays on the clipboard (Reply copied), so it never lands in whichever tab was in front, and you are put back where you were rather than left in a tab that may be another session's.
 - One running where Perch cannot follow brings forward the terminal you used last and is never started a second time.
 - A terminal session that no longer runs opens again where it last ran (`Restorer.reopen`, `Prefs.places`) with its agent's resume command, else in the terminal you used last.
 - Its icon carries a badge of that terminal.
