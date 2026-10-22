@@ -66,7 +66,12 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             guard agentPids.contains(pid), (spoke[pid]?.at ?? .distantPast) < s.at else { continue }
             spoke[pid] = (session, s.at)
         }
-        let running = Running.match(live.map { Running.Process(agent: $0.agent, cwd: $0.cwd, argv: $0.argv, session: spoke[$0.pid]?.session ?? seen($0)?.session, started: $0.started) }, to: projects)
+        let claudeSessions = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions")
+        func named(_ h: LiveSessions.Hit) -> String? {
+            guard h.agent == Agent.claude.id, let data = try? Data(contentsOf: claudeSessions.appendingPathComponent("\(h.pid).json")) else { return nil }
+            return ClaudeProcessFile.session(data, pid: h.pid)
+        }
+        let running = Running.match(live.map { Running.Process(agent: $0.agent, cwd: $0.cwd, argv: $0.argv, session: spoke[$0.pid]?.session ?? seen($0)?.session ?? named($0), started: $0.started) }, to: projects)
         var places = Prefs.places
         let before = places
         for i in projects.indices where projects[i].terminal {

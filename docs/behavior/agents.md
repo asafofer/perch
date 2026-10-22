@@ -28,7 +28,7 @@ OpenCode and pi as sources, herdr, tmux and cmux as hosts, which process is whic
 
 ## Which process is which session
 
-- One whose command names the session id, or that herdr names, else the newest session of that agent in that folder active since the process started (`Running.match`).
+- One whose command names the session id, that Perch's hooks or herdr name, or that Claude Code names in its own file for the process (`~/.claude/sessions/<pid>.json`, `ClaudeProcessFile`), else the newest session of that agent in that folder active since the process started (`Running.match`). The file matters when Claude Code started in one folder and works in another (started in ~, then into a project): the folder alone never matches it.
 - Claude Code has three shapes in the process table: the native installer's `~/.local/share/claude/versions/<version>`, npm's 2.1 native binary `…/@anthropic-ai/claude-code/bin/claude.exe`, and an older npm `cli.js` under node with argv[0] `claude` (`Agent.recognise`, `Agent.mayBe`). One Perch does not recognise never counts as running: its card offers your last terminal and Pick up starts a second copy.
 
 ## Conductor
