@@ -70,6 +70,9 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var stoppedAt: Date?
     /// Its transcript ends on a tool call with no result yet: running, or waiting for your OK.
     public var toolOpen = false
+    /// Its own app says how it stands (a Claude task: the app's `running`, `awaiting`, `idle`), not a guess from a transcript:
+    /// a wait it reports stands until the app says otherwise, however old.
+    public var appSays = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,

@@ -479,12 +479,14 @@ public enum Recap {
         let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
         var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
                         at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
-                        headline: words == nil && t.state == .idle ? "Not opened on this Mac yet" : "", context: words.flatMap(said(from:)) ?? "", next: "",
+                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle ? "Not opened on this Mac yet" : "",
+                        context: words.flatMap(said(from:)) ?? "", next: "",
                         topic: clip(t.title, 90), app: a, agents: [status],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
                         sessionId: t.id, cwd: t.folders.first, desktopSessionId: t.id)
         p.lastActive = t.lastActivity
         p.startedAt = t.created
+        p.appSays = true
         if !t.unread { p.focusedAt = t.lastActivity }
         if let w = words {
             p.said = Recap.said(w.lastAssistantFull ?? w.lastAssistantText)
@@ -760,7 +762,7 @@ extension Project {
     /// The same project with a "needs you" from before `since` read as history. A request the hooks reported still open (`ask`)
     /// always counts; a question only the transcript shows grows old like any guess.
     public func settled(since: Date) -> Project {
-        guard needsAttention, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
+        guard needsAttention, !appSays, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
         var p = self
         p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         p.ask = nil
@@ -783,7 +785,7 @@ extension Project {
 
     public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
         list.map { p in
-            guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
+            guard p.needsAttention, !p.appSays, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
                   list.contains(where: { $0.id != p.id && (seen[$0.id] ?? 0) > t + 1 }) else { return p }
             return p.settled(since: .distantFuture)
         }

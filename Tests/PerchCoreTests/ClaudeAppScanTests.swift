@@ -124,6 +124,15 @@ private final class Home {
         #expect(found.allSatisfy { $0.app == "cowork" && $0.desktopSessionId == $0.sessionId })
     }
 
+    @Test func aTaskWaitingForYourOKStaysSoHoweverOld() {
+        let h = Home()
+        h.lists(cache([], tasks: [task("cse_a", "Daily briefing", at: h.now.addingTimeInterval(-36_000), live: "awaiting", running: true)]))
+        let p = h.scanner.tasks(limit: 10)[0].project
+        // A wait guessed from a transcript settles once it is older than your break; one the app reports does not.
+        #expect(p.settled(since: h.now).status.kind == "attention")
+        #expect(Project.movedOn([p], seen: [p.id: h.now.timeIntervalSince1970]).first?.status.kind == "attention")
+    }
+
     @Test func aTaskYouHaveSeenInTheAppIsNotNews() {
         let h = Home(), at = h.now.addingTimeInterval(-60)
         h.lists(cache([], tasks: [task("cse_a", "Seen", at: at, unread: false), task("cse_b", "Not seen", at: at)]))
