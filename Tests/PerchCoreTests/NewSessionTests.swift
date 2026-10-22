@@ -45,6 +45,12 @@ import Testing
         #expect(NewSession.command(agent: "codex", prompt: "go") == "codex 'go'")
         #expect(NewSession.command(agent: "opencode", prompt: "go") == "opencode --prompt 'go'")
         #expect(NewSession.command(agent: "pi", prompt: "go", sessionId: "s1") == "pi --session-id s1 'go'")
+        // a model chosen goes to each agent as it takes one; the default, or an agent that takes none, adds nothing
+        #expect(NewSession.command(agent: "claude", prompt: "go", sessionId: "abc", model: "fable") == "claude --model 'fable' --session-id abc 'go'")
+        #expect(NewSession.command(agent: "codex", prompt: "go", model: "gpt-6-sol") == "codex -m 'gpt-6-sol' 'go'")
+        #expect(NewSession.command(agent: "opencode", prompt: "go", model: "openai/gpt-6") == "opencode --model 'openai/gpt-6' --prompt 'go'")
+        #expect(NewSession.command(agent: "claude", prompt: "go", model: "") == "claude 'go'")
+        #expect(NewSession.command(agent: "pi", prompt: "go", model: "x") == "pi 'go'")
     }
 
     @Test func theNewSessionIsOneNotSeenBeforeOfThatAgentAndFolderBegunSinceItWasStarted() {
@@ -77,6 +83,36 @@ import Testing
         n.send(.started); #expect(n.phase == .idle)
         n.send(.openNew); n.send(.back); #expect(n.phase == .idle)
         n.send(.openNew); n.send(.dismiss); #expect(n.phase == .idle)
+    }
+
+    @Test func modelsStartWithTheDefaultThenTheAgentsOwnNames() {
+        let claude = NewSession.models(agent: "claude", configured: "opus", used: ["claude-fable-5-1", "opus"])
+        #expect(claude.map(\.id) == ["", "fable", "opus", "sonnet", "haiku", "claude-fable-5-1"])
+        #expect(claude.first == NewSession.Model(id: "", name: "Default", note: "opus"))
+        // OpenCode: the ones used here, then every model it can reach, found by typing
+        let oc = NewSession.models(agent: "opencode", configured: nil, available: ["openai/gpt-6", "lmstudio/qwen"], used: ["lmstudio/qwen"])
+        #expect(oc.map(\.id) == ["", "lmstudio/qwen", "openai/gpt-6"])
+        #expect(oc.map(\.more) == [false, false, true])
+        // Codex: its picker in its order, Default named as the picker names it, the hidden ones by typing
+        let catalog = [NewSession.Model(id: "gpt-6.1-sol", name: "GPT-6.1-Sol", note: "Latest"), NewSession.Model(id: "gpt-6-sol", name: "GPT-6-Sol"), NewSession.Model(id: "gpt-reserve", name: "GPT-Reserve", more: true)]
+        let codex = NewSession.models(agent: "codex", configured: "gpt-6-sol", catalog: catalog, used: ["gpt-6-mini"])
+        #expect(codex.map(\.id) == ["", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-mini", "gpt-reserve"])
+        #expect(codex.first?.note == "GPT-6-Sol")
+        #expect(codex.last?.more == true)
+        #expect(NewSession.models(agent: "pi", configured: nil).isEmpty)
+    }
+
+    @Test func readsEachAgentsDefaultModel() {
+        #expect(NewSession.claudeDefault(settings: Data(#"{"model":"opus","hooks":{}}"#.utf8)) == "opus")
+        #expect(NewSession.claudeDefault(settings: Data(#"{"hooks":{}}"#.utf8)) == nil)
+        #expect(NewSession.codexDefault(config: "# mine\nmodel = \"gpt-6-sol\" # fast\napproval = \"never\"\n[profiles.deep]\nmodel = \"gpt-6\"") == "gpt-6-sol")
+        #expect(NewSession.codexDefault(config: "model_provider = \"openai\"\n[profiles.deep]\nmodel = \"gpt-6\"") == nil)
+        let cache = #"{"models":[{"slug":"gpt-6-sol","display_name":"GPT-6-Sol","visibility":"list","priority":3},{"slug":"gpt-reserve","display_name":"GPT-Reserve","visibility":"hide","priority":4},{"slug":"gpt-6.1-sol","display_name":"GPT-6.1-Sol","description":"Latest workhorse model.","visibility":"list","priority":0}]}"#
+        let picker = NewSession.codexCatalog(Data(cache.utf8))
+        #expect(picker.map(\.id) == ["gpt-6.1-sol", "gpt-6-sol", "gpt-reserve"])
+        #expect(picker.map(\.more) == [false, false, true])
+        #expect(picker.first?.note == "Latest workhorse model.")
+        #expect(NewSession.opencodeModels("github-copilot/claude-fable-5.1\nopenai/gpt-6\n\nUpdating models...") == ["github-copilot/claude-fable-5.1", "openai/gpt-6"])
     }
 
     @Test func findsTheClaudeProjectForAFolder() {

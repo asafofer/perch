@@ -912,11 +912,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var pickedFolders: [String] = []
 
     /// The command line agents on this Mac, looked for where installers put them.
-    private static let commands: Set<String> = {
+    private static let commands: Set<String> = Set(["claude", "codex", "opencode", "pi"].filter { commandPath($0) != nil })
+    /// Where an agent's command line tool is, in the places installers put them.
+    private static func commandPath(_ c: String) -> String? {
         let home = NSHomeDirectory()
         let dirs = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.npm-global/bin", "\(home)/.bun/bin", "\(home)/.claude/local", "\(home)/.opencode/bin"]
-        return Set(["claude", "codex", "opencode", "pi"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
-    }()
+        return dirs.map { "\($0)/\(c)" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
     private func newChoices() -> [NewSession.Choice] {
         let ws = NSWorkspace.shared
         return NewSession.choices(claudeApp: ws.urlForApplication(withBundleIdentifier: Restorer.claudeApp) != nil,
@@ -934,6 +936,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if machine.phase == .idle { place(on: ScreenChooser.target()) }
         openedByHover = false; proactiveOpen = false; prepareToShow()
         newLooking = lookingAt()
+        if let bin = Self.commandPath("opencode") { NewSessionModels.refreshOpencode(bin: bin) { [weak self] in if self?.machine.phase == .newSession { self?.push() } } }
         send(.openNew)
         refreshProjects()
     }
@@ -950,7 +953,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let d = NewSession.defaults(looking: newLooking, lastChoice: Prefs.lastNewChoice, lastFolder: pickedFolders.first ?? Prefs.lastNewFolder, choices: choices, folders: folders)
         let via = Terminals.keys[Terminals.preferred] ?? "terminal"
         return UISnapshot.NewSession(
-            apps: choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) },
+            apps: choices.map { c in
+                let models = c.terminal ? NewSessionModels.list(agent: c.agent).map { UISnapshot.NewSession.Model(id: $0.id, name: $0.name, note: $0.note, more: $0.more) } : []
+                return .init(id: c.id, app: c.agent, via: c.terminal ? via : nil, name: c.name, models: models, model: models.isEmpty ? "" : Prefs.lastModel(c.id) ?? "")
+            },
             projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },
             agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere")
     }
@@ -1018,9 +1024,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
     /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
-    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
+    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, model: String = "", go: Bool, close: Double) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
+        let model = choice.terminal && NewSession.takesModel(choice.agent) ? model : ""
+        if choice.terminal { Prefs.setLastModel(model, for: id); Prefs.noteModel(model, agent: choice.agent) }
         Clipboard.letGo(prompt)
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
         let fromList = machine.newFrom == .switcher && !go
@@ -1036,7 +1044,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     self.startingTicker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refreshProjects() } }
                 }
             }
-            let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, needsYou: { [weak self] in
+            let sent = NewSessionStarter.start(choice, folder: folder, prompt: prompt, sessionId: sid, model: model, needsYou: { [weak self] in
                 MainActor.assumeIsolated { self?.startingAsks() }
             }, declined: { [weak self] in
                 // Cancel in the app: it will not start, so the line says so now rather than after the long wait.
@@ -1177,7 +1185,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "newSession":
             switch body["action"] as? String {
-            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, model: body["model"] as? String ?? "", go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
             case "chooseFolder": chooseFolder()
             default: openNewSession()
             }

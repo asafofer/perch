@@ -12,10 +12,10 @@ enum NewSessionStarter {
     /// so nothing is lost. `needsYou` runs (on the main thread) when the app first asks you to trust the folder: a link
     /// that names a folder asks, and that is yours to answer, so Perch waits for it and presses Send after. `declined`
     /// runs (on the main thread) when you answer Cancel there: the session will not start.
-    static func start(_ choice: NewSession.Choice, folder: String?, prompt: String, sessionId: String?, needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void = {}) -> Bool {
+    static func start(_ choice: NewSession.Choice, folder: String?, prompt: String, sessionId: String?, model: String = "", needsYou: @escaping @Sendable () -> Void, declined: @escaping @Sendable () -> Void = {}) -> Bool {
         if choice.terminal {
             let cwd = folder ?? NSHomeDirectory()
-            Terminals.open(NewSession.command(agent: choice.agent, prompt: prompt, sessionId: sessionId), in: cwd, app: Terminals.preferred)
+            Terminals.open(NewSession.command(agent: choice.agent, prompt: prompt, sessionId: sessionId, model: model), in: cwd, app: Terminals.preferred)
             return true
         }
         var c = URLComponents()

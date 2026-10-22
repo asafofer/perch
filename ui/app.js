@@ -38,6 +38,7 @@
     folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    model: '<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
     tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
@@ -1230,8 +1231,9 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null, model: '', modelFor: '', mq: '', mi: 0 };
+  /* the model is not a step on the way: the prompt's chip (or Command+M) opens it, and choosing one goes back to the prompt */
+  var NW_STEPS = ['app', 'project', 'model', 'prompt'], nwSlide = 0, nwDrawn = '';
   /* what a row says while a file is over it (nwDropRow) */
   var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
@@ -1248,6 +1250,30 @@
   }
   function nwAgent() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
   function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
+  /* A terminal agent can start on a model: its own default first (named as its config names it), then Claude Code's own
+     names or the models OpenCode lists, then ones chosen before (Swift, NewSessionModels). Typing narrows them; a name
+     typed that is not there can be used as it is. The apps take none, so they show no model. */
+  function nwModels() { return nwAgent().models || []; }
+  /* each agent's models from a newer snapshot; true when the agent chosen now got new ones */
+  function nwTakeModels(o) {
+    var on = nwAgent().id, changed = false;
+    (o.apps || []).forEach(function (a) {
+      var mine = nwApps().find(function (x) { return x.id === a.id; });
+      if (!mine || JSON.stringify(mine.models || []) === JSON.stringify(a.models || [])) return;
+      mine.models = a.models; if (a.id === on) changed = true;
+    });
+    return changed;
+  }
+  function nwModelRows() {
+    var typed = nw.mq.trim(), words = typed.toLowerCase().split(/\s+/).filter(Boolean), all = nwModels();
+    /* the list is what you use; typing also finds the rest (every model OpenCode can reach, the ones Codex's picker hides) */
+    var hit = all.filter(function (m) { var hay = (m.id + ' ' + m.name + ' ' + m.note).toLowerCase(); return (words.length || !m.more) && words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    if (typed && !hit.length) hit.push({ id: typed, name: typed, note: '', typed: true });
+    return hit;
+  }
+  function nwModel() { var m = nwModels().filter(function (x) { return x.id === nw.model; })[0]; return m || (nw.model ? { id: nw.model, name: nw.model, note: '' } : nwModels()[0] || { id: '', name: 'Default', note: '' }); }
+  /* the agent's own model, the one you chose for it last, comes with it */
+  function nwModelFor(a) { if (nw.modelFor === a.id) return; nw.modelFor = a.id; nw.model = a.model || ''; }
   function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
   /* No project, as each agent takes it. The Claude app cannot be asked for a chat without a folder: given none, it uses
      the folder picked in its own new-session screen (and makes the session a worktree there), so its row says that. */
@@ -1258,8 +1284,11 @@
        the top, an agent found) would move the rows under you, change the folder chosen, or redraw the field and its caret
        as you type. Only a list that was empty (the first scan not yet done) is filled in. */
     if (!entering) {
+      /* models found after it opened (OpenCode lists them with a command that takes a moment) come in all the same; the
+         list is drawn again only while you are choosing a model, so the field and its caret never move under you */
+      var more = nwTakeModels(o) && nw.step === 'model';
       var had = (nw.o && nw.o.projects) || [];
-      if (had.length || !(o.projects || []).length) return;
+      if (had.length || !(o.projects || []).length) { if (more) newRender(); return; }
       nw.o = o;
       if (nw.step === 'app') { var fi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; }); nw.proj = fi < 0 ? 0 : fi; }
       return newRender();
@@ -1269,7 +1298,8 @@
       /* a draft waiting comes back with the agent and folder it was written for, not the defaults of where you are now */
       var kept = (nw.text || nw.files.length) && nw.kept, agent = kept ? kept.app : o.agent;
       var ai = nwApps().findIndex(function (a) { return a.id === agent; });
-      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
+      nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = ''; nw.mq = ''; nw.modelFor = ''; nwModelFor(nwAgent());
+      if (kept && kept.model != null && kept.app === nwAgent().id) nw.model = kept.model;
       var pi = nwRows().findIndex(function (r) { return kept ? (kept.none ? r.none : !r.none && !r.pick && r.path === kept.path) : !r.none && !r.pick && r.name === o.project; });
       if (pi < 0 && kept) pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
@@ -1286,12 +1316,13 @@
     var crumbs = '';
     if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
     if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? nwNone(a)[2] : f.name) + '</span>');
-    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
-    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
+    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?')
+      : nw.step === 'model' ? (nw.mq ? '<span dir="auto">' + esc(nw.mq) + '</span><i class="s-caret"></i>' : 'Which model?') : '';
+    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'model' ? (nw.mq ? nwModelRows().filter(function (m) { return !m.typed; }).length + ' of ' + nwModels().length : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
       (right ? '<span class="nw-right flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') +
-      (nw.step !== 'prompt' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
+      (nw.step === 'app' || nw.step === 'project' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
     if (nw.step === 'app') {
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
@@ -1310,12 +1341,24 @@
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
           '<span dir="ltr" class="nw-rt min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
+    } else if (nw.step === 'model') {
+      var ms = nwModelRows();
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + ms.map(function (m, i) {
+        var now = !m.typed && m.id === nw.model, note = m.typed ? 'As typed' : !m.id ? (m.note ? 'Your default' : agentShort(a.app) + '\u2019s own') : m.note;
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.mi ? ' bg-accent' : '') + '" data-i="' + i + '">' + nwTile(m.typed ? 'plus' : 'model') +
+          '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="ltr" class="nm min-w-0 truncate font-medium">' + (m.typed ? 'Use \u201c' + esc(m.name) + '\u201d' : esc(m.id ? m.name : 'Default')) + '</span>' +
+          (!m.id && m.note ? '<span class="flex-none text-xs text-muted-foreground">' + esc(m.note) + '</span>' : '') + '</span>' +
+          '<span class="nw-rt flex min-w-0 max-w-[55%] flex-none items-center gap-2 text-xs text-muted-foreground"><span class="truncate">' + esc(note) + '</span>' + (now ? svg('check', 'size-3.5 flex-none text-foreground') : '') + '</span></div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Use'], ['esc', 'Back']);
     } else {
       /* the field is a box: the files attached along its top (nwPaths), then your words */
       html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
         '<div class="nw-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
         '<textarea class="nw-in block cursor-text max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div></div>' +
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+        /* the model it starts on, by the field as a composer has it: Default says what that is, as the agent's config names it */
+        (nwModels().length ? (function (md) { return '<button title="Model (\u2318M)" class="nw-mdl ml-1 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">' +
+          svg('model', 'size-3 flex-none') + '<span dir="ltr" class="truncate text-foreground">' + esc(md.id ? md.name : 'Default') + '</span>' + (!md.id && md.note ? '<span class="flex-none font-normal">' + esc(md.note) + '</span>' : '') + Kbd('\u2318M') + '</button>'; })(nwModel()) : '') +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
     /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
@@ -1348,10 +1391,12 @@
         if (e.key === 'Backspace' && nw.files.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); nw.files.pop(); nwAtt(); }
         else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
+        else if (e.metaKey && (e.key === 'm' || e.key === 'M') && nwModels().length) { e.preventDefault(); e.stopPropagation(); nwTo('model'); }
       };
       q('.nw-start').onclick = function () { nwStart(false); };
       q('.nw-go').onclick = function () { nwStart(true); };
       q('.nw-back').onclick = nwBack;
+      var mb = q('.nw-mdl'); if (mb) mb.onclick = function () { nwTo('model'); };
       setTimeout(function () { ta.focus({ preventScroll: true }); var e = ta.value.length; ta.setSelectionRange(e, e); }, entering ? 260 : 0);
     }
     if (snap) layout('ns', snap);
@@ -1373,7 +1418,7 @@
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
-    if (nw.step === 'app') nw.app = i; else nw.proj = i;
+    if (nw.step === 'app') nw.app = i; else if (nw.step === 'model') nw.mi = i; else nw.proj = i;
     q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('bg-accent', +r.dataset.i === i); });
     if (!quiet) nwShow();
     nwSeen();
@@ -1384,15 +1429,20 @@
     /* and leaving the folders: the one you chose keeps its place too, rather than whatever row the narrowed one sat at
        (it was No project, then the app's own choice: a typed "perch" started in another folder) */
     if (nw.step === 'project' && step !== 'project' && nw.q) { var f = nwRows()[nw.proj]; nw.q = ''; var fi = nwRows().indexOf(f); nw.proj = fi < 0 ? 0 : fi; }
+    if (nw.step === 'app' && step !== 'app') nwModelFor(nwAgent());
+    /* on the models, the one the session starts on now is the row you are on */
+    if (step === 'model') { nw.mq = ''; nw.mi = Math.max(0, nwModelRows().findIndex(function (m) { return m.id === nw.model; })); } else nw.mq = '';
     nwSlide = NW_STEPS.indexOf(step) - NW_STEPS.indexOf(nw.step);
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
   function nwNext() {
     if (nw.step === 'app') { if (!nwAppList().length) return; return nwTo('project'); }
     if (nw.step === 'project') { if (nwRows()[nw.proj].pick) { post({ type: 'newSession', action: 'chooseFolder' }); return; } return nwTo('prompt'); }
+    if (nw.step === 'model') { var m = nwModelRows()[nw.mi]; if (!m) return; nw.model = m.id; return nwTo('prompt'); }
   }
   function nwBack() {
     if (nw.step === 'prompt') return nwTo('project');
+    if (nw.step === 'model') return nwTo('prompt');
     if (nw.step === 'project') return nwTo('app');
     post({ type: 'back' });
   }
@@ -1406,7 +1456,7 @@
     if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, model: nwModels().length ? nw.model : '', title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
@@ -1490,7 +1540,7 @@
     var ta = q('.nw-in'), fb = q('.nw-box'), was = nwDrop; nwDrop = n;
     if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
     if (n) lookAt(ta || q('.nw'), 60);
-    if (nw.step !== 'prompt') nwDropRow(n ? x : null, y);
+    if (nw.step === 'app' || nw.step === 'project') nwDropRow(n ? x : null, y);
     if (ta) {
       var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
       fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
@@ -1501,16 +1551,19 @@
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
     if (nw.step === 'prompt') { if (e.key === 'Escape') { nwBack(); return true; } return false; }
-    var max = nw.step === 'app' ? nwAppList().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
+    var max = nw.step === 'app' ? nwAppList().length : nw.step === 'model' ? nwModelRows().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.step === 'model' ? nw.mi : nw.proj;
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && max) { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
     if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
-    if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
+    if (e.key === 'Escape') { if (nw.mq && nw.step === 'model') { nw.mq = ''; nw.mi = 0; newRender(); } else if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
     if (e.key === 'ArrowLeft') { nwBack(); return true; }
     if (nw.step === 'app' && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
     if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
     /* typing narrows the agents too (a number still picks one) */
     if (nw.step === 'app' && (e.key === 'Backspace' || (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.aq)))) {
       nw.aq = e.key === 'Backspace' ? nw.aq.slice(0, -1) : nw.aq + e.key; nw.app = 0; newRender(); return true;
+    }
+    if (nw.step === 'model' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.mq)))) {
+      nw.mq = e.key === 'Backspace' ? nw.mq.slice(0, -1) : nw.mq + e.key; nw.mi = 0; newRender(); return true;
     }
     if (nw.step === 'project' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.q)))) {
       nw.q = e.key === 'Backspace' ? nw.q.slice(0, -1) : nw.q + e.key;
@@ -2276,7 +2329,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none, model: nw.model }; } nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -3773,8 +3826,9 @@
         .sort(function (a, b) { return rank(P[a]) - rank(P[b]) || mins(P[a]) - mins(P[b]) || a - b; });
     }
     /* the new session flow: the agents on this Mac and the folders sessions ran in, newest first */
-    var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code' }, { id: 'codex', app: 'codex', name: 'Codex' },
-      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode' }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
+    var NEW_APPS = [{ id: 'claude', app: 'claude', name: 'Claude' }, { id: 'claude-code', app: 'claude', via: 'ghostty', name: 'Claude Code', model: '', models: [{ id: '', name: 'Default', note: 'opus' }].concat(['fable', 'opus', 'sonnet', 'haiku', 'claude-fable-5-1'].map(function (x) { return { id: x, name: x, note: '' }; })) }, { id: 'codex', app: 'codex', name: 'Codex' },
+      { id: 'codex-cli', app: 'codex', via: 'ghostty', name: 'Codex CLI', model: '', models: [{ id: '', name: 'Default', note: 'GPT-6-Sol' }].concat([['gpt-6.1-sol', 'GPT-6.1-Sol', 'Latest workhorse model for coding and everyday work.'], ['gpt-6-astra', 'GPT-6-Astra', 'Frontier intelligence for the most demanding work.'], ['gpt-6-sol', 'GPT-6-Sol', 'Previous generation workhorse model.'], ['gpt-6-luna', 'GPT-6-Luna', 'Fast and affordable model for easier tasks.']].map(function (x) { return { id: x[0], name: x[1], note: x[2] }; })) },
+      { id: 'opencode', app: 'opencode', via: 'ghostty', name: 'OpenCode', model: '', models: [{ id: '', name: 'Default', note: '' }].concat(['lmstudio/meta/muse-glimmer', 'openai/gpt-5.6-sol', 'openai/gpt-5.6-terra'].map(function (x) { return { id: x, name: x, note: '' }; }), ['github-copilot/claude-fable-5.1', 'github-copilot/claude-opus-4.8', 'openai/gpt-6', 'openai/gpt-6-mini', 'opencode/big-pickle', 'lmstudio/qwen3-coder'].map(function (x) { return { id: x, name: x, note: '', more: true }; })) }, { id: 'pi', app: 'pi', via: 'ghostty', name: 'pi' }];
     var NEW_DIRS = [['api-server', '~/Code/api-server', '1m'], ['docs', '~/Code/docs', '1m'], ['tui-kit', '~/Code/tui-kit', '2m'], ['perch', '~/Documents/perch', '4m'], ['price-scraper', '~/Code/price-scraper', '12m'],
       ['website', '~/Code/website', '48m'], ['room-planner-prototype', '~/Documents/room-planner-prototype', '5h'], ['lukatz_website', '~/Code/lukatz_website', '1d'], ['spec-gap-finder', '~/Code/spec-gap-finder', '2d'], ['finance', '~/Documents/finance', '3d']]
       .map(function (x) { return { name: x[0], path: x[1], away: x[2] }; });
@@ -3864,7 +3918,8 @@
         var front = P.filter(function (x) { return x.id === 'api'; })[0];
         var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
         apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
-        if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
+        if (o.model != null) nw.model = o.model;
+        if (o.step || o.q || o.mq) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; nw.mq = o.mq || ''; nw.mi = 0; newRender(); }
       },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },

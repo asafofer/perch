@@ -61,6 +61,16 @@ public final class OpenCodeStore {
         return out
     }
 
+    /// The models your sessions here ran on, as `provider/model`, newest first.
+    public func usedModels(limit: Int = 8) -> [String] {
+        let sql = """
+            SELECT json_extract(data, '$.providerID') || '/' || json_extract(data, '$.modelID') AS m, max(time_created) AS t FROM message
+            WHERE json_extract(data, '$.role') = 'assistant' AND json_extract(data, '$.modelID') IS NOT NULL AND json_extract(data, '$.providerID') IS NOT NULL
+            GROUP BY m ORDER BY t DESC LIMIT ?
+            """
+        return rows(sql, bind: [.int(Int64(limit))]) { Self.text($0, 0) }.filter { !$0.isEmpty }
+    }
+
     private enum Value { case int(Int64), text(String) }
     private func rows<T>(_ sql: String, bind: [Value], _ row: (OpaquePointer) -> T) -> [T] {
         var st: OpaquePointer?

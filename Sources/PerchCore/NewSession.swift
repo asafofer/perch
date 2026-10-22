@@ -84,16 +84,79 @@ public enum NewSession {
     }
 
     /// The command a terminal agent starts with, your words as its first message. Claude Code and pi are given the new
-    /// session's id, so Perch knows exactly which session to wait for.
-    public static func command(agent: String, prompt: String, sessionId: String? = nil) -> String {
-        let q = quote(prompt)
+    /// session's id, so Perch knows exactly which session to wait for. `model`: the one chosen, else the agent's own default.
+    public static func command(agent: String, prompt: String, sessionId: String? = nil, model: String? = nil) -> String {
+        let q = quote(prompt), m = model.flatMap { $0.isEmpty || !takesModel(agent) ? nil : quote($0) }
         switch agent {
-        case "claude": return "claude" + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
-        case "codex": return "codex " + q
-        case "opencode": return "opencode --prompt " + q
+        case "claude": return "claude" + (m.map { " --model \($0)" } ?? "") + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
+        case "codex": return "codex" + (m.map { " -m \($0)" } ?? "") + " " + q
+        case "opencode": return "opencode" + (m.map { " --model \($0)" } ?? "") + " --prompt " + q
         case "pi": return "pi" + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
         default: return q
         }
+    }
+
+    /// A model to start a session on. `id` is what the agent is given; empty is its own default, whose name `note` says.
+    /// Another's `note` says what it is for. `more`: found only by typing, so the list shows what you use, not every model.
+    public struct Model: Equatable, Sendable {
+        public let id: String, name: String, note: String, more: Bool
+        public init(id: String, name: String, note: String = "", more: Bool = false) { self.id = id; self.name = name; self.note = note; self.more = more }
+    }
+
+    /// The terminal agents a model can be chosen for. The apps' links take none, and pi is left to its own default.
+    public static func takesModel(_ agent: String) -> Bool { ["claude", "codex", "opencode"].contains(agent) }
+
+    /// Claude Code's own names for its latest models (`claude --model fable`): there from the start, a model you have
+    /// never used among them, and never stale, since Claude Code itself says which model each stands for.
+    public static let claudeAliases = ["fable", "opus", "sonnet", "haiku"]
+
+    /// What to offer for an agent: its own default first (named by its config), then the agent's own list (Claude Code's
+    /// names, Codex's picker), then the ones used here, then what is only found by typing (every model OpenCode can reach,
+    /// the ones Codex's picker hides), each once. Empty for an agent that takes no model.
+    public static func models(agent: String, configured: String?, catalog: [Model] = [], available: [String] = [], used: [String] = []) -> [Model] {
+        guard takesModel(agent) else { return [] }
+        let own = agent == "claude" ? claudeAliases.map { Model(id: $0, name: $0) } : catalog
+        let all = own.filter { !$0.more } + used.map { id in own.first { $0.id == id } ?? Model(id: id, name: id) }
+            + own.filter(\.more) + available.map { Model(id: $0, name: $0, more: true) }
+        let named = configured.map { c in own.first { $0.id == c }?.name ?? c } ?? ""   /* as the agent's own list names it */
+        var out = [Model(id: "", name: "Default", note: named)], seen: Set<String> = [""]
+        for m in all where !m.id.isEmpty && seen.insert(m.id.lowercased()).inserted { out.append(m) }
+        return out
+    }
+
+    /// Codex's own model picker, as it caches it (~/.codex/models_cache.json): in its order, each with what it is for;
+    /// the ones its picker hides are found by typing.
+    public static func codexCatalog(_ data: Data) -> [Model] {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let list = o["models"] as? [[String: Any]] else { return [] }
+        return list.compactMap { m -> (Int, Model)? in
+            guard let slug = m["slug"] as? String, !slug.isEmpty else { return nil }
+            return ((m["priority"] as? Int) ?? Int.max, Model(id: slug, name: (m["display_name"] as? String) ?? slug, note: (m["description"] as? String) ?? "", more: (m["visibility"] as? String) != "list"))
+        }.enumerated().sorted { ($0.element.0, $0.offset) < ($1.element.0, $1.offset) }.map(\.element.1)
+    }
+
+    /// Claude Code's default model: `"model"` in ~/.claude/settings.json.
+    public static func claudeDefault(settings: Data) -> String? {
+        guard let o = try? JSONSerialization.jsonObject(with: settings) as? [String: Any], let m = o["model"] as? String, !m.isEmpty else { return nil }
+        return m
+    }
+
+    /// Codex's default model: the top-level `model = "..."` in ~/.codex/config.toml, before any [table].
+    public static func codexDefault(config: String) -> String? {
+        for raw in config.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("[") { return nil }
+            guard line.hasPrefix("model"), let eq = line.firstIndex(of: "=") else { continue }
+            guard line[..<eq].trimmingCharacters(in: .whitespaces) == "model" else { continue }
+            let v = line[line.index(after: eq)...].split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let m = v.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            return m.isEmpty ? nil : m
+        }
+        return nil
+    }
+
+    /// What `opencode models` prints: one `provider/model` a line.
+    public static func opencodeModels(_ output: String) -> [String] {
+        output.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.contains("/") && !$0.contains(" ") }
     }
     static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
