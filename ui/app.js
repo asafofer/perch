@@ -1254,6 +1254,16 @@
      names or the models OpenCode lists, then ones chosen before (Swift, NewSessionModels). Typing narrows them; a name
      typed that is not there can be used as it is. The apps take none, so they show no model. */
   function nwModels() { return nwAgent().models || []; }
+  /* each agent's models from a newer snapshot; true when the agent chosen now got new ones */
+  function nwTakeModels(o) {
+    var on = nwAgent().id, changed = false;
+    (o.apps || []).forEach(function (a) {
+      var mine = nwApps().find(function (x) { return x.id === a.id; });
+      if (!mine || JSON.stringify(mine.models || []) === JSON.stringify(a.models || [])) return;
+      mine.models = a.models; if (a.id === on) changed = true;
+    });
+    return changed;
+  }
   function nwModelRows() {
     var typed = nw.mq.trim(), words = typed.toLowerCase().split(/\s+/).filter(Boolean), all = nwModels();
     /* the list is what you use; typing also finds the rest (every model OpenCode can reach, the ones Codex's picker hides) */
@@ -1274,8 +1284,11 @@
        the top, an agent found) would move the rows under you, change the folder chosen, or redraw the field and its caret
        as you type. Only a list that was empty (the first scan not yet done) is filled in. */
     if (!entering) {
+      /* models found after it opened (OpenCode lists them with a command that takes a moment) come in all the same; the
+         list is drawn again only while you are choosing a model, so the field and its caret never move under you */
+      var more = nwTakeModels(o) && nw.step === 'model';
       var had = (nw.o && nw.o.projects) || [];
-      if (had.length || !(o.projects || []).length) return;
+      if (had.length || !(o.projects || []).length) { if (more) newRender(); return; }
       nw.o = o;
       if (nw.step === 'app') { var fi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; }); nw.proj = fi < 0 ? 0 : fi; }
       return newRender();

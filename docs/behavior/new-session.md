@@ -33,7 +33,7 @@
 - It sits by the prompt's field, as in a composer: Default, then what that is as the agent's config names it (`"model"` in ~/.claude/settings.json, the top-level `model` in ~/.codex/config.toml), or the model chosen. A click on it, or Command+M in the field, opens the models (`NewSession.models`): Default first, then each agent's own list, then the ones used here:
   - Claude Code: its own names for its latest models (fable, opus, sonnet, haiku), which Claude Code itself keeps current.
   - Codex: its own picker as it caches it (~/.codex/models_cache.json, `NewSession.codexCatalog`), in its order, each with what it is for; Default is named as the picker names it. The ones its picker hides are found by typing.
-  - OpenCode: the models your sessions on this Mac ran on, newest first (its database, `OpenCodeStore.usedModels`); typing finds any model `opencode models` lists. Both are asked in the background when New session opens and kept ten minutes (`NewSessionModels`).
+  - OpenCode: the models your sessions on this Mac ran on, newest first (its database, `OpenCodeStore.usedModels`); typing finds any model `opencode models` lists. Both are asked in the background when New session opens and kept ten minutes (`NewSessionModels`); ones that arrive while New session is open join the list (`nwTakeModels`), drawn again only on the model step.
   - Then ones chosen before, for every agent.
 - Up and Down choose, typing narrows, Return uses one and goes back to the prompt, Esc goes back without changing it. A name nothing matches can be used as typed (a model's full name), and from then on it is offered (`Prefs.usedModels`).
 - Each agent starts on the model it started on last (`Prefs.lastModel`); a draft keeps its own.
