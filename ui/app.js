@@ -59,14 +59,18 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   /* each agent's name, and the short one sentences and buttons use */
-  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'] };
+  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
   /* Claude's own icon too, the one Claude.app ships, so no page ever draws a stand-in for it */
   var MARKS = { claude: 'data:image/png;base64,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', codex: 'data:image/png;base64,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' };
-  function iconOf(k) { return icons[k] || MARKS[k]; }
+  /* Claude tasks (Cowork) and chats live in the Claude app and wear its icon */
+  /* the places Perch follows a session into that have no app: herdr's own ram (herdr.dev) and tmux's logomark (tmux/tmux) */
+  MARKS.herdr = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAQKADAAQAAAABAAAAQAAAAABGUUKwAAAOLklEQVRoBe2aCXSU1RXHM9n3hZCV7JAQAhTIIgnS5WihKIph0UqRRYTWDa3oaT3anrZa9SBF1FrrAmQB8VjDDiEsYiBhD0nIDoEkZJmQZLLvM8lMf9988GXITHYb5Jx+Jwzve9977/7/99537/3ejOzK1QKje/kyvpfBC9hN7xYBmfZCOv/zqbl9DRXPD0PARHsBRKOVDyS1WqNSqfTRGBsbm5oKQtvbO9rb2zuVnV1dXcYyYwsLcwsLSxsbK1bq6urm0p9rsGekBMzMzNTq7gp5ZVFRUeXN6pbmFiA6ONj7+nhPnToZNGhWFCySrK+vz8nJy7icfaO0tL6+ARoajRozmJuZ2dvbubu7hYQEh06f5u3txTpwk6YbRE+nbNibGEDMz8jMSjpyLDcvv7m5Ra1W4xBYobOz86F5c9a9+KyxTAYCoJiZmcrlN48d/z7l9JnKyipGmpjQzXPBf7hED+ruVtOws7OF/Nw5D8yYNhVzqVRd4hiDn8MkgOJrFIr47V+npJ7t6lJxK0Hp7FRGzgxf/8o6SwsLgPKotaX10OEjhw4fVSgUABKZG0QjdsIB92PktJ9MeeLxRVNCJqn6NsVwCICpqLh40+ZPSkpumJubS7sQuEqVKiIs9LX1L9na2uDHPM3Nzd8SE3flSiGzUHk/uHs/0hgpVUorK6snlixctHABTwUL611D3gNoUC6v3LDxw4oKOZgE3ag1KNXa2srG2nratKkrly/FB3Bfnh45+t22mPjWtjYLCws90QN1yIzgjynitu+sb2hYvWo5/PU5DI0AyiZEfP5lzPWiYuCOGePk7+cbGDg+wN/f1WWso5OjvZ0dDiCiP3rsxKeffQlMmAwEts/ngGb6vv2JhLU1q1cAgPV1Rw+NAH554vuTZWVli6MXhIfPCAjwd3J0pBPFaIR/GjH8YZDycnn8jp0IG9DjddEYbAPa3Nzs4KHDGHnFsiexue6woRFAtah844Z3xo51JnAQr4GNlQkpJqamxhp1d7dM5NDVTfDoEreHrrzhtVkHO+zavc/D3W3unAeVSqW0jsm6dS9KN4NpODk5WVpawITBZtqU1NDYdLXwelpaetLR71paWgInjOeps5MT6Skj87JurBzM+n2NEZ2n4MrVsNDpTk4OmFscOTQLMAeVi6HwZlV1Vlb2xbT0oqKSuvp67IDuMy9nh86Y7ujogHEWRj/a1Ny8a/d+koCuKfBhch97iRwgxiXB+TQabYAVcktfF95YV1f/n4Q9r77So/QhENDaUUgrWVk5J5JPXUrPJJUiDMHgIGLQrqqq+nbXnmfXroYn14qnlpqamH67ay9YEQ9KeOIMfr4+EycG+nh7OTg48qixsankRmleXn5ZeQVS+tk2SDl/Pg2DBwVOEL1gsASQygQmH0hMysnNVymV2IG91UtbZubmiUnHxo3zXPDIw8rOTsz81LJfu7g479j5DWytra0jZ0aQYoMnBtHWeoUQ2mUyY7g1Nzefu5CWkLCnvKJSf2VREFPa2ttOnkplhVs9A5YS6AMFZ2XnJOzam5WV263uBjoL9YIu3aJ4xq9+evmj8+dhLpBBvrSsvKDgqp+fz4TxATwVlcciFBPgZwpBDB4ouLqm5tN/b7lwMU00qbSs1MBRUdD7771laWnJ4gNsYlZRKGpjYuNj43eWV8hF7+8HPWJ4CqD0jMvKTuXkyZOo0ghHjg4OQYHjCQBijIISjdrauupqBUkKPhiExQkvtjY2EeGh7KsKudygL8G6ra0tbMY0V1dXBPVZSqAn5qeknonf8TWpFyb945Y0JDZEdw8LnbFyxdLxAQHcCsIE/zaura1PPXP29Olz8sqbVNQUclZW1uyKxx59OCxsOkYjuPHojT//raGhERi9VuaWcuuF59Y+Mv9XNAxbAGVQUcbGfUUab21tRWFDQo8MLVYhnZ0+c65WUWdB5O3urrx5M+nI8S3b4pKTU2oUtSqVUktMgyz0febMeQcHh4lBgVjMeYxTR0dH5uUsg0bAjT093NEOZjSwiYFbXV3zyaefE2dQvEEd6GvFYA97sa2tff/BxKSjxynLAAosMPXyb9jSAxr0BQFfX2843D8rct+BRKZr98kdy7NvtAFQSAW9DYTI4uKSt97ZcCnjMhWYpHgcgOuOZQZ3A3/AIYqSDoi0DSqVxehvamo6fiKZBrJwcTYrGcOAHJmso7OTMoBHdxBg9YIrhX9/b+ONG6UW2rguTmY5W1tbZ+cxRPHh0UBnwstL37FLFAT0/PwCrMQt6c/NxcWwOE3Paj0uBPr8gisbNm5WKOrwInFFPnFT0L/5+mseHu4nkk/u3r2/obGRwdKAITVu72YMYyAQw5BtTSyytrKibWZueqtg6C2DfW8lrnDLAgS7a9eLNm76SIu+hxUTsbu317hJkyba29suWRT91l/fnDJlMjKA0nvZge6JMDD39PSwtbHGmPrD0Tf7GHAsTbu5pRW76Q/jqVBNGgmPBKzEHOLDps3/ZO/q6l6cia54e5RXVnqN82QXBgT4/eVPf9z5TcKBA9TovNr2VC+9KPVyGBBTJq1YvtTN1aWpqZmS5rsTyYjWHYZbs3fBwGC2r7xCbjCEyIxklCEiM5OXX36JvPD+po8KC68bdAwEtLS0kpg83N05LCDpIJWS0NXNlfOFjo5OZACdfhq3LyYJ6YxOkSENcvAbr79G+GOMvb39fRFhbMTc/HzmMphPloqKjFi+7ElRp3l5BQcTjzBY1KP0yUgrK8vHF0ezCG1TRmzZGpedncfJjDSoVwMQ5LJ3N2x6fMnChY/NJ8WhoV8+8AsXZ+dNH37CSQnpk7dvKgVG8mqgMRLebBhz4eIlAj+5E4iLFz1GlYoNkchTXGPVimWeHh4HDyVhYTDNiopc+uQSQh9PIU/ohba+R1DGBgV6awOUEIVMt8VuTz6ValD3ujTQOuvGxO6oqq5+/ndreASU0NDp8+Y+uDV2+89/NhuV8EaPSsRZ4IMnJRcFdkW5HL/npIQBMKmtq3N0cIQoKB+eN+ens6MokikliHL0IIUi53DSMcjro2dxxkRFzuSdhDTMasZ79x9CJYa2ii5+oY1Gvb08I++LYBq32k8NbsBk4YhKyFBUH7f+WJMLr+APffr4ePO6TERj1hdbYmPitgNULJOA6+U1zsnJEX3zFAucSkndFhvfW7z2nlmuri7sEwbTwa2p+FZlcLTUiV6ZcF9E+NpnVqJLQhCeQue3CXsTDx9FeRxsvf3u++M8PdAIgZd1u7s4o1Lz0kM9AyxnZyem0E06qyivEAoheSUOSVmPLoUTSZnwLlpVVY3uOURCWYyXAEgNYMx/aC5hoFNbz+/46ps7IqY0rndDo1kUvYDKnncX0ONvFJIxcTuST6YgBk0z/tKljIsX07WRTTtbcCXxTE5IKSIamAguolazAlEhJ69gvL+fv78voROH5JzmauE13AnPMYgeViGTgjnzo9BA70XFJdQoAxNg0/j5ei/7zRMApW5HdmZm1pdbY4tLSnX3vUF/1VIRPohjWIwLD8Fi1KaMhwzvuLn52i8oNIJPoqC+diPEHezt165ZZWNjAxMGJ+zeR6E5MAEUKayt9c7GxsY9ew9wSsOpsi56CajBBkYijbAb2B8cjQQHBaJpMQPwORgEoIfY88+tpdTDBRD9fTIl+Xk6Tdw9vQxKlTpRPHmHMouXDwLuyZTTkDFoYmlKrwbjW1vaZs4M54UGG7q5u507f0FbZgq+N+CFvqllXlr37OxZUaDHdKWl5Zs//hdFB9gGJiAKwNbnL6SxI5kPoAGl6g5gfFtHO+VNWNgM0HDi4ubmeik9A7/vXxEonvFo/dXfryOLgx6D4QX/+OCjG2XlYvgZLAEkiacPusgG32an84XAlJAQoJMN/H19AgMD6ampURDXBY3c1gqJhB1CtAG9q4vLksXRa9c87enpDhN0x/kFh8rZOXnSVhksgcFjNTgSeGSMa9eu8xplZ2cHGsLx7PujqHDRK/WzClraWh1NMSB4YmD0gkdWr3oqIiKMLQQZdn9ZWfnGDz7OzsmV0CNLNj080qDI/0WnUqkKCpqw/uUXyGv4D6xQKrgJypiita0VobY2tmMpUcaMEdMc9uHFgJ2TevpsbPxX1TUK+nWxjSoBBAOXVPr0ymWUAzg0rkJshQmKF3cWt2QKsZMBECgsvLZn38Gz5y7Qqb9nRpsAHPAHELMpOeGaFBxEUUkwoUfSK0AhRnlC5OBYhG+xqJfNzDgWkYb0NO4CAYSzU/liCtzsaV8fHy8vT47p8XI2cHtbOydRpeVcFbgWzoML6dLrwa5t3R0CEgisQWUhHMvdqg6N8B5CEibBW2AojeyrMZg82NfcH6AflFwjWWhgiiNZfRTm/p/AKCi5XxHC+3i/A37sD/mVhQXJXEzj9yIZk+3xMe4e7qQIqieIkEG4OIHSngwIpwOwkoj1E4/vlqVk164X8usFgFOm1tc3Kji9r+d7R76ea6b0448vHtva23n3oYLHVpAx5UcDBrPi3SDR8wUHWUOb0YX/QAJQUf14FycLvD3wVlNaWpGekclJCQwpqn4MBukh0Jf6QIm6tZ/G5EbSZmlZxYGDhzkYJI2OMA31JXTw/QMT0F+LIhFbnT138bMvtnKIwK3+mFHrGU4iY5ez3WdFzXz9D+s5kMIOowZXX9BwCIir8EYyOST4t8+sEveM/tKj0zN8AuBjc2OH8LBQNvrowNWXMiICLMcm5tWWWlh/6dHpGSkBEh6n6vzATEp2o4NbkjJSAuQKvtPli3ga0qKj2RgpARTP+Tg/57hXCaBsjkbc3NzuYQJwCPD3FdL13bhG6kJgRvf+fn7ij19Gn8J/AYNtsA97LZ5xAAAAAElFTkSuQmCC';
+  MARKS.tmux = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20160%20160%22%3E%3Cpath%20fill%3D%22%233C3C3C%22%20d%3D%22M83%2070V0h-6v146h6V76h77v-6H83zM0%2015C0%206.7%206.7%200%2015%200h130c8.3%200%2015%206.7%2015%2015v131H0V15z%22/%3E%3Cpath%20fill%3D%22%231BB91F%22%20d%3D%22M0%20116h160v29c0%208.3-6.7%2015-15%2015H15c-8.3%200-15-6.7-15-15v-29z%22/%3E%3C/svg%3E';
+  function iconOf(k) { if (k === 'cowork' || k === 'chat') k = 'claude'; return icons[k] || MARKS[k]; }
   function App(k, c) {
     if (iconOf(k)) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + iconOf(k) + '" alt="">';
     /* stand-ins for the design page; the app has the real icons. pi has no app, and OpenCode's app is optional: both draw
@@ -548,14 +552,30 @@
     if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
+  var saidKey = '', saidLater = false;   /* a redraw held for a selection, made when it ends (selCheck) */
   function showSaid(open) {
-    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && p.said);
-    if ((pane.dataset.rep === '1') === on) return;
+    /* a first message with nothing said back yet opens it too, with only your words */
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && (p.said || p.asked));
+    var key = on ? [p.id, p.said, p.asked, !!p.askedLast].join('\u0001') : '', was = pane.dataset.rep === '1';
+    if (was === on && key === saidKey) return;
+    var box = q('.o-said-in'), sel = window.getSelection();
+    /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
+    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) { saidLater = true; return; }
+    /* drawn again in place: where your message was, and the words that were already there */
+    var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
+    saidKey = key; saidLater = false;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
+      /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
+      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge);
+      /* the answer landed: your message glides to its new place and the answer comes in softly, as words do on the card */
+      if (redraw && p.said && box.textContent !== before) [].forEach.call(box.children, function (el) {
+        if (el.classList.contains('o-you')) { var dy = from != null ? from - el.getBoundingClientRect().top : 0; if (dy) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1)' }); }
+        else el.animate([{ opacity: 0, filter: 'blur(2px)', transform: 'translateY(14px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }], { duration: 340, delay: 60, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      }); }
     if (snap && lastSt === 'open') layout('open', snap);
-    if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
+    if (on && !was && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
@@ -873,8 +893,11 @@
     if (!asks) status(ph, p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
-    var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
+    /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
+    var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
+    if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -907,6 +930,7 @@
     if (now) nx = now;
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     orbFor(now);
+    q('.o-nx').classList.toggle('live', !!now);   /* kept in the reply too */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
@@ -1021,7 +1045,8 @@
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
-    if (lastSt !== 'switch') { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
+    var opening = lastSt !== 'switch';
+    if (opening) { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
@@ -1114,6 +1139,17 @@
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
+    }
+    /* Opened again after the card folded to the notch, WebKit could keep showing the list where it was scrolled last time
+       while the page had moved it to the top: the choice sat out of sight and the arrows seemed to do nothing. Once the card
+       has grown, the scrolling area is made again (off and on) and told where it is, so what shows is where the page put it. */
+    if (opening) {
+      [60, 320].forEach(function (ms) { setTimeout(function () {
+        if (lastSt !== 'switch') return;
+        var at = sl.scrollTop;   /* the page's own idea, the true one */
+        sl.style.overflowY = 'hidden'; void sl.offsetHeight; sl.style.overflowY = '';
+        sl.scrollTop = at + (at > 0 ? -1 : 1); sl.scrollTop = at;
+      }, ms); });
     }
     /* a started row: it slides in once; each new state says itself; once real, its spinner and project fade in; gone, it folds away */
     s.projects.forEach(function (p, k) {
@@ -2452,6 +2488,7 @@
     if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
     if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
     hlDraw();
+    if (saidLater && (!s || s.isCollapsed) && repOn) showSaid(true);
   }
   document.addEventListener('selectionchange', selCheck);
   document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
@@ -2813,7 +2850,8 @@
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>';
   }
   /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
-  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
+  /* chats are named by count only: their titles can be personal, and the tile is seen before you choose */
+  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.id === 'chat' ? (x.count ? x.count + ' recent' : 'Nothing found yet') : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
   function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
   /* off: Turn on, or Skip; on: Next */
   function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
@@ -2937,14 +2975,25 @@
     } else if (st === 3) {
       h = shortcutStep(o);
     } else if (st === 4) {
-      var rows = o.sources.map(function (x) {
-        var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
-        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
-      }).join('');
-      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
-        /* more than two agents sit two to a row, so the card keeps its height */
-        oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+      /* Claude is one tile, its kinds (Code, tasks, chats) as small checks inside, so a new kind never adds a tile; the other
+         agents sit beside each other under it. The places Perch follows a session into are named under them, with their marks:
+         nothing to choose there, Perch finds them by itself. */
+      var KINDS = { claude: 'Code', cowork: 'Tasks', chat: 'Chats' };
+      var kinds = o.sources.filter(function (x) { return KINDS[x.id]; }), others = o.sources.filter(function (x) { return !KINDS[x.id]; });
+      var srcTick = function (x, cls) { return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ' + cls + '">' + (cls === 'ck' ? '' : KINDS[x.id]) + svg('check', cls === 'ck' ? 'size-4' : 'size-3') + '</button>'; };
+      var tile = function (id, icon, name, line, on, right, wide) {
+        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (wide ? ' col-span-full' : '') + '" data-id="' + id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + icon + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' + right + '</div>';
+      };
+      var code = kinds.filter(function (x) { return x.id === 'claude'; })[0];
+      var rows = (kinds.length ? tile('claude-group', App('claude', 'size-5'), 'Claude', code ? srcLine(o, code) : '', kinds.some(function (x) { return x.enabled; }),
+        '<span class="flex flex-none gap-1">' + kinds.map(function (x) { return srcTick(x, 'o-chip'); }).join('') + '</span>', true) : '') +
+        others.map(function (x) { return tile(x.id, App(x.id, 'size-5'), x.name, srcLine(o, x), x.enabled, srcTick(x, 'ck')); }).join('');
+      var cols = 'grid-cols-2';   /* three to a row leaves an agent's name no room */
+      var places = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +
+        oi(3, '<div class="mt-3 grid ' + cols + ' gap-1.5 px-4">' + rows + '</div>') +
+        oi(4, (places ? '<p class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + places + '</p>' : '') +
+          '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
@@ -2973,7 +3022,9 @@
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    /* a click on a one-agent tile ticks it; on Claude's tile only its own small checks do */
+    box.querySelectorAll('.o-tile').forEach(function (t) { var b = t.querySelectorAll('.o-sw'); if (b.length !== 1) return; t.classList.add('cursor-pointer'); t.onclick = function (e) { if (!e.target.closest('.o-sw')) b[0].click(); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); tileDim(b.closest('.o-tile')); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
@@ -3037,7 +3088,7 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') + '|' + (o.places || []).map(function (x) { return x.id; }).join(',') + '|' + Object.keys(icons).length : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
       if (o.step === 4) onbSources(o);
@@ -3050,11 +3101,14 @@
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
+  /* a tile's mark dims once nothing in it is ticked */
+  function tileDim(t) { t.querySelector('.o-ic').classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
   function onbSources(o) {
+    var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
+    q('.onb').querySelectorAll('.o-sw').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); tileDim(b.closest('.o-tile')); } });
     q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
-      var x = o.sources.filter(function (y) { return y.id === t.dataset.id; })[0], b = t.querySelector('.o-sw'), sub = t.querySelector('.o-line'), line;
+      var x = src(t.dataset.id === 'claude-group' ? 'claude' : t.dataset.id), sub = t.querySelector('.o-line'), line;
       if (!x) return;
-      if (b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); t.querySelector('.o-ic').classList.toggle('opacity-50', !x.enabled); }
       line = srcLine(o, x);
       if (sub.textContent === line) return;
       sub.textContent = line; sub.classList.toggle('opacity-60', !!o.scanning);
@@ -3101,6 +3155,11 @@
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
     b.setAttribute('aria-checked', String(on));   /* .sw in input.css draws it from this */
+  }
+  /* the same setting as a plain check at the right, nothing while it is off (the look of the Notifications menu's moments):
+     a click anywhere on its row flips it, as with a switch */
+  function ckHtml(on, key, label) {
+    return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw ck">' + svg('check', 'size-4') + '</button>';
   }
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
@@ -3247,11 +3306,17 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      return o.sources.map(function (x) {
+      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents; under them, the places Perch follows a
+         session into, as a line with their marks: nothing to choose there */
+      var ORDER = { claude: 0, cowork: 1, chat: 2 };
+      var srcs = o.sources.slice().sort(function (a, b) { return (a.id in ORDER ? ORDER[a.id] : 9) - (b.id in ORDER ? ORDER[b.id] : 9); });
+      var where = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+      return srcs.map(function (x) {
         var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
-        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), swHtml(x.enabled, 'src:' + x.id, x.name)));
+        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
       }).join('') + gap +
-        drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'));
+        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', ckHtml(o.live === 'on', 'live', 'Live status'))) +
+        (where ? '<p class="mx-2 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + where + '</p>' : '');
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
@@ -3874,8 +3939,10 @@
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
+        if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
+        var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {
@@ -3886,6 +3953,8 @@
         autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      /* the next refresh of the same card, a reply left open as it is */
+      refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
@@ -3986,7 +4055,19 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; window.perchDev.newConfirms = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; window.perchDev.newConfirms = false; for (var k = P.length - 1; k >= 0; k--) if (/^(new|app)-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      /* Claude tasks and chats join the sample sessions for one scenario (the next scenario takes them out); returns their places */
+      claudeApp: function () {
+        var at = P.length;
+        P.push({ id: 'app-cowork', name: 'Taxes', branch: '', away: '25m', at: '11:35 AM', headline: 'Sorting this year\u2019s receipts.', context: 'Filed 38 receipts by month into Taxes/2026. Three have no date and wait in Unsorted.', next: '', topic: 'Sort this year\u2019s receipts by month', app: 'cowork', attention: false, fresh: true, line: 'Finished 25m ago', status: { kind: 'done', text: 'Claude replied', app: 'cowork' },
+          asked: 'Sort the receipts in my Taxes folder by month and tell me which ones you could not place.', said: 'Filed 38 receipts by month into Taxes/2026.\n\nThree have no date on them, so they wait in **Unsorted**: two from Hetzner and a photo of a till slip.' },
+          { id: 'app-cowork2', name: 'Inbox', branch: '', away: '2h', at: '10:05 AM', headline: 'Not opened on this Mac yet', context: '', next: '', topic: 'Sort the inbox into folders', app: 'cowork', attention: false, fresh: true, line: 'Finished 2h ago', status: { kind: 'done', text: 'Claude replied', app: 'cowork' } },
+          { id: 'app-chat', name: '', branch: '', away: '1h', at: '11:02 AM', headline: '', context: 'Three quiet places near Marylebone with a table for two on Saturday: Trishna, Orrery and The Ninth.', next: '', topic: 'Anniversary dinner ideas', app: 'chat', attention: false, fresh: true, line: 'Replied 1h ago', status: { kind: 'done', text: 'Claude replied', app: 'chat' },
+            asked: 'somewhere quiet for an anniversary dinner on saturday, near marylebone, not too formal', said: 'Three quiet places near Marylebone with a table for two on Saturday:\n\n- **Trishna**: modern Indian, softly lit, about \u00a375 a head\n- **Orrery**: French, looks over the church garden, the most romantic of the three\n- **The Ninth**: small plates, relaxed, the least formal\n\nOrrery is the one I would book if you want it to feel like an occasion.' },
+          { id: 'app-chat2', name: 'financials', branch: '', away: '3h', at: '9:14 AM', headline: '', context: 'September is up to date. Rent and the two card payments are in; the business balance is \u20aa2,140 short of the bank.', next: '', topic: 'Planning an overdue update', app: 'chat', attention: false, fresh: false, line: '3h ago', status: { kind: 'idle', text: 'Claude replied', app: 'chat' },
+            asked: 'update the sheet with the september statements', said: 'September is up to date. Rent and the two card payments are in; the business balance is \u20aa2,140 short of the bank, which is the Deeto transfer that has not cleared yet.' });
+        return at;
+      },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;

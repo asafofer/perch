@@ -14,14 +14,19 @@ enum Prefs {
     static var color: String { get { d.string(forKey: "character.color") ?? "#F5B83D" } set { d.set(newValue, forKey: "character.color") } }
     /// Which agents Perch reads: all of them, except the ones you switched off. Kept as the ones switched off, so an agent
     /// Perch learns later starts on. (Before, the ones switched on were kept, when there were only Claude and Codex.)
+    /// One that starts off (`Agent.onByDefault`: Claude chats) is kept the other way round, as switched on.
     static var enabledSources: Set<String> {
         get {
-            let all = Set(Agent.all.map(\.id))
+            let all = Set(Agent.all.filter(\.onByDefault).map(\.id)).union(d.stringArray(forKey: "sources.optedIn") ?? [])
             if let off = d.array(forKey: "sources.disabled") as? [String] { return all.subtracting(off) }
             if let on = d.array(forKey: "sources.enabled") as? [String] { return all.subtracting(Set(["claude", "codex"]).subtracting(on)) }
             return all
         }
-        set { d.set(Array(Set(Agent.all.map(\.id)).subtracting(newValue)), forKey: "sources.disabled") }
+        set {
+            let byDefault = Set(Agent.all.filter(\.onByDefault).map(\.id))
+            d.set(Array(byDefault.subtracting(newValue)), forKey: "sources.disabled")
+            d.set(Array(newValue.subtracting(byDefault)), forKey: "sources.optedIn")
+        }
     }
     /// Accessibility Perch had (AccessLoss): whether it ever had it, the build that last had it (a loss on another build came
     /// with an update), and whether this loss was said, so a relaunch does not say it again.
