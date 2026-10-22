@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let updater = Updater()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Started from inside a Claude Code session: what says so goes, or every session Perch starts would be that one's child.
+        NewSession.dropInheritedSession()
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
             for agent in HookInstaller.agents {
