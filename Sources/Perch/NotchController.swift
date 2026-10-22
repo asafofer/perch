@@ -678,6 +678,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated {
                 // Pick up opens a closed terminal session in the terminal you use.
+                if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, app != NSRunningApplication.current { self?.lastOtherApp = app }
                 if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier {
                     if Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
                     if FocusProbe.reads(bid), self?.hasSessions(in: bid) == true { self?.focus.poll(app: bid) }
@@ -958,7 +959,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// While a reply is open Perch is the app in front, as for a new session, so a launcher's paste lands in the field.
     /// Where you were is from before that, for whatever puts you back after the reply goes.
     private var replyFrontFrom: NSRunningApplication?, replyBack: WhereYouWere?
-    private func whereYouWere() -> WhereYouWere { replyBack ?? WhereYouWere.now() }
+    /// The reply field closes as its words go, a moment before they are sent: where you were stays known for a few seconds.
+    private var replyLeft: (back: WhereYouWere, at: Date)?
+    private func whereYouWere() -> WhereYouWere {
+        if let replyBack { return replyBack }
+        if let left = replyLeft, Date().timeIntervalSince(left.at) < 3 { return left.back }
+        let now = WhereYouWere.now()
+        // Opened with its shortcut, Perch itself is in front: you were in the app before it.
+        if now.app == NSRunningApplication.current, let other = lastOtherApp, !other.isTerminated { return WhereYouWere(app: other, window: nil) }
+        return now
+    }
+    /// The last app other than Perch to come forward.
+    private var lastOtherApp: NSRunningApplication?
     private func frontForReply(_ on: Bool) {
         if on {
             guard !NSApp.isActive else { return }
@@ -974,6 +986,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         } else {
             guard replyFrontFrom != nil else { return }
             if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            replyLeft = replyBack.map { ($0, Date()) }
             replyFrontFrom = nil; replyBack = nil
         }
     }
@@ -1349,7 +1362,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                             if self.machine.phase == .open { let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push() }
                             self.say("Reply copied"); return
                         }
-                        guard done else { self.pasteReply(text, to: p.id); return }
+                        guard done else { self.pasteReply(text, to: p.id, back: back); return }
                         // The words are already in the terminal; the card closes once they have flown into the notch,
                         // into the line that says Sent.
                         self.replying(p.id)
@@ -1457,7 +1470,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let app = Agent.of(projects[i].app).short
+        let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -1479,6 +1492,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     return false
                 }
             default:
+                // A terminal tab that was only a guess is not left in front: pasting there could answer another session.
+                // The terminal may still be coming forward from its own script, so this waits a moment.
+                if terminal { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { back.restore() } }
                 NSLog("Perch: reply left on the clipboard (no exact session to type into)"); self?.say("Reply copied"); return
             }
             Task {

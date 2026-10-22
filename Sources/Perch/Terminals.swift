@@ -244,7 +244,9 @@ enum Terminals {
             tell application "\(name)"
               set hits to (every terminal whose working directory is \(cwd))
               if (count of hits) is not 1 then return "no"
-              input text \(appleQuote(line + "\r")) to item 1 of hits
+              input text \(appleQuote(line)) to item 1 of hits
+              delay 0.1
+              perform action "text:\\\\r" on item 1 of hits
               return "ok"
             end tell
             """
