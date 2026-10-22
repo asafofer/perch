@@ -82,6 +82,13 @@ import Testing
     @Test func whatACLaudeSessionPassesOnIsDroppedAndItsSettingsKept() {
         let env = ["CLAUDECODE": "1", "CLAUDE_CODE_CHILD_SESSION": "1", "CLAUDE_CODE_SESSION_ID": "s", "CLAUDE_PID": "26411", "CLAUDE_CODE_USE_BEDROCK": "1", "PATH": "/bin"]
         #expect(Set(env.keys.filter { NewSession.inheritedSession.contains($0) }) == ["CLAUDECODE", "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ID", "CLAUDE_PID"])
+        // and what Perch does at launch takes them out of its own environment, the settings left in
+        setenv("CLAUDE_CODE_CHILD_SESSION", "1", 1); setenv("CLAUDE_CODE_USE_BEDROCK", "1", 1)
+        NewSession.dropInheritedSession()
+        #expect(getenv("CLAUDE_CODE_CHILD_SESSION") == nil)
+        #expect(getenv("CLAUDE_CODE_USE_BEDROCK").map { String(cString: $0) } == "1")
+        #expect(getenv("PATH") != nil)
+        unsetenv("CLAUDE_CODE_USE_BEDROCK")
     }
 
     @Test func findsTheClaudeProjectForAFolder() {

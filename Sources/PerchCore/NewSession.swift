@@ -101,6 +101,12 @@ public enum NewSession {
     /// shows. Settings such as CLAUDE_CODE_USE_BEDROCK are left as they are.
     public static let inheritedSession: Set<String> = ["CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID",
         "CLAUDE_CODE_CHILD_SESSION", "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_VERSION", "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_MESSAGING_SOCKET"]
+
+    /// Takes them out of this process's environment, so nothing Perch starts inherits them. The settings stay.
+    public static func dropInheritedSession() {
+        for key in ProcessInfo.processInfo.environment.keys where inheritedSession.contains(key) { unsetenv(key) }
+    }
+
     static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     /// The new session, once the scan finds it: one Perch had not seen before, of that agent, run where it was asked for
