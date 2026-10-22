@@ -441,6 +441,7 @@ public enum Recap {
         p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
+        p.askedLast = d.lastRole == "user"
         return p
     }
 
