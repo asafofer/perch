@@ -8,6 +8,21 @@ final class WarpTabsTests: XCTestCase {
         WarpTabs.best(tabs, cwd: cwd, home: home, hints: hints)
     }
 
+    func testASessionsOwnLinkFocusesItsTab() {
+        let url = WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/fd8db87f850b4f9bbadec5f488208d4c", "TERM_PROGRAM": "WarpTerminal"])
+        XCTAssertEqual(url?.absoluteString, "warp://session/fd8db87f850b4f9bbadec5f488208d4c")
+    }
+
+    func testOnlyAWarpSessionLinkCounts() {
+        XCTAssertNil(WarpTabs.focusLink([:]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": ""]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session//"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://session/abc/def"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "warp://action/new_tab?path=/tmp"]))
+        XCTAssertNil(WarpTabs.focusLink(["WARP_FOCUS_URL": "https://example.com/session/abc"]))
+    }
+
     func testIdleShellNamesItsFolderInTheTitle() {
         XCTAssertEqual(best([tab("~"), tab("~/Documents/perch"), tab("~/code/token")]), 1)
     }
@@ -42,5 +57,27 @@ final class WarpTabsTests: XCTestCase {
 
     func testTiesGoToTheFirst() {
         XCTAssertEqual(best([tab("a perch"), tab("b perch")], cwd: "/Users/you/perch"), 0)
+    }
+
+    func sure(_ tabs: [WarpTabs.Reading], _ index: Int, hints: [String] = []) -> Bool {
+        WarpTabs.sure(tabs, index, cwd: "/Users/you/Documents/perch", home: home, hints: hints)
+    }
+
+    func testWordsOnlyThatSessionHasMakeItSure() {
+        let tabs = [tab("~/Documents/perch", "a shell"), tab("~/Documents/perch", "Pick up in Warp lands on the wrong tab")]
+        XCTAssertTrue(sure(tabs, 1, hints: ["Pick up in Warp lands on the wrong tab"]))
+    }
+
+    func testTheOnlyTabInItsFolderIsSure() {
+        XCTAssertTrue(sure([tab("~"), tab("~/Documents/perch"), tab("~/code/token")], 1))
+        // Command+3 to 9 past the last tab change nothing, so the last tab is read again.
+        XCTAssertTrue(sure([tab("~"), tab("~/Documents/perch"), tab("~/Documents/perch"), tab("~/Documents/perch")], 1))
+    }
+
+    func testTwoTabsInTheSameFolderAreAGuess() {
+        XCTAssertFalse(sure([tab("~/Documents/perch", "a shell"), tab("~/Documents/perch", "claude")], 0))
+        XCTAssertFalse(sure([tab("~/Documents/perch"), tab("perch - claude")], 0))
+        // Two tabs that read the same, followed by another: two tabs, not one read twice.
+        XCTAssertFalse(sure([tab("~/Documents/perch"), tab("~/Documents/perch"), tab("~"), tab("~")], 0))
     }
 }

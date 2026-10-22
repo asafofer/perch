@@ -66,10 +66,15 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var said: String?
     /// Your own last message, as you wrote it. The card shows it above the agent's while you reply.
     public var asked: String?
+    /// Your message came after the agent's: it has not answered yet, so the card shows yours below.
+    public var askedLast = false
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
     /// Its transcript ends on a tool call with no result yet: running, or waiting for your OK.
     public var toolOpen = false
+    /// Its own app says how it stands (a Claude task: the app's `running`, `awaiting`, `idle`), not a guess from a transcript:
+    /// a wait it reports stands until the app says otherwise, however old.
+    public var appSays = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
