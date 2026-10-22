@@ -2009,7 +2009,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if e.keyCode == 51 { if !self.listQuery.isEmpty { self.listQuery.removeLast(); self.filterChanged() }; return nil }
                 if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
                 // Space with nothing typed previews the row you are on, as Finder does; once you type, it is a space in the filter.
-                if e.keyCode == 49, self.listQuery.isEmpty, self.listMarked, !self.pendingPicked, !ListFilter.shown(self.projects, self.listQuery).isEmpty {
+                if e.keyCode == 49, self.listQuery.isEmpty, self.listMarked, !self.pendingPicked, !ListFilter.shown(self.projects, self.listQuery).isEmpty,
+                   self.projects.indices.contains(self.machine.selected), self.projects[self.machine.selected].ask == nil, !(self.projects[self.machine.selected].said ?? "").isEmpty {
                     self.send(.back)
                     self.web.evaluateJavaScript("window.perch && window.perch.previewMenu(true, 'list')", completionHandler: nil); return nil
                 }

@@ -213,6 +213,13 @@ import Foundation
         #expect(Activity.step(tool: "mcp__linear__save_issue", input: [:]) == "Using issue")
         #expect(Activity.step(tool: "TodoWrite", input: [:]) == nil)
     }
+    @Test func aCodexPromptStartingWithATagStartsANewTurn() {
+        let msg = { (role: String, text: String) in #"{"type":"response_item","payload":{"type":"message","role":""# + role + #"","content":[{"type":""# + (role == "user" ? "input_text" : "output_text") + #"","text":""# + text + #""}]}}"# }
+        let turn = [msg("user", "fix the hero"), msg("assistant", "Fixed."), msg("user", "<hook_prompt hook_run_id=\"1\">Check the tests.</hook_prompt>"), msg("assistant", "Tests pass.")]
+        // what Codex adds itself goes on with the turn; your own prompt, even one that starts with a tag, starts a new one
+        #expect(CodexTranscript.digest(lines: turn).turnFull == "Fixed.\n\nTests pass.")
+        #expect(CodexTranscript.digest(lines: turn + [msg("user", "<div> is broken"), msg("assistant", "It lacks a width.")]).turnFull == "It lacks a width.")
+    }
     @Test func codexStepsAndNarration() {
         let d = CodexTranscript.digest(lines: [
             #"{"timestamp":"2026-10-07T09:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"rewrite the install guide"}]}}"#,

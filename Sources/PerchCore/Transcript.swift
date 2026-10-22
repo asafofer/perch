@@ -627,10 +627,17 @@ public enum Recap {
         return longestAsk <= 24 && answered < 400
     }
 
-    /// The last message for the card to show while you reply: as written, trimmed, and only its end when it is very long.
+    /// The last message for the card to show while you reply or Preview it: as written and trimmed, all of it, but for its
+    /// end alone past a ceiling no answer reaches (a runaway paste).
     public static func said(_ text: String?) -> String? {
         guard let t = text?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
-        return t.count > 4000 ? "\u{2026}" + String(t.suffix(4000)) : t
+        return clipSaid(t, 100_000)
+    }
+
+    /// Only the end of a long one, for a session whose card is not open: the page gets the whole of it once it is.
+    public static func clipSaid(_ text: String?, _ limit: Int = 4000) -> String? {
+        guard let t = text else { return nil }
+        return t.count > limit ? "\u{2026}" + String(t.suffix(limit)) : t
     }
 
     /// Your last message for the card to show above it while you reply: as written, and only its start when it is very long.
@@ -826,6 +833,12 @@ public enum RelativeTime {
 /// Reads Codex session files (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl).
 /// The working folder and id sit in the first line (session_meta); messages are response_item records.
 public enum CodexTranscript {
+    /// A message that is one tag from start to end, as Codex wraps what it adds: `<name ...>...</name>`.
+    static func wrapped(_ text: String) -> Bool {
+        let name = text.dropFirst().prefix { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+        return !name.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("</\(name)>")
+    }
+
     public static func digest(lines: [String]) -> SessionDigest {
         var d = SessionDigest()
         let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -860,7 +873,12 @@ public enum CodexTranscript {
             guard type == "response_item", payload["type"] as? String == "message",
                   let role = payload["role"] as? String, role == "user" || role == "assistant",
                   let text = text(from: payload["content"]), !text.isEmpty else { continue }
-            if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") { continue }
+            if role == "user", text.hasPrefix("# AGENTS.md") || text.hasPrefix("<") {
+                // What Codex adds itself comes wrapped whole in its tag (<environment_context>...</environment_context>, a
+                // stop hook's <hook_prompt>): the turn goes on. A prompt of yours that only starts with one starts a new turn.
+                if text.hasPrefix("<"), !Self.wrapped(text) { d.turnFull = nil }
+                continue
+            }
             if let ts = o["timestamp"] as? String, let date = iso.date(from: ts) ?? isoPlain.date(from: ts) { d.lastTimestamp = date }
             if role == "user" { d.lastUserText = text; d.lastUserFull = Self.text(from: payload["content"], keepLines: true); if !Recap.isAcknowledgement(text) { d.lastAsk = text }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil }
             else { d.lastAssistantText = text; d.lastAssistantFull = Self.text(from: payload["content"], keepLines: true); d.narration = text; d.turnFull = TranscriptParser.joined(d.turnFull, d.lastAssistantFull) }

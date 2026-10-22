@@ -1721,7 +1721,7 @@
     if (act.mode === 'sent') { renderSent(act.p); actGlide(); return; }
     actEl.classList.remove('chose');
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
-    if (act.mode !== 'full' || k !== 'ask') actMore = null;
+    if (act.mode !== 'full' || (k !== 'ask' && !(k === 'done' && actMore && actMore.pv))) actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
     if (k === 'access') { renderAccess(p.access); return; }
     if (k === 'run') body = '<span class="act-cmd">' + esc(a.brief || a.subject || 'a command') + '</span>';   /* the command without its output plumbing (Ask.brief); the card shows it all */
