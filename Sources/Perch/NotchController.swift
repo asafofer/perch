@@ -959,7 +959,15 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// While a reply is open Perch is the app in front, as for a new session, so a launcher's paste lands in the field.
     /// Where you were is from before that, for whatever puts you back after the reply goes.
     private var replyFrontFrom: NSRunningApplication?, replyBack: WhereYouWere?
-    private func whereYouWere() -> WhereYouWere { replyBack ?? WhereYouWere.now() }
+    /// Where you were when the reply field last closed. Send closes the field first (the page folds it away, then sends), which
+    /// hands the front back before the reply asks where you were: by then the app in front is still Perch, and pasting into
+    /// an app left you in it. Kept for a moment, for the send that follows.
+    private var replyBackLeft: (back: WhereYouWere, at: Date)?
+    private func whereYouWere() -> WhereYouWere {
+        if let replyBack { return replyBack }
+        if let left = replyBackLeft, Date().timeIntervalSince(left.at) < 3 { return left.back }
+        return WhereYouWere.now()
+    }
     private func frontForReply(_ on: Bool) {
         if on {
             guard !NSApp.isActive else { return }
@@ -975,6 +983,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         } else {
             guard replyFrontFrom != nil else { return }
             if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            replyBackLeft = replyBack.map { ($0, Date()) }
             replyFrontFrom = nil; replyBack = nil
         }
     }
