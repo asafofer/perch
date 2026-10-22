@@ -352,6 +352,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   function onRow(name) { return function () { var r = [].filter.call(document.querySelectorAll('.nw .nrow'), function (x) { return (x.querySelector('.nm') || {}).textContent === name; })[0]; return deskPoint(r, 30, 0); }; }
   function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
+  var APP_SOURCES = [{ id: 'cowork', name: 'Claude tasks', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
     var UPD_ERR = [
@@ -403,6 +404,14 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
       ['Settings: four agents', 'Settings, Agents: each agent Perch reads, how many sessions it has, and a switch. An agent switched off dims.', function () { d.settings({ sources: FOUR, page: 'agents' }); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
+    ]],
+    ['Claude app (spike)', [
+      ['A task, finished', 'A Claude task (what was Cowork): the same card as a chat or a Code session, the Claude icon, its folder as the project (Taxes), what it found. Open Claude goes to the task (claude://claude.ai/local_sessions/<id>). Cowork has no hooks Perch can reach, so its questions are read only.', function () { var at = d.claudeApp(); d.project(at); d.show('open', false, true); }],
+      ['A task, never opened here', 'A task whose words this Mac never cached (started on another device, or not opened lately): its title, its folder and a quiet grey line saying so. Status still comes through.', function () { var at = d.claudeApp(); d.project(at + 1); d.show('open', false, true); }],
+      ['A chat', 'A chat in the Claude app: its title, and what Claude last said, like any session. Open Claude goes to the chat (claude://claude.ai/chat/<uuid>). What was said is cached only for chats opened lately on this Mac; see the spike notes.', function () { var at = d.claudeApp(); d.project(at + 2); d.show('open', false, true); }],
+      ['The list with tasks and chats', 'Claude tasks and chats among the coding sessions, looking alike. A chat in a Claude project shows the project in grey (financials).', function () { d.claudeApp(); d.show('switcher'); }],
+      ['Settings: tasks and chats', 'Settings, Agents: every agent has a plain check, Claude tasks and Claude chats too, so you choose which Perch shows. Tasks start on, chats off. Under them, the places Perch works in.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), places: [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }], page: 'agents' }); }],
+      ['Onboarding: tasks and chats', 'Choose your apps: Claude as one tile with Code, Tasks and Chats as small checks (chats start off and say only how many), the other agents beside it, and the places Perch works in with their marks.', function () { d.onboarding(4, true, false, null, 'app'); }]
     ]],
     ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
@@ -942,6 +951,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   /* Lucide (lucide.dev, ISC), one small mark for each category */
   var TABICON = {
     'Coming back': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    'Claude app (spike)': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     'More agents': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
     'Replying': '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
     'Reply formatting': '<path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
@@ -1059,6 +1069,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     tabs.querySelectorAll(':scope > button').forEach(function (t, k) { t.setAttribute('aria-selected', String(k === i)); });
     ddb.innerHTML = tabIcon(GROUPS[i][0]) + GROUPS[i][0] + '<span class="cnt">' + GROUPS[i][1].length + '</span>' + CHEV;
   }
+  /* ?c=<category>&s=<scenario> opens that scenario, so a link can point straight at it. Either can be the name as written or
+     its slug ("claude-app-spike", "cowork-finished"); a scenario without its category is looked for everywhere. Choosing
+     a scenario puts its own link in the address bar. Not while a demo plays or films (?play, ?record). */
+  function slug(t) { return String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  var filming = /[?&](play|record)\b/.test(location.search);
+  function linkTo(c, sc) {
+    if (filming || !history.replaceState) return;
+    history.replaceState(null, '', location.pathname + '?c=' + slug(c) + '&s=' + slug(sc) + location.hash);
+  }
   /* each category's scenarios in alphabetical order */
   var newest = GROUPS.map(function (g) { return g[1][0]; });
   GROUPS.forEach(function (g) { g[1].sort(function (a, b) { return a[0].localeCompare(b[0], 'en', { sensitivity: 'base', numeric: true }); }); });
@@ -1070,7 +1089,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       b.innerHTML = '<b>' + s[0] + '</b>';
       /* a scenario says what it shows in its first sentence; the rest was detail */
       var says = s[1].split(/(?<=[.!?])\s/)[0];
-      b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; };
+      b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; linkTo(g[0], s[0]); };
       btns.push(b); box.appendChild(b);
     });
     wrap.appendChild(box);
@@ -1080,7 +1099,15 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
      whatever the sorting puts first) */
   var first = 0; GROUPS.forEach(function (g, gi) { if (g[0] === 'Settings') first = gi; });
   /* a demo being filmed (?play=) starts on its own scenarios: this one's timers would play over them */
-  showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click();
+  var qp = new URLSearchParams(location.search), qc = qp.get('c'), qs = qp.get('s'), hit = null;
+  if ((qc || qs) && !filming) GROUPS.some(function (g, gi) {
+    if (qc && slug(g[0]) !== slug(qc)) return false;
+    var si = qs ? g[1].findIndex(function (x) { return slug(x[0]) === slug(qs); }) : g[1].indexOf(newest[gi]);
+    if (si >= 0) hit = [gi, si];
+    return !!hit;
+  });
+  if (hit) { showTab(hit[0]); boxes[hit[0]].children[hit[1]].click(); }
+  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */

@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
             for p in RealSessionProvider().parkedProjects() {
                 let opens = p.conductor != nil ? "Conductor, workspace \(p.conductor ?? "?")" : p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
-                    : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
+                    : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
             }

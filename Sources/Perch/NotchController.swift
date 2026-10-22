@@ -374,10 +374,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func toggleSwitcher() {
         let fromIdle = machine.phase == .idle || machine.phase == .whatsNew
         openedByHover = false; proactiveOpen = false; prepareToShow()
-        send(.openSwitcher)
-        // Opened by itself, the list starts on its top row: what needs you, or what you touched last. (Closed, the machine
-        // keeps no selection, so this comes once it is open.)
-        if fromIdle { selectTopRow() }
+        // Opened from nothing, the list starts on its top row: what needs you, or what you touched last. It opens there in one
+        // step: opening on the row chosen last time and then moving to the top sent the page two lists in a row, and after
+        // Open Claude the card on screen stayed scrolled to the old row with the choice out of sight above it, so the arrow
+        // keys seemed to do nothing.
+        if machine.phase == .idle, let top = ListFilter.ordered(projects, "", now: Date()).first { send(.reopen(.switcher, selected: top)) }
+        else { send(.openSwitcher); if fromIdle { selectTopRow() } }
         refreshProjects()
     }
     func confirm() { send(.confirm) }
@@ -470,6 +472,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let home = FileManager.default.homeDirectoryForCurrentUser
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
+        // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
         let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
@@ -1598,12 +1601,23 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
         let on = Prefs.enabledSources
         return Agent.all.filter { ["claude", "codex"].contains($0.id) || (counts[$0.id]?.count ?? 0) > 0 || AgentPresence.installed($0) }.map { a in
-            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: counts[a.id]?.names ?? [], enabled: on.contains(a.id))
+            // Chats go by count alone: their titles can be personal, and onboarding shows them before you choose.
+            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: a.id == Agent.chat.id ? [] : counts[a.id]?.names ?? [], enabled: on.contains(a.id))
         }
     }
 
+    /// The places Perch follows a session into that are on this Mac: their apps, or their commands where they have none.
+    private func placesState() -> [UISnapshot.Place] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
+        let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
+        return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
+                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil)]
+            .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }
+    }
+
     private func settingsState() -> UISnapshot.Settings {
-        return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
+        return UISnapshot.Settings(sources: sourcesState(), places: placesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
@@ -1701,7 +1715,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingState() -> UISnapshot.Onboarding {
         // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
         // (and start a scan) every half second while an agent works.
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), places: placesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.

@@ -445,6 +445,61 @@ public enum Recap {
         return p
     }
 
+    /// A chat in the Claude app: its title, and Claude's last reply where this Mac has it (`ClaudeWords`), else the title alone.
+    /// A chat is never news: its reply comes while you watch, so the notch never speaks up about one.
+    public static func chat(_ c: ClaudeCache.Chat, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
+        var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: words.flatMap(said(from:)) ?? "", next: "",
+                        topic: clip(c.title, 90), app: Agent.chat.id,
+                        agents: [AgentStatus(kind: .idle, text: words?.lastAssistantText != nil ? "Claude replied" : "Chat in Claude", app: Agent.chat.id)],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your chat")],
+                        sessionId: c.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = c.updated
+        p.startedAt = c.created
+        p.focusedAt = c.updated
+        p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText)
+        p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)
+        return p
+    }
+
+    /// The card's line from what was said: Claude's outcome, else what you asked.
+    static func said(from d: SessionDigest) -> String? {
+        outcome(d.lastAssistantFull ?? d.lastAssistantText) ?? answer(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map(youSaid)
+    }
+
+    /// A task in the Claude app (what was Cowork): its title, its folder, and the app's own word on it: at work, waiting for
+    /// your OK, or done. One you have already looked at in the app is not news (`focusedAt`), so Perch keeps quiet about it.
+    /// What it said comes from `ClaudeWords` when this Mac has it; without it, a quiet line says so.
+    public static func task(_ t: ClaudeCache.Task, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.cowork.id
+        let status: AgentStatus = switch t.state {
+        case .running: AgentStatus(kind: .running, text: "Claude is working", app: a)
+        case .awaiting: AgentStatus(kind: .needsYou, text: "Claude is waiting for your OK", app: a)
+        case .idle: AgentStatus(kind: .done, text: "Claude finished", app: a)
+        }
+        let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
+        var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
+                        at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
+                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle ? "Not opened on this Mac yet" : "",
+                        context: words.flatMap(said(from:)) ?? "", next: "",
+                        topic: clip(t.title, 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
+                        sessionId: t.id, cwd: t.folders.first, desktopSessionId: t.id)
+        p.lastActive = t.lastActivity
+        p.startedAt = t.created
+        p.appSays = true
+        if !t.unread { p.focusedAt = t.lastActivity }
+        if let w = words {
+            p.said = Recap.said(w.lastAssistantFull ?? w.lastAssistantText)
+            p.asked = Recap.asked(w.lastUserFull ?? w.lastUserText)
+            p.askedLast = w.lastRole == "user"
+            if t.state == .running { p.now = w.step }
+            // What it waits on, to read on the card (Perch cannot answer it: Cowork's hooks are not Perch's).
+            if t.state == .awaiting, w.turnOpen, let pending = w.pendingTool, var q = Ask(pending: pending, agent: a) { q.transcriptAt = pending.at ?? t.lastActivity; p.ask = q }
+        }
+        return p
+    }
+
     /// The project's name: its folder's, or for a worktree, the project it belongs to. A worktree's own name ("wizardly-
     /// williams-42a0c0") says nothing, so with no project to show the name is empty.
     public static func projectName(cwd: String, repo: String?) -> String {
@@ -464,7 +519,7 @@ public enum Recap {
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
     public static func isFolderless(_ cwd: String) -> Bool {
-        cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
+        cwd.contains("/Claude/scratch-workspaces/") || cwd.contains("/Claude/local-agent-mode-sessions/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
     /// The agent's outcome in a sentence or two, picked from its last message as written. A Summary, TL;DR or Result section
@@ -587,7 +642,8 @@ public enum Recap {
 
     /// `quietFor` is how long ago the session file last changed; nil when unknown.
     static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent a: Agent = .claude, quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
-        let short = a.short, agent = a.name, quiet = quietFor ?? .infinity
+        // A task in the Claude app is just Claude's: "Claude replied", not "Claude tasks replied".
+        let short = a.short, agent = a.id == Agent.cowork.id ? a.short : a.name, quiet = quietFor ?? .infinity
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.
@@ -708,7 +764,7 @@ extension Project {
     /// The same project with a "needs you" from before `since` read as history. A request the hooks reported still open (`ask`)
     /// always counts; a question only the transcript shows grows old like any guess.
     public func settled(since: Date) -> Project {
-        guard needsAttention, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
+        guard needsAttention, !appSays, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
         var p = self
         p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         p.ask = nil
@@ -731,7 +787,7 @@ extension Project {
 
     public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
         list.map { p in
-            guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
+            guard p.needsAttention, !p.appSays, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
                   list.contains(where: { $0.id != p.id && (seen[$0.id] ?? 0) > t + 1 }) else { return p }
             return p.settled(since: .distantFuture)
         }

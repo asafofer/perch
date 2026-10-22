@@ -58,12 +58,15 @@ struct UISnapshot: Encodable {
     struct Character: Encodable { let shape: String; let color: String }
     struct Display: Encodable { let id: String; let name: String; let connected: Bool }
     struct Source: Encodable { let id: String; let name: String; let count: Int; let names: [String]; let enabled: Bool }
+    /// A place Perch follows a session into (Conductor, herdr, tmux, cmux), shown by name and mark where it is on this Mac.
+    struct Place: Encodable { let id: String; let name: String }
     struct Onboarding: Encodable {
         let step: Int
         let total: Int
         let accessibility: Bool
         let scanning: Bool
         let sources: [Source]
+        let places: [Place]
         /// Only the character step, opened from Settings or the menu: no step count, and Done instead of Next.
         let only: Bool
         /// Perch's hook is in every enabled app: "on" or "off".
@@ -86,7 +89,7 @@ struct UISnapshot: Encodable {
     struct NewShortcut: Encodable { let keys: [String]; let custom: Bool }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
-    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
+    struct Settings: Encodable { let sources: [Source]; let places: [Place]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
         let hasExternal: Bool; let hoverExternal: Bool
         /// Show Perch on: "mouse", "window" or a display's id, and the displays to choose from (a chosen one that is not
