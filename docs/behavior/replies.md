@@ -23,7 +23,8 @@ Selecting and copying the agent's words is in [card.md](card.md). Replies into h
 
 ## Sending
 
-- To a terminal: the card clears and the notch gulps the words.
+- To a terminal: the card clears and the notch gulps the words. It is typed into the session's own pane or tab ([sessions.md](sessions.md#pick-up)); Ghostty and cmux by folder only when one terminal is in that folder.
+- A session Perch sees no process for opens again with your words, except when an agent of its kind runs in its folder that no other session is tied to: that one may be it, so the reply stays on the clipboard (Reply copied) rather than start a second copy.
 - A reply that went in the background (typed into its terminal, a closed one reopened with it, or taken by Claude's composer) ends like an answer: the card folds to the Sent line ([speaking-up.md](speaking-up.md#sent-or-didnt-send)). Swift says so (`replying`), so the page never claims more than happened.
 - A reply that falls back to pasting says no Sent: the line goes without a word (`replyHanded`) and the session comes forward, or Reply copied says the rest. There is no Didn't send for a reply, since the fallback always takes it on.
 - To a Claude app session, it goes in with Claude's window behind (`ClaudeComposer`): it presses the session's sidebar row, fills the ProseMirror field (a draft already there is set aside and put back after Send), presses Send, then goes back. The page's address must end in `local_<id>` before it writes and before Send, otherwise it falls back to pasting. It leans on Claude's page internals, so a Claude update can send it to the fallback.

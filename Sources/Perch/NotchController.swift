@@ -1319,13 +1319,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
             let sentAt = Date(), back = whereYouWere()
+            // The agents already known to run another session: one in this folder that is not may be running this one.
+            let claimed = Set(projects.compactMap { $0.id == p.id ? nil : $0.pid })
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
                 let hit = live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }
-                var done = false
+                var done = false, unsure = false
                 if let hit { done = Terminals.type(line, into: hit) }
-                else {
+                else if live.contains(where: { $0.agent == agent && $0.cwd == cwd && !claimed.contains($0.pid) }) {
+                    // It may still run there under a name Perch could not tie to it: opening it again would start a second
+                    // copy, and typing into that one could answer another session. Your words wait on the clipboard.
+                    unsure = true
+                } else {
                     // Not running: it opens again where it last ran, with your words as its first message.
                     _ = Restorer.reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id, prompt: line))
                     done = true
@@ -1336,6 +1342,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
+                        if unsure {
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+                            NSLog("Perch: reply left on the clipboard (an agent in \(cwd) may be running this session)")
+                            self.replyHanded(p.id)
+                            if self.machine.phase == .open { let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push() }
+                            self.say("Reply copied"); return
+                        }
                         guard done else { self.pasteReply(text, to: p.id); return }
                         // The words are already in the terminal; the card closes once they have flown into the notch,
                         // into the line that says Sent.
