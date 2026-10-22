@@ -1126,7 +1126,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
         let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.title, app: st.choice.agent,
                                        attention: false, fresh: false, line: "", status: .init(kind: "running", text: "Starting", app: st.choice.agent), steps: [], ask: nil, now: nil,
-                                       via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: st.state)
+                                       via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, askedLast: false, pending: st.state)
         sent.projects.append(row)
         var shown = sent.shown ?? Array(0..<(sent.projects.count - 1))
         let at = shown.firstIndex { sent.projects[$0].section != "Needs you" } ?? shown.count

@@ -551,14 +551,30 @@
     if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
+  var saidKey = '', saidLater = false;   /* a redraw held for a selection, made when it ends (selCheck) */
   function showSaid(open) {
-    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && p.said);
-    if ((pane.dataset.rep === '1') === on) return;
+    /* a first message with nothing said back yet opens it too, with only your words */
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && (p.said || p.asked));
+    var key = on ? [p.id, p.said, p.asked, !!p.askedLast].join('\u0001') : '', was = pane.dataset.rep === '1';
+    if (was === on && key === saidKey) return;
+    var box = q('.o-said-in'), sel = window.getSelection();
+    /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
+    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) { saidLater = true; return; }
+    /* drawn again in place: where your message was, and the words that were already there */
+    var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
+    saidKey = key; saidLater = false;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
+      /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
+      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge);
+      /* the answer landed: your message glides to its new place and the answer comes in softly, as words do on the card */
+      if (redraw && p.said && box.textContent !== before) [].forEach.call(box.children, function (el) {
+        if (el.classList.contains('o-you')) { var dy = from != null ? from - el.getBoundingClientRect().top : 0; if (dy) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1)' }); }
+        else el.animate([{ opacity: 0, filter: 'blur(2px)', transform: 'translateY(14px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }], { duration: 340, delay: 60, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      }); }
     if (snap && lastSt === 'open') layout('open', snap);
-    if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
+    if (on && !was && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
@@ -879,6 +895,8 @@
     /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
     var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
+    if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -911,6 +929,7 @@
     if (now) nx = now;
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     orbFor(now);
+    q('.o-nx').classList.toggle('live', !!now);   /* kept in the reply too */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
@@ -2429,6 +2448,7 @@
     if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
     if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
     hlDraw();
+    if (saidLater && (!s || s.isCollapsed) && repOn) showSaid(true);
   }
   document.addEventListener('selectionchange', selCheck);
   document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
@@ -3891,6 +3911,8 @@
         autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      /* the next refresh of the same card, a reply left open as it is */
+      refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other

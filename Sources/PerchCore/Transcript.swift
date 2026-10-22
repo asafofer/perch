@@ -441,6 +441,7 @@ public enum Recap {
         p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
+        p.askedLast = d.lastRole == "user"
         return p
     }
 
@@ -491,6 +492,7 @@ public enum Recap {
         if let w = words {
             p.said = Recap.said(w.lastAssistantFull ?? w.lastAssistantText)
             p.asked = Recap.asked(w.lastUserFull ?? w.lastUserText)
+            p.askedLast = w.lastRole == "user"
             if t.state == .running { p.now = w.step }
             // What it waits on, to read on the card (Perch cannot answer it: Cowork's hooks are not Perch's).
             if t.state == .awaiting, w.turnOpen, let pending = w.pendingTool, var q = Ask(pending: pending, agent: a) { q.transcriptAt = pending.at ?? t.lastActivity; p.ask = q }

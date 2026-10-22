@@ -37,6 +37,8 @@ struct UISnapshot: Encodable {
         let said: String?
         /// Your last message, shown above it.
         let asked: String?
+        /// It came after the agent's last message (not answered yet): shown below it.
+        let askedLast: Bool
         /// A session started from the list, before it is a real session: "starting", "started", "failed", "gone".
         var pending: String? = nil
     }
@@ -196,7 +198,7 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked)
+                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked, askedLast: p.askedLast)
         }
     }
 }
