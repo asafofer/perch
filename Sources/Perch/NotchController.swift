@@ -129,6 +129,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         config.userContentController = controller
         web = CardWebView(frame: .zero, configuration: config)
         super.init()
+        WhereYouWere.watch()
         // A card that offers Reply (one asking you something has no field to drop into), or a new session's prompt.
         web.takesFiles = { [weak self] in
             if self?.machine.phase == .newSession { return true }
@@ -374,10 +375,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func toggleSwitcher() {
         let fromIdle = machine.phase == .idle || machine.phase == .whatsNew
         openedByHover = false; proactiveOpen = false; prepareToShow()
-        send(.openSwitcher)
-        // Opened by itself, the list starts on its top row: what needs you, or what you touched last. (Closed, the machine
-        // keeps no selection, so this comes once it is open.)
-        if fromIdle { selectTopRow() }
+        // Opened from nothing, the list starts on its top row: what needs you, or what you touched last. It opens there in one
+        // step: opening on the row chosen last time and then moving to the top sent the page two lists in a row, and after
+        // Open Claude the card on screen stayed scrolled to the old row with the choice out of sight above it, so the arrow
+        // keys seemed to do nothing.
+        if machine.phase == .idle, let top = ListFilter.ordered(projects, "", now: Date()).first { send(.reopen(.switcher, selected: top)) }
+        else { send(.openSwitcher); if fromIdle { selectTopRow() } }
         refreshProjects()
     }
     func confirm() { send(.confirm) }

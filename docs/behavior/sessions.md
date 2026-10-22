@@ -8,6 +8,7 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 - It goes by section, what needs you, today, earlier, newest first in each (`ListFilter.ordered`). Sessions at work lead their section in a steady order, newest begun first, so two working at once do not trade places every time one writes; a session takes its place by last activity once it stops. Typing in the list narrows it (`ListFilter`).
 - A row leads with the session's title and how long ago. At the right, a ring for its status (`rowMark`: the spinner while it works, a check when it finished and you have not seen it, ? for a question, the prompt for a command waiting for your OK, ! for anything else waiting) and its project in grey.
 - A file watcher (FSEvents) refreshes within about half a second.
+- Opened from nothing, the list opens on its top row in one step (`toggleSwitcher`), and once the card has grown the scrolling area is made again (app.js `opening`): after Open Claude, WebKit kept showing the list where it was scrolled last while the choice was at the top, out of sight, so the arrows seemed dead.
 
 ## Where sessions come from
 

@@ -1025,7 +1025,8 @@
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
-    if (lastSt !== 'switch') { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
+    var opening = lastSt !== 'switch';
+    if (opening) { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
@@ -1118,6 +1119,17 @@
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
+    }
+    /* Opened again after the card folded to the notch, WebKit could keep showing the list where it was scrolled last time
+       while the page had moved it to the top: the choice sat out of sight and the arrows seemed to do nothing. Once the card
+       has grown, the scrolling area is made again (off and on) and told where it is, so what shows is where the page put it. */
+    if (opening) {
+      [60, 320].forEach(function (ms) { setTimeout(function () {
+        if (lastSt !== 'switch') return;
+        var at = sl.scrollTop;   /* the page's own idea, the true one */
+        sl.style.overflowY = 'hidden'; void sl.offsetHeight; sl.style.overflowY = '';
+        sl.scrollTop = at + (at > 0 ? -1 : 1); sl.scrollTop = at;
+      }, ms); });
     }
     /* a started row: it slides in once; each new state says itself; once real, its spinner and project fade in; gone, it folds away */
     s.projects.forEach(function (p, k) {
