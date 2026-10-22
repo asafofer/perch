@@ -42,6 +42,18 @@ public enum WarpTabs {
         return best?.index
     }
 
+    /// Whether the tab at `index` is the session's own, not only the best guess: it shows something only that session said,
+    /// or it is the only tab that fits at all. Two tabs in one folder are a guess, and a reply is never pasted into a guess.
+    /// The keys past the last tab leave it in front, so the readings that end the list all alike are that one tab. Alike
+    /// readings anywhere else are tabs of their own, which cannot be told apart.
+    public static func sure(_ readings: [Reading], _ index: Int, cwd: String, home: String, hints: [String]) -> Bool {
+        guard readings.indices.contains(index) else { return false }
+        if score(readings[index], cwd: cwd, home: home, hints: hints) >= certain { return true }
+        var tabs = readings
+        while tabs.count > 1, tabs[tabs.count - 1] == tabs[tabs.count - 2] { tabs.removeLast() }
+        return tabs.filter { score($0, cwd: cwd, home: home, hints: hints) > 0 }.count == 1
+    }
+
     /// Lowercase, with every run of white space (a wrapped line, a gap) as one space.
     static func squash(_ s: String) -> String { s.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ") }
 

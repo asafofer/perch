@@ -47,27 +47,32 @@ enum Terminals {
         }
     }
 
+    /// Where a session was brought forward: the app in front, and whether what it shows now is that session's own tab.
+    /// Not `exact` when Perch could only bring the app forward or pick between tabs that look alike: a reply is never
+    /// pasted there, since it would land in whichever tab was in front.
+    struct Shown { let app: String; let exact: Bool }
+
     /// Brings what this session runs in to the front and says which app has it: its herdr pane (in the terminal that shows
     /// herdr), its tmux pane (in the terminal of the tmux client that shows it), its cmux surface, or its terminal tab
     /// (Terminal and iTerm2 by tty, Ghostty by folder; any other terminal is brought forward as a whole). Nil when there is
     /// nothing to bring forward.
     @discardableResult
-    static func focus(_ live: LiveSessions.Hit, hints: [String] = []) -> String? {
+    static func focus(_ live: LiveSessions.Hit, hints: [String] = []) -> Shown? {
         switch live.place {
         case .herdr(let pane, let socket, let session):
             Herdr.focus(pane: pane, socket: socket, bin: live.bin)
             if let v = live.viewer { return show(v) }
             // Nothing shows that server: open herdr in your terminal, on the pane just focused.
             open(Herdr.attach(session: session, bin: live.bin), in: live.cwd)
-            return preferred
+            return Shown(app: preferred, exact: true)
         case .tmux(let pane, let socket):
             // The client already on that session (else the one used last) moves to the pane, and its terminal comes forward.
             if let v = live.viewer, Tmux.show(pane: pane, socket: socket, client: v.tty, bin: live.bin) { return show(v) }
             // No client attached: open one in your terminal, on that pane.
             open(Tmux.attach(pane: pane, socket: socket, bin: live.bin), in: live.cwd)
-            return preferred
+            return Shown(app: preferred, exact: true)
         case .cmux(let workspace, let surface):
-            if Cmux.focus(workspace: workspace, surface: surface) { return cmux }
+            if Cmux.focus(workspace: workspace, surface: surface) { return Shown(app: cmux, exact: true) }
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         case .tab:
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
@@ -75,16 +80,18 @@ enum Terminals {
     }
 
     /// The terminal showing a herdr client, brought forward at that client's tab.
-    static func show(_ v: LiveSessions.Viewer) -> String? {
-        if case .cmux(let w, let s) = v.place, Cmux.focus(workspace: w, surface: s) { return cmux }
+    static func show(_ v: LiveSessions.Viewer) -> Shown? {
+        if case .cmux(let w, let s) = v.place, Cmux.focus(workspace: w, surface: s) { return Shown(app: cmux, exact: true) }
         return focusTab(app: v.app, tty: v.tty, cwd: v.cwd)
     }
 
     /// Warp has no way to ask for a tab, so Perch switches tabs with their own keys (Command+1 to 9) and reads each one through
     /// Accessibility: the window's title and the terminal text on screen. It stops on the tab that shows the session, and
-    /// puts you back where you were when none does. True when a tab was picked. Blocks for a second or two.
-    private static func switchWarpTab(cwd: String, hints: [String]) -> Bool {
-        guard AXIsProcessTrusted(), let running = NSRunningApplication.runningApplications(withBundleIdentifier: warp).first else { return false }
+    /// puts you back where you were when none does. Nil when no tab was picked; else whether it is surely the session's
+    /// (`WarpTabs.sure`). With several windows, only words that session alone has make it sure: the windows after the
+    /// one picked are never read. Blocks for a second or two.
+    private static func switchWarpTab(cwd: String, hints: [String]) -> Bool? {
+        guard AXIsProcessTrusted(), let running = NSRunningApplication.runningApplications(withBundleIdentifier: warp).first else { return nil }
         running.activate()
         Thread.sleep(forTimeInterval: 0.3)
         let ax = AXUIElementCreateApplication(running.processIdentifier)
@@ -114,12 +121,13 @@ enum Terminals {
             if let hit {
                 // Pressing digits past the last tab does nothing, so a tab found early may not be where the keys ended.
                 if seen.count != hit + 1 { press(digit: hit + 1, with: .maskCommand) }
-                return true
+                if windows.count > 1 { return WarpTabs.score(seen[hit], cwd: cwd, home: home, hints: hints) >= WarpTabs.certain }
+                return WarpTabs.sure(seen, hit, cwd: cwd, home: home, hints: hints)
             }
             // Nothing here: back to the tab this window was on.
             if let back = seen.firstIndex(of: start) { press(digit: back + 1, with: .maskCommand) }
         }
-        return false
+        return nil
     }
 
     /// A key press with a modifier, sent to whatever is in front.
@@ -133,7 +141,9 @@ enum Terminals {
         }
     }
 
-    static func focusTab(app: String?, tty: String, cwd: String, hints: [String] = []) -> String? {
+    /// A terminal by folder (Ghostty, cmux) is only surely the session's when no other terminal there is in that folder:
+    /// with several, the first comes forward as a guess.
+    static func focusTab(app: String?, tty: String, cwd: String, hints: [String] = []) -> Shown? {
         let folder = cwd
         let tty = appleQuote(tty), cwd = appleQuote(cwd)
         let byFolder = { (name: String) in """
@@ -142,7 +152,8 @@ enum Terminals {
               if (count of hits) is 0 then return "no"
               focus item 1 of hits
               activate
-              return "ok"
+              if (count of hits) is 1 then return "ok"
+              return "guess"
             end tell
             """ }
         let scripts: [String: String] = [
@@ -181,15 +192,16 @@ enum Terminals {
             cmux: byFolder("cmux"),
         ]
         guard let app else { return nil }
-        if let script = scripts[app], run(script) == "ok" { return app }
-        if app == warp, switchWarpTab(cwd: folder, hints: hints) { return app }
+        if let script = scripts[app], let said = run(script), said == "ok" || said == "guess" { return Shown(app: app, exact: said == "ok") }
+        if app == warp, let sure = switchWarpTab(cwd: folder, hints: hints) { return Shown(app: app, exact: sure) }
         // No way to pick the tab: bring its terminal forward, which is most of the way there.
         NSRunningApplication.runningApplications(withBundleIdentifier: app).first?.activate()
-        return app
+        return Shown(app: app, exact: false)
     }
 
     /// Types a line into what runs this session and presses Return, without bringing it forward, the clipboard or
-    /// Accessibility: a herdr or tmux pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder. False where it cannot.
+    /// Accessibility: a herdr or tmux pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder when only
+    /// one of its terminals is in that folder. False where it cannot.
     static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
         switch live.place {
         case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
@@ -233,8 +245,10 @@ enum Terminals {
             script = """
             tell application "\(name)"
               set hits to (every terminal whose working directory is \(cwd))
-              if (count of hits) is 0 then return "no"
-              input text \(appleQuote(line + "\r")) to item 1 of hits
+              if (count of hits) is not 1 then return "no"
+              input text \(appleQuote(line)) to item 1 of hits
+              delay 0.1
+              perform action "text:\\\\r" on item 1 of hits
               return "ok"
             end tell
             """
