@@ -154,7 +154,7 @@ public final class ClaudeWords: @unchecked Sendable {
     public static let shared = ClaudeWords(idb: FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Claude/IndexedDB"))
     let idb: URL
-    private var cache: (stamp: [Date], words: [String: SessionDigest], read: Date)?
+    private var cache: [Bool: (stamp: [Date], words: [String: SessionDigest], read: Date)] = [:]
     private let lock = NSLock()
     /// Read at most this often: the files change with every message the app shows.
     public var every: TimeInterval = 5
@@ -164,27 +164,29 @@ public final class ClaudeWords: @unchecked Sendable {
     var leveldb: URL { idb.appendingPathComponent("https_claude.ai_0.indexeddb.leveldb") }
     var blobs: URL { idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob") }
 
-    public func read() -> [String: SessionDigest] {
+    /// `chats` false: tasks only. A chat's words (your message, Claude's reply) are read only while chats are ticked.
+    public func read(chats: Bool = true) -> [String: SessionDigest] {
         let fm = FileManager.default
         var files = ((try? fm.contentsOfDirectory(at: leveldb, includingPropertiesForKeys: nil)) ?? []).filter { ["log", "ldb", "sst"].contains($0.pathExtension) }
         if let e = fm.enumerator(at: blobs, includingPropertiesForKeys: nil) { for case let u as URL in e { files.append(u) } }
         let stamp = files.compactMap(SessionScanner.mtime).sorted()
-        lock.lock(); let hit = cache; lock.unlock()
+        lock.lock(); let hit = cache[chats]; lock.unlock()
         if let hit, hit.stamp == stamp || Date().timeIntervalSince(hit.read) < every { return hit.words }
         var values = Array(LevelDB.read(leveldb).values)
         for f in files where f.path.hasPrefix(blobs.path) { if let d = try? Data(contentsOf: f, options: .alwaysMapped) { values.append(d) } }
-        let words = Self.words(values)
-        lock.lock(); cache = (stamp, words, Date()); lock.unlock()
+        let words = Self.words(values, chats: chats)
+        lock.lock(); cache[chats] = (stamp, words, Date()); lock.unlock()
         return words
     }
 
     /// The conversations among IndexedDB values (a version number, then Blink's envelope), newest copy of each.
-    static func words(_ values: [Data]) -> [String: SessionDigest] {
+    static func words(_ values: [Data], chats: Bool = true) -> [String: SessionDigest] {
         var out: [String: (at: Double, words: SessionDigest)] = [:]
         for v in values {
             // The conversation's id and product come first in its object: only the Claude app's own (`chat`, `cowork`) are
             // decoded, not Claude Code's cloud sessions (`code`) or the app's other caches, which are large.
-            guard let head = Self.raw(v, upTo: 160), Self.product(head) != nil, let raw = Self.raw(v), var c = Optional(V8Clone(raw)),
+            guard let head = Self.raw(v, upTo: 160), let product = Self.product(head), chats || product != "chat",
+                  let raw = Self.raw(v), var c = Optional(V8Clone(raw)),
                   let o = c.read() as? [String: Any], let id = o["conversationUuid"] as? String, let tree = o["tree"] as? [String: Any] else { continue }
             let at = (o["writtenAt"] as? Double) ?? 0
             let words = o["product"] as? String == "cowork" ? Self.task(tree) : Self.chat(tree)
@@ -203,9 +205,10 @@ public final class ClaudeWords: @unchecked Sendable {
         let start = v.startIndex + j
         if j + 2 < b.count, b[j + 1] == 0x11 {
             guard b[j + 2] == 0x02 else { return nil }
-            return Snappy.decompress([UInt8](v[(start + 3)...])[...], upTo: cap)
+            let body = v[(start + 3)...]
+            return Snappy.decompress(ArraySlice(cap == nil ? body : body.prefix(64 * 1024)), upTo: cap)
         }
-        return cap.map { [UInt8](v[start...].prefix($0)) } ?? [UInt8](v[start...])
+        return cap.map { [UInt8](v[start...].prefix($0)) } ?? [UInt8](v[start...])   // (uncompressed: only the head is copied)
     }
 
     /// "chat" or "cowork" when the value is one of the Claude app's conversations, from the first bytes of its object.
@@ -279,7 +282,7 @@ enum Snappy {
                     len = 0; for k in 0..<extra { len |= Int(b[i + k]) << (8 * k) }; i += extra
                 }
                 len += 1
-                guard i + len <= b.count else { return nil }
+                guard i + len <= b.count else { return cap != nil ? out + b[i..<b.count] : nil }   // capped: the input was cut short on purpose
                 out += b[i..<i + len]; i += len
             } else {
                 let len: Int, off: Int
@@ -331,7 +334,8 @@ struct V8Clone {
         let k = try value()
         if let s = k as? String { return s }
         if let n = k as? Int { return String(n) }
-        if let d = k as? Double { return String(Int(d)) }
+        // A damaged value (NaN, infinite, out of range) stops the read rather than trapping.
+        if let d = k as? Double, d.isFinite, abs(d) < 9e15, d == d.rounded() { return String(Int(d)) }
         throw Stop()
     }
 
@@ -373,7 +377,7 @@ struct V8Clone {
             let slot = objects.count; objects.append(NSNull())
             let n = try varint(); guard n < 1 << 20 else { throw Stop() }
             var a = [Any](repeating: NSNull(), count: n)
-            while try peek() != UInt8(ascii: "@") { let k = try key(); let v = try value(); if let x = Int(k), x < n { a[x] = v } }
+            while try peek() != UInt8(ascii: "@") { let k = try key(); let v = try value(); if let x = Int(k), x >= 0, x < n { a[x] = v } }
             i += 1; _ = try varint(); _ = try varint(); objects[slot] = a; return a
         case UInt8(ascii: "'"):
             let slot = objects.count; objects.append(NSNull())

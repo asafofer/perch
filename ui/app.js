@@ -2920,14 +2920,14 @@
          nothing to choose there, Perch finds them by itself. */
       var KINDS = { claude: 'Code', cowork: 'Tasks', chat: 'Chats' };
       var kinds = o.sources.filter(function (x) { return KINDS[x.id]; }), others = o.sources.filter(function (x) { return !KINDS[x.id]; });
-      var tick = function (x, cls) { return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ' + cls + '">' + (cls === 'ck' ? '' : KINDS[x.id]) + svg('check', cls === 'ck' ? 'size-4' : 'size-3') + '</button>'; };
+      var srcTick = function (x, cls) { return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ' + cls + '">' + (cls === 'ck' ? '' : KINDS[x.id]) + svg('check', cls === 'ck' ? 'size-4' : 'size-3') + '</button>'; };
       var tile = function (id, icon, name, line, on, right, wide) {
         return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (wide ? ' col-span-full' : '') + '" data-id="' + id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + icon + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' + right + '</div>';
       };
       var code = kinds.filter(function (x) { return x.id === 'claude'; })[0];
       var rows = (kinds.length ? tile('claude-group', App('claude', 'size-5'), 'Claude', code ? srcLine(o, code) : '', kinds.some(function (x) { return x.enabled; }),
-        '<span class="flex flex-none gap-1">' + kinds.map(function (x) { return tick(x, 'o-chip'); }).join('') + '</span>', true) : '') +
-        others.map(function (x) { return tile(x.id, App(x.id, 'size-5'), x.name, srcLine(o, x), x.enabled, tick(x, 'ck')); }).join('');
+        '<span class="flex flex-none gap-1">' + kinds.map(function (x) { return srcTick(x, 'o-chip'); }).join('') + '</span>', true) : '') +
+        others.map(function (x) { return tile(x.id, App(x.id, 'size-5'), x.name, srcLine(o, x), x.enabled, srcTick(x, 'ck')); }).join('');
       var cols = 'grid-cols-2';   /* three to a row leaves an agent's name no room */
       var places = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
       h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +

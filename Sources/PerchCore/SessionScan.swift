@@ -220,7 +220,7 @@ public final class SessionScanner: @unchecked Sendable {
     /// you gave it; one without a folder goes by its title alone.
     public func tasks(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let words = claudeWords.read()
+        let words = claudeWords.read(chats: false)
         return claudeCache.read().tasks.filter { !$0.archived && $0.lastActivity > cutoff }.prefix(limit).map { t in
             var d = words[t.id] ?? SessionDigest()
             d.sessionId = t.id; d.title = t.title; d.lastTimestamp = t.lastActivity
@@ -228,10 +228,11 @@ public final class SessionScanner: @unchecked Sendable {
         }
     }
 
-    /// The recent chats the Claude app last fetched: a title and a time each.
-    public func chats(limit: Int, now: Date = Date()) -> [Found] {
+    /// The recent chats the Claude app last fetched: a title and a time each. With `words`, what was said too, where this Mac
+    /// has it; without (chats switched off, only counted for onboarding and Settings), nothing of any chat is read but that.
+    public func chats(limit: Int, now: Date = Date(), words withWords: Bool = true) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let words = claudeWords.read()
+        let words = withWords ? claudeWords.read() : [:]
         return claudeCache.read().chats.filter { $0.updated > cutoff }.prefix(limit).map { c in
             var d = words[c.id] ?? SessionDigest()
             d.sessionId = c.id; d.title = c.title; d.lastTimestamp = c.updated

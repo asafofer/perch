@@ -173,6 +173,36 @@ private final class Home {
         #expect(bare.headline == "Not opened on this Mac yet")
     }
 
+    @Test func aChatsWordsAreReadOnlyWhileChatsAreTicked() throws {
+        let chatTree: KeyValuePairs<String, Any> = ["uuid": "c1", "current_leaf_message_uuid": "m1",
+            "messageByUuid": ["m1": ["uuid": "m1", "sender": "assistant", "content": [["type": "text", "text": "Something private."] as KeyValuePairs<String, Any>] as [Any]] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>]
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-ldb-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ldb = dir.appendingPathComponent("https_claude.ai_0.indexeddb.leveldb")
+        try FileManager.default.createDirectory(at: ldb, withIntermediateDirectories: true)
+        try leveldbLog([(Array("k1".utf8), conversation("c1", product: "chat", tree: chatTree))]).write(to: ldb.appendingPathComponent("000003.log"))
+        #expect(ClaudeWords(idb: dir).read(chats: false).isEmpty)
+        #expect(ClaudeWords(idb: dir).read()["c1"]?.lastAssistantText == "Something private.")
+    }
+
+    @Test func aDamagedKeyStopsTheReadInsteadOfCrashing() {
+        // An object whose key is a double that is not a whole number in range (here infinite).
+        let bad: [UInt8] = [0xFF, 0x0F, UInt8(ascii: "o"), UInt8(ascii: "N")] + withUnsafeBytes(of: Double.infinity.bitPattern.littleEndian, Array.init) + [UInt8(ascii: "T"), UInt8(ascii: "{"), 1]
+        var clone = V8Clone(bad)
+        #expect(clone.read() == nil)
+        // A sparse array with a negative index.
+        let sparse: [UInt8] = [0xFF, 0x0F, UInt8(ascii: "a"), 2, UInt8(ascii: "I"), 1, UInt8(ascii: "T"), UInt8(ascii: "@"), 1, 2]
+        var c2 = V8Clone(sparse)
+        #expect((c2.read() as? [Any])?.count == 2)
+    }
+
+    @Test func theFirstBytesOfACompressedValueComeFromItsStartAlone() {
+        let full = V8.blob(cache([chat("c1", String(repeating: "x", count: 5000), "2026-10-19T12:50:19Z")]))
+        let head = ClaudeWords.raw(full, upTo: 40)
+        #expect(head != nil && head!.count >= 40)
+        #expect(ClaudeWords.raw(full)?.count ?? 0 > 5000)
+    }
+
     @Test func aLaterWriteOfAKeyWinsAndADeleteRemovesIt() {
         var log = [UInt8](leveldbLog([(Array("a".utf8), Array("old".utf8)), (Array("b".utf8), Array("gone".utf8))], seq: 1))
         // A second batch: a new value for a, b deleted.

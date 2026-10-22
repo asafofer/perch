@@ -19,7 +19,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
 
     func parkedProjects() -> [Project] {
         var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
-            + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects)
+            + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects, words: isEnabled(Agent.chat.id))
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
         for item in all where !item.project.smallTalk {
