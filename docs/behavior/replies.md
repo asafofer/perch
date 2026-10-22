@@ -4,7 +4,8 @@ Selecting and copying the agent's words is in [card.md](card.md). Replies into h
 
 ## What the reply shows
 
-- The agent's own last message as written (`Project.said`, line breaks kept), with your own last message above it as a bubble, a scroll up (`Project.asked`).
+- The agent's own last message as written (`Project.said`, line breaks kept), with your own last message above it as a bubble, a scroll up (`Project.asked`). A message it has not answered yet (sent, and it is working on it) goes below instead, so the reply opens on it (`askedLast`); with nothing said back yet at all, the box holds only yours. An open reply follows each refresh: when the answer lands, yours slides up and the answer rises in under it (never while you are selecting words there).
+- While it works, the step it is on stays under the message, orb and shimmer as on the card (`.o-nx.live`).
 - Markdown (`mdLines`): a table scrolls in its own window both ways, header kept (`mdTable`). Bullet (`-`, `*`, `•`) and numbered lists draw with grey markers. Code takes the character's colour (`.md-code`, `--cr`). Deeper indents nest, an indented line carries on its item, a list may follow a bold line with no blank line, and a `#` heading is a bold line.
 
 ## Drafts and putting it away
@@ -23,9 +24,11 @@ Selecting and copying the agent's words is in [card.md](card.md). Replies into h
 
 ## Sending
 
-- To a terminal: the card clears and the notch gulps the words.
+- To a terminal: the card clears and the notch gulps the words. It is typed into the session's own pane or tab ([sessions.md](sessions.md#pick-up)); Ghostty and cmux by folder only when one terminal is in that folder; the words go in as a paste and Return follows as its own key, since a Return inside a paste does not send.
+- A session Perch sees no process for opens again with your words, except when an agent of its kind runs in its folder that no other session is tied to: that one may be it, so the reply stays on the clipboard (Reply copied) rather than start a second copy.
 - A reply that went in the background (typed into its terminal, a closed one reopened with it, or taken by Claude's composer) ends like an answer: the card folds to the Sent line ([speaking-up.md](speaking-up.md#sent-or-didnt-send)). Swift says so (`replying`), so the page never claims more than happened.
 - A reply that falls back to pasting says no Sent: the line goes without a word (`replyHanded`) and the session comes forward, or Reply copied says the rest. There is no Didn't send for a reply, since the fallback always takes it on.
 - To a Claude app session, it goes in with Claude's window behind (`ClaudeComposer`): it presses the session's sidebar row, fills the ProseMirror field (a draft already there is set aside and put back after Send), presses Send, then goes back. The page's address must end in `local_<id>` before it writes and before Send, otherwise it falls back to pasting. It leans on Claude's page internals, so a Claude update can send it to the fallback.
+- Where you were is the app in front before the reply opened, kept a few seconds after its field closes; when Perch itself was in front (opened with its shortcut), the last app before it.
 - Whenever Perch has to bring an app forward to reply (the paste fallback, a session resumed in a new terminal tab), it puts you back in the app, window and Claude session you were in (`WhereYouWere`). A fallback never presses Return over a draft.
 - Without Accessibility, Send reads Allow and send and holds the reply until access is on.

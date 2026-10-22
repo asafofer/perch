@@ -435,11 +435,13 @@ public enum Recap {
         // A question the transcript shows still open: the card shows it and its choices even when no hook said so.
         if d.turnOpen, let t = d.pendingTool, var q = Ask(pending: t, agent: agent.id) { q.transcriptAt = t.at ?? last; p.ask = q }
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil
+        p.toolOpen = d.turnOpen && d.pendingTool != nil
         // At work with its turn over: it waits on what it left in the background.
         p.waiting = working && !d.turnOpen
         p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
+        p.askedLast = d.lastRole == "user"
         return p
     }
 

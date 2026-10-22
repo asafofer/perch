@@ -15,6 +15,8 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - Open <app> at the right of the row opens the session in its app, on Command+Option+O on every row. With three choices on the row there is no room for the button, so the key works alone, and hovering the question says so. The key shows on no button when Perch's own open or new-session shortcut uses it or another app holds it. Clicking the question opens it on the card, all of it; so does the shortcut that opens Perch, on the row or in the wings.
 - Where Pick up is already a button (a finish), a small cross at the left of the row puts it away. Command+Option+. puts any row away.
 - The button under the pointer is lit from where the pointer is (app.js `markAct`), not WebKit's hover, which stays on a button the pointer left when the panel was never clicked.
+- A command on the row is said without the plumbing that only shapes its output for the agent: `npm run build 2>&1 | tail -n 30; echo "EXIT: $?"` reads `npm run build` (`Ask.brief`). The card shows it in full.
+- A finish shows only while Finished is on in Settings, Notifications (`notifyOff`, app.js `muted`).
 - A finish folds away. A request folds to wings until answered. A stop on an error (nothing to answer) says so once and folds away, and does not come back for the same error (`actErr`).
 
 ## Sent, or Didn't send
