@@ -83,6 +83,8 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                     places[id] = ["kind": "tmux", "socket": socket, "session": h.tmuxSession ?? "", "bin": h.bin ?? ""]
                 case .cmux:
                     projects[i].via = Terminals.cmux; places[id] = ["kind": "cmux"]
+                case .agterm:
+                    projects[i].via = Terminals.agterm; places[id] = ["kind": "agterm"]
                 case .tab:
                     projects[i].via = h.app ?? preferred
                     if let app = h.app { places[id] = ["kind": "tab", "app": app] }
@@ -98,6 +100,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                     projects[i].host = "tmux"
                     projects[i].via = viewers.first { $0.tmux == last?["socket"] && $0.session == last?["session"] }?.app ?? preferred
                 case "cmux": projects[i].via = Terminals.cmux
+                case "agterm": projects[i].via = Terminals.agterm
                 default: projects[i].via = preferred
                 }
             }
@@ -119,7 +122,7 @@ enum Landing {
 }
 
 /// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex, Conductor workspaces in Conductor, terminal sessions in their tab,
-/// herdr pane or cmux surface, or open again where they last ran.
+/// herdr pane, cmux surface or agterm pane, or open again where they last ran.
 @MainActor
 enum Restorer {
     nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", conductorApp = ConductorApp.bundle
@@ -185,8 +188,8 @@ enum Restorer {
     }
 
     /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, a new window in its
-    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, the OpenCode app, or a new
-    /// window of your terminal.
+    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, a new agterm session, the
+    /// OpenCode app, or a new window of your terminal.
     /// Blocks on the tools it drives, so call it off the main thread.
     /// Where a session opened again in a herdr or tmux client's terminal lands. A tab of that terminal that was only a guess
     /// is no place to type into, so it lands as an app that is not exact.
@@ -221,6 +224,10 @@ enum Restorer {
                 return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent)
             }
             if last?["kind"] == "cmux" { Terminals.open(command, in: cwd, app: Terminals.cmux); return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent) }
+        }
+        if last?["kind"] == "agterm", NSWorkspace.shared.urlForApplication(withBundleIdentifier: Terminals.agterm) != nil {
+            Terminals.open(command, in: cwd, app: Terminals.agterm)
+            return .newTerminal(Terminals.agterm, cwd: cwd, agent: agent)
         }
         // An OpenCode session that never ran in a terminal Perch saw may be the desktop app's.
         if agent == "opencode", last == nil, let app = NSRunningApplication.runningApplications(withBundleIdentifier: opencodeApp).first {
