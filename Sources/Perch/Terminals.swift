@@ -585,7 +585,8 @@ enum Agterm {
         guard app != nil, let bin,
               let workspace = workspaces(bin, window: nil).first(where: { $0["active"] as? Bool == true }),
               let session = (workspace["sessions"] as? [[String: Any]])?.first(where: { $0["active"] as? Bool == true }) else { return nil }
-        let kind = session["split"] as? Bool == true && session["splitFocused"] as? Bool == true ? "right" : "left"
+        // splitFocused is there for a hidden split too, and then the focused pane is the one shown.
+        let kind = session["splitFocused"] as? Bool == true ? "right" : "left"
         return (session["surfaces"] as? [[String: Any]])?.first { $0["kind"] as? String == kind }?["paneID"] as? String
     }
 
