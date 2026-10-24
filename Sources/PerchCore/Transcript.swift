@@ -72,7 +72,7 @@ public struct Work: Equatable, Sendable {
         let name = path.map { ($0 as NSString).lastPathComponent }
         let add = { (f: String, list: inout [String]) in if !f.isEmpty, !list.contains(f) { list.append(f) } }
         switch tool {
-        case "Edit", "MultiEdit", "edit", "multiedit", "Write", "write", "NotebookEdit":
+        case "Edit", "MultiEdit", "edit", "multiedit", "Write", "write", "NotebookEdit", "StrReplace", "EditNotebook":
             if let name { add(name, &edited) }
         case "apply_patch", "patch":
             // Codex's patch names its files in its own lines: "*** Update File: path".
@@ -80,7 +80,7 @@ public struct Work: Equatable, Sendable {
             for f in Self.patched(patch) { add(f, &edited) }
         case "Read", "read":
             if let name { add(name, &read) }
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+        case "Bash", "bash", "shell", "Shell", "exec_command", "local_shell", "container.exec", "shell_command":
             let c = Activity.command(input)
             if let m = Self.commitMessage(c) { commits.append(m); return }
             guard !Self.onlyLooks(c) else { return }
@@ -402,7 +402,7 @@ public enum Recap {
     }
 
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil) -> Project? {
+    public static func project(digest: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil, inApp: Bool = false) -> Project? {
         var d = digest
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
         // Only what is still out: work gone without a word for half an hour (the app quit) is not waited on.
@@ -426,7 +426,7 @@ public enum Recap {
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,
                        steps: conductor != nil
                            ? [RestoreStep(icon: "win", text: "Opened Conductor"), RestoreStep(icon: "term", text: "Went back to your workspace")]
-                           : desktopSessionId != nil
+                           : desktopSessionId != nil || inApp
                            ? [RestoreStep(icon: "win", text: "Opened the \(agent.short) app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent.name) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
@@ -519,7 +519,7 @@ public enum Recap {
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
     public static func isFolderless(_ cwd: String) -> Bool {
-        cwd.contains("/Claude/scratch-workspaces/") || cwd.contains("/Claude/local-agent-mode-sessions/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
+        cwd.contains("/Claude/scratch-workspaces/") || cwd.hasSuffix("/.cursor/projects/\(CursorApp.noFolder)") || cwd.contains("/Claude/local-agent-mode-sessions/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
     /// The agent's outcome in a sentence or two, picked from its last message as written. A Summary, TL;DR or Result section
@@ -882,16 +882,16 @@ public enum Activity {
         let file = { (_: String) in path.map { ($0 as NSString).lastPathComponent } ?? "a file" }
         let quoted = { (k: String) in "“\(Recap.clip(input[k] as? String ?? "", 40))”" }
         switch tool {
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+        case "Bash", "bash", "shell", "Shell", "exec_command", "local_shell", "container.exec", "shell_command":
             // Claude Code describes each command in words ("Run the test suite"); that reads better than the command.
             // It is written as an order ("Check the tests"); the Now row says what is happening ("Checking the tests").
             if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(ongoing(about), 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
         case "Read", "read", "view_image": return "Reading \(file(""))"
-        case "Edit", "MultiEdit", "edit", "multiedit": return "Editing \(file(""))"
+        case "Edit", "MultiEdit", "edit", "multiedit", "StrReplace": return "Editing \(file(""))"
         case "Write", "write": return "Writing \(file(""))"
-        case "NotebookEdit": return "Editing \(file(""))"
+        case "NotebookEdit", "EditNotebook": return "Editing \(file(""))"
         case "apply_patch", "patch": return "Changing files"
         case "Grep", "grep": return "Searching for \(quoted("pattern"))"
         case "Glob", "glob", "find": return "Looking for \(quoted("pattern"))"

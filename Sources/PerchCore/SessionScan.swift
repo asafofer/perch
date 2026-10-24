@@ -361,6 +361,58 @@ public final class SessionScanner: @unchecked Sendable {
         return out
     }
 
+    // MARK: Cursor (~/.cursor/projects/<folder>/agent-transcripts/<id>/<id>.jsonl; titles and folders from its database)
+    /// Cursor's agent chats, in the editor and in its Agents window alike. Subagents' and archived ones are left out.
+    public func cursor(limit: Int, now: Date = Date()) -> [Found] {
+        let fm = FileManager.default
+        let projects = home.appendingPathComponent(".cursor/projects")
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        var candidates: [(url: URL, id: String, slug: String, mtime: Date)] = []
+        for dir in (try? fm.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)) ?? [] {
+            let chats = dir.appendingPathComponent("agent-transcripts")
+            for chat in (try? fm.contentsOfDirectory(at: chats, includingPropertiesForKeys: nil)) ?? [] {
+                let id = chat.lastPathComponent, file = chat.appendingPathComponent(id + ".jsonl")
+                if let m = Self.mtime(file), m > cutoff { candidates.append((file, id, dir.lastPathComponent, m)) }
+            }
+        }
+        guard !candidates.isEmpty else { return [] }
+        candidates.sort { $0.mtime > $1.mtime }
+        let user = home.appendingPathComponent("Library/Application Support/Cursor/User")
+        let store = CursorStore(user: user)
+        var out: [Found] = []
+        for item in candidates {
+            guard out.count < limit else { break }
+            let header = store?.header(item.id)
+            if header?.archived == true || header?.subagent == true { continue }
+            guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: CursorTranscript.digest), digest.lastUserText != nil else { continue }
+            // The title and folder change rarely: asked of the database again only when the transcript changed.
+            let key = "cursor:" + item.id
+            lock.lock(); var meta = cursorMeta[key]; lock.unlock()
+            if meta?.mtime != item.mtime || meta?.folder == nil && header?.workspaceId != nil {
+                let chat = store?.chat(item.id)
+                let workspace = header?.workspaceId ?? chat?.workspaceId
+                let folder = workspace.flatMap { store?.folder(workspace: $0) }
+                    ?? (item.slug == CursorApp.noFolder ? projects.appendingPathComponent(CursorApp.noFolder).path : CursorApp.folder(forSlug: item.slug))
+                meta = (item.mtime, chat?.name, folder)
+                lock.lock(); cursorMeta[key] = meta; lock.unlock()
+            }
+            guard let cwd = meta?.folder, usable(cwd) else { continue }
+            digest.sessionId = item.id; digest.cwd = cwd; digest.title = meta?.name
+            // A transcript has no times of its own: the file was last written when the chat last moved.
+            digest.lastTimestamp = item.mtime
+            if digest.title == nil { digest.title = digest.lastAsk ?? digest.lastUserText }
+            digest.repoName = cachedRepo(cwd)
+            let cg = cachedGit(cwd, withBranch: true)
+            digest.branch = cg.branch
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .cursor, quietFor: now.timeIntervalSince(item.mtime), inApp: true) {
+                p.startedAt = Self.created(item.url)
+                out.append((p, digest, cg.info, item.mtime))
+            }
+        }
+        return out
+    }
+    private var cursorMeta: [String: (mtime: Date, name: String?, folder: String?)] = [:]
+
     private var firstPrompts: [String: String] = [:]
     private func cachedFirstPrompt(_ url: URL) -> String? {
         lock.lock(); let hit = firstPrompts[url.path]; lock.unlock()
