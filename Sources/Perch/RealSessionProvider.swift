@@ -225,8 +225,8 @@ enum Restorer {
             }
             if last?["kind"] == "cmux" { Terminals.open(command, in: cwd, app: Terminals.cmux); return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent) }
         }
-        if last?["kind"] == "agterm", NSWorkspace.shared.urlForApplication(withBundleIdentifier: Terminals.agterm) != nil {
-            Terminals.open(command, in: cwd, app: Terminals.agterm)
+        // When agterm cannot make the session, it falls through to your terminal below.
+        if last?["kind"] == "agterm", NSWorkspace.shared.urlForApplication(withBundleIdentifier: Terminals.agterm) != nil, Agterm.open(command, in: cwd) {
             return .newTerminal(Terminals.agterm, cwd: cwd, agent: agent)
         }
         // An OpenCode session that never ran in a terminal Perch saw may be the desktop app's.
@@ -234,7 +234,9 @@ enum Restorer {
             app.activate()
             return .app(opencodeApp, exact: false)
         }
-        Terminals.open(command, in: cwd, app: preferred)
-        return .newTerminal(preferred, cwd: cwd, agent: agent)
+        // Not agterm again: it just failed to make a session.
+        let fallback = preferred == Terminals.agterm && last?["kind"] == "agterm" ? Terminals.terminal : preferred
+        Terminals.open(command, in: cwd, app: fallback)
+        return .newTerminal(fallback, cwd: cwd, agent: agent)
     }
 }
