@@ -23,6 +23,10 @@
 - After a trust question, Perch chooses the project only once the menu shows it (your Trust); the menu back on another folder is your Cancel.
 - Perch presses Send only while Claude's menu by the field names the project you chose (`folderMenus`: a menu's title, "Folder: ~/path", or "Environment: name"), else it leaves Send to you. The session then starts as Claude starts one in that project, in a new worktree when the project makes them. While it waits on that, a new session of the agent counts wherever it runs, since you can pick another folder there (`NewSession.started`, `anyFolder`).
 
+## Cursor
+
+- Not offered: its `prompt` link makes Cursor ask you to confirm an external prompt (which Perch does not press for you) and cannot name a repository, so a session could not be started in the folder you chose ([the spike](../spikes/cursor.md)).
+
 ## Starting a terminal agent
 
 - It opens in a new window of your terminal: `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
