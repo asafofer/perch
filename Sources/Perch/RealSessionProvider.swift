@@ -204,8 +204,8 @@ enum Restorer {
             let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
             if Herdr.running(socket: socket, bin: bin), Herdr.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
                 if let v = LiveSessions.scan().viewers.first(where: { $0.tmux == nil && $0.session == name }) { return shown(Terminals.show(v), or: preferred, cwd: cwd, agent: agent) }
-                Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
-                return .newTerminal(preferred, cwd: cwd, agent: agent)
+                let app = Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
+                return .newTerminal(app, cwd: cwd, agent: agent)
             }
         }
         if last?["kind"] == "tmux", let socket = last?["socket"] {
@@ -215,8 +215,8 @@ enum Restorer {
                 if let c = Tmux.ask(socket: socket, bin: Tmux.bin(bin))?.viewer(of: pane), Tmux.show(pane: pane, socket: socket, client: c.tty, bin: bin) {
                     return shown(Terminals.show(LiveSessions.viewer(c, socket: socket, bin: Tmux.bin(bin))), or: preferred, cwd: cwd, agent: agent)
                 }
-                Terminals.open(Tmux.attach(pane: pane, socket: socket, bin: bin), in: cwd, app: preferred)
-                return .newTerminal(preferred, cwd: cwd, agent: agent)
+                let app = Terminals.open(Tmux.attach(pane: pane, socket: socket, bin: bin), in: cwd, app: preferred)
+                return .newTerminal(app, cwd: cwd, agent: agent)
             }
         }
         if Cmux.app != nil {
@@ -225,18 +225,17 @@ enum Restorer {
             }
             if last?["kind"] == "cmux" { Terminals.open(command, in: cwd, app: Terminals.cmux); return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent) }
         }
-        // When agterm cannot make the session, it falls through to your terminal below.
-        if last?["kind"] == "agterm", NSWorkspace.shared.urlForApplication(withBundleIdentifier: Terminals.agterm) != nil, Agterm.open(command, in: cwd) {
-            return .newTerminal(Terminals.agterm, cwd: cwd, agent: agent)
+        // Terminals.open falls back to Terminal when agterm cannot make the session.
+        if last?["kind"] == "agterm" {
+            let app = Terminals.open(command, in: cwd, app: Terminals.agterm)
+            return .newTerminal(app, cwd: cwd, agent: agent)
         }
         // An OpenCode session that never ran in a terminal Perch saw may be the desktop app's.
         if agent == "opencode", last == nil, let app = NSRunningApplication.runningApplications(withBundleIdentifier: opencodeApp).first {
             app.activate()
             return .app(opencodeApp, exact: false)
         }
-        // Not agterm again: it just failed to make a session.
-        let fallback = preferred == Terminals.agterm && last?["kind"] == "agterm" ? Terminals.terminal : preferred
-        Terminals.open(command, in: cwd, app: fallback)
-        return .newTerminal(fallback, cwd: cwd, agent: agent)
+        let app = Terminals.open(command, in: cwd, app: preferred)
+        return .newTerminal(app, cwd: cwd, agent: agent)
     }
 }

@@ -18,8 +18,10 @@ enum Terminals {
     /// The terminal you used last, if Perch can open a session in it; Terminal otherwise.
     static var preferred: String { Prefs.lastTerminal.flatMap { opens.contains($0) ? $0 : nil } ?? terminal }
 
-    /// Opens a new window (a workspace in cmux, a session in agterm) in `cwd` that runs `command`.
-    static func open(_ command: String, in cwd: String, app: String = preferred) {
+    /// Opens a new window (a workspace in cmux, a session in agterm) in `cwd` that runs `command`, and says which app it
+    /// opened in: Terminal when agterm could not make the session.
+    @discardableResult
+    static func open(_ command: String, in cwd: String, app: String = preferred) -> String {
         let typed = "cd \(shellQuote(cwd)) && \(command)"
         switch app {
         case iterm:
@@ -43,10 +45,11 @@ enum Terminals {
         case cmux:
             Cmux.open(command, in: cwd)
         case agterm:
-            Agterm.open(command, in: cwd)
+            if !Agterm.open(command, in: cwd) { return open(command, in: cwd, app: terminal) }
         default:
             run("tell application \"Terminal\"\nactivate\ndo script \(appleQuote(typed))\nend tell")
         }
+        return app
     }
 
     /// Where a session was brought forward: the app in front, and whether what it shows now is that session's own tab.
@@ -528,17 +531,20 @@ enum Agterm {
     static let bundle = "com.umputun.agterm"
     static var app: NSRunningApplication? { NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first }
 
-    /// The CLI agterm ships inside its app, else the one on the usual paths.
+    nonisolated(unsafe) private static var foundBin: String?
+
+    /// The CLI agterm ships inside its app, else the one on the usual paths. Kept once found, so an install made later is still picked up.
     static var bin: String? {
-        let inside = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle).map { $0.appendingPathComponent("Contents/MacOS/agtermctl").path }
-        return ([inside].compactMap { $0 } + ["/opt/homebrew/bin/agtermctl", "/usr/local/bin/agtermctl"]).first { FileManager.default.isExecutableFile(atPath: $0) }
+        if let foundBin { return foundBin }
+        let inside = AppIcons.url("agterm").map { $0.appendingPathComponent("Contents/MacOS/agtermctl").path }
+        foundBin = ([inside].compactMap { $0 } + ["/opt/homebrew/bin/agtermctl", "/usr/local/bin/agtermctl"]).first { FileManager.default.isExecutableFile(atPath: $0) }
+        return foundBin
     }
 
-    /// Runs a command and reads its JSON answer. Nil when agterm is not running or refused it.
-    @discardableResult
+    /// Runs a command and reads its JSON answer. Nil when agterm refused it.
     /// `text` goes last, after `--`, so a line starting with a dash is not read as an option.
-    private static func cli(_ args: [String], window: String? = nil, text: String? = nil) -> [String: Any]? {
-        guard app != nil, let bin else { return nil }
+    @discardableResult
+    private static func cli(_ bin: String, _ args: [String], window: String? = nil, text: String? = nil) -> [String: Any]? {
         let out = Terminals.tool(bin, args + (window.map { ["--window", $0] } ?? []) + ["--json"] + (text.map { ["--", $0] } ?? []))
         guard let o = out.flatMap({ (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }), o["ok"] as? Bool == true else { return nil }
         return o["result"] as? [String: Any] ?? [:]
@@ -546,14 +552,15 @@ enum Agterm {
 
     /// Raises the session's window, selects the session, shows its split if it is hidden, gives its pane the focus when
     /// the session has a split, and brings agterm forward. False when agterm is not running, the session or its pane is gone, or the split pane would not take
-    /// the focus: the other pane may have it, and a reply pasted there would go to the wrong place.
+    /// the focus: the other pane may have it, and a reply pasted there would go to the wrong place. The tree is read first, so a session that is gone
+    /// leaves your view where it was.
     static func focus(window: String?, session: String, pane: String) -> Bool {
-        if let window { cli(["window", "select", window]) }
-        guard cli(["session", "select", "--target", session], window: window) != nil,
-              let (kind, hasSplit, shown) = surface(of: pane, session: session, window: window) else { return false }
+        guard app != nil, let bin, let (kind, hasSplit, shown) = surface(bin, of: pane, session: session, window: window) else { return false }
+        if let window { cli(bin, ["window", "select", window]) }
+        guard cli(bin, ["session", "select", "--target", session], window: window) != nil else { return false }
         if hasSplit {
-            if !shown, cli(["session", "split", "visibility", "on", "--target", session], window: window) == nil { return false }
-            if cli(["session", "focus", kind, "--target", session], window: window) == nil { return false }
+            if !shown, cli(bin, ["session", "split", "visibility", "on", "--target", session], window: window) == nil { return false }
+            if cli(bin, ["session", "focus", kind, "--target", session], window: window) == nil { return false }
         }
         app?.activate()
         return true
@@ -561,23 +568,22 @@ enum Agterm {
 
     /// Which of its session's panes a pane is now ("left" or "right"), whether the session has a split pane (`hasSplit`),
     /// and whether it shows it now (`split`, false after Cmd+D hid it): a split's panes can swap places.
-    private static func surface(of pane: String, session: String, window: String?) -> (kind: String, hasSplit: Bool, shown: Bool)? {
-        guard let s = sessions(window: window).first(where: { $0["id"] as? String == session }),
+    private static func surface(_ bin: String, of pane: String, session: String, window: String?) -> (kind: String, hasSplit: Bool, shown: Bool)? {
+        guard let s = workspaces(bin, window: window).flatMap({ $0["sessions"] as? [[String: Any]] ?? [] }).first(where: { $0["id"] as? String == session }),
               let kind = (s["surfaces"] as? [[String: Any]])?.first(where: { ($0["paneID"] as? String)?.lowercased() == pane.lowercased() })?["kind"] as? String
         else { return nil }
         return (kind, s["hasSplit"] as? Bool == true, s["split"] as? Bool == true)
     }
 
-    /// Every session in that window (the frontmost when nil), from its tree.
-    private static func sessions(window: String?) -> [[String: Any]] {
-        let workspaces = (cli(["tree"], window: window)?["tree"] as? [String: Any])?["workspaces"] as? [[String: Any]] ?? []
-        return workspaces.flatMap { $0["sessions"] as? [[String: Any]] ?? [] }
+    /// Every workspace in that window (the frontmost when nil), from its tree.
+    private static func workspaces(_ bin: String, window: String?) -> [[String: Any]] {
+        (cli(bin, ["tree"], window: window)?["tree"] as? [String: Any])?["workspaces"] as? [[String: Any]] ?? []
     }
 
     /// The pane that has the keyboard in the frontmost window: its active session's focused pane. Nil when it cannot be read.
     static func focusedPane() -> String? {
-        let tree = cli(["tree"])?["tree"] as? [String: Any]
-        guard let workspace = (tree?["workspaces"] as? [[String: Any]])?.first(where: { $0["active"] as? Bool == true }),
+        guard app != nil, let bin,
+              let workspace = workspaces(bin, window: nil).first(where: { $0["active"] as? Bool == true }),
               let session = (workspace["sessions"] as? [[String: Any]])?.first(where: { $0["active"] as? Bool == true }) else { return nil }
         let kind = session["split"] as? Bool == true && session["splitFocused"] as? Bool == true ? "right" : "left"
         return (session["surfaces"] as? [[String: Any]])?.first { $0["kind"] as? String == kind }?["paneID"] as? String
@@ -587,29 +593,33 @@ enum Agterm {
     /// types as keys do, so a newline in the line would send it early. The session is named because agterm otherwise
     /// looks for the pane in the window's active session.
     static func type(_ line: String, window: String?, session: String, pane: String) -> Bool {
-        guard cli(["session", "type", "--target", session, "--pane-id", pane], window: window, text: line) != nil else { return false }
+        guard app != nil, let bin else { return false }
+        let args = ["session", "type", "--target", session, "--pane-id", pane]
+        guard cli(bin, args, window: window, text: line) != nil else { return false }
         Thread.sleep(forTimeInterval: 0.1)
-        return cli(["session", "type", "--target", session, "--pane-id", pane], window: window, text: "\r") != nil
+        return cli(bin, args, window: window, text: "\r") != nil
     }
 
     /// A new session in `cwd` that runs `command` from your shell, so the shell stays when the agent ends; selected, in
     /// front. agterm is opened first when it is not running. False when no session could be made.
     @discardableResult
     static func open(_ command: String, in cwd: String) -> Bool {
+        guard let bin else { return false }
+        // `session new` fails until agterm has restored a window, which takes a few seconds after it starts.
+        var tries = 10
         if app == nil {
-            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return false }
+            guard let url = AppIcons.url("agterm") else { return false }
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-            for _ in 0..<40 where cli(["version"]) == nil { Thread.sleep(forTimeInterval: 0.25) }
+            tries = 30
         }
-        // `version` answers before agterm has restored a window, and `session new` fails until one exists.
         var id: String?
-        for _ in 0..<10 {
-            id = cli(["session", "new", "--cwd", cwd])?["id"] as? String
+        for i in 0..<tries {
+            id = cli(bin, ["session", "new", "--cwd", cwd])?["id"] as? String
             if id != nil { break }
-            Thread.sleep(forTimeInterval: 0.5)
+            if i < tries - 1 { Thread.sleep(forTimeInterval: 0.5) }
         }
         guard let id else { return false }
-        cli(["session", "type", "--target", id], text: command + "\n")
+        cli(bin, ["session", "type", "--target", id], text: command + "\n")
         app?.activate()
         return true
     }
