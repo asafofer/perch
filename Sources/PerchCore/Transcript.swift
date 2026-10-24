@@ -651,7 +651,7 @@ public enum Recap {
             if t.isQuestion { return ((.needsYou, "\(short) asked you something"), "") }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
-            let expected: TimeInterval = ["Bash", "bash"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
+            let expected: TimeInterval = ["Bash", "bash", "Shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
             if quiet < expected { return working }
             if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
             return ((.idle, "\(agent) stopped mid-task"), "")

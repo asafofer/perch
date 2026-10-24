@@ -105,13 +105,19 @@ public enum CursorApp {
 public enum CursorTranscript {
     public static func digest(lines: [String]) -> SessionDigest {
         var d = SessionDigest()
+        // The last tool call, until something follows it: a transcript has no results, so a call that the next line does not
+        // follow is still running, or waiting for your OK.
+        var open: PendingTool?
         for line in lines {
             guard let o = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any] else { continue }
             if o["type"] as? String == "turn_ended" {
-                d.turnOpen = false
+                d.turnOpen = false; open = nil
+                // Cursor closes a turn you stopped, or one it found left open, as an error that says so.
+                let why = o["error"] as? String
                 switch o["status"] as? String {
                 case "aborted", "cancelled", "canceled": d.interrupted = true
-                case "error", "failed": d.failed = "error"
+                case "error", "failed":
+                    if why?.lowercased().contains("abort") == true { d.interrupted = true } else { d.failed = why ?? "error" }
                 default: break
                 }
                 continue
@@ -122,19 +128,21 @@ public enum CursorTranscript {
             if role == "user" {
                 let words = texts.map(query(in:)).joined(separator: "\n\n")
                 guard let line = TranscriptParser.text(from: words), !line.isEmpty else { continue }
-                d.turnOpen = true; d.interrupted = false; d.stoppedAt = nil; d.failed = nil
+                d.turnOpen = true; d.interrupted = false; d.stoppedAt = nil; d.failed = nil; open = nil
                 d.lastUserText = line; d.lastUserFull = TranscriptParser.text(from: words, keepLines: true)
                 if !Recap.isAcknowledgement(line) { d.lastAsk = line }
                 d.narration = nil; d.step = nil; d.work = Work()
                 d.lastRole = "user"
                 d.recent.append(.init(role: "user", text: Recap.clip(line, 420)))
             } else if role == "assistant" {
+                open = nil
                 for b in blocks where b["type"] as? String == "tool_use" {
                     let name = b["name"] as? String ?? "tool", input = b["input"] as? [String: Any] ?? [:]
                     d.didWork = true
                     if let step = Activity.step(tool: name, input: input) { d.step = step }
                     d.work.note(tool: name, input: input)
                 }
+                if let last = blocks.last, last["type"] as? String == "tool_use" { open = PendingTool(block: last) }
                 let words = texts.map(clean).joined(separator: "\n\n")
                 guard let line = TranscriptParser.text(from: words), !line.isEmpty else { continue }
                 d.lastAssistantText = line; d.lastAssistantFull = TranscriptParser.text(from: words, keepLines: true); d.narration = line
@@ -143,6 +151,7 @@ public enum CursorTranscript {
             }
             if d.recent.count > 12 { d.recent.removeFirst() }
         }
+        d.pendingTool = d.turnOpen ? open : nil
         return d
     }
 

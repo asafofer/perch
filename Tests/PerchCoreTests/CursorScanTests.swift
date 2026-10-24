@@ -88,6 +88,11 @@ private enum CursorLines {
     static let finished = [user(prompt), tool, said(reply), ended]
     static let working = [user(prompt), said("Running the tests before I touch the scheduler."), tool]
     static let aborted = [user(prompt), tool, #"{"type":"turn_ended","status":"aborted"}"#]
+    /// What Cursor writes when it opens a chat whose turn was left open, or when you stop it.
+    static let userAborted = [user(prompt), tool, #"{"type":"turn_ended","status":"error","error":"User aborted request"}"#]
+    static let failed = [user(prompt), #"{"type":"turn_ended","status":"error","error":"Rate limit reached"}"#]
+    /// A command the agent called and nothing followed: it runs, or waits for your OK.
+    static let shell = [user(prompt), #"{"role":"assistant","message":{"content":[{"type":"text","text":"Running it."},{"type":"tool_use","name":"Shell","input":{"command":"rm -rf dist","description":"Remove dist"}}]}}"#]
 }
 
 @Suite struct CursorScanTests {
@@ -138,6 +143,26 @@ private enum CursorLines {
         #expect(by["done"]?.status.kind == "done")
         // the file's age is when it last moved
         #expect(by["done"]?.lastActive.map { abs($0.timeIntervalSince(h.now.addingTimeInterval(-120))) < 1 } == true)
+    }
+
+    @Test func aTurnCursorClosedAsAbortedIsOneYouStoppedNotAnError() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("abort", slug: "code-scraper", ago: 60, workspace: "w1", lines: CursorLines.userAborted)
+        h.chat("fail", slug: "code-scraper", ago: 120, workspace: "w1", lines: CursorLines.failed)
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.cursor(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["abort"]?.status.text == "You stopped Cursor")
+        #expect(by["fail"]?.status.text == "Cursor stopped on an error"); #expect(by["fail"]?.context == "Rate limit reached")
+    }
+
+    @Test func aCallNothingFollowsRunsAndThenWaitsOnYou() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("run", slug: "code-scraper", ago: 20, workspace: "w1", lines: CursorLines.shell)
+        h.chat("wait", slug: "code-scraper", ago: 300, workspace: "w1", lines: CursorLines.shell)
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.cursor(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["run"]?.status.kind == "running"); #expect(by["run"]?.now == "Removing dist")
+        #expect(by["wait"]?.status.text == "Cursor is waiting for your OK")
     }
 
     @Test func aChatWithNoFolderIsNamedByItsTitle() {

@@ -163,8 +163,7 @@ enum Restorer {
             return
         }
         if p.app == Agent.cursor.id {
-            CursorWindow.open(folder: p.cwd)
-            done(.app(cursorApp, exact: false))
+            done(.app(cursorApp, exact: CursorWindow.open(chat: p.sessionId, folder: p.cwd)))
             return
         }
         if p.app == "codex" {
