@@ -27,3 +27,24 @@ enum CursorWindow {
         return false
     }
 }
+
+extension CursorWindow {
+    /// The chat the Agents window in front shows, by its title (the window names it in a button: "Chat title. <title>").
+    /// `.none` when that window shows no chat (a new one); `.unreadable` for any other window or without Accessibility.
+    /// Runs off the main thread.
+    nonisolated static func showingNow() -> ClaudeComposer.Showing {
+        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return .unreadable }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        guard let window = ConductorApp.attr(ax, kAXFocusedWindowAttribute) as! AXUIElement?,
+              let page = ConductorApp.first(in: [window], limit: 400, { ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXWebArea" }),
+              (ConductorApp.attr(page, kAXTitleAttribute) as? String)?.contains("Agents") == true else { return .unreadable }
+        let mark = "Chat title. "
+        let hit = ConductorApp.first(in: [page], limit: 3000) {
+            ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && (ConductorApp.attr($0, kAXTitleAttribute) as? String)?.hasPrefix(mark) == true
+        }
+        guard let title = (hit.flatMap { ConductorApp.attr($0, kAXTitleAttribute) as? String })?.dropFirst(mark.count), !title.isEmpty else { return .none }
+        return .session(String(title))
+    }
+}

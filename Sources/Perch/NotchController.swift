@@ -314,9 +314,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
         case Restorer.codexApp: return ([], Focus.inCodexApp(projects.filter { $0.conductor == nil }))
         case Restorer.cursorApp:
-            // Its chats cannot be told apart in its window: any may be the one in front. Terminal sessions in its terminal can.
+            // The Agents window names the chat it shows; where that cannot be read, any of its chats may be the one in front.
+            // Terminal sessions in its own terminal are told apart like any terminal's.
             let r = Focus.inTerminal(projects, app: bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
-            return (r.sure, r.maybe.union(projects.filter { $0.app == Agent.cursor.id }.map(\.id)))
+            let chats = projects.filter { $0.app == Agent.cursor.id }
+            switch focus.fresh(for: bid)?.claude {
+            case .session(let title)?:
+                let here = Set(chats.filter { $0.topic == title || (title.hasPrefix($0.topic) && $0.topic.count >= 80) }.map(\.id))
+                return (r.sure.union(here), r.maybe.union(here))
+            case .some(.none): return (r.sure, r.maybe)
+            default: return (r.sure, r.maybe.union(chats.map(\.id)))
+            }
         default:
             guard Terminals.keys[bid] != nil else { return ([], []) }
             let r = Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
@@ -329,6 +337,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func hasSessions(in bid: String) -> Bool {
         if bid == Restorer.claudeApp { return projects.contains { $0.desktopSessionId != nil } }
         if bid == Restorer.conductorApp { return projects.contains { $0.conductor != nil } }
+        if bid == Restorer.cursorApp, projects.contains(where: { $0.app == Agent.cursor.id }) { return true }
         let app = bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid
         return projects.contains { $0.terminal && $0.via == app && $0.spot != nil }
     }
@@ -1478,6 +1487,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
+        let cursorTitle = projects[i].app == Agent.cursor.id && !projects[i].topic.isEmpty ? projects[i].topic : nil
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -1511,6 +1521,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 guard await settle(), NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target else {
                     NSLog("Perch: reply left on the clipboard (\(target) did not come forward)"); self?.say("Paste in \(app)"); return
+                }
+                // Cursor's link may have found no such chat, or Cursor was still starting: its prompt takes the words only once its
+                // window shows this very chat, never the new chat it would open on.
+                if let want = cursorTitle {
+                    var shown = false
+                    for _ in 0..<20 {
+                        if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, t == want || t.hasPrefix(want) || want.hasPrefix(t) { shown = true; break }
+                        try? await Task.sleep(for: .milliseconds(400))
+                    }
+                    guard shown else { NSLog("Perch: reply left on the clipboard (Cursor does not show the chat)"); self?.say("Paste in \(app)"); return }
                 }
                 let src = CGEventSource(stateID: .combinedSessionState)
                 for down in [true, false] {
