@@ -1612,7 +1612,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
         let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
         return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
-                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil)]
+                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil),
+                ("agterm", "agterm", AppIcons.url("agterm") != nil)]
             .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }
     }
 

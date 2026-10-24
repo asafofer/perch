@@ -44,21 +44,21 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 - **While you work.** When a session you are not in finishes or asks for something, the notch grows with what happened and a row of buttons. A finish folds away on its own; a request waits as small wings until you answer.
 - **What needs you.** With live status on, Claude Code, Codex, OpenCode and pi tell Perch the moment they finish or need your OK. Sessions that need you come first.
 - **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's or OpenCode's question, without leaving what you are doing.
-- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr or tmux pane or cmux split. A session that has ended opens again where it last ran.
+- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr or tmux pane, cmux split or agterm pane. A session that has ended opens again where it last ran.
 - **Reply.** See the agent's last message and answer it, into a terminal session or into the Claude or Codex app.
 - **All sessions.** Every recent session in one list, grouped into what needs you, today and earlier, with its status at a glance. Type to filter.
 - **Yours.** Pick a character and its colour. It lives behind the notch and only comes out when there is something to say.
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
-**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [herdr](https://herdr.dev) and tmux.
+**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [agterm](https://github.com/umputun/agterm), [herdr](https://herdr.dev) and tmux.
 
 ## Install
 
 | Requirement | |
 |---|---|
 | macOS | 15 (Sequoia) or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
-| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux and cmux included). |
+| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux, cmux and agterm included). |
 | To build | Xcode 26 or later and Node 20 or later. |
 
 **Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications. It's signed and notarized by Apple, so it opens like any app. Perch checks for updates every hour and shows a quick peek in the notch when one is ready; press Update and it installs when nothing is on screen.
