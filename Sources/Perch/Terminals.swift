@@ -227,7 +227,7 @@ enum Terminals {
         case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
         case .tmux(let pane, let socket): return Tmux.type(line, pane: pane, socket: socket, bin: live.bin)
         case .cmux(let w, let s): if Cmux.type(line, workspace: w, surface: s) { return true }
-        case .agterm(let w, _, let pane): if Agterm.type(line, window: w, pane: pane) { return true }
+        case .agterm(let w, let s, let pane): if Agterm.type(line, window: w, session: s, pane: pane) { return true }
         case .tab: break
         }
         let text = appleQuote(line), tty = appleQuote(live.tty), cwd = appleQuote(live.cwd)
@@ -544,19 +544,24 @@ enum Agterm {
     }
 
     /// Raises the session's window, selects the session, gives its pane the focus when the session is split, and brings
-    /// agterm forward. False when agterm is not running or the session is gone.
+    /// agterm forward. False when agterm is not running, the session or its pane is gone, or the split pane would not take
+    /// the focus: the other pane may have it, and a reply pasted there would go to the wrong place.
     static func focus(window: String?, session: String, pane: String) -> Bool {
         if let window { cli(["window", "select", window]) }
-        guard cli(["session", "select", "--target", session], window: window) != nil else { return false }
-        if let kind = surface(of: pane, session: session, window: window), kind != "left" { cli(["session", "focus", kind, "--target", session], window: window) }
+        guard cli(["session", "select", "--target", session], window: window) != nil,
+              let (kind, split) = surface(of: pane, session: session, window: window) else { return false }
+        if split, cli(["session", "focus", kind, "--target", session], window: window) == nil { return false }
         app?.activate()
         return true
     }
 
-    /// Which of its session's panes a pane is now ("left" or "right"): a split's panes can swap places.
-    private static func surface(of pane: String, session: String, window: String?) -> String? {
-        sessions(window: window).first { $0["id"] as? String == session }
-            .flatMap { ($0["surfaces"] as? [[String: Any]])?.first { ($0["paneID"] as? String)?.lowercased() == pane.lowercased() }?["kind"] as? String }
+    /// Which of its session's panes a pane is now ("left" or "right"), and whether the session is split: a split's panes
+    /// can swap places.
+    private static func surface(of pane: String, session: String, window: String?) -> (kind: String, split: Bool)? {
+        guard let s = sessions(window: window).first(where: { $0["id"] as? String == session }),
+              let kind = (s["surfaces"] as? [[String: Any]])?.first(where: { ($0["paneID"] as? String)?.lowercased() == pane.lowercased() })?["kind"] as? String
+        else { return nil }
+        return (kind, s["split"] as? Bool == true)
     }
 
     /// Every session in that window (the frontmost when nil), from its tree.
@@ -574,12 +579,13 @@ enum Agterm {
         return (session["surfaces"] as? [[String: Any]])?.first { $0["kind"] as? String == kind }?["paneID"] as? String
     }
 
-    /// Types a line into the pane and presses Return, a beat apart so the agent reads Return as sending it. It types as
-    /// keys do, so a newline in the line would send it early.
-    static func type(_ line: String, window: String?, pane: String) -> Bool {
-        guard cli(["session", "type", "--pane-id", pane, line], window: window) != nil else { return false }
+    /// Types a line into the session's pane and presses Return, a beat apart so the agent reads Return as sending it. It
+    /// types as keys do, so a newline in the line would send it early. The session is named because agterm otherwise
+    /// looks for the pane in the window's active session.
+    static func type(_ line: String, window: String?, session: String, pane: String) -> Bool {
+        guard cli(["session", "type", "--target", session, "--pane-id", pane, line], window: window) != nil else { return false }
         Thread.sleep(forTimeInterval: 0.1)
-        return cli(["session", "type", "--pane-id", pane, "\r"], window: window) != nil
+        return cli(["session", "type", "--target", session, "--pane-id", pane, "\r"], window: window) != nil
     }
 
     /// A new session in `cwd` that runs `command` from your shell, so the shell stays when the agent ends; selected, in
