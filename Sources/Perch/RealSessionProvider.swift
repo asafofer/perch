@@ -122,7 +122,7 @@ enum Landing {
 /// herdr pane or cmux surface, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", conductorApp = ConductorApp.bundle
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
@@ -160,6 +160,11 @@ enum Restorer {
                 let exact = ConductorApp.open(workspace: workspace, project: project)
                 DispatchQueue.main.async { MainActor.assumeIsolated { done(.app(conductorApp, exact: exact)) } }
             }
+            return
+        }
+        if p.app == Agent.cursor.id {
+            CursorWindow.open(folder: p.cwd)
+            done(.app(cursorApp, exact: false))
             return
         }
         if p.app == "codex" {

@@ -313,6 +313,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             default: return ([], all)
             }
         case Restorer.codexApp: return ([], Focus.inCodexApp(projects.filter { $0.conductor == nil }))
+        case Restorer.cursorApp:
+            // Its chats cannot be told apart in its window: any may be the one in front. Terminal sessions in its terminal can.
+            let r = Focus.inTerminal(projects, app: bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
+            return (r.sure, r.maybe.union(projects.filter { $0.app == Agent.cursor.id }.map(\.id)))
         default:
             guard Terminals.keys[bid] != nil else { return ([], []) }
             let r = Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
@@ -473,7 +477,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
         // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
-        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".cursor/projects"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
