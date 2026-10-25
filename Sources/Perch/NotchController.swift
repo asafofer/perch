@@ -247,7 +247,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func replyKey() {
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key pressed, active \(NSApp.isActive)") }
         guard machine.phase == .open, !replyOpen else { return }
-        NSApp.activate(ignoringOtherApps: true)
+        // No activation here: the reply opens in the key panel and the app you are in stays in front (frontForReply).
         web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil)
     }
     func playActivityDemo() { web.evaluateJavaScript("window.perch && window.perch.actDemo()", completionHandler: nil) }
@@ -974,23 +974,46 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     /// The last app other than Perch to come forward.
     private var lastOtherApp: NSRunningApplication?
-    private func frontForReply(_ on: Bool) {
+    /// Perch came forward for the open reply (or feedback), so closing it gives the front back. False while the reply is
+    /// typed into the key panel with the app in front still the one you were in.
+    private var replyActivated = false
+    /// `quiet`: the reply field takes the keyboard in the non-activating panel, and the app you were in stays in front. Only
+    /// when the panel does not become key does Perch come forward after all. Feedback's file picker needs Perch in front, so
+    /// it is not quiet. `PERCH_REPLY_ACTIVATE=1` brings back coming forward for every reply.
+    private func frontForReply(_ on: Bool, quiet: Bool = false) {
         if on {
             guard !NSApp.isActive else { return }
             replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now()
-            // macOS lets an app come forward by itself only right after its own shortcut; a key in the panel is not that.
-            // Asked through Launch Services, as opening it from Finder would, it does come forward (Perch shows nothing
-            // when opened again).
-            NSApp.activate(ignoringOtherApps: true)
-            let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
-            NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
-                DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen || self.feedbackOpen { self.panel.makeKey() } } }
+            if quiet && ProcessInfo.processInfo.environment["PERCH_REPLY_ACTIVATE"] == nil {
+                panel.makeKey()
+                // A panel that is not key by now has not taken the keyboard: then, and only then, come forward.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self, self.replyOpen, self.replyFrontFrom != nil, !self.replyActivated, !self.panel.isKeyWindow else { return }
+                        NSLog("Perch: the reply panel did not become key; coming forward")
+                        self.activateForReply()
+                    }
+                }
+                return
             }
+            activateForReply()
         } else {
             guard replyFrontFrom != nil else { return }
-            if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            // Only give the front back when Perch took it: otherwise the app you were in never left.
+            if replyActivated, NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
             replyLeft = replyBack.map { ($0, Date()) }
-            replyFrontFrom = nil; replyBack = nil
+            replyFrontFrom = nil; replyBack = nil; replyActivated = false
+        }
+    }
+    private func activateForReply() {
+        replyActivated = true
+        // macOS lets an app come forward by itself only right after its own shortcut; a key in the panel is not that.
+        // Asked through Launch Services, as opening it from Finder would, it does come forward (Perch shows nothing
+        // when opened again).
+        NSApp.activate(ignoringOtherApps: true)
+        let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
+            DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen || self.feedbackOpen { self.panel.makeKey() } } }
         }
     }
     /// The app in front when a new session was opened, given the front back when it closes.
@@ -1166,7 +1189,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "snooze": snooze(body["when"] as? String ?? "30m")
         case "replyMenu":
             replyOpen = body["open"] as? Bool ?? false
-            if replyOpen { timer?.cancel(); frontForReply(true); panel.makeKey() } else { restartTimer(); cancelWaiting(); frontForReply(false) }
+            if replyOpen { timer?.cancel(); frontForReply(true, quiet: true); panel.makeKey() } else { restartTimer(); cancelWaiting(); frontForReply(false) }
             push()
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
