@@ -43,7 +43,7 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 - The Claude app opens `claude://code/continue?session=local_<id>`, a task `claude://claude.ai/cowork/<cse_id>`,
   a chat `claude://claude.ai/chat/<uuid>`; the Codex app `codex://threads/<id>`.
 - A terminal session (`Project.terminal`) goes back to where it runs while it runs, found from the process table in `Terminals.swift`:
-  - a herdr or tmux pane or cmux surface, exactly;
+  - a herdr or tmux pane, cmux surface or agterm pane, exactly;
   - Terminal and iTerm2 by tty, Ghostty by folder (with several of its terminals in that folder, the first is a guess);
   - Warp by the link to its own tab that Warp puts in the session's environment (`WARP_FOCUS_URL`, `warp://session/<id>`, read by `WarpTabs.focusLink`), exactly; without one (an older Warp), by switching tabs with Command+1 to 9 and reading each one's title and text through Accessibility (`WarpTabs`: it needs Accessibility, and reaches the first nine tabs of a window);
   - any other terminal by bringing it forward.

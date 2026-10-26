@@ -1,7 +1,7 @@
 import AppKit
 import PerchCore
 
-/// Reads what is in front of you in the app you are using: the focused cmux surface, the front Terminal or iTerm2 tab, the
+/// Reads what is in front of you in the app you are using: the focused cmux surface or agterm pane, the front Terminal or iTerm2 tab, the
 /// Ghostty terminal's folder, the pane herdr has focused or a tmux client shows, the session the Claude app shows, the chat
 /// Cursor's Agents window shows.
 /// AppleScript and Accessibility are slow and may ask for permission, so it reads off the main thread, a second apart at
@@ -32,7 +32,7 @@ final class FocusProbe {
     private var lastChange = Date.distantPast
     /// Apps this can read. Other terminals and editors cannot be told apart by tab.
     static func reads(_ bid: String) -> Bool {
-        bid == Restorer.claudeApp || bid == Restorer.conductorApp || bid == Restorer.cursorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly"].contains(bid)
+        bid == Restorer.claudeApp || bid == Restorer.conductorApp || bid == Restorer.cursorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly", Terminals.agterm].contains(bid)
     }
 
     /// The last reading of `app`, if it is recent enough to trust.
@@ -88,6 +88,10 @@ final class FocusProbe {
             guard let surface = ask(#"tell application "\#(name)" to return id of focused terminal of selected tab of window 1"#) else { return .cannotTell }
             spots.insert(Spot.cmux(surface: surface))
             viewers = known.viewers.filter { if case .cmux(_, let s) = $0.place { return s.lowercased() == surface.lowercased() } else { return false } }
+        case Terminals.agterm:
+            guard let pane = Agterm.focusedPane() else { return .cannotTell }
+            spots.insert(Spot.agterm(pane: pane))
+            viewers = known.viewers.filter { if case .agterm(_, _, let p) = $0.place { return p.lowercased() == pane.lowercased() } else { return false } }
         case Terminals.ghostty:
             // Ghostty has no tty to read: its terminal's folder is matched to the agents and herdr or tmux clients running there. Nothing
             // matches when you are in a shell, or when Perch sees the folder differently; then it cannot tell.

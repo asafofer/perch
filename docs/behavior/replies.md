@@ -1,6 +1,6 @@
 # Replies: answering a session from the card
 
-Selecting and copying the agent's words is in [card.md](card.md). Replies into herdr, tmux, cmux and Conductor are in [agents.md](agents.md).
+Selecting and copying the agent's words is in [card.md](card.md). Replies into herdr, tmux, cmux, agterm and Conductor are in [agents.md](agents.md).
 
 ## What the reply shows
 

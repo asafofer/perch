@@ -29,7 +29,7 @@
 
 ## Starting a terminal agent
 
-- It opens in a new window of your terminal: `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
+- It opens in a new window of your terminal (a new session in agterm): `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
 
 ## Started, or not
 
