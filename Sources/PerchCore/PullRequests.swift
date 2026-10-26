@@ -213,7 +213,16 @@ public struct GitHubCLI: Sendable {
         default: break
         }
         var failing = false, running = false, any = false
+        // A check run again (a reopened pull request, a re-run) is listed once for each run: the newest of each name is the one that stands.
+        var newest: [String: (at: String, c: [String: Any])] = [:], anon: [[String: Any]] = []
         for c in (o["statusCheckRollup"] as? [[String: Any]]) ?? [] {
+            guard let name = (c["name"] as? String) ?? (c["context"] as? String) else { anon.append(c); continue }
+            let at = (c["completedAt"] as? String).flatMap { $0.hasPrefix("0001") ? nil : $0 } ?? (c["startedAt"] as? String) ?? (c["createdAt"] as? String) ?? ""
+            let key = ((c["workflowName"] as? String) ?? "") + "/" + name
+            if let was = newest[key], was.at >= at { continue }
+            newest[key] = (at, c)
+        }
+        for c in newest.values.map(\.c) + anon {
             if c["__typename"] as? String == "StatusContext" || (c["context"] != nil && c["status"] == nil) {
                 // A commit status.
                 switch (c["state"] as? String ?? "").uppercased() {
@@ -253,7 +262,8 @@ public final class PullRequestChecker: @unchecked Sendable {
     private var failures: [String: Date] = [:]
     private var inFlight = Set<String>()
     private let queue: OperationQueue = { let q = OperationQueue(); q.maxConcurrentOperationCount = 3; q.qualityOfService = .utility; return q }()
-    public var openFor: TimeInterval = 60, restFor: TimeInterval = 6 * 3600, failedFor: TimeInterval = 120
+    /// How long an answer stands: an open one a minute, a closed one three (it can be reopened), a merged one for hours (it is final).
+    public var openFor: TimeInterval = 60, closedFor: TimeInterval = 180, restFor: TimeInterval = 6 * 3600, failedFor: TimeInterval = 120
 
     public init(cli: GitHubCLI = .system) { self.cli = cli }
 
@@ -270,7 +280,7 @@ public final class PullRequestChecker: @unchecked Sendable {
         let due = urls.filter { url in
             guard once.insert(url).inserted, !inFlight.contains(url) else { return false }
             if let f = failures[url], now.timeIntervalSince(f) < failedFor { return false }
-            if let a = answers[url] { return now.timeIntervalSince(a.at) >= (a.pr.state == .open || a.pr.state == .draft ? openFor : restFor) }
+            if let a = answers[url] { return now.timeIntervalSince(a.at) >= (a.pr.state == .open || a.pr.state == .draft ? openFor : a.pr.state == .closed ? closedFor : restFor) }
             return true
         }
         due.forEach { inFlight.insert($0) }

@@ -98,6 +98,24 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         #expect(pr.checks == .running); #expect(!pr.needsYou)
     }
 
+    @Test func aCheckThatRanTwiceStandsOnItsNewestRun() {
+        // The first run failed, the re-run passed: it passes. Listed the other way round, it fails.
+        func twice(_ first: String, _ second: String) -> PullRequest {
+            GitHubCLI.parse(view(rollup: [
+                ["__typename": "CheckRun", "name": "ci", "workflowName": "Tests", "status": "COMPLETED", "conclusion": first, "startedAt": "2026-10-26T12:00:00Z", "completedAt": "2026-10-26T12:05:00Z"],
+                ["__typename": "CheckRun", "name": "ci", "workflowName": "Tests", "status": "COMPLETED", "conclusion": second, "startedAt": "2026-10-26T13:00:00Z", "completedAt": "2026-10-26T13:05:00Z"],
+            ]), url: url)!
+        }
+        #expect(twice("FAILURE", "SUCCESS").checks == .pass)
+        #expect(twice("SUCCESS", "FAILURE").checks == .fail)
+        // Two checks with the same name in different workflows are two checks.
+        let two = GitHubCLI.parse(view(merge: "BLOCKED", rollup: [
+            ["__typename": "CheckRun", "name": "test", "workflowName": "A", "status": "COMPLETED", "conclusion": "FAILURE", "completedAt": "2026-10-26T12:00:00Z"],
+            ["__typename": "CheckRun", "name": "test", "workflowName": "B", "status": "COMPLETED", "conclusion": "SUCCESS", "completedAt": "2026-10-26T13:00:00Z"],
+        ]), url: url)!
+        #expect(two.checks == .fail)
+    }
+
     @Test func aCommitStatusCountsToo() {
         let failing = GitHubCLI.parse(view(merge: "BLOCKED", rollup: [["__typename": "StatusContext", "context": "ci/circle", "state": "FAILURE"]]), url: url)!
         let pending = GitHubCLI.parse(view(rollup: [["__typename": "StatusContext", "context": "ci/circle", "state": "PENDING"]]), url: url)!
@@ -168,6 +186,17 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         checker.refresh([url], now: Date().addingTimeInterval(120))   // an open one is stale after a minute
         try await waitFor { calls.value == 2 }
         #expect(checker.verified() == [url])
+    }
+
+    @Test func aClosedOneIsAskedAgainSoonerThanAMergedOne() async throws {
+        let calls = Box(0), state = Box("CLOSED")
+        let checker = PullRequestChecker(cli: GitHubCLI(run: { _ in calls.value += 1; return .init(status: 0, out: view(state: state.value), err: "") }))
+        checker.refresh([url]); try await waitFor { checker.answer(for: url) != nil }
+        checker.refresh([url], now: Date().addingTimeInterval(200)); try await waitFor { calls.value == 2 }   // reopened since
+        state.value = "MERGED"
+        checker.refresh([url], now: Date().addingTimeInterval(400)); try await waitFor { calls.value == 3 }
+        checker.refresh([url], now: Date().addingTimeInterval(1000)); try await Task.sleep(for: .milliseconds(120))
+        #expect(calls.value == 3)   // merged is final: not asked again for hours
     }
 
     @Test func aFailedAskWaitsBeforeTryingAgain() async throws {
