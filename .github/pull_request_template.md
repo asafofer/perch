@@ -37,12 +37,15 @@ scenario with what it shows. No visible change: replace the markers with "No vis
 
 <!-- Anything that touches: hooks or other apps' config (HookInstaller), Accessibility or the keyboard (cardTakesKeys,
 makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards fit its 440 pt), updates (Sparkle).
-Say plainly what you did not try. -->
+A new integration (a terminal, multiplexer or agent Perch did not know) needs a real run in the app with that tool
+installed: say what you drove (Pick up, reply, new session, the session you are in) and what you could not. A stand-in
+is not enough, and tests alone do not count as a real-app run. Say plainly what you did not try. -->
 
 ## Checks
 
 - [ ] `swift test` passes (count: )
 - [ ] Looked at every changed state in the design page
+- [ ] Ran it in the real app, and for a new integration with the real tool installed (what you drove is under Risk)
 - [ ] `ui/app.js` is ASCII only, CSS rebuilt (`cd ui && npm run build`)
 - [ ] Settings and onboarding cards fit the 440 pt panel (if a row was added)
 - [ ] AGENTS.md or its `docs/behavior/` file updated where behaviour or structure changed

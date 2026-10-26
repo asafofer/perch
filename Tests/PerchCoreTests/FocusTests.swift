@@ -13,6 +13,7 @@ import Testing
     @Test func spotsDifferByWhereTheAgentLives() {
         #expect(Spot.key(.cmux(workspace: "w", surface: "S1"), tty: "/dev/ttys001") == "cmux:s1")
         #expect(Spot.key(.tab, tty: "/dev/ttys004") == "tty:/dev/ttys004")
+        #expect(Spot.key(.agterm(window: "W", session: "S", pane: "P1"), tty: "/dev/ttys004") == "agterm:p1")
         #expect(Spot.key(.herdr(pane: "w1:p2", socket: "/h.sock", session: "default"), tty: "/dev/ttys004") == Spot.herdr(socket: "/h.sock", pane: "w1:p2"))
         #expect(Spot.key(.tmux(pane: "%3", socket: "/t.sock"), tty: "/dev/ttys004") == Spot.tmux(socket: "/t.sock", pane: "%3"))
         #expect(Spot.tmux(socket: "/t.sock", pane: "%3") != Spot.tmux(socket: "/o.sock", pane: "%3"))

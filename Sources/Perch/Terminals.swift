@@ -5,21 +5,23 @@ import PerchCore
 
 /// Terminal apps. Pick up goes back to the tab a session runs in, or opens it again in the terminal you use.
 enum Terminals {
-    static let terminal = "com.apple.Terminal", warp = "dev.warp.Warp-Stable", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app"
+    static let terminal = "com.apple.Terminal", warp = "dev.warp.Warp-Stable", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app", agterm = Agterm.bundle
     /// Every app that counts as a terminal, with the name its icon goes by in the page.
     static let keys: [String: String] = [
-        terminal: "terminal", iterm: "iterm", ghostty: "ghostty", cmux: "cmux", "com.cmuxterm.app.nightly": "cmux", warp: "warp",
+        terminal: "terminal", iterm: "iterm", ghostty: "ghostty", cmux: "cmux", "com.cmuxterm.app.nightly": "cmux", agterm: "agterm", warp: "warp",
         "com.github.wez.wezterm": "wezterm", "net.kovidgoyal.kitty": "kitty", "com.microsoft.VSCode": "vscode",
         "com.todesktop.230313mzl4w4u92": "cursor", "dev.zed.Zed": "zed",
     ]
     /// The ones Perch can open a new session in.
-    static let opens: Set<String> = [terminal, iterm, ghostty, cmux]
+    static let opens: Set<String> = [terminal, iterm, ghostty, cmux, agterm]
 
     /// The terminal you used last, if Perch can open a session in it; Terminal otherwise.
     static var preferred: String { Prefs.lastTerminal.flatMap { opens.contains($0) ? $0 : nil } ?? terminal }
 
-    /// Opens a new window (a workspace in cmux) in `cwd` that runs `command`.
-    static func open(_ command: String, in cwd: String, app: String = preferred) {
+    /// Opens a new window (a workspace in cmux, a session in agterm) in `cwd` that runs `command`, and says which app it
+    /// opened in: Terminal when agterm could not make the session.
+    @discardableResult
+    static func open(_ command: String, in cwd: String, app: String = preferred) -> String {
         let typed = "cd \(shellQuote(cwd)) && \(command)"
         switch app {
         case iterm:
@@ -42,9 +44,12 @@ enum Terminals {
             """)
         case cmux:
             Cmux.open(command, in: cwd)
+        case agterm:
+            if !Agterm.open(command, in: cwd) { return open(command, in: cwd, app: terminal) }
         default:
             run("tell application \"Terminal\"\nactivate\ndo script \(appleQuote(typed))\nend tell")
         }
+        return app
     }
 
     /// Where a session was brought forward: the app in front, and whether what it shows now is that session's own tab.
@@ -74,6 +79,9 @@ enum Terminals {
         case .cmux(let workspace, let surface):
             if Cmux.focus(workspace: workspace, surface: surface) { return Shown(app: cmux, exact: true) }
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
+        case .agterm(let window, let session, let pane):
+            if Agterm.focus(window: window, session: session, pane: pane) { return Shown(app: agterm, exact: true) }
+            return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
         case .tab:
             if live.app == warp, let url = live.warpFocus, focusWarp(url) { return Shown(app: warp, exact: true) }
             return focusTab(app: live.app, tty: live.tty, cwd: live.cwd, hints: hints)
@@ -96,6 +104,7 @@ enum Terminals {
     /// The terminal showing a herdr client, brought forward at that client's tab.
     static func show(_ v: LiveSessions.Viewer) -> Shown? {
         if case .cmux(let w, let s) = v.place, Cmux.focus(workspace: w, surface: s) { return Shown(app: cmux, exact: true) }
+        if case .agterm(let w, let s, let pane) = v.place, Agterm.focus(window: w, session: s, pane: pane) { return Shown(app: agterm, exact: true) }
         return focusTab(app: v.app, tty: v.tty, cwd: v.cwd)
     }
 
@@ -214,13 +223,14 @@ enum Terminals {
     }
 
     /// Types a line into what runs this session and presses Return, without bringing it forward, the clipboard or
-    /// Accessibility: a herdr or tmux pane or cmux surface exactly, Terminal and iTerm2 by tty, Ghostty by folder when only
+    /// Accessibility: a herdr or tmux pane, cmux surface or agterm pane exactly, Terminal and iTerm2 by tty, Ghostty by folder when only
     /// one of its terminals is in that folder. False where it cannot.
     static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
         switch live.place {
         case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
         case .tmux(let pane, let socket): return Tmux.type(line, pane: pane, socket: socket, bin: live.bin)
         case .cmux(let w, let s): if Cmux.type(line, workspace: w, surface: s) { return true }
+        case .agterm(let w, let s, let pane): if Agterm.type(line, window: w, session: s, pane: pane) { return true }
         case .tab: break
         }
         let text = appleQuote(line), tty = appleQuote(live.tty), cwd = appleQuote(live.cwd)
@@ -514,7 +524,109 @@ enum Cmux {
     }
 }
 
-/// Coding agents running right now in a terminal, a herdr pane or a cmux surface, found from the process table and
+/// agterm, a terminal with windows, workspaces, sessions and split panes. Every process it runs carries its window, session
+/// and pane ids (AGTERM_WINDOW_ID, AGTERM_SESSION_ID, AGTERM_PANE_ID), and its command line tool drives it over its control
+/// socket from outside agterm too, so no AppleScript.
+enum Agterm {
+    static let bundle = "com.umputun.agterm"
+    static var app: NSRunningApplication? { NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first }
+
+    nonisolated(unsafe) private static var foundBin: String?
+
+    /// The CLI agterm ships inside its app, else the one on the usual paths. Kept once found, so an install made later is still picked up.
+    static var bin: String? {
+        if let foundBin { return foundBin }
+        let inside = AppIcons.url("agterm").map { $0.appendingPathComponent("Contents/MacOS/agtermctl").path }
+        foundBin = ([inside].compactMap { $0 } + ["/opt/homebrew/bin/agtermctl", "/usr/local/bin/agtermctl"]).first { FileManager.default.isExecutableFile(atPath: $0) }
+        return foundBin
+    }
+
+    /// Runs a command and reads its JSON answer. Nil when agterm refused it.
+    /// `text` goes last, after `--`, so a line starting with a dash is not read as an option.
+    @discardableResult
+    private static func cli(_ bin: String, _ args: [String], window: String? = nil, text: String? = nil) -> [String: Any]? {
+        let out = Terminals.tool(bin, args + (window.map { ["--window", $0] } ?? []) + ["--json"] + (text.map { ["--", $0] } ?? []))
+        guard let o = out.flatMap({ (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }), o["ok"] as? Bool == true else { return nil }
+        return o["result"] as? [String: Any] ?? [:]
+    }
+
+    /// Raises the session's window, selects the session, shows its split if it is hidden, gives its pane the focus when
+    /// the session has a split, and brings agterm forward. False when agterm is not running, the session or its pane is gone, or the split pane would not take
+    /// the focus: the other pane may have it, and a reply pasted there would go to the wrong place. The tree is read first, so a session that is gone
+    /// leaves your view where it was.
+    static func focus(window: String?, session: String, pane: String) -> Bool {
+        guard app != nil, let bin, let (kind, hasSplit, shown) = surface(bin, of: pane, session: session, window: window) else { return false }
+        if let window { cli(bin, ["window", "select", window]) }
+        guard cli(bin, ["session", "select", "--target", session], window: window) != nil else { return false }
+        if hasSplit {
+            if !shown, cli(bin, ["session", "split", "visibility", "on", "--target", session], window: window) == nil { return false }
+            if cli(bin, ["session", "focus", kind, "--target", session], window: window) == nil { return false }
+        }
+        app?.activate()
+        return true
+    }
+
+    /// Which of its session's panes a pane is now ("left" or "right"), whether the session has a split pane (`hasSplit`),
+    /// and whether it shows it now (`split`, false after Cmd+D hid it): a split's panes can swap places.
+    private static func surface(_ bin: String, of pane: String, session: String, window: String?) -> (kind: String, hasSplit: Bool, shown: Bool)? {
+        guard let s = workspaces(bin, window: window).flatMap({ $0["sessions"] as? [[String: Any]] ?? [] }).first(where: { $0["id"] as? String == session }),
+              let kind = (s["surfaces"] as? [[String: Any]])?.first(where: { ($0["paneID"] as? String)?.lowercased() == pane.lowercased() })?["kind"] as? String
+        else { return nil }
+        return (kind, s["hasSplit"] as? Bool == true, s["split"] as? Bool == true)
+    }
+
+    /// Every workspace in that window (the frontmost when nil), from its tree.
+    private static func workspaces(_ bin: String, window: String?) -> [[String: Any]] {
+        (cli(bin, ["tree"], window: window)?["tree"] as? [String: Any])?["workspaces"] as? [[String: Any]] ?? []
+    }
+
+    /// The pane that has the keyboard in the frontmost window: its active session's focused pane. Nil when it cannot be read.
+    static func focusedPane() -> String? {
+        guard app != nil, let bin,
+              let workspace = workspaces(bin, window: nil).first(where: { $0["active"] as? Bool == true }),
+              let session = (workspace["sessions"] as? [[String: Any]])?.first(where: { $0["active"] as? Bool == true }) else { return nil }
+        // splitFocused is there for a hidden split too, and then the focused pane is the one shown.
+        let kind = session["splitFocused"] as? Bool == true ? "right" : "left"
+        return (session["surfaces"] as? [[String: Any]])?.first { $0["kind"] as? String == kind }?["paneID"] as? String
+    }
+
+    /// Types a line into the session's pane and presses Return, a beat apart so the agent reads Return as sending it. It
+    /// types as keys do, so a newline in the line would send it early. The session is named because agterm otherwise
+    /// looks for the pane in the window's active session.
+    static func type(_ line: String, window: String?, session: String, pane: String) -> Bool {
+        guard app != nil, let bin else { return false }
+        let args = ["session", "type", "--target", session, "--pane-id", pane]
+        guard cli(bin, args, window: window, text: line) != nil else { return false }
+        Thread.sleep(forTimeInterval: 0.1)
+        return cli(bin, args, window: window, text: "\r") != nil
+    }
+
+    /// A new session in `cwd` that runs `command` from your shell, so the shell stays when the agent ends; selected, in
+    /// front. agterm is opened first when it is not running. False when no session could be made.
+    @discardableResult
+    static func open(_ command: String, in cwd: String) -> Bool {
+        guard let bin else { return false }
+        // `session new` fails until agterm has restored a window, which takes a few seconds after it starts.
+        var tries = 10
+        if app == nil {
+            guard let url = AppIcons.url("agterm") else { return false }
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            tries = 30
+        }
+        var id: String?
+        for i in 0..<tries {
+            id = cli(bin, ["session", "new", "--cwd", cwd])?["id"] as? String
+            if id != nil { break }
+            if i < tries - 1 { Thread.sleep(forTimeInterval: 0.5) }
+        }
+        guard let id else { return false }
+        guard cli(bin, ["session", "type", "--target", id], text: command + "\n") != nil else { return false }
+        app?.activate()
+        return true
+    }
+}
+
+/// Coding agents running right now in a terminal, a herdr pane, a cmux surface or an agterm pane, found from the process table and
 /// their own environment. No permission needed.
 enum LiveSessions {
     struct Hit: Equatable {
@@ -598,6 +710,11 @@ enum LiveSessions {
                 viewer = viewers.first { $0.tmux == nil && $0.session == session }
                 app = viewer?.app
             case .tmux: app = viewer?.app
+            case .agterm:
+                // With agterm's live sessions a pane's shell runs under a daemon of its own, not under agterm. An app other than
+                // agterm above it (an editor started from agterm) passed agterm's variables on to its own terminal.
+                app = terminalApp(above: f.ppid) ?? Terminals.agterm
+                if app != Terminals.agterm { place = .tab }
             default: app = terminalApp(above: f.ppid)
             }
             return Hit(pid: f.pid, cwd: f.cwd, tty: f.tty, agent: f.agent.id, app: app, place: place, argv: f.args.argv, started: f.started,
