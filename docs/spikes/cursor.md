@@ -11,8 +11,8 @@ Everything below was checked against the running app unless it says otherwise. W
   `prompt`, `command` and `rule`), but the Agents window handles it (`handleAgentOpen` → `glass.openCloudAgentById`, found in
   `workbench.glass.main.js`) and opens any local chat by its id, with the cursor in its prompt. Tried on a chat with a folder and one without.
 - **Live status works through hooks** (`~/.cursor/hooks.json`), as documented.
-- **Not possible:** a new session in a chosen folder (the `prompt` link asks you to confirm, and cannot name a repository),
-  answering approvals (below).
+- **Approvals can be answered, through Cursor's window** (below), not through its hooks.
+- **Not possible:** a new session in a chosen folder (the `prompt` link asks you to confirm, and cannot name a repository).
 
 ## Where the data is
 
@@ -36,14 +36,14 @@ a chat with no folder), `user_email`, `cursor_version` and `transcript_path` (nu
 `text` and token counts; `stop` carries `status` (`completed`) and `loop_count`. `beforeSubmitPrompt` has to be answered with
 `{"continue":true}`. The hook runs in the Agents window as well as the editor.
 
-Perch installs `beforeSubmitPrompt`, `postToolUse`, `postToolUseFailure` and `stop` (flat entries, `"version": 1`).
+Perch installs `beforeSubmitPrompt`, `postToolUse`, `postToolUseFailure` and `stop` (flat entries, `"version": 1`); with them installed, a real prompt in Cursor reached Perch as `cursor <id> started` and `finished`. Cursor also runs the Claude Code hooks of `~/.claude/settings.json` for its chats, so the same turn arrives a second time as `claude`.
 
-## Approvals: not answered from the notch
+## Approvals
 
 Cursor can allow, deny or ask from `beforeShellExecution`, `beforeMCPExecution` and `preToolUse`. Those fire for every command,
 including ones Cursor runs without asking (this Mac auto-runs: a `Shell` call ran with no prompt), so Perch cannot tell which
 need an answer; holding them stalls the agent and answering them replaces Cursor's own prompt. Cursor's prompt itself could not be
-exercised here, so its buttons were never read. Perch shows a call that waits (the transcript) and opens the chat.
+exercised at first; later a web search did ask. The header (`composerHeaders.value`) then said `hasBlockingPendingActions: true` (about 15 s after the prompt showed), the newest bubble's `toolFormerData` was `{name: web_search, status: loading, params: {searchTerm}}` (a command is `run_terminal_command_v2` with `params.command`), and the prompt's buttons were `AXButton` titled `Skip`, `Always Run` and `Run ⏎`. Perch reads that and presses `Run ⏎` or `Skip` after opening the chat by its link; tried both ways in the running app (Allow: the search completed; Deny: Cursor said it was skipped). A transcript never shows the pending call (no tool_use is written before it runs).
 
 ## Accessibility
 
