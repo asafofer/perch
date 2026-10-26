@@ -19,7 +19,7 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
     // MARK: the Claude app's list
     @Test func theAppsListBecomesPullRequests() {
         let prs = PullRequests.fromApp([
-            ["prNumber": 70, "url": "https://github.com/asafofer/perch/pull/70", "repo": "asafofer/perch", "state": "MERGED"],
+            ["prNumber": 70, "url": "https://github.com/asafofer/perch/pull/70", "repo": "asafofer/perch", "state": "MERGED", "own": true],
             ["prNumber": 99, "url": "https://github.com/asafofer/perch/pull/99", "repo": "asafofer/perch", "state": "OPEN", "own": true],
         ])
         #expect(prs.map(\.number) == [70, 99])
@@ -30,16 +30,25 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
     @Test func aPullRequestTheAppSaysIsNotTheSessionsOwnIsLeftOut() {
         let prs = PullRequests.fromApp([
             ["prNumber": 1, "url": "https://github.com/a/b/pull/1", "repo": "a/b", "state": "OPEN", "own": false],
-            ["prNumber": 2, "url": "https://github.com/a/b/pull/2", "repo": "a/b", "state": "OPEN"],   // an older app does not say
-        ])
+            ["prNumber": 2, "url": "https://github.com/a/b/pull/2", "repo": "a/b", "state": "OPEN", "branch": "w"],   // an older app does not say: its branch does
+        ], sessionBranches: ["w"])
         #expect(prs.map(\.number) == [2])
+    }
+
+    @Test func aPullRequestTheSessionOnlyReadIsNotItsOwn() {
+        let mine: [String: Any] = ["prNumber": 1, "url": "https://github.com/a/b/pull/1", "state": "OPEN", "branch": "claude/work"]
+        let read: [String: Any] = ["prNumber": 2, "url": "https://github.com/a/b/pull/2", "state": "OPEN", "branch": "someone/else"]
+        let said: [String: Any] = ["prNumber": 3, "url": "https://github.com/a/b/pull/3", "state": "MERGED", "branch": "x", "own": true]
+        let no: [String: Any] = ["prNumber": 4, "url": "https://github.com/a/b/pull/4", "state": "MERGED", "branch": "claude/work", "own": false]
+        #expect(PullRequests.fromApp([mine, read, said, no], sessionBranches: ["claude/work"]).map(\.number) == [1, 3])
+        #expect(PullRequests.fromApp([mine, read], sessionBranches: []).isEmpty)
     }
 
     @Test func onlyGitHubAddressesAreKept() {
         let prs = PullRequests.fromApp([
-            ["prNumber": 1, "url": "http://github.com/a/b/pull/1", "state": "OPEN"],
-            ["prNumber": 2, "url": "https://evil.example/a/b/pull/2", "state": "OPEN"],
-            ["prNumber": 3, "url": "https://github.com/a/b/pull/3", "state": "OPEN"],
+            ["prNumber": 1, "url": "http://github.com/a/b/pull/1", "state": "OPEN", "own": true],
+            ["prNumber": 2, "url": "https://evil.example/a/b/pull/2", "state": "OPEN", "own": true],
+            ["prNumber": 3, "url": "https://github.com/a/b/pull/3", "state": "OPEN", "own": true],
         ])
         #expect(prs.map(\.number) == [3])
         #expect(PullRequests.fromApp("nonsense").isEmpty)
@@ -47,7 +56,7 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
     }
 
     @Test func theSamePullRequestListedTwiceShowsOnce() {
-        let e: [String: Any] = ["prNumber": 5, "url": "https://github.com/a/b/pull/5", "state": "MERGED"]
+        let e: [String: Any] = ["prNumber": 5, "url": "https://github.com/a/b/pull/5", "state": "MERGED", "own": true]
         #expect(PullRequests.fromApp([e, e]).count == 1)
     }
 
@@ -362,7 +371,7 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir.deletingLastPathComponent().deletingLastPathComponent()) }
         let entry: [String: Any] = ["sessionId": "local_a", "cliSessionId": "a", "cwd": "/tmp/x", "title": "T",
-                                    "prs": [["prNumber": 70, "url": "https://github.com/asafofer/perch/pull/70", "repo": "asafofer/perch", "state": "MERGED"]]]
+                                    "prs": [["prNumber": 70, "url": "https://github.com/asafofer/perch/pull/70", "repo": "asafofer/perch", "state": "MERGED", "own": true]]]
         try json(entry).write(to: dir.appendingPathComponent("local_a.json"))
         let sessions = DesktopSessions(root: dir.deletingLastPathComponent().deletingLastPathComponent())
         #expect(sessions.index()["a"]?.prs.map(\.number) == [70])

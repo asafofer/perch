@@ -42,7 +42,7 @@ public final class DesktopSessions: @unchecked Sendable {
                     // so it gets no row of its own: it would read just like the session, and a reply would land in it.
                     let sideChat = (o["spawnedFrom"] as? [String: Any])?["btw"] as? Bool ?? false
                     fresh[url.path] = (mtime, cli, Entry(id: id, title: o["title"] as? String, cwd: o["cwd"] as? String,
-                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused, prs: PullRequests.fromApp(o["prs"])))
+                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused, prs: PullRequests.fromApp(o["prs"], sessionBranches: ["branch", "sourceBranch", "worktreeName"].compactMap { o[$0] as? String })))
                 }
             }
         }
@@ -197,7 +197,7 @@ public final class SessionScanner: @unchecked Sendable {
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
                 p.focusedAt = s.entry.focusedAt
                 // The app lists the pull requests a session has; one it does not list but the session opened is found in its log.
-                p.prs = s.entry.prs.isEmpty ? PullRequestScan.requests(PullRequestScan.created(in: s.url)) : s.entry.prs
+                p.prs = s.entry.prs + PullRequestScan.requests(PullRequestScan.created(in: s.url)).filter { f in !s.entry.prs.contains { $0.url == f.url } }
                 out.append((p, digest, git, last))
             }
         }

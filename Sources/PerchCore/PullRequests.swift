@@ -41,14 +41,20 @@ public enum PullRequests {
     /// often out of date (a pull request merged since still reads open), so it is not shown. Merged and closed are final.
     public static let staleAfter: TimeInterval = 2 * 86_400
 
-    /// The `prs` of a Claude app session file: [{prNumber, repo, url, state: OPEN|MERGED|CLOSED, own?}]. Entries the app marks
-    /// as not the session's own (`own: false`) are left out; older versions do not say, and are kept.
-    public static func fromApp(_ raw: Any?) -> [PullRequest] {
+    /// The `prs` of a Claude app session file: [{prNumber, repo, url, state: OPEN|MERGED|CLOSED, branch, own?}], only the session's own.
+    public static func fromApp(_ raw: Any?, sessionBranches: [String] = []) -> [PullRequest] {
         guard let list = raw as? [[String: Any]] else { return [] }
         var seen = Set<String>(), out: [PullRequest] = []
         for e in list {
             guard let number = (e["prNumber"] as? Int) ?? (e["number"] as? Int), let url = e["url"] as? String, isGitHub(url),
-                  e["own"] as? Bool != false, seen.insert(url).inserted else { continue }
+                  seen.insert(url).inserted else { continue }
+            // The app lists what the session touched too, a pull request it only read among them. `own` says which are its own; where it
+            // does not say, a pull request on the session's own branch is, and any other is left to the session's log to vouch for.
+            switch e["own"] as? Bool {
+            case false?: continue
+            case nil: guard let b = e["branch"] as? String, sessionBranches.contains(b) else { continue }
+            default: break
+            }
             let state: PullRequest.State
             switch (e["state"] as? String ?? "").uppercased() {
             case "MERGED": state = .merged
@@ -140,6 +146,8 @@ public struct GitHubCLI: Sendable {
     /// Where `gh` is: the usual install folders, then whatever a login shell finds. Asked once, until it is not found.
     static func locate() -> String? {
         located.lock(); defer { located.unlock() }
+        // For trying Perch against a stand-in (PERCH_GH=<path>): the one place it looks, so a missing file reads as no GitHub CLI.
+        if let forced = ProcessInfo.processInfo.environment["PERCH_GH"] { return FileManager.default.isExecutableFile(atPath: forced) ? forced : nil }
         if found.done, let p = found.path, FileManager.default.isExecutableFile(atPath: p) { return p }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var path = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh", home + "/.local/bin/gh", "/opt/local/bin/gh"]
