@@ -3236,8 +3236,11 @@
      the GitHub CLI's login). Checks is greyed while there is no CLI or no login, and the line says what to do. */
   function prsMode(o) { return o.showPRs === false ? 'off' : o.prs === 'on' ? 'checks' : 'marks'; }
   function prsDesc(o) {
-    var no = o.prs === 'nogh' ? 'Checks needs the GitHub CLI: install it first' : o.prs === 'login' ? 'Checks needs a gh login: run gh auth login' : '';
-    return prsMode(o) === 'off' ? 'No mark on any session' + (no ? '. ' + no : '') : prsMode(o) === 'checks' ? 'Marks, and whether checks fail or a review wants changes, through your gh login' : 'A mark on a session whose work is a pull request' + (no ? '. ' + no : '. Checks asks GitHub through your gh login');
+    /* one line each: this page has no room for two */
+    if (prsMode(o) === 'off') return 'No mark on any session';
+    if (o.prs === 'nogh') return 'Marks only: Checks needs the GitHub CLI';
+    if (o.prs === 'login') return 'Marks only: Checks needs gh auth login';
+    return prsMode(o) === 'checks' ? 'Also asks GitHub if checks fail or changes are wanted' : 'A mark on a session that made a pull request';
   }
   function prsSeg(o) {
     var mode = prsMode(o), nocli = o.prs === 'nogh' || o.prs === 'login';
@@ -3474,18 +3477,16 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents; under them, the places Perch follows a
-         session into, as a line with their marks: nothing to choose there */
+      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents. The places Perch follows a session
+         into are named only in onboarding: this page has no room for them. */
       var ORDER = { claude: 0, cowork: 1, chat: 2 };
       var srcs = o.sources.slice().sort(function (a, b) { return (a.id in ORDER ? ORDER[a.id] : 9) - (b.id in ORDER ? ORDER[b.id] : 9); });
-      var where = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
       return srcs.map(function (x) {
         var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
         return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
       }).join('') + gap +
-        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', ckHtml(o.live === 'on', 'live', 'Live status'))) +
-        gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o)) +
-        (where ? '<p class="mx-2 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + where + '</p>' : '');
+        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
+        gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
