@@ -35,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if args.contains("--dump") {
             for s in NSScreen.screens { print("screen: \(s.localizedName) | \(s.displayID) | notch: \(s.notchSize != nil ? "yes" : "no")") }
             print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
+            // Pull requests: ask whether the GitHub CLI works, and with Checks on let GitHub answer once before the list is printed.
+            let pulls = PullRequestState.shared
+            pulls.refreshAvailability(force: true); Thread.sleep(forTimeInterval: 2)
+            if pulls.mode == .checks { _ = RealSessionProvider().parkedProjects(); Thread.sleep(forTimeInterval: 10) }
+            print("pull requests: \(pulls.mode.rawValue) (GitHub CLI: \(pulls.availability.map { "\($0)" } ?? "not asked"))")
             for p in RealSessionProvider().parkedProjects() {
                 let opens = p.conductor != nil ? "Conductor, workspace \(p.conductor ?? "?")" : p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"

@@ -183,6 +183,78 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         try await waitFor { calls.value == 2 }
     }
 
+    // MARK: what a session shows
+    private func session(_ id: String, _ prs: [PullRequest], idle: TimeInterval = 600, agents: [AgentStatus] = [AgentStatus(kind: .done, text: "Claude finished")]) -> Project {
+        var p = Project(id: id, name: id, branch: nil, away: "1h", at: "", headline: "", context: "", next: "", topic: id, app: "claude", agents: agents, steps: [])
+        p.prs = prs; p.lastActive = Date().addingTimeInterval(-idle)
+        return p
+    }
+    private func pr(_ n: Int, _ state: PullRequest.State = .open, checks: PullRequest.Checks? = nil, review: PullRequest.Review? = nil) -> PullRequest {
+        PullRequest(number: n, repo: "a/b", url: "https://github.com/a/b/pull/\(n)", state: state, checks: checks, review: review)
+    }
+
+    @Test func offClearsEverything() {
+        var list = [session("a", [pr(1, .merged)])]
+        list[0].prNeeds = true
+        PullRequests.apply(&list, mode: .off, answer: { _ in nil }, verified: [])
+        #expect(list[0].prs.isEmpty); #expect(!list[0].prNeeds)
+    }
+
+    @Test func marksShowsMergedAlwaysAndOpenOnlyFromARecentSession() {
+        var list = [session("recent", [pr(1), pr(2, .merged)]), session("old", [pr(3), pr(4, .merged)], idle: 5 * 86_400)]
+        let asked = PullRequests.apply(&list, mode: .marks, answer: { _ in nil }, verified: [])
+        #expect(list[0].prs.map(\.number) == [1, 2])
+        #expect(list[1].prs.map(\.number) == [4])
+        #expect(asked.isEmpty)   // GitHub is only asked with Checks on
+        #expect(!list[0].prNeeds)
+    }
+
+    @Test func checksCorrectsAnOpenOneThatHasSinceMerged() {
+        // The Claude app still says open, GitHub says merged: an old session shows it, as merged.
+        var list = [session("old", [pr(7)], idle: 9 * 86_400)]
+        let answered = pr(7, .merged)
+        let asked = PullRequests.apply(&list, mode: .checks, answer: { $0 == answered.url ? answered : nil }, verified: [answered.url])
+        #expect(list[0].prs.map(\.state) == [.merged]); #expect(asked == [answered.url])
+    }
+
+    @Test func checksAskedButNotAnsweredYetTrustsTheAppOnlyForARecentSession() {
+        var list = [session("recent", [pr(1)]), session("old", [pr(2)], idle: 9 * 86_400)]
+        let asked = PullRequests.apply(&list, mode: .checks, answer: { _ in nil }, verified: [])
+        #expect(list[0].prs.map(\.number) == [1]); #expect(list[1].prs.isEmpty)
+        #expect(Set(asked) == [pr(1).url, pr(2).url])
+    }
+
+    @Test func aFailingPullRequestLiftsAFinishedSessionToNeedingYou() {
+        var list = [session("a", [pr(5)])]
+        let failing = pr(5, checks: .fail)
+        PullRequests.apply(&list, mode: .checks, answer: { _ in failing }, verified: [failing.url])
+        #expect(list[0].needsAttention); #expect(list[0].prNeeds)
+        #expect(list[0].status.text == "Checks failing on #5"); #expect(list[0].status.kind == "attention")
+    }
+
+    @Test func aSessionAtWorkOrAskingIsNotLifted() {
+        let failing = pr(5, checks: .fail)
+        var working = [session("w", [pr(5)], agents: [AgentStatus(kind: .running, text: "Claude is working")])]
+        var asking = [session("q", [pr(5)], agents: [AgentStatus(kind: .needsYou, text: "Claude wants to run a command")])]
+        PullRequests.apply(&working, mode: .checks, answer: { _ in failing }, verified: [failing.url])
+        PullRequests.apply(&asking, mode: .checks, answer: { _ in failing }, verified: [failing.url])
+        #expect(!working[0].prNeeds); #expect(working[0].status.text == "Claude is working")
+        #expect(!asking[0].prNeeds); #expect(asking[0].status.text == "Claude wants to run a command")
+    }
+
+    @Test func marksNeverLiftASession() {
+        // Without Checks Perch cannot know a check failed, whatever an old answer said.
+        var list = [session("a", [pr(5, checks: .fail)])]
+        PullRequests.apply(&list, mode: .marks, answer: { _ in nil }, verified: [])
+        #expect(!list[0].prNeeds); #expect(list[0].status.kind == "done")
+    }
+
+    @Test func aPassingOrMergedPullRequestLeavesTheSessionAlone() {
+        var list = [session("a", [pr(5, checks: .pass, review: .approved)]), session("b", [pr(6, .merged)])]
+        PullRequests.apply(&list, mode: .checks, answer: { $0 == pr(5).url ? pr(5, checks: .pass, review: .approved) : pr(6, .merged) }, verified: [pr(5).url, pr(6).url])
+        #expect(list.allSatisfy { !$0.prNeeds && $0.status.kind == "done" })
+    }
+
     // MARK: the scan
     @Test func aSessionTheAppListsKeepsItsPullRequests() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-pr-\(UUID().uuidString)/acct/org")

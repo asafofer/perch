@@ -37,19 +37,7 @@ final class PullRequestState: @unchecked Sendable {
     /// whose pull request needs you reads as needing you (unless it is already at work or asking something).
     func apply(_ projects: inout [Project], now: Date = Date()) {
         let mode = self.mode
-        guard mode != .off else { for i in projects.indices { projects[i].prs = []; projects[i].prNeeds = false }; return }
-        let verified = mode == .checks ? checker.verified() : []
-        var urls: [String] = []
-        for i in projects.indices where !projects[i].prs.isEmpty {
-            var list = projects[i].prs
-            if mode == .checks { urls += list.map(\.url); list = list.map { checker.answer(for: $0.url) ?? $0 } }
-            projects[i].prs = PullRequests.visible(list, mode: mode, idle: now.timeIntervalSince(projects[i].lastActive ?? .distantPast), verified: verified)
-            if mode == .checks, let pr = projects[i].prs.first(where: \.needsYou), projects[i].ask == nil,
-               !projects[i].agents.contains(where: { $0.kind == .needsYou || $0.kind == .running }) {
-                projects[i].agents = [AgentStatus(kind: .needsYou, text: pr.needsWords, app: projects[i].app)]
-                projects[i].prNeeds = true
-            }
-        }
+        let urls = PullRequests.apply(&projects, mode: mode, answer: { self.checker.answer(for: $0) }, verified: mode == .checks ? checker.verified() : [], now: now)
         if mode == .checks { checker.refresh(urls) }
     }
 }

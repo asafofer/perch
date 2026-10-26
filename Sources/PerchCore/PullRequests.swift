@@ -83,6 +83,26 @@ public enum PullRequests {
         }
     }
 
+    /// What every session shows, in place: its pull requests as the mode allows, with what GitHub said (`answer`) when Checks is on,
+    /// and a session whose pull request needs you reads as needing you, unless it is at work or asking something already.
+    /// Returns the addresses GitHub should be asked about.
+    @discardableResult
+    public static func apply(_ projects: inout [Project], mode: Mode, answer: (String) -> PullRequest?, verified: Set<String>, now: Date = Date()) -> [String] {
+        guard mode != .off else { for i in projects.indices { projects[i].prs = []; projects[i].prNeeds = false }; return [] }
+        var urls: [String] = []
+        for i in projects.indices where !projects[i].prs.isEmpty {
+            var list = projects[i].prs
+            if mode == .checks { urls += list.map(\.url); list = list.map { answer($0.url) ?? $0 } }
+            projects[i].prs = visible(list, mode: mode, idle: now.timeIntervalSince(projects[i].lastActive ?? .distantPast), verified: verified)
+            if mode == .checks, let pr = projects[i].prs.first(where: \.needsYou), projects[i].ask == nil,
+               !projects[i].agents.contains(where: { $0.kind == .needsYou || $0.kind == .running }) {
+                projects[i].agents = [AgentStatus(kind: .needsYou, text: pr.needsWords, app: projects[i].app)]
+                projects[i].prNeeds = true
+            }
+        }
+        return urls
+    }
+
     /// The pull request a session's mark is about, by what matters most: the one that needs you, then open, draft, merged, closed.
     public static func top(_ prs: [PullRequest]) -> PullRequest? {
         func rank(_ p: PullRequest) -> Int {
