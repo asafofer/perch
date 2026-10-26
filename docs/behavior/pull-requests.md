@@ -19,8 +19,9 @@ card. Icon only; the words and the title are in a label on hover. Code: `PullReq
 ## Where they come from
 
 - **Marks** (the default): the Claude app's own list, the `prs` of each session file in `claude-code-sessions` (`number`, `url`,
-  `repo`, `state` OPEN or MERGED, `own`). No login and no network. Only Claude app sessions have them. `own: false` is left out;
-  older apps do not say and are kept.
+  `repo`, `state` OPEN or MERGED, `branch`, `own`). No login and no network. The app lists what a session touched too, a pull request
+  it only read among them, so only the session's own are kept: `own: true`, or where the app does not say, a pull request on the
+  session's own branch. One the session opened that the app does not list is found in its log, as for the other agents.
 - The app keeps an open pull request's state only while the session is in use (6 of 13 saved as open were merged, all in sessions
   idle for 8 days or more). So without Checks, an open or draft one from a session idle for more than two days is not shown
   (`PullRequests.staleAfter`); merged and closed are final and always shown.
@@ -43,9 +44,12 @@ card. Icon only; the words and the title are in a label on hover. Code: `PullReq
 
 ## Needs you
 
+A pull request that needs you is a fact GitHub gave, not a guess from a transcript, so it is not turned into history by `settled` (a
+"needs you" from before your last break) or `movedOn` (you looked at another session since): it stands while GitHub says so.
+
 With Checks on, a session whose pull request needs you reads as needing you ("Checks failing on #448"): it sits under Needs you with
 the `!` ring and an orange mark. Not a session that is working or asking something already. The notch announces it like any
-other moment, as `ci` (Settings, Notifications, Checks failing), which only stops the announcing: the list and the card still say it.
+other moment, as `ci`, in words that say which ("Changes requested on #126") (Settings, Notifications, Checks failing), which only stops the announcing: the list and the card still say it.
 
 ## Settings and onboarding
 
