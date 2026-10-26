@@ -1,6 +1,6 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode and pi as sources, herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 

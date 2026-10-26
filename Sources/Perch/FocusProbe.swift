@@ -2,7 +2,8 @@ import AppKit
 import PerchCore
 
 /// Reads what is in front of you in the app you are using: the focused cmux surface or agterm pane, the front Terminal or iTerm2 tab, the
-/// Ghostty terminal's folder, the pane herdr has focused or a tmux client shows, the session the Claude app shows.
+/// Ghostty terminal's folder, the pane herdr has focused or a tmux client shows, the session the Claude app shows, the chat
+/// Cursor's Agents window shows.
 /// AppleScript and Accessibility are slow and may ask for permission, so it reads off the main thread, a second apart at
 /// most, and a reading older than a few seconds is not trusted: then every live session in that app counts as "maybe"
 /// (see `Focus`).
@@ -31,7 +32,7 @@ final class FocusProbe {
     private var lastChange = Date.distantPast
     /// Apps this can read. Other terminals and editors cannot be told apart by tab.
     static func reads(_ bid: String) -> Bool {
-        bid == Restorer.claudeApp || bid == Restorer.conductorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly", Terminals.agterm].contains(bid)
+        bid == Restorer.claudeApp || bid == Restorer.conductorApp || bid == Restorer.cursorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly", Terminals.agterm].contains(bid)
     }
 
     /// The last reading of `app`, if it is recent enough to trust.
@@ -66,6 +67,7 @@ final class FocusProbe {
         let now = Date()
         if app == Restorer.claudeApp { return Reading(app: app, at: now, looking: .cannotTell, claude: ClaudeComposer.showingNow()) }
         if app == Restorer.conductorApp { return Reading(app: app, at: now, looking: .cannotTell, claude: ConductorApp.showingNow()) }
+        if app == Restorer.cursorApp { return Reading(app: app, at: now, looking: .cannotTell, claude: CursorWindow.showingNow()) }
         return Reading(app: app, at: now, looking: looking(in: app), claude: .unreadable)
     }
 

@@ -1,7 +1,7 @@
 import AppKit
 import PerchCore
 
-/// Reads the recent sessions of Claude Code, Codex, OpenCode and pi and turns each into a card. One row per session.
+/// Reads the recent sessions of Claude Code, Codex, OpenCode, pi and Cursor and turns each into a card. One row per session.
 final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     /// The list shows five rows at a time and scrolls for the rest.
     var maxProjects = 15
@@ -18,7 +18,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     private let scanner = SessionScanner()
 
     func parkedProjects() -> [Project] {
-        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
+        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects) + scanner.cursor(limit: maxProjects)
             + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects, words: isEnabled(Agent.chat.id))
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
@@ -125,7 +125,7 @@ enum Landing {
 /// herdr pane, cmux surface or agterm pane, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", conductorApp = ConductorApp.bundle
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
@@ -163,6 +163,10 @@ enum Restorer {
                 let exact = ConductorApp.open(workspace: workspace, project: project)
                 DispatchQueue.main.async { MainActor.assumeIsolated { done(.app(conductorApp, exact: exact)) } }
             }
+            return
+        }
+        if p.app == Agent.cursor.id {
+            done(.app(cursorApp, exact: CursorWindow.open(chat: p.sessionId, folder: p.cwd)))
             return
         }
         if p.app == "codex" {

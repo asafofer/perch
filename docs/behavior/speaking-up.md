@@ -7,6 +7,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - Perch never nudges about the session you are in, or may be in (`NotchController.youAreIn`; `PERCH_TRACE=1` logs `Perch in:`).
 - `FocusProbe` reads what is in front, a second apart, off the main thread: the focused cmux surface or agterm pane, a Terminal or iTerm2 tab's tty, Ghostty's folder, herdr's focused pane, the pane a tmux client shows, the Claude window's session (Accessibility). A reading older than 3 s is not trusted.
 - `Focus` compares a running session's Spot (cmux surface, agterm pane, herdr pane, tty) with what is in front (Looking). Unsure means every live session in that app is a maybe.
+- Cursor's Agents window names its chat in a button ("Chat title. …"), which `CursorWindow.showingNow` reads through Accessibility; that chat is the session you are in. A Cursor window that cannot be read makes every Cursor chat a maybe.
 - The Claude app's own `lastFocusedAt` counts too: the session it focused last is the session you are in.
 
 ## The live activity
