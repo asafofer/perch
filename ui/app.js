@@ -1146,7 +1146,7 @@
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2325\u2318N') + 'New session</span></div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match</div>';
       edges(); return;
     }
     if (empty) {
