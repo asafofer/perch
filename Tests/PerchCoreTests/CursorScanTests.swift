@@ -9,7 +9,10 @@ private final class CursorHome {
     let now = Date()
     private var db: OpaquePointer?
     private var withDatabase: Bool
-    init(database: Bool = true) {
+    /// A Cursor from before the `composerHeaders` table: only `cursorDiskKV`.
+    private let headers: Bool
+    init(database: Bool = true, headers: Bool = true) {
+        self.headers = headers
         url = FileManager.default.temporaryDirectory.appendingPathComponent("perch-cursor-\(UUID().uuidString)")
         withDatabase = database
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -43,9 +46,10 @@ private final class CursorHome {
             sqlite3_open(dir.appendingPathComponent("state.vscdb").path, &db)
             sqlite3_exec(db, """
                 CREATE TABLE cursorDiskKV (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
+                """ + (headers ? """
                 CREATE TABLE composerHeaders (composerId TEXT PRIMARY KEY, workspaceId TEXT, createdAt INTEGER, lastUpdatedAt INTEGER,
                   isArchived INTEGER, isSubagent INTEGER, recency INTEGER, checkpointAt INTEGER, value TEXT, subagentTypeName TEXT);
-                """, nil, nil, nil)
+                """ : ""), nil, nil, nil)
         }
         var err: UnsafeMutablePointer<CChar>?
         sqlite3_exec(db, s, nil, nil, &err)
@@ -77,10 +81,10 @@ private final class CursorHome {
                 sql("INSERT INTO cursorDiskKV VALUES (\(q("bubbleId:\(id):b2")), \(q(done)));")
                 sql("INSERT INTO cursorDiskKV VALUES (\(q("bubbleId:\(id):b3")), \(q(call)));")
             }
-            let blob = name.map { #"{"composerId":"\#(id)","name":"\#($0)","status":"completed","blobEncryptionKey":"do-not-read","fullConversationHeadersOnly":\#(bubbles)}"# } ?? #"{"composerId":"\#(id)"}"#
+            let blob = name.map { #"{"composerId":"\#(id)","name":"\#($0)","status":"completed","blobEncryptionKey":"do-not-read","fullConversationHeadersOnly":\#(bubbles)\#(headers ? "" : #","workspaceIdentifier":{"id":"\#(workspace ?? "")"}"#)}"# } ?? #"{"composerId":"\#(id)"}"#
             sql("INSERT INTO cursorDiskKV VALUES (\(q("composerData:" + id)), \(q(blob)));")
-            let head = #"{"type":"head","composerId":"\#(id)","hasBlockingPendingActions":\#(waiting != nil)}"#
-            sql("INSERT INTO composerHeaders (composerId, workspaceId, isArchived, isSubagent, value) VALUES (\(q(id)), \(workspace.map(q) ?? "NULL"), \(archived ? 1 : 0), \(subagent ? 1 : 0), \(q(head)));")
+            if headers { let head = #"{"type":"head","composerId":"\#(id)","hasBlockingPendingActions":\#(waiting != nil)}"#
+            sql("INSERT INTO composerHeaders (composerId, workspaceId, isArchived, isSubagent, value) VALUES (\(q(id)), \(workspace.map(q) ?? "NULL"), \(archived ? 1 : 0), \(subagent ? 1 : 0), \(q(head)));") }
         }
         let u = url.appendingPathComponent(".cursor/projects/\(slug)/agent-transcripts/\(id)/\(id).jsonl")
         try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -215,6 +219,16 @@ private enum CursorLines {
         let p = h.scanner.cursor(limit: 15, now: h.now).first?.project
         #expect(p?.cwd == site)
         #expect(p?.topic == CursorLines.prompt)   // no title without the database
+    }
+
+    @Test func aCursorWithoutTheHeadersTableStillListsItsChats() {
+        let h = CursorHome(headers: false), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("c1", slug: "code-scraper", workspace: "w1")
+        let p = h.scanner.cursor(limit: 15, now: h.now).first?.project
+        #expect(p?.cwd == site)   // from the chat's own workspace id
+        #expect(p?.topic == "Retry failed pages")
+        #expect(p?.status.text == "Cursor replied")
     }
 
     @Test func noCursorFilesMeanNoCursorChats() {
