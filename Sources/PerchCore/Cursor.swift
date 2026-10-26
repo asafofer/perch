@@ -11,6 +11,14 @@ public final class CursorStore {
         public let workspaceId: String?
         public let archived: Bool
         public let subagent: Bool
+        /// Cursor is waiting on you: a command, a search or an edit that needs your OK.
+        public let blocking: Bool
+    }
+    /// The call a chat waits on, as Cursor names it (`run_terminal_command_v2`, `web_search`) with its arguments.
+    public struct Pending: Equatable, Sendable {
+        public let name: String
+        public let params: [String: String]
+        public static func == (a: Pending, b: Pending) -> Bool { a.name == b.name && a.params == b.params }
     }
     public struct Chat: Equatable, Sendable {
         public let name: String?
@@ -34,10 +42,33 @@ public final class CursorStore {
     /// The list's row for a chat. Nil on a Cursor that predates the table (the chat's folder then comes from the transcript's own folder).
     public func header(_ id: String) -> Header? {
         var out: Header?
-        query("SELECT workspaceId, isArchived, isSubagent FROM composerHeaders WHERE composerId = ?", id) { st in
-            out = Header(workspaceId: Self.text(st, 0), archived: sqlite3_column_int(st, 1) != 0, subagent: sqlite3_column_int(st, 2) != 0)
+        query("SELECT workspaceId, isArchived, isSubagent, value FROM composerHeaders WHERE composerId = ?", id) { st in
+            let o = Self.text(st, 3).flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }
+            out = Header(workspaceId: Self.text(st, 0), archived: sqlite3_column_int(st, 1) != 0, subagent: sqlite3_column_int(st, 2) != 0,
+                         blocking: o?["hasBlockingPendingActions"] as? Bool ?? false)
         }
         return out
+    }
+
+    /// The call a chat is waiting on you for: its newest tool call that has not finished. Only the chat's last few messages
+    /// are read, each by its key.
+    public func pending(_ id: String) -> Pending? {
+        var bubbles: [String] = []
+        query("SELECT CAST(value AS TEXT) FROM cursorDiskKV WHERE key = ?", "composerData:" + id) { st in
+            guard let json = Self.text(st, 0), let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] else { return }
+            bubbles = ((o["fullConversationHeadersOnly"] as? [[String: Any]]) ?? []).suffix(8).compactMap { $0["bubbleId"] as? String }
+        }
+        for bubble in bubbles.reversed() {
+            var hit: Pending?
+            query("SELECT CAST(value AS TEXT) FROM cursorDiskKV WHERE key = ?", "bubbleId:\(id):\(bubble)") { st in
+                guard let json = Self.text(st, 0), let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
+                      let t = o["toolFormerData"] as? [String: Any], t["status"] as? String == "loading", let name = t["name"] as? String else { return }
+                let params = ((t["params"] as? String).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]) ?? [:]
+                hit = Pending(name: name, params: params.compactMapValues { $0 as? String })
+            }
+            if let hit { return hit }
+        }
+        return nil
     }
 
     /// The title and folder of a chat, from its `composerData` row. The row can be large (it carries every file the chat
@@ -75,6 +106,21 @@ public final class CursorStore {
 
 public enum CursorApp {
     public static let bundle = "com.todesktop.230313mzl4w4u92"
+
+    /// What a call Cursor waits on is, in the names the card knows (a command is "Bash", a search "WebSearch").
+    public static func ask(_ p: CursorStore.Pending) -> (tool: String, input: [String: Any]) {
+        let q = p.params
+        switch p.name {
+        case "run_terminal_command_v2", "run_terminal_command": return ("Bash", ["command": q["command"] ?? ""])
+        case "web_search": return ("WebSearch", ["query": q["searchTerm"] ?? q["query"] ?? ""])
+        case "web_fetch", "fetch_url": return ("WebFetch", ["url": q["url"] ?? ""])
+        case "edit_file_v2", "edit_file", "apply_patch": return ("Edit", ["file_path": q["relativeWorkspacePath"] ?? q["targetFile"] ?? q["path"] ?? ""])
+        case "delete_file": return ("Write", ["file_path": q["targetFile"] ?? q["path"] ?? ""])
+        case "read_file_v2", "read_file": return ("read", ["file_path": q["targetFile"] ?? q["path"] ?? ""])
+        case "call_mcp_tool", "mcp": return ("mcp__\(q["server"] ?? "mcp")__\(q["toolName"] ?? q["name"] ?? "tool")", [:])
+        default: return (p.name, [:])
+        }
+    }
     /// Chats started in a window with no folder open are kept under this transcript folder.
     public static let noFolder = "empty-window"
 

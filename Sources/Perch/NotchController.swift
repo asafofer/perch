@@ -668,6 +668,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             return
         }
         let p = projects[i]
+        // Cursor asks in its own window: the chat is opened and the button of its prompt pressed there.
+        if ask.agent == Agent.cursor.id, let chat = p.sessionId {
+            let back = whereYouWere(), title = p.topic, allow = choice == "allow"
+            markSeen(p)
+            let onCard = machine.phase != .idle
+            send(.dismiss)
+            if onCard || putAway?.session == p.id { putAway = nil }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let sent = CursorWindow.answer(chat: chat, title: title, allow: allow)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if !sent { self?.notSent(p.id) }
+                        back.restore()
+                        self?.refreshProjects()
+                    }
+                }
+            }
+            return
+        }
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice)) { [weak self] delivered in
             if !delivered { self?.notSent(p.id) }
         }

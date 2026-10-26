@@ -48,3 +48,34 @@ extension CursorWindow {
         return .session(String(title))
     }
 }
+
+extension CursorWindow {
+    /// Whether the window's chat title is the one wanted. A title longer than the row's is clipped there.
+    nonisolated static func matches(_ shown: String, _ want: String) -> Bool { shown == want || shown.hasPrefix(want) || want.hasPrefix(shown) }
+
+    /// Answers what Cursor asks in the chat: opens the chat with its link, then presses the button of its prompt ("Run", or
+    /// "Skip" to refuse), which Cursor shows in the chat itself. Nothing is pressed unless the window shows this very chat.
+    /// Cursor's own hooks cannot answer it (they run for every command, ones Cursor runs unasked too). Blocks: call it off the main thread.
+    nonisolated static func answer(chat: String, title: String, allow: Bool) -> Bool {
+        guard AXIsProcessTrusted(), let url = link(chat: chat) else { return false }
+        func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
+        if !showing() {
+            NSWorkspace.shared.open(url)
+            for _ in 0..<25 where !showing() { Thread.sleep(forTimeInterval: 0.3) }
+        }
+        guard showing(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        let labels: Set<String> = allow ? ["Run \u{23CE}", "Run", "Allow", "Allow \u{23CE}", "Accept", "Approve"] : ["Skip", "Reject", "Deny"]
+        for _ in 0..<10 {
+            if let window = ConductorApp.attr(ax, kAXFocusedWindowAttribute) as! AXUIElement?,
+               let button = ConductorApp.first(in: [window], limit: 4000, {
+                   ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && (ConductorApp.attr($0, kAXTitleAttribute) as? String).map(labels.contains) == true
+               }) {
+                return AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
+            }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return false
+    }
+}

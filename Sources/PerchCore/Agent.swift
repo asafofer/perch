@@ -20,7 +20,7 @@ public struct Agent: Equatable, Sendable {
     public static let opencode = Agent(id: "opencode", name: "OpenCode", short: "OpenCode", resumeCommand: "opencode -s", answersFromNotch: true)
     public static let pi = Agent(id: "pi", name: "pi", short: "pi", resumeCommand: "pi --session", answersFromNotch: false)
     /// Cursor's agent chats live in the Cursor app: they open there, and have no command of their own.
-    public static let cursor = Agent(id: "cursor", name: "Cursor", short: "Cursor", resumeCommand: "", answersFromNotch: false)
+    public static let cursor = Agent(id: "cursor", name: "Cursor", short: "Cursor", resumeCommand: "", answersFromNotch: true)
     /// Tasks (what was Cowork) and chats live in the Claude app: they open there, and have no command and no hooks. They
     /// look the same in Perch; each has its own switch.
     public static let cowork = Agent(id: "cowork", name: "Claude tasks", short: "Claude", resumeCommand: "", answersFromNotch: false)

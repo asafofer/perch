@@ -51,6 +51,9 @@ private final class CursorHome {
         sqlite3_exec(db, s, nil, nil, &err)
         if let err { Issue.record(Comment(rawValue: String(cString: err))) }
     }
+    private func jsonString(_ s: String) -> String {
+        String(data: (try? JSONSerialization.data(withJSONObject: [s], options: [])) ?? Data(), encoding: .utf8).map { String($0.dropFirst().dropLast()) } ?? "\"\""
+    }
     private func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "''") + "'" }
 
     /// A window of Cursor on `folder`: its id and the workspace.json that names the folder.
@@ -62,11 +65,22 @@ private final class CursorHome {
 
     /// A chat the way Cursor stores it. `name` and `workspace` go in the database; `lines` are the transcript's.
     func chat(_ id: String, slug: String, ago: TimeInterval = 60, name: String? = "Retry failed pages", workspace: String? = nil,
-              archived: Bool = false, subagent: Bool = false, lines: [String] = CursorLines.finished) {
+              archived: Bool = false, subagent: Bool = false, waiting: (name: String, params: String)? = nil, lines: [String] = CursorLines.finished) {
         if withDatabase {
-            let blob = name.map { #"{"composerId":"\#(id)","name":"\#($0)","status":"completed","blobEncryptionKey":"do-not-read"}"# } ?? #"{"composerId":"\#(id)"}"#
+            // A call it waits on is the newest message's tool call, still "loading"; two finished ones come before it.
+            var bubbles = "[]"
+            if let waiting {
+                let done = #"{"toolFormerData":{"name":"read_file_v2","status":"completed","params":"{}"}}"#
+                let call = #"{"toolFormerData":{"name":"\#(waiting.name)","status":"loading","params":\#(jsonString(waiting.params))}}"#
+                bubbles = #"[{"bubbleId":"b1"},{"bubbleId":"b2"},{"bubbleId":"b3"}]"#
+                sql("INSERT INTO cursorDiskKV VALUES (\(q("bubbleId:\(id):b1")), \(q(done)));")
+                sql("INSERT INTO cursorDiskKV VALUES (\(q("bubbleId:\(id):b2")), \(q(done)));")
+                sql("INSERT INTO cursorDiskKV VALUES (\(q("bubbleId:\(id):b3")), \(q(call)));")
+            }
+            let blob = name.map { #"{"composerId":"\#(id)","name":"\#($0)","status":"completed","blobEncryptionKey":"do-not-read","fullConversationHeadersOnly":\#(bubbles)}"# } ?? #"{"composerId":"\#(id)"}"#
             sql("INSERT INTO cursorDiskKV VALUES (\(q("composerData:" + id)), \(q(blob)));")
-            sql("INSERT INTO composerHeaders (composerId, workspaceId, isArchived, isSubagent) VALUES (\(q(id)), \(workspace.map(q) ?? "NULL"), \(archived ? 1 : 0), \(subagent ? 1 : 0));")
+            let head = #"{"type":"head","composerId":"\#(id)","hasBlockingPendingActions":\#(waiting != nil)}"#
+            sql("INSERT INTO composerHeaders (composerId, workspaceId, isArchived, isSubagent, value) VALUES (\(q(id)), \(workspace.map(q) ?? "NULL"), \(archived ? 1 : 0), \(subagent ? 1 : 0), \(q(head)));")
         }
         let u = url.appendingPathComponent(".cursor/projects/\(slug)/agent-transcripts/\(id)/\(id).jsonl")
         try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -163,6 +177,28 @@ private enum CursorLines {
         let by = Dictionary(uniqueKeysWithValues: h.scanner.cursor(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
         #expect(by["run"]?.status.kind == "running"); #expect(by["run"]?.now == "Removing dist")
         #expect(by["wait"]?.status.text == "Cursor is waiting for your OK")
+    }
+
+    @Test func whatCursorWaitsOnYouForIsARequestYouCanAnswer() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("cmd", slug: "code-scraper", ago: 5, workspace: "w1", waiting: ("run_terminal_command_v2", #"{"command":"rm -rf dist","cwd":""}"#), lines: CursorLines.working)
+        h.chat("web", slug: "code-scraper", ago: 6, workspace: "w1", waiting: ("web_search", #"{"searchTerm":"cursor auto-run"}"#), lines: CursorLines.working)
+        h.chat("old", slug: "code-scraper", ago: 6 * 3600, workspace: "w1", waiting: ("run_terminal_command_v2", #"{"command":"ls"}"#), lines: CursorLines.working)
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.cursor(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["cmd"]?.status.text == "Cursor is waiting for your OK"); #expect(by["cmd"]?.status.kind == "attention")
+        #expect(by["cmd"]?.ask?.title == "Cursor wants to run a command")
+        #expect(by["cmd"]?.ask?.subject == "rm -rf dist"); #expect(by["cmd"]?.ask?.answerable == true); #expect(by["cmd"]?.ask?.agent == "cursor")
+        #expect(by["web"]?.ask?.title == "Cursor wants to search the web"); #expect(by["web"]?.ask?.subject == "“cursor auto-run”")
+        // A chat left that way for hours is not waiting on you any more.
+        #expect(by["old"]?.ask == nil)
+    }
+
+    @Test func aChatThatIsNotWaitingAsksNothing() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("run", slug: "code-scraper", ago: 20, workspace: "w1", lines: CursorLines.shell)
+        #expect(h.scanner.cursor(limit: 15, now: h.now).first?.project.ask == nil)
     }
 
     @Test func aChatWithNoFolderIsNamedByItsTitle() {

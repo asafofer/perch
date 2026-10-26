@@ -404,8 +404,20 @@ public final class SessionScanner: @unchecked Sendable {
             digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
-            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .cursor, quietFor: now.timeIntervalSince(item.mtime), inApp: true) {
+            // Cursor says in its database when it waits on you, and for what: that is a request, not a guess from a quiet transcript.
+            var quiet = now.timeIntervalSince(item.mtime), request: (tool: String, input: [String: Any])?
+            if header?.blocking == true, quiet < 4 * 3600, let call = store?.pending(item.id) {
+                request = CursorApp.ask(call)
+                digest.turnOpen = true; digest.pendingTool = PendingTool(block: ["name": request!.tool, "input": request!.input])
+                quiet = max(quiet, 3600)
+            }
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .cursor, quietFor: quiet, inApp: true) {
                 p.startedAt = Self.created(item.url)
+                if let request {
+                    var ask = Ask(id: "cursor:" + item.id, agent: Agent.cursor.id, tool: request.tool, input: request.input)
+                    ask.transcriptAt = now
+                    p.ask = ask
+                }
                 out.append((p, digest, cg.info, item.mtime))
             }
         }
