@@ -398,14 +398,16 @@ public final class SessionScanner: @unchecked Sendable {
             }
             guard let cwd = meta?.folder, usable(cwd) else { continue }
             digest.sessionId = item.id; digest.cwd = cwd; digest.title = meta?.name
-            // A transcript has no times of its own: the file was last written when the chat last moved.
-            digest.lastTimestamp = item.mtime
+            // A transcript has no times of its own: the file was last written when the chat last moved, or Cursor says it did later
+            // (a call waiting on you writes nothing). Never later than now.
+            let moved = min(max(item.mtime, header?.updated ?? .distantPast), now)
+            digest.lastTimestamp = moved
             if digest.title == nil { digest.title = digest.lastAsk ?? digest.lastUserText }
             digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
             // Cursor says in its database when it waits on you, and for what: that is a request, not a guess from a quiet transcript.
-            var quiet = now.timeIntervalSince(item.mtime), request: (tool: String, input: [String: Any])?
+            var quiet = now.timeIntervalSince(moved), request: (tool: String, input: [String: Any])?
             if header?.blocking == true, quiet < 4 * 3600, let call = store?.pending(item.id) {
                 request = CursorApp.ask(call)
                 digest.turnOpen = true; digest.pendingTool = PendingTool(block: ["name": request!.tool, "input": request!.input])
@@ -418,7 +420,7 @@ public final class SessionScanner: @unchecked Sendable {
                     ask.transcriptAt = now
                     p.ask = ask
                 }
-                out.append((p, digest, cg.info, item.mtime))
+                out.append((p, digest, cg.info, moved))
             }
         }
         return out

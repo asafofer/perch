@@ -100,44 +100,53 @@ extension CursorWindow {
         return want.hasSuffix("\u{2026}") && shown.hasPrefix(String(want.dropLast()))
     }
 
-    /// Answers what Cursor asks in the chat: the chat is chosen in the Agents window's sidebar (or, with Cursor not running, opened
-    /// with its link), then the button of its prompt is pressed ("Run", or "Skip" to refuse), which Cursor shows in the chat itself.
-    /// A title does not identify a chat (two can share one), and a button is pressed in whichever chat the window shows, so
-    /// nothing is pressed unless exactly one chat in the sidebar has this title: otherwise the chat is opened by its link, which
-    /// names it by id, and left for you to answer there (false). Cursor's own hooks cannot answer it (they run for every command,
-    /// ones Cursor runs unasked too). Blocks: call it off the main thread.
+    /// The id of the chat the Agents window shows, as Cursor last saved it (`cursor/glass.selectedAgent`).
+    nonisolated static func selectedChatId() -> String? { CursorStore(user: CursorApp.userDirectory)?.selectedChat() }
+
+    /// Whether the window shows exactly this chat. A title does not name a chat (two can share one) and a button is pressed in
+    /// whichever chat the window shows, so Cursor's own saved selection must name this chat's id, and the window's title agrees.
+    nonisolated static func confirmed(chat: String, title: String) -> Bool {
+        guard selectedChatId() == chat, case .session(let t) = showingNow() else { return false }
+        return matches(t, title)
+    }
+
+    /// Chooses the chat in the sidebar: each row with its title is pressed in turn until Cursor says it is this chat. False when
+    /// none does (the row is not in the sidebar, or the sidebar is hidden).
+    nonisolated static func choose(_ ax: AXUIElement, chat: String, title: String) -> Bool {
+        for row in sidebarRows(ax, title: title) {
+            guard AXUIElementPerformAction(row, kAXPressAction as CFString) == .success else { continue }
+            for _ in 0..<15 {
+                if confirmed(chat: chat, title: title) { return true }
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+        }
+        return false
+    }
+
+    /// Answers what Cursor asks in the chat: the chat is chosen in the Agents window's sidebar (or opened with its link, which
+    /// names it by id, when Cursor is not running or the sidebar cannot), then the button of its prompt is pressed ("Run", or
+    /// "Skip" to refuse), which Cursor shows in the chat itself. Nothing is pressed unless Cursor's saved selection names this chat.
+    /// Cursor's own hooks cannot answer it (they run for every command, ones Cursor runs unasked too). Blocks: call it off the main thread.
     nonisolated static func answer(chat: String, title: String, allow: Bool) -> Bool {
         guard AXIsProcessTrusted(), link(chat: chat) != nil else { return false }
-        func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
         var viaLink = false
-        if NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty {
-            _ = open(chat: chat, folder: nil); viaLink = true
-            for _ in 0..<60 where !showing() { Thread.sleep(forTimeInterval: 0.4) }
+        func viaTheLink() {
+            viaLink = true
+            _ = open(chat: chat, folder: nil)
+            for _ in 0..<60 where !confirmed(chat: chat, title: title) { Thread.sleep(forTimeInterval: 0.4) }
         }
+        if NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty { viaTheLink() }
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 1)
         enableAccessibility(ax)
-        guard sidebarRows(ax, title: title).count == 1 else {
-            trace("not answering for \(title): its title is not unique in the sidebar; opened by its link")
-            if !viaLink { _ = open(chat: chat, folder: nil) }
-            return false
-        }
         var before: String?
-        if !viaLink, !showing() {
+        if !confirmed(chat: chat, title: title) {
             if case .session(let t) = showingNow() { before = t }
-            if selectInSidebar(ax, title: title) {
-                for _ in 0..<15 where !showing() { Thread.sleep(forTimeInterval: 0.2) }
-            }
-        }
-        if !showing() {
-            // The row could not be chosen: the link names the chat by its id and brings Cursor forward.
-            before = nil; viaLink = true
-            _ = open(chat: chat, folder: nil)
-            for _ in 0..<60 where !showing() { Thread.sleep(forTimeInterval: 0.4) }
+            if !choose(ax, chat: chat, title: title) { before = nil; viaTheLink() }
         }
         trace("answering \(allow ? "yes" : "no") for \(title): \(viaLink ? "opened by its link" : "chosen in the sidebar")")
-        guard showing() else { return false }
+        guard confirmed(chat: chat, title: title) else { return false }
         defer { if let before { _ = selectInSidebar(ax, title: before) } }
         let labels: Set<String> = allow ? ["Run \u{23CE}", "Run", "Allow", "Allow \u{23CE}", "Accept", "Approve"] : ["Skip", "Reject", "Deny"]
         for _ in 0..<10 {
@@ -168,55 +177,52 @@ extension CursorWindow {
         return rows
     }
 
-    /// Whether exactly one chat in the sidebar has this title, so a title names one chat. Runs off the main thread.
-    nonisolated static func titleIsUnique(_ title: String) -> Bool {
-        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
-        let ax = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetMessagingTimeout(ax, 1)
-        enableAccessibility(ax)
-        return sidebarRows(ax, title: title).count == 1
-    }
-
-    /// Presses a chat's row in the Agents window's sidebar (a button named by the chat's title). False when it finds none.
+    /// Presses a chat's row in the Agents window's sidebar by its title (to put back the chat the window showed). False when it finds none.
     nonisolated static func selectInSidebar(_ ax: AXUIElement, title: String) -> Bool {
-        guard let window = agentsWindow(ax), let row = ConductorApp.first(in: [window], limit: 4000, {
-            ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && (ConductorApp.attr($0, kAXTitleAttribute) as? String).map { !$0.hasPrefix("Chat title.") && matches($0, title) } == true
-        }) else { return false }
+        guard let row = sidebarRows(ax, title: title).first else { return false }
         return AXUIElementPerformAction(row, kAXPressAction as CFString) == .success
     }
 }
 
 extension CursorWindow {
-    enum Replied { case sent, draft, failed }
+    /// `.unsure`: the words may be in the prompt and could not be taken out, so nothing may paste or send them again.
+    enum Replied { case sent, draft, failed, unsure }
+
+    /// Takes the words out of the prompt and reads it back: whether it is empty now.
+    nonisolated private static func clear(_ prompt: AXUIElement) -> Bool {
+        _ = AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, "" as CFString)
+        Thread.sleep(forTimeInterval: 0.3)
+        return (ConductorApp.attr(prompt, kAXValueAttribute) as? String ?? "x").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     /// Replies in the chat without coming forward: the chat is chosen in the Agents window's sidebar, the words are set in its
     /// prompt through Accessibility (the field is writable, and Cursor's editor takes them like typed text) and its Send
-    /// button is pressed; the chat the window showed is chosen again afterwards. `.draft` when something is already written
-    /// there (nothing is touched), `.failed` when any step could not be done (Cursor not running, no such row, no button).
-    /// Blocks: call it off the main thread.
+    /// button is pressed; the chat the window showed is chosen again afterwards. Nothing is written unless Cursor's saved
+    /// selection names this chat. `.draft` when something is already written there (nothing is touched), `.failed` when a step
+    /// could not be done before anything was sent (Cursor not running, no such row, no button), `.unsure` when the words may
+    /// be stuck in the prompt. Blocks: call it off the main thread.
     nonisolated static func reply(_ text: String, chat: String, title: String) -> Replied {
         guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return .failed }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 1)
         enableAccessibility(ax)
-        func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
-        // A title does not name a chat: with two of the same, or none readable, the words go nowhere here (the paste fallback
-        // opens the chat by its link and leaves them on the clipboard when it cannot tell).
-        guard sidebarRows(ax, title: title).count == 1 else { return .failed }
         var before: String?
-        if !showing() {
+        if !confirmed(chat: chat, title: title) {
             if case .session(let t) = showingNow() { before = t }
-            guard selectInSidebar(ax, title: title) else { return .failed }
-            for _ in 0..<15 where !showing() { Thread.sleep(forTimeInterval: 0.2) }
+            guard choose(ax, chat: chat, title: title) else {
+                // A wrong row may be showing now: put back what was.
+                if let before { _ = selectInSidebar(ax, title: before) }
+                return .failed
+            }
         }
         defer { if let before { _ = selectInSidebar(ax, title: before) } }
-        guard showing(), let window = agentsWindow(ax),
+        guard let window = agentsWindow(ax),
               let prompt = ConductorApp.first(in: [window], limit: 4000, {
                   ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXTextArea" && ConductorApp.attr($0, kAXDescriptionAttribute) as? String == "Prompt"
               }) else { return .failed }
         let written = (ConductorApp.attr(prompt, kAXValueAttribute) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard written.isEmpty else { return .draft }
-        guard AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, text as CFString) == .success else { return .failed }
+        guard AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, text as CFString) == .success else { return clear(prompt) ? .failed : .unsure }
         // The Send button shows once the editor has taken the words.
         for _ in 0..<15 {
             if let button = ConductorApp.first(in: [window], limit: 4000, {
@@ -226,17 +232,15 @@ extension CursorWindow {
                 trace("reply \(ok ? "sent" : "not sent") in \(title), chosen in the sidebar")
                 if ok { return .sent }
                 // An error after the press does not say Cursor ignored it. Words gone from the prompt were sent (the fallback would
-                // send them twice); words still there are taken back out, and the fallback sends them.
+                // send them twice); words still there are taken back out, and only when that is confirmed may the fallback send them.
                 Thread.sleep(forTimeInterval: 0.5)
                 let left = (ConductorApp.attr(prompt, kAXValueAttribute) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 if left.isEmpty { return .sent }
-                _ = AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, "" as CFString)
-                return .failed
+                return clear(prompt) ? .failed : .unsure
             }
             Thread.sleep(forTimeInterval: 0.2)
         }
         // Nothing to send with: take the words back out so no stray text is left in the field.
-        _ = AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, "" as CFString)
-        return .failed
+        return clear(prompt) ? .failed : .unsure
     }
 }

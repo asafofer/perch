@@ -13,6 +13,9 @@ public final class CursorStore {
         public let subagent: Bool
         /// Cursor is waiting on you: a command, a search or an edit that needs your OK.
         public let blocking: Bool
+        /// When the chat last changed, as Cursor says. A call waiting on you writes nothing to the transcript, so the file's age
+        /// alone would call a chat that has waited since you sent your prompt old.
+        public let updated: Date?
     }
     /// The call a chat waits on, as Cursor names it (`run_terminal_command_v2`, `web_search`) with its arguments.
     public struct Pending: Equatable, Sendable {
@@ -42,10 +45,12 @@ public final class CursorStore {
     /// The list's row for a chat. Nil on a Cursor that predates the table (the chat's folder then comes from the transcript's own folder).
     public func header(_ id: String) -> Header? {
         var out: Header?
-        query("SELECT workspaceId, isArchived, isSubagent, value FROM composerHeaders WHERE composerId = ?", id) { st in
+        query("SELECT workspaceId, isArchived, isSubagent, value, lastUpdatedAt FROM composerHeaders WHERE composerId = ?", id) { st in
             let o = Self.text(st, 3).flatMap { (try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [String: Any] }
+            var ms = Double(sqlite3_column_int64(st, 4))
+            if ms == 0 { ms = (o?["lastUpdatedAt"] as? Double) ?? 0 }
             out = Header(workspaceId: Self.text(st, 0), archived: sqlite3_column_int(st, 1) != 0, subagent: sqlite3_column_int(st, 2) != 0,
-                         blocking: o?["hasBlockingPendingActions"] as? Bool ?? false)
+                         blocking: o?["hasBlockingPendingActions"] as? Bool ?? false, updated: ms > 0 ? Date(timeIntervalSince1970: ms / 1000) : nil)
         }
         return out
     }
@@ -71,6 +76,14 @@ public final class CursorStore {
             if let hit { return hit }
         }
         return nil
+    }
+
+    /// The id of the chat Cursor's Agents window shows (`cursor/glass.selectedAgent`), as Cursor last saved it. It is what names
+    /// a chat for certain: two chats can share a title.
+    public func selectedChat() -> String? {
+        var out: String?
+        query("SELECT CAST(value AS TEXT) FROM ItemTable WHERE key = ?", "cursor/glass.selectedAgent") { st in out = Self.text(st, 0) }
+        return out
     }
 
     /// The title and folder of a chat, from its `composerData` row. The row can be large (it carries every file the chat
@@ -110,6 +123,8 @@ public final class CursorStore {
 
 public enum CursorApp {
     public static let bundle = "com.todesktop.230313mzl4w4u92"
+    /// Cursor's Application Support folder for the signed-in profile.
+    public static var userDirectory: URL { FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Cursor/User") }
 
     /// What a call Cursor waits on is, in the names the card knows (a command is "Bash", a search "WebSearch").
     public static func ask(_ p: CursorStore.Pending) -> (tool: String, input: [String: Any]) {

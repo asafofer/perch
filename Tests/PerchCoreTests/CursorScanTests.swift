@@ -46,6 +46,7 @@ private final class CursorHome {
             sqlite3_open(dir.appendingPathComponent("state.vscdb").path, &db)
             sqlite3_exec(db, """
                 CREATE TABLE cursorDiskKV (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
+                CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
                 """ + (headers ? """
                 CREATE TABLE composerHeaders (composerId TEXT PRIMARY KEY, workspaceId TEXT, createdAt INTEGER, lastUpdatedAt INTEGER,
                   isArchived INTEGER, isSubagent INTEGER, recency INTEGER, checkpointAt INTEGER, value TEXT, subagentTypeName TEXT);
@@ -60,6 +61,9 @@ private final class CursorHome {
     }
     private func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "''") + "'" }
 
+    /// The chat Cursor's Agents window shows, as Cursor saves it.
+    func selected(_ id: String) { sql("INSERT INTO ItemTable VALUES ('cursor/glass.selectedAgent', \(q(id)));") }
+
     /// A window of Cursor on `folder`: its id and the workspace.json that names the folder.
     func workspace(_ id: String, folder: String) {
         let dir = user.appendingPathComponent("workspaceStorage/\(id)")
@@ -69,7 +73,7 @@ private final class CursorHome {
 
     /// A chat the way Cursor stores it. `name` and `workspace` go in the database; `lines` are the transcript's.
     func chat(_ id: String, slug: String, ago: TimeInterval = 60, name: String? = "Retry failed pages", workspace: String? = nil,
-              archived: Bool = false, subagent: Bool = false, waiting: (name: String, params: String)? = nil, lines: [String] = CursorLines.finished) {
+              archived: Bool = false, subagent: Bool = false, updated: TimeInterval? = nil, waiting: (name: String, params: String)? = nil, lines: [String] = CursorLines.finished) {
         if withDatabase {
             // A call it waits on is the newest message's tool call, still "loading"; two finished ones come before it.
             var bubbles = "[]"
@@ -83,7 +87,9 @@ private final class CursorHome {
             }
             let blob = name.map { #"{"composerId":"\#(id)","name":"\#($0)","status":"completed","blobEncryptionKey":"do-not-read","fullConversationHeadersOnly":\#(bubbles)\#(headers ? "" : #","workspaceIdentifier":{"id":"\#(workspace ?? "")"}"#)}"# } ?? #"{"composerId":"\#(id)"}"#
             sql("INSERT INTO cursorDiskKV VALUES (\(q("composerData:" + id)), \(q(blob)));")
-            if headers { let head = #"{"type":"head","composerId":"\#(id)","hasBlockingPendingActions":\#(waiting != nil)}"#
+            if headers {
+                let stamp = updated.map { #","lastUpdatedAt":\#(Int64((now.timeIntervalSince1970 - $0) * 1000))"# } ?? ""
+                let head = #"{"type":"head","composerId":"\#(id)","hasBlockingPendingActions":\#(waiting != nil)\#(stamp)}"#
             sql("INSERT INTO composerHeaders (composerId, workspaceId, isArchived, isSubagent, value) VALUES (\(q(id)), \(workspace.map(q) ?? "NULL"), \(archived ? 1 : 0), \(subagent ? 1 : 0), \(q(head)));") }
         }
         let u = url.appendingPathComponent(".cursor/projects/\(slug)/agent-transcripts/\(id)/\(id).jsonl")
@@ -198,6 +204,16 @@ private enum CursorLines {
         #expect(by["old"]?.ask == nil)
     }
 
+    @Test func aChatWaitingSinceYouSentYourPromptIsNotOldBecauseItsFileIs() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        // The transcript was last written an hour ago; the call waiting on you wrote nothing, and Cursor says the chat moved 20 s ago.
+        h.chat("wait", slug: "code-scraper", ago: 3600, workspace: "w1", updated: 20, waiting: ("web_search", #"{"searchTerm":"x"}"#), lines: CursorLines.working)
+        let p = h.scanner.cursor(limit: 15, now: h.now).first?.project
+        #expect(p?.ask?.title == "Cursor wants to search the web")
+        #expect(p.map { abs(($0.lastActive ?? .distantPast).timeIntervalSince(h.now.addingTimeInterval(-20))) < 1 } == true)
+    }
+
     @Test func aChatThatIsNotWaitingAsksNothing() {
         let h = CursorHome(), site = h.folder("code/scraper")
         h.workspace("w1", folder: site)
@@ -229,6 +245,22 @@ private enum CursorLines {
         #expect(p?.cwd == site)   // from the chat's own workspace id
         #expect(p?.topic == "Retry failed pages")
         #expect(p?.status.text == "Cursor replied")
+    }
+
+    @Test func cursorSaysWhichChatItsWindowShowsByIdSoATitleSharedByTwoDoesNotConfuseThem() throws {
+        let h = CursorHome()
+        h.chat("a", slug: "empty-window", name: "Same title"); h.chat("b", slug: "empty-window", name: "Same title")
+        h.selected("b")
+        let store = try #require(CursorStore(user: h.user))
+        #expect(store.selectedChat() == "b")
+        h.selected("a")
+        #expect(try #require(CursorStore(user: h.user)).selectedChat() == "a")
+    }
+
+    @Test func noSelectedChatIsNilNotACrash() throws {
+        let h = CursorHome()
+        h.chat("a", slug: "empty-window")
+        #expect(try #require(CursorStore(user: h.user)).selectedChat() == nil)
     }
 
     @Test func noCursorFilesMeanNoCursorChats() {

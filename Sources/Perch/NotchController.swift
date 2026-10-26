@@ -1444,6 +1444,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
+                        if r == .unsure {
+                            // The words may still be in Cursor's prompt: nothing pastes or sends them again.
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+                            NSLog("Perch: reply left on the clipboard (Cursor's prompt may still hold it)")
+                            self.replyHanded(p.id); self.say("Reply copied"); return
+                        }
                         if r != .sent { self.replyHanded(p.id); self.pasteReply(text, to: p.id, send: r != .draft) }
                     }
                 }
@@ -1525,7 +1531,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
-        let cursorTitle = projects[i].app == Agent.cursor.id ? CursorWindow.title(of: projects[i]) : nil
+        let cursorTitle = projects[i].app == Agent.cursor.id ? CursorWindow.title(of: projects[i]) : nil, cursorChat = projects[i].app == Agent.cursor.id ? projects[i].sessionId : nil
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -1562,14 +1568,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 // Cursor's link may have found no such chat, or Cursor was still starting: its prompt takes the words only once its
                 // window shows this very chat, never the new chat it would open on.
-                if let want = cursorTitle {
-                    // Two chats can share a title: the words are pasted only when the title names one chat in Cursor's sidebar.
-                    guard await Task.detached(operation: { CursorWindow.titleIsUnique(want) }).value else {
-                        NSLog("Perch: reply left on the clipboard (Cursor has more than one chat called this)"); self?.say("Paste in \(app)"); return
-                    }
+                if let want = cursorTitle, let chat = cursorChat {
+                    // The words are pasted only once Cursor's own saved selection names this chat (a title can be shared).
                     var shown = false
                     for _ in 0..<60 {
-                        if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, CursorWindow.matches(t, want) { shown = true; break }
+                        if await Task.detached(operation: { CursorWindow.confirmed(chat: chat, title: want) }).value { shown = true; break }
                         try? await Task.sleep(for: .milliseconds(400))
                     }
                     guard shown else { NSLog("Perch: reply left on the clipboard (Cursor does not show the chat)"); self?.say("Paste in \(app)"); return }
