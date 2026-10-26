@@ -13,7 +13,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
-            for agent in HookInstaller.agents {
+            // Names after the flag limit it to those agents (`--install-hooks cursor`).
+            let named = args.drop(while: { $0 != flag }).dropFirst().filter { HookInstaller.agents.contains($0) }
+            for agent in HookInstaller.agents where named.isEmpty || named.contains(agent) {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }
             }
