@@ -1546,7 +1546,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if let want = cursorTitle {
                     var shown = false
                     for _ in 0..<60 {
-                        if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, t == want || t.hasPrefix(want) || want.hasPrefix(t) { shown = true; break }
+                        if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, CursorWindow.matches(t, want) { shown = true; break }
                         try? await Task.sleep(for: .milliseconds(400))
                     }
                     guard shown else { NSLog("Perch: reply left on the clipboard (Cursor does not show the chat)"); self?.say("Paste in \(app)"); return }

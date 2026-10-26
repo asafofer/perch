@@ -51,7 +51,7 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
-**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), [Cursor](https://cursor.com) (its agent chats), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [herdr](https://herdr.dev) and tmux.
+**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), [Cursor](https://cursor.com) (its agent chats, beta: tried with Cursor 3.23 and its Agents window), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [herdr](https://herdr.dev) and tmux.
 
 ## Install
 

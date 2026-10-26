@@ -90,8 +90,12 @@ extension CursorWindow {
             ?? (ConductorApp.attr(ax, kAXFocusedWindowAttribute) as! AXUIElement?)
     }
 
-    /// Whether the window's chat title is the one wanted. A title longer than the row's is clipped there.
-    nonisolated static func matches(_ shown: String, _ want: String) -> Bool { shown == want || shown.hasPrefix(want) || want.hasPrefix(shown) }
+    /// Whether the window's chat title is the one wanted: the same words, or (the row clips a long title with an ellipsis) the
+    /// start of it. Never a title that merely begins the same, since an answer is pressed in whichever chat this says it is.
+    nonisolated static func matches(_ shown: String, _ want: String) -> Bool {
+        if shown == want { return true }
+        return want.hasSuffix("\u{2026}") && shown.hasPrefix(String(want.dropLast()))
+    }
 
     /// Answers what Cursor asks in the chat: opens the chat with its link, then presses the button of its prompt ("Run", or
     /// "Skip" to refuse), which Cursor shows in the chat itself. Nothing is pressed unless the window shows this very chat.
@@ -99,14 +103,31 @@ extension CursorWindow {
     nonisolated static func answer(chat: String, title: String, allow: Bool) -> Bool {
         guard AXIsProcessTrusted(), link(chat: chat) != nil else { return false }
         func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
+        // Cursor already running: pick the chat in its own sidebar, which leaves Cursor where it is (behind what you are using).
+        // The chat the window showed is put back afterwards. Only when that fails, or Cursor is not running, does the link
+        // bring Cursor forward.
+        var before: String?
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first, !showing() {
+            let ax = AXUIElementCreateApplication(app.processIdentifier)
+            AXUIElementSetMessagingTimeout(ax, 1)
+            enableAccessibility(ax)
+            if case .session(let t) = showingNow() { before = t }
+            if selectInSidebar(ax, title: title) {
+                for _ in 0..<15 where !showing() { Thread.sleep(forTimeInterval: 0.2) }
+            }
+        }
+        var viaLink = false
         if !showing() {
+            before = nil; viaLink = true
             _ = open(chat: chat, folder: nil)
             for _ in 0..<60 where !showing() { Thread.sleep(forTimeInterval: 0.4) }
         }
+        trace("answering \(allow ? "yes" : "no") for \(title): \(viaLink ? "opened by its link" : "chosen in the sidebar")")
         guard showing(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 1)
         enableAccessibility(ax)
+        defer { if let before { _ = selectInSidebar(ax, title: before) } }
         let labels: Set<String> = allow ? ["Run \u{23CE}", "Run", "Allow", "Allow \u{23CE}", "Accept", "Approve"] : ["Skip", "Reject", "Deny"]
         for _ in 0..<10 {
             if let window = agentsWindow(ax),
@@ -118,5 +139,15 @@ extension CursorWindow {
             Thread.sleep(forTimeInterval: 0.3)
         }
         return false
+    }
+}
+
+extension CursorWindow {
+    /// Presses a chat's row in the Agents window's sidebar (a button named by the chat's title). False when it finds none.
+    nonisolated static func selectInSidebar(_ ax: AXUIElement, title: String) -> Bool {
+        guard let window = agentsWindow(ax), let row = ConductorApp.first(in: [window], limit: 4000, {
+            ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && (ConductorApp.attr($0, kAXTitleAttribute) as? String).map { !$0.hasPrefix("Chat title.") && matches($0, title) } == true
+        }) else { return false }
+        return AXUIElementPerformAction(row, kAXPressAction as CFString) == .success
     }
 }
