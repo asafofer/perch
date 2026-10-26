@@ -620,7 +620,7 @@ enum Agterm {
             if i < tries - 1 { Thread.sleep(forTimeInterval: 0.5) }
         }
         guard let id else { return false }
-        cli(bin, ["session", "type", "--target", id], text: command + "\n")
+        guard cli(bin, ["session", "type", "--target", id], text: command + "\n") != nil else { return false }
         app?.activate()
         return true
     }

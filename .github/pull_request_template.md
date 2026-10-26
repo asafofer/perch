@@ -39,7 +39,7 @@ scenario with what it shows. No visible change: replace the markers with "No vis
 makeWay), the Claude app's page (ClaudeComposer), the panel's size (cards fit its 440 pt), updates (Sparkle).
 A new integration (a terminal, multiplexer or agent Perch did not know) needs a real run in the app with that tool
 installed: say what you drove (Pick up, reply, new session, the session you are in) and what you could not. A stand-in
-or the tests alone is not that. Say plainly what you did not try. -->
+is not enough, and tests alone do not count as a real-app run. Say plainly what you did not try. -->
 
 ## Checks
 
