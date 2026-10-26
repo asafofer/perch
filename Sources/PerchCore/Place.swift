@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where a running agent lives, read from its environment. herdr, tmux and cmux put their own variables in every process they run.
+/// Where a running agent lives, read from its environment. herdr, tmux, cmux and agterm put their own variables in every process they run.
 public enum Place: Equatable, Sendable {
     /// A pane in a herdr server. `socket` reaches that server; `session` is its name ("default" for the usual one).
     case herdr(pane: String, socket: String, session: String)
@@ -8,6 +8,9 @@ public enum Place: Equatable, Sendable {
     case tmux(pane: String, socket: String)
     /// A surface (a tab or split) in cmux.
     case cmux(workspace: String, surface: String)
+    /// A pane in agterm: the window and session (a sidebar row) it is in, and the pane's own id, which holds when a split's
+    /// panes swap places.
+    case agterm(window: String?, session: String, pane: String)
     /// A terminal's own tab.
     case tab
 
@@ -19,6 +22,9 @@ public enum Place: Equatable, Sendable {
         }
         if let pane = env["TMUX_PANE"], !pane.isEmpty, let socket = env["TMUX"].flatMap(TmuxServer.socket) { return .tmux(pane: pane, socket: socket.path) }
         if let s = env["CMUX_SURFACE_ID"], !s.isEmpty, let w = env["CMUX_WORKSPACE_ID"], !w.isEmpty { return .cmux(workspace: w, surface: s) }
+        if let s = env["AGTERM_SESSION_ID"], !s.isEmpty, let pane = env["AGTERM_PANE_ID"], !pane.isEmpty {
+            return .agterm(window: env["AGTERM_WINDOW_ID"].flatMap { $0.isEmpty ? nil : $0 }, session: s, pane: pane)
+        }
         return .tab
     }
 

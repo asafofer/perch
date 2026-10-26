@@ -61,7 +61,7 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   /* each agent's name, and the short one sentences and buttons use */
-  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
+  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cursor: ['Cursor', 'Cursor'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
@@ -79,6 +79,7 @@
        their own published marks (pi.dev's logo, opencode.ai's), not ours. */
     var g = {
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
+      cursor: ['#14120B', '<path d="M12 4.5l6.5 3.75v7.5L12 19.5l-6.5-3.75v-7.5z" fill="#EDECEC"/><path d="M12 4.5l6.5 3.75L12 12z" fill="#B8B6B0"/><path d="M12 12l6.5-3.75v7.5z" fill="#8A8883"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
@@ -86,7 +87,7 @@
   /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
      OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
      the terminal is the one showing herdr. */
-  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', agterm: 'agterm', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
   function AppOf(p, c) {
     /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
     var host = p.via || p.opens;
@@ -993,7 +994,7 @@
       var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
-      var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
+      var said = !(norm(p.headline) === norm(p.topic || p.name)) && was;
       if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
       /* your own words quoted back (You said: / You asked:): the label is grey, so what is quoted reads first */
       var you = /^(You said|You asked):\s*/.exec(did);
@@ -3995,7 +3996,10 @@
         said: 'Failed pages now retry three times, waiting 1, 4 and 16 seconds. Pages that still fail go to `failed.txt` with their status code.\n\nNext: run it against the full catalogue.' },
       /* a workspace in Conductor: Conductor's icon with the agent on its corner, and Open Conductor on the button */
       { id: 'phoenix', name: 'conductor-test', opens: 'conductor', branch: 'asafofer/ls-files', away: '6m', at: '1:30 PM', headline: 'Ls files.', context: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.', next: '', topic: 'Ls files', app: 'claude', attention: false, fresh: true, line: 'Finished 6m ago', status: { kind: 'done', text: 'Claude Code replied', app: 'claude' },
-        asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
+        asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' },
+      /* a chat in Cursor: Cursor's own icon, and Open Cursor on the button. Pick up opens the chat itself through Cursor's chat link. */
+      { id: 'cursorchat', name: 'api-server', branch: 'main', away: '8m', at: '11:58 AM', headline: 'You were adding retries to the sync job.', context: 'The sync job now retries three times with backoff and logs the pages that never loaded.', next: '', topic: 'Retry the sync job with backoff', app: 'cursor', attention: false, fresh: true, line: 'Finished 8m ago', status: { kind: 'done', text: 'Cursor replied', app: 'cursor' },
+        asked: 'Make the sync job retry three times with backoff, and log what never loads.', said: 'The sync job now retries three times with backoff (1, 4 and 16 seconds) and logs the pages that never loaded.' }
     ];
     /* sample pull requests: one of each state */
     var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, url: 'https://github.com/asafofer/perch/pull/452', title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
@@ -4160,9 +4164,9 @@
         else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
-        if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
+        if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
         if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
-        var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }] : [];
+        var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
           onboarding: { step: step, total: gh ? 8 : 7, prs: gh === 'on' ? 'on' : 'off', shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
         apply(s0);

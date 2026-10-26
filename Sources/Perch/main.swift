@@ -13,7 +13,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
-            for agent in HookInstaller.agents {
+            // Names after the flag limit it to those agents (`--install-hooks cursor`).
+            let given = args.drop(while: { $0 != flag }).dropFirst().filter { !$0.hasPrefix("-") }
+            // A name that is no agent is a typo: nothing is changed (no names at all means every agent).
+            if let bad = given.first(where: { !HookInstaller.agents.contains($0) }) { print("unknown agent \(bad); known: \(HookInstaller.agents.joined(separator: ", "))"); exit(1) }
+            let named = given
+            for agent in HookInstaller.agents where named.isEmpty || named.contains(agent) {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }
             }
@@ -43,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
                 case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
+                case .agterm(_, let s, let pane): place = "agterm session \(s.prefix(8)) pane \(pane.prefix(8))"
                 case .tab: place = "a tab"
                 }
                 print("running: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(place), in \(hit.app ?? "no app")")

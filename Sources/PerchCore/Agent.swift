@@ -19,11 +19,13 @@ public struct Agent: Equatable, Sendable {
     public static let codex = Agent(id: "codex", name: "Codex", short: "Codex", resumeCommand: "codex resume", answersFromNotch: false)
     public static let opencode = Agent(id: "opencode", name: "OpenCode", short: "OpenCode", resumeCommand: "opencode -s", answersFromNotch: true)
     public static let pi = Agent(id: "pi", name: "pi", short: "pi", resumeCommand: "pi --session", answersFromNotch: false)
+    /// Cursor's agent chats live in the Cursor app: they open there, and have no command of their own.
+    public static let cursor = Agent(id: "cursor", name: "Cursor", short: "Cursor", resumeCommand: "", answersFromNotch: true)
     /// Tasks (what was Cowork) and chats live in the Claude app: they open there, and have no command and no hooks. They
     /// look the same in Perch; each has its own switch.
     public static let cowork = Agent(id: "cowork", name: "Claude tasks", short: "Claude", resumeCommand: "", answersFromNotch: false)
     public static let chat = Agent(id: "chat", name: "Claude chats", short: "Claude", resumeCommand: "", answersFromNotch: false, onByDefault: false)
-    public static let all = [claude, codex, opencode, pi, cowork, chat]
+    public static let all = [claude, codex, opencode, pi, cursor, cowork, chat]
 
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }

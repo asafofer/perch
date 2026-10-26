@@ -52,6 +52,17 @@ import Foundation
         #expect(Place.from(environment: ["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s"]) == .herdr(pane: "w1:p1", socket: "/s", session: "default"))
     }
 
+    @Test func anAgtermPaneIsReadFromItsVariables() {
+        let agterm = ["AGTERM_WINDOW_ID": "W1", "AGTERM_SESSION_ID": "S1", "AGTERM_PANE_ID": "P1", "TERM_PROGRAM": "agterm"]
+        #expect(Place.from(environment: agterm) == .agterm(window: "W1", session: "S1", pane: "P1"))
+        #expect(Place.from(environment: agterm.merging(["AGTERM_WINDOW_ID": ""]) { _, b in b }) == .agterm(window: nil, session: "S1", pane: "P1"))
+        // A tmux or herdr server started from an agterm session passes its variables on; the pane is the server's.
+        #expect(Place.from(environment: agterm.merging(["TMUX": "/private/tmp/tmux-501/default,4242,0", "TMUX_PANE": "%3"]) { a, _ in a }) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))
+        #expect(Place.from(environment: agterm.merging(["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s"]) { a, _ in a }) == .herdr(pane: "w1:p1", socket: "/s", session: "default"))
+        // Without its pane there is nothing to focus or type into.
+        #expect(Place.from(environment: ["AGTERM_SESSION_ID": "S1"]) == .tab)
+    }
+
     @Test func aTmuxPaneIsReadFromItsVariables() {
         let tmux = ["TMUX": "/private/tmp/tmux-501/default,4242,0", "TMUX_PANE": "%3"]
         #expect(Place.from(environment: tmux) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))

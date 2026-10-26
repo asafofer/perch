@@ -313,6 +313,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             default: return ([], all)
             }
         case Restorer.codexApp: return ([], Focus.inCodexApp(projects.filter { $0.conductor == nil }))
+        case Restorer.cursorApp:
+            // The Agents window names the chat it shows; where that cannot be read, any of its chats may be the one in front.
+            // Terminal sessions in its own terminal are told apart like any terminal's.
+            let r = Focus.inTerminal(projects, app: bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
+            let chats = projects.filter { $0.app == Agent.cursor.id }
+            switch focus.fresh(for: bid)?.claude {
+            case .session(let title)?:
+                let here = Set(chats.filter { CursorWindow.matches(title, CursorWindow.title(of: $0)) }.map(\.id))
+                return (r.sure.union(here), r.maybe.union(here))
+            case .some(.none): return (r.sure, r.maybe)
+            default: return (r.sure, r.maybe.union(chats.map(\.id)))
+            }
         default:
             guard Terminals.keys[bid] != nil else { return ([], []) }
             let r = Focus.inTerminal(projects, app: bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid, looking: focus.fresh(for: bid)?.looking ?? .cannotTell)
@@ -325,6 +337,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func hasSessions(in bid: String) -> Bool {
         if bid == Restorer.claudeApp { return projects.contains { $0.desktopSessionId != nil } }
         if bid == Restorer.conductorApp { return projects.contains { $0.conductor != nil } }
+        if bid == Restorer.cursorApp, projects.contains(where: { $0.app == Agent.cursor.id }) { return true }
         let app = bid == "com.cmuxterm.app.nightly" ? Terminals.cmux : bid
         return projects.contains { $0.terminal && $0.via == app && $0.spot != nil }
     }
@@ -473,7 +486,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
         // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
-        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".cursor/projects"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
@@ -655,6 +668,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             return
         }
         let p = projects[i]
+        // Cursor asks in its own window: the chat is opened and the button of its prompt pressed there.
+        if ask.agent == Agent.cursor.id, let chat = p.sessionId {
+            let back = whereYouWere(), title = CursorWindow.title(of: p), allow = choice == "allow"
+            markSeen(p)
+            let onCard = machine.phase != .idle
+            send(.dismiss)
+            if onCard || putAway?.session == p.id { putAway = nil }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let sent = CursorWindow.answer(chat: chat, title: title, allow: allow)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        if !sent { self?.notSent(p.id) }
+                        back.restore()
+                        self?.refreshProjects()
+                    }
+                }
+            }
+            return
+        }
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice)) { [weak self] delivered in
             if !delivered { self?.notSent(p.id) }
         }
@@ -1399,6 +1431,31 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             return
         }
+        // A chat in Cursor takes the words in the background when Cursor runs: its window never comes forward. Otherwise, or when
+        // that cannot be done, the words are pasted (Cursor comes forward for it).
+        if p.app == Agent.cursor.id, let chat = p.sessionId, !CursorWindow.title(of: p).isEmpty,
+           !NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty {
+            let title = CursorWindow.title(of: p)
+            markSeen(p)
+            replying(p.id)
+            let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let r = CursorWindow.reply(text, chat: chat, title: title)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if r == .unsure {
+                            // The words may still be in Cursor's prompt: nothing pastes or sends them again.
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+                            NSLog("Perch: reply left on the clipboard (Cursor's prompt may still hold it)")
+                            self.replyHanded(p.id); self.say("Reply copied"); return
+                        }
+                        if r != .sent { self.replyHanded(p.id); self.pasteReply(text, to: p.id, send: r != .draft) }
+                    }
+                }
+            }
+            return
+        }
         pasteReply(text, to: p.id)
     }
     private func projectIndex(_ pid: String?) -> Int? {
@@ -1474,6 +1531,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
+        let cursorTitle = projects[i].app == Agent.cursor.id ? CursorWindow.title(of: projects[i]) : nil, cursorChat = projects[i].app == Agent.cursor.id ? projects[i].sessionId : nil
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -1507,6 +1565,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 guard await settle(), NSWorkspace.shared.frontmostApplication?.bundleIdentifier == target else {
                     NSLog("Perch: reply left on the clipboard (\(target) did not come forward)"); self?.say("Paste in \(app)"); return
+                }
+                // Cursor's link may have found no such chat, or Cursor was still starting: its prompt takes the words only once its
+                // window shows this very chat, never the new chat it would open on.
+                if let want = cursorTitle, let chat = cursorChat {
+                    // The words are pasted only once Cursor's own saved selection names this chat (a title can be shared).
+                    var shown = false
+                    for _ in 0..<60 {
+                        if await Task.detached(operation: { CursorWindow.confirmed(chat: chat, title: want) }).value { shown = true; break }
+                        try? await Task.sleep(for: .milliseconds(400))
+                    }
+                    guard shown else { NSLog("Perch: reply left on the clipboard (Cursor does not show the chat)"); self?.say("Paste in \(app)"); return }
                 }
                 let src = CGEventSource(stateID: .combinedSessionState)
                 for down in [true, false] {
@@ -1612,7 +1681,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
         let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
         return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
-                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil)]
+                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil),
+                ("agterm", "agterm", AppIcons.url("agterm") != nil)]
             .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }
     }
 
