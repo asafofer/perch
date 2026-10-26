@@ -506,8 +506,6 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
 .nw .nrow.dz .nw-rt { display: none; }
 .nw .nrow.dz .nw-dz { display: inline-flex; }
-/* Preview runs the card to the panel's height: its buttons keep an easy gap under them */
-.p-open[data-prev="1"] .inner { padding-bottom: 8px; }
 
 /* the label over a pull request icon (app.js prTip): a small raised surface, a row for each pull request */
 .pr-tip { position: fixed; z-index: 60; left: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 11px 7px 9px; border-radius: 10px; background: #1d1d20; color: #e4e4e7;
