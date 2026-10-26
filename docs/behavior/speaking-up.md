@@ -18,6 +18,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - The button under the pointer is lit from where the pointer is (app.js `markAct`), not WebKit's hover, which stays on a button the pointer left when the panel was never clicked.
 - A command on the row is said without the plumbing that only shapes its output for the agent: `npm run build 2>&1 | tail -n 30; echo "EXIT: $?"` reads `npm run build` (`Ask.brief`). The card shows it in full.
 - A finish shows only while Finished is on in Settings, Notifications (`notifyOff`, app.js `muted`).
+- A pull request that starts needing you (Checks failing, Changes requested, Merge conflicts) is announced as `ci`, unless Checks failing is off in Settings, Notifications ([pull-requests.md](pull-requests.md)).
 - A finish folds away. A request folds to wings until answered. A stop on an error (nothing to answer) says so once and folds away, and does not come back for the same error (`actErr`).
 
 ## Sent, or Didn't send
