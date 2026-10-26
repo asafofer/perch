@@ -1131,7 +1131,7 @@
     var cs = window.Intl && Intl.Segmenter ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(typed), function (g) { return g.segment; }) : Array.from(typed);
     caret = caret == null ? cs.length : Math.min(caret, cs.length); anchor = anchor == null ? caret : Math.min(anchor, cs.length);
     var a = Math.min(caret, anchor), b = Math.max(caret, anchor), part = function (x, y, c) { var t = cs.slice(x, y).join(''); return t ? '<span dir="auto"' + (c ? ' class="s-sel"' : '') + '>' + esc(t) + '</span>' : ''; };
-    return part(0, a) + (a === b ? '<i class="s-caret"></i>' : part(a, b, true)) + part(b, cs.length);
+    return part(0, a) + (a === b ? '<i class="s-caret' + (b < cs.length ? ' mid' : '') + '"></i>' : part(a, b, true)) + part(b, cs.length);
   }
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
