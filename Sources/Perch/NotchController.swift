@@ -374,10 +374,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func toggleSwitcher() {
         let fromIdle = machine.phase == .idle || machine.phase == .whatsNew
         openedByHover = false; proactiveOpen = false; prepareToShow()
-        send(.openSwitcher)
-        // Opened by itself, the list starts on its top row: what needs you, or what you touched last. (Closed, the machine
-        // keeps no selection, so this comes once it is open.)
-        if fromIdle { selectTopRow() }
+        // Opened from nothing, the list starts on its top row: what needs you, or what you touched last. It opens there in one
+        // step: opening on the row chosen last time and then moving to the top sent the page two lists in a row, and after
+        // Open Claude the card on screen stayed scrolled to the old row with the choice out of sight above it, so the arrow
+        // keys seemed to do nothing.
+        if machine.phase == .idle, let top = ListFilter.ordered(projects, "", now: Date()).first { send(.reopen(.switcher, selected: top)) }
+        else { send(.openSwitcher); if fromIdle { selectTopRow() } }
         refreshProjects()
     }
     func confirm() { send(.confirm) }
@@ -470,6 +472,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let home = FileManager.default.homeDirectoryForCurrentUser
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
+        // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
         let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
@@ -678,6 +681,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated {
                 // Pick up opens a closed terminal session in the terminal you use.
+                if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, app != NSRunningApplication.current { self?.lastOtherApp = app }
                 if let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier {
                     if Terminals.keys[bid] != nil { Prefs.lastTerminal = bid }
                     if FocusProbe.reads(bid), self?.hasSessions(in: bid) == true { self?.focus.poll(app: bid) }
@@ -958,7 +962,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// While a reply is open Perch is the app in front, as for a new session, so a launcher's paste lands in the field.
     /// Where you were is from before that, for whatever puts you back after the reply goes.
     private var replyFrontFrom: NSRunningApplication?, replyBack: WhereYouWere?
-    private func whereYouWere() -> WhereYouWere { replyBack ?? WhereYouWere.now() }
+    /// The reply field closes as its words go, a moment before they are sent: where you were stays known for a few seconds.
+    private var replyLeft: (back: WhereYouWere, at: Date)?
+    private func whereYouWere() -> WhereYouWere {
+        if let replyBack { return replyBack }
+        if let left = replyLeft, Date().timeIntervalSince(left.at) < 3 { return left.back }
+        let now = WhereYouWere.now()
+        // Opened with its shortcut, Perch itself is in front: you were in the app before it.
+        if now.app == NSRunningApplication.current, let other = lastOtherApp, !other.isTerminated { return WhereYouWere(app: other, window: nil) }
+        return now
+    }
+    /// The last app other than Perch to come forward.
+    private var lastOtherApp: NSRunningApplication?
     private func frontForReply(_ on: Bool) {
         if on {
             guard !NSApp.isActive else { return }
@@ -974,6 +989,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         } else {
             guard replyFrontFrom != nil else { return }
             if NSApp.isActive, let app = replyFrontFrom, !app.isTerminated { app.activate() }
+            replyLeft = replyBack.map { ($0, Date()) }
             replyFrontFrom = nil; replyBack = nil
         }
     }
@@ -1113,7 +1129,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let folder = st.folder.map { ($0 as NSString).lastPathComponent } ?? "No project"
         let row = UISnapshot.UIProject(id: "new-session", name: folder, branch: nil, away: "0m", at: "", headline: "", context: "", next: "", topic: st.title, app: st.choice.agent,
                                        attention: false, fresh: false, line: "", status: .init(kind: "running", text: "Starting", app: st.choice.agent), steps: [], ask: nil, now: nil,
-                                       via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, pending: st.state)
+                                       via: st.choice.terminal ? Terminals.keys[Terminals.preferred] ?? "terminal" : nil, host: nil, opens: nil, section: "Today", said: nil, asked: nil, askedLast: false, pending: st.state)
         sent.projects.append(row)
         var shown = sent.shown ?? Array(0..<(sent.projects.count - 1))
         let at = shown.firstIndex { sent.projects[$0].section != "Needs you" } ?? shown.count
@@ -1319,13 +1335,19 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         if p.terminal, let cwd = p.cwd, let id = p.sessionId {
             let agent = p.app, line = text.replacingOccurrences(of: "\n", with: " "), pid = p.pid
             let sentAt = Date(), back = whereYouWere()
+            // The agents already known to run another session: one in this folder that is not may be running this one.
+            let claimed = Set(projects.compactMap { $0.id == p.id ? nil : $0.pid })
             markSeen(p)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
                 let hit = live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }
-                var done = false
+                var done = false, unsure = false
                 if let hit { done = Terminals.type(line, into: hit) }
-                else {
+                else if live.contains(where: { $0.agent == agent && $0.cwd == cwd && !claimed.contains($0.pid) }) {
+                    // It may still run there under a name Perch could not tie to it: opening it again would start a second
+                    // copy, and typing into that one could answer another session. Your words wait on the clipboard.
+                    unsure = true
+                } else {
                     // Not running: it opens again where it last ran, with your words as its first message.
                     _ = Restorer.reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id, prompt: line))
                     done = true
@@ -1336,7 +1358,14 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 DispatchQueue.main.async {
                     MainActor.assumeIsolated {
                         guard let self else { return }
-                        guard done else { self.pasteReply(text, to: p.id); return }
+                        if unsure {
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+                            NSLog("Perch: reply left on the clipboard (an agent in \(cwd) may be running this session)")
+                            self.replyHanded(p.id)
+                            if self.machine.phase == .open { let old = self.machine.phase; self.machine.send(.dismiss); self.phaseChanged(old, self.machine.phase); self.putAway = nil; self.push() }
+                            self.say("Reply copied"); return
+                        }
+                        guard done else { self.pasteReply(text, to: p.id, back: back); return }
                         // The words are already in the terminal; the card closes once they have flown into the notch,
                         // into the line that says Sent.
                         self.replying(p.id)
@@ -1444,7 +1473,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pb.clearContents(); pb.setString(text, forType: .string)
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let app = Agent.of(projects[i].app).short
+        let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
@@ -1466,6 +1495,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     return false
                 }
             default:
+                // A terminal tab that was only a guess is not left in front: pasting there could answer another session.
+                // The terminal may still be coming forward from its own script, so this waits a moment.
+                if terminal { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { back.restore() } }
                 NSLog("Perch: reply left on the clipboard (no exact session to type into)"); self?.say("Reply copied"); return
             }
             Task {
@@ -1569,12 +1601,23 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
         let on = Prefs.enabledSources
         return Agent.all.filter { ["claude", "codex"].contains($0.id) || (counts[$0.id]?.count ?? 0) > 0 || AgentPresence.installed($0) }.map { a in
-            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: counts[a.id]?.names ?? [], enabled: on.contains(a.id))
+            // Chats go by count alone: their titles can be personal, and onboarding shows them before you choose.
+            UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: a.id == Agent.chat.id ? [] : counts[a.id]?.names ?? [], enabled: on.contains(a.id))
         }
     }
 
+    /// The places Perch follows a session into that are on this Mac: their apps, or their commands where they have none.
+    private func placesState() -> [UISnapshot.Place] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
+        let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
+        return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
+                ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil)]
+            .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }
+    }
+
     private func settingsState() -> UISnapshot.Settings {
-        return UISnapshot.Settings(sources: sourcesState(), accessibility: AXIsProcessTrusted(),
+        return UISnapshot.Settings(sources: sourcesState(), places: placesState(), accessibility: AXIsProcessTrusted(),
                                    idleMinutes: Prefs.idleMinutes, questionSeconds: Prefs.questionSeconds, login: SMAppService.mainApp.status == .enabled, live: liveState,
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
@@ -1672,7 +1715,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingState() -> UISnapshot.Onboarding {
         // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
         // (and start a scan) every half second while an agent works.
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), places: placesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.
