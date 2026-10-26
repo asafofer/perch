@@ -24,13 +24,20 @@ card. Icon only; the words and the title are in a label on hover. Code: `PullReq
 - The app keeps an open pull request's state only while the session is in use (6 of 13 saved as open were merged, all in sessions
   idle for 8 days or more). So without Checks, an open or draft one from a session idle for more than two days is not shown
   (`PullRequests.staleAfter`); merged and closed are final and always shown.
+- **Every other agent**: found in the session's own log (`PullRequestScan`), as the address a command that opens a pull request
+  printed: Claude Code's `tool_use` and `tool_result` ids, Codex's `call_id`, pi's `toolCallId`, OpenCode's one record with the
+  command and its output. Only the result of that call counts: an address in your message, a document, `gh pr view` or a search is
+  never taken. Logs are read as they grow, from where the last read stopped. A Claude app session the app lists no pull request for
+  is read the same way. The state is not in the log, so these show once GitHub has been asked (Checks): without it nothing shows
+  for them (`stateKnown`).
 - **Checks** (off until chosen): Perch asks GitHub through the GitHub CLI's login (`gh pr view --json … -- <url>`, read only; the
   address follows `--`, so it is never an option, and only GitHub addresses are asked). It runs `gh` from where it is installed
   (Homebrew's folders, then a login shell) since an app has no PATH. It gives titles, checks, reviews and conflicts, and corrects a
   state the app has wrong. Checks count only when they hold the merge back (GitHub's UNSTABLE means only optional ones fail), and
   skipped or neutral ones say nothing.
-- `PullRequestChecker` asks only for what the list shows, three at a time, and remembers: an open one for a minute, the rest for
-  six hours, a failure for two minutes. Its answers refresh the list (`onUpdate`).
+- `PullRequestChecker` asks only for what the list shows, three at a time, and remembers: an open one for a minute, a closed one
+  for three (it can be reopened), a merged one for six hours, a failure for two minutes. A check run again is listed once for each
+  run: the newest of each workflow and name stands. Its answers refresh the list (`onUpdate`).
 - Checks needs the CLI installed and signed in (`GitHubCLI.availability`: `gh auth status`). Without them Checks is greyed in
   Settings with the line saying what to do, and marks go on working.
 
