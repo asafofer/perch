@@ -61,6 +61,12 @@ public final class OpenCodeStore {
         return out
     }
 
+    /// The tool calls of a session that ran a command to open a pull request, as the JSON OpenCode stores them: the command and
+    /// its output are in the one record.
+    public func pullRequestRecords(session: String) -> [String] {
+        rows("SELECT data FROM part WHERE session_id = ? AND data LIKE ?", bind: [.text(session), .text("%" + PullRequestScan.create + "%")]) { Self.text($0, 0) }
+    }
+
     private enum Value { case int(Int64), text(String) }
     private func rows<T>(_ sql: String, bind: [Value], _ row: (OpaquePointer) -> T) -> [T] {
         var st: OpaquePointer?

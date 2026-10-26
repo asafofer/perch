@@ -15,6 +15,8 @@ public struct PullRequest: Equatable, Sendable {
     public var checks: Checks?
     public var review: Review?
     public var conflict = false
+    /// False when only the address is known (found in a session's log): its state is GitHub's to say, once asked.
+    public var stateKnown = true
 
     public init(number: Int, repo: String, url: String, state: State, title: String? = nil, checks: Checks? = nil, review: Review? = nil, conflict: Bool = false) {
         self.number = number; self.repo = repo; self.url = url; self.state = state
@@ -76,6 +78,7 @@ public enum PullRequests {
     public static func visible(_ prs: [PullRequest], mode: Mode, idle: TimeInterval, verified: Set<String> = []) -> [PullRequest] {
         guard mode != .off else { return [] }
         return prs.filter { pr in
+            if !pr.stateKnown && !verified.contains(pr.url) { return false }
             switch pr.state {
             case .merged, .closed: return true
             case .open, .draft: return idle <= staleAfter || verified.contains(pr.url)

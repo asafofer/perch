@@ -255,6 +255,78 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         #expect(list.allSatisfy { !$0.prNeeds && $0.status.kind == "done" })
     }
 
+    // MARK: finding them in a session's log
+    private let make = "gh pr " + "create"
+
+    @Test func claudeCodesLogShowsTheOneItOpened() {
+        var r = PullRequestScan.Reader()
+        r.feed(#"{"type":"assistant","message":{"id":"msg_1","content":[{"type":"tool_use","id":"toolu_A","name":"Bash","input":{"command":"git push && \#(make) --title x"}}]}}"#)
+        r.feed(#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_A","content":"https://github.com/asafofer/perch/pull/127"}]}}"#)
+        #expect(r.found == ["https://github.com/asafofer/perch/pull/127"])
+    }
+
+    @Test func codexsLogShowsTheOneItOpened() {
+        var r = PullRequestScan.Reader()
+        r.feed(#"{"type":"response_item","payload":{"type":"custom_tool_call","id":"ctc_1","call_id":"call_9","name":"exec","input":"const r = await tools.exec_command({cmd:\"\#(make) --title t\"})"}}"#)
+        r.feed(#"{"type":"response_item","payload":{"type":"custom_tool_call_output","id":"ctco_2","call_id":"call_9","output":"[{'type': 'input_text', 'text': 'remote: Create a pull request https://github.com/asafofer/perch/pull/new/x\\nhttps://github.com/asafofer/perch/pull/127'}]"}}"#)
+        #expect(r.found == ["https://github.com/asafofer/perch/pull/127"])
+    }
+
+    @Test func pisLogShowsTheOneItOpened() {
+        var r = PullRequestScan.Reader()
+        r.feed(#"{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"call_x|fc_1","name":"bash","arguments":{"command":"\#(make)"}}]}}"#)
+        r.feed(#"{"type":"message","message":{"role":"toolResult","toolCallId":"call_x|fc_1","toolName":"bash","content":[{"type":"text","text":"https://github.com/a/b/pull/8\n"}]}}"#)
+        #expect(r.found == ["https://github.com/a/b/pull/8"])
+    }
+
+    @Test func openCodesRecordHasTheCommandAndItsOutputTogether() {
+        var r = PullRequestScan.Reader()
+        r.feed(#"{"type":"tool","tool":"bash","callID":"call_00","state":{"status":"completed","input":{"command":"\#(make) -t x"},"output":"https://github.com/a/b/pull/3\n"}}"#)
+        #expect(r.found == ["https://github.com/a/b/pull/3"])
+    }
+
+    @Test func anAddressThatIsNotTheResultOfOpeningOneIsNeverTaken() {
+        var r = PullRequestScan.Reader()
+        // Someone's message, a document, a search: an address with no command that opened it.
+        r.feed(#"{"type":"user","message":{"content":"look at https://github.com/a/b/pull/5"}}"#)
+        r.feed(#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_B","name":"Bash","input":{"command":"gh pr view 5"}}]}}"#)
+        r.feed(#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_B","content":"https://github.com/a/b/pull/5"}]}}"#)
+        // The command was made, but the address comes from another call.
+        r.feed(#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_C","name":"Bash","input":{"command":"\#(make)"}}]}}"#)
+        r.feed(#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_D","content":"https://github.com/a/b/pull/6"}]}}"#)
+        // The command and an address in one user message, with no call behind them.
+        r.feed(#"{"type":"user","message":{"content":"run \#(make) and tell me if https://github.com/a/b/pull/7 is it"}}"#)
+        #expect(r.found.isEmpty)
+    }
+
+    @Test func aLogIsReadAsItGrowsAndAgainWhenItShrinks() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("perch-prlog-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let call = #"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_A","name":"Bash","input":{"command":"\#(make)"}}]}}"# + "\n"
+        let result = #"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_A","content":"https://github.com/a/b/pull/9"}]}}"# + "\n"
+        try call.write(to: file, atomically: true, encoding: .utf8)
+        #expect(PullRequestScan.created(in: file).isEmpty)
+        let h = try FileHandle(forWritingTo: file); try h.seekToEnd(); try h.write(contentsOf: Data(result.utf8)); try h.close()
+        #expect(PullRequestScan.created(in: file) == ["https://github.com/a/b/pull/9"])
+        try Data("{}\n".utf8).write(to: file)   // a new, shorter log at the same path
+        #expect(PullRequestScan.created(in: file).isEmpty)
+    }
+
+    @Test func anAddressFoundInALogIsNotShownUntilGitHubHasSaidWhereItStands() {
+        let found = PullRequestScan.requests(["https://github.com/a/b/pull/9", "https://evil.example/a/b/pull/1"])
+        #expect(found.map(\.number) == [9]); #expect(found[0].stateKnown == false)
+        var list = [session("t", found)]
+        PullRequests.apply(&list, mode: .marks, answer: { _ in nil }, verified: [])
+        #expect(list[0].prs.isEmpty)   // without Checks there is nothing to say about it
+        var checked = [session("t", found)]
+        let merged = PullRequest(number: 9, repo: "a/b", url: "https://github.com/a/b/pull/9", state: .merged)
+        PullRequests.apply(&checked, mode: .checks, answer: { _ in merged }, verified: [merged.url])
+        #expect(checked[0].prs.map(\.state) == [.merged])
+        var waiting = [session("t", found)]
+        PullRequests.apply(&waiting, mode: .checks, answer: { _ in nil }, verified: [])
+        #expect(waiting[0].prs.isEmpty)   // asked, not answered yet
+    }
+
     // MARK: the scan
     @Test func aSessionTheAppListsKeepsItsPullRequests() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-pr-\(UUID().uuidString)/acct/org")

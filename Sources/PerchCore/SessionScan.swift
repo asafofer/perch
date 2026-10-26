@@ -78,6 +78,7 @@ public final class SessionScanner: @unchecked Sendable {
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
     private var digestCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
+    private var prCache: [String: (mtime: Date, urls: [String])] = [:]
     private var gitCache: [String: (until: Date, info: GitInfo?, branch: String?)] = [:]
     /// Whether a folder is a worktree, and of which project, does not change.
     private var repoCache: [String: String?] = [:]
@@ -179,6 +180,7 @@ public final class SessionScanner: @unchecked Sendable {
             Self.heardFrom(helpersOf: t.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(t.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = Self.created(t.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: t.url))
                 out.append((p, digest, git, last)); if chat { chats += 1 } else { fromTerminal += 1 }
             }
         }
@@ -193,7 +195,9 @@ public final class SessionScanner: @unchecked Sendable {
             let git = cachedGit(cwd).info
             Self.heardFrom(helpersOf: s.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
-                p.focusedAt = s.entry.focusedAt; p.prs = s.entry.prs
+                p.focusedAt = s.entry.focusedAt
+                // The app lists the pull requests a session has; one it does not list but the session opened is found in its log.
+                p.prs = s.entry.prs.isEmpty ? PullRequestScan.requests(PullRequestScan.created(in: s.url)) : s.entry.prs
                 out.append((p, digest, git, last))
             }
         }
@@ -210,7 +214,7 @@ public final class SessionScanner: @unchecked Sendable {
             let git = cachedGit(entry.cwd).info
             Self.heardFrom(helpersOf: url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(mtime), conductor: entry.workspaceId), let last = digest.lastTimestamp {
-                p.startedAt = Self.created(url)
+                p.startedAt = Self.created(url); p.prs = PullRequestScan.requests(PullRequestScan.created(in: url))
                 out.append((p, digest, git, last)); fromConductor += 1
             }
         }
@@ -294,6 +298,7 @@ public final class SessionScanner: @unchecked Sendable {
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: .codex, quietFor: now.timeIntervalSince(item.mtime), conductor: workspace?.workspaceId), let last = digest.lastTimestamp {
                 p.terminal = head.entrypoint == "cli"   // the Codex CLI in a terminal, not the Codex app
                 p.startedAt = Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, git, last)); if !chat { real += 1 }
             }
         }
@@ -324,10 +329,22 @@ public final class SessionScanner: @unchecked Sendable {
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .opencode, quietFor: now.timeIntervalSince(s.updated)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = s.created; p.smallTalk = chat
+                p.prs = PullRequestScan.requests(openCodePullRequests(store, session: s))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
             }
         }
         return out
+    }
+
+    /// The pull requests an OpenCode session opened, read again only when the session changed.
+    private func openCodePullRequests(_ store: OpenCodeStore, session s: OpenCodeStore.Session) -> [String] {
+        let key = "opencode-pr:" + s.id
+        lock.lock(); let hit = prCache[key]; lock.unlock()
+        if let hit, hit.mtime == s.updated { return hit.urls }
+        var reader = PullRequestScan.Reader()
+        for record in store.pullRequestRecords(session: s.id) { reader.feed(record) }
+        lock.lock(); prCache[key] = (s.updated, reader.found); lock.unlock()
+        return reader.found
     }
 
     // MARK: pi (~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl)
@@ -357,6 +374,7 @@ public final class SessionScanner: @unchecked Sendable {
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = head.startedAt ?? Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
             }
         }
