@@ -2000,6 +2000,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if e.type == .flagsChanged { self.recordFlags(e); self.pushHeld(e); return e }
             if self.recorder != nil { self.recordKey(e); return nil }
             if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch key: \(e.keyCode) in \(self.machine.phase)") }
+            // What's new, once the pointer is on it: the arrows and Page Up and Down scroll its list; Return or Esc is Got it.
+            if self.machine.phase == .whatsNew {
+                let scroll: [UInt16: String] = [125: "down", 126: "up", 121: "pageDown", 116: "pageUp"]
+                if let k = scroll[e.keyCode] { self.web.evaluateJavaScript("window.perch && window.perch.wnScroll('\(k)')", completionHandler: nil); return nil }
+                if [36, 76, 53].contains(e.keyCode) { self.whatsNewDone(); return nil }
+                return e
+            }
             if self.machine.phase == .onboarding {
                 let letter = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
                 if letter == "s" { self.web.evaluateJavaScript("window.perch && window.perch.onbKey('skip')", completionHandler: nil); return nil }
@@ -2400,6 +2407,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
         let inside = rect.contains(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
+        // What's new opened by itself and left the keyboard alone; the pointer on it says you are reading it, so the arrows are its.
+        if inside, !pointerOnCard, machine.phase == .whatsNew, !panel.isKeyWindow { startKeys(); panel.allowsKey = true; panel.makeKey() }
         if inside, !pointerOnCard, panel.allowsKey, !panel.isKeyWindow, cardTakesKeys { panel.makeKey() }
         pointerOnCard = inside
         // Writing a reply, or words selected to copy, make the card yours: it stays when the pointer wanders off, until a

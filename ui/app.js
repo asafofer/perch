@@ -366,7 +366,7 @@
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5">' +
+    '<div class="inner pt-8 pb-2">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
          the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
@@ -382,16 +382,16 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
-      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
-      '<div class="f-prev hidden h-9 items-center gap-0.5"><button aria-label="Back" title="Back (Esc)" class="x-pvback flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><span class="flex-1"></span><span class="o-pacts flex items-center gap-0.5"></span></div>' +
-      '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
+      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-end gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
+      '<div class="f-rep hidden h-9 items-end gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="f-prev hidden h-9 items-end gap-0.5"><button aria-label="Back" title="Back (Esc)" class="x-pvback flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><span class="flex-1"></span><span class="o-pacts flex items-center gap-0.5"></span></div>' +
+      '<div class="f-snz hidden h-9 items-end gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1">' +
+    '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
@@ -400,9 +400,9 @@
     '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
+    '<div class="inner pt-8 pb-2"><div class="onb"></div></div></div>' +
     '<div class="pane p-set">' + '<span class="s-title rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center gap-1 text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
+    '<div class="inner pt-8 pb-2"><div class="set"></div></div></div>' +
     /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
     '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-2"><div class="wn"></div></div></div>' +
@@ -1459,7 +1459,7 @@
       html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
         '<div class="nw-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
         '<textarea class="nw-in block cursor-text max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div></div>' +
-        '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+        '<div class="mt-1.5 flex h-9 items-end gap-1 px-2.5 pb-2"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
     /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
@@ -2399,7 +2399,7 @@
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
       '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
-      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+      '<div class="rv flex h-9 items-end justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
     var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
@@ -2970,7 +2970,7 @@
   /* `left` sits where Back would be: the keyboard hints on the character step */
   function ofoot(i, back, mid, label, action, left) { return oi(i, ofootIn(back, mid, label, action, left)); }
   function ofootIn(back, mid, label, action, left) {
-    return '<div class="o-foot mt-3 flex h-9 items-center gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
+    return '<div class="o-foot mt-3 flex h-9 items-end gap-1 px-2.5">' + (back ? Button('ghost', 'Back', Kbd('\u2190'), 'o-back') : (left || '')) + '<span class="flex-1"></span>' + (mid || '') +
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>';
   }
   /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
@@ -3417,7 +3417,7 @@
         foot = '<span class="flex flex-1 justify-center">' + setHints([['\u2191\u2193', 'Choose'], [ENTER, 'Change'], ['\u2190', 'Back']]) + '</span>';
       }
       /* the keys, like the list's: every setting can be changed without the mouse */
-      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-center gap-1 px-2.5">' + foot + '</div>';
+      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-end gap-1 px-2.5">' + foot + '</div>';
     }
     /* inside a category, Settings steps back and is a way back */
     var title = setPage ? '<button class="s-crumb cursor-pointer rounded text-muted-foreground transition-colors hover:text-foreground" title="Back (\u2190)">Settings</button>' : 'Settings';
@@ -3578,7 +3578,7 @@
       /* what stands in the way, in orange, when something does: files over the limit, or a send that failed */
       '<p class="fb-err mt-1 hidden px-1 text-[12px] leading-4" style="color:' + COLORS.attention + '"></p>' +
       '</div>' +
-      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
+      '<div class="mt-1 flex h-9 items-end gap-1 px-2.5">' +
         Button('ghost', svg('clip', 'size-3') + 'Attach', Kbd('\u2318O'), 'fb-attach -ml-1') + '<span class="flex-1"></span>' +
         /* the way round both: Mail, with a new message to the maker of Perch, your words and files in it */
         Button('ghost', 'Email it instead', '', 'fb-mailit hidden') +
@@ -3857,7 +3857,7 @@
   new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
   window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -4390,6 +4390,8 @@
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
         if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
+      /* What's new: the arrows and Page Up and Down scroll its list, as in the app once the pointer is on it */
+      if (ph === 'new' && { ArrowDown: 'down', ArrowUp: 'up', PageDown: 'pageDown', PageUp: 'pageUp' }[e.key]) { e.preventDefault(); window.perch.wnScroll({ ArrowDown: 'down', ArrowUp: 'up', PageDown: 'pageDown', PageUp: 'pageUp' }[e.key]); return; }
       if (previewOn && ph === 'open') {
         var rk = e.key === 'Escape' || e.key === 'ArrowLeft' || e.key === ' ' ? 'close' : e.key === 'PageDown' ? 'pageDown' : e.key === 'PageUp' ? 'pageUp' : e.key === 'ArrowDown' ? (e.metaKey ? 'end' : 'down') : e.key === 'ArrowUp' ? (e.metaKey ? 'top' : 'up') : e.metaKey && e.key === 'c' ? 'copy' : !e.metaKey && (e.key === 'r' || e.key === 'R') ? 'reply' : '';
         if (rk) { e.preventDefault(); previewKey(rk); return; }
