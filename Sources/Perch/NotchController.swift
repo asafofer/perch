@@ -21,7 +21,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var mouseMonitors: [Any] = []
     private var ready = false
     /// What you typed in the list to narrow it. Cleared when the card closes.
-    private var listQuery = ""
+    private var listField = FilterField()
+    private var listQuery: String { get { listField.text } set { listField.text = newValue } }
     /// The app icons this page has. Nil until sent, and again after the page reloads.
     private var iconKeys: Set<String>?
     private var iconsCheckedAt = Date.distantPast
@@ -822,7 +823,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         }
         if machine.phase == .idle { sent.access = accessRow() }
         // The list draws its rows in this order, by section; with something typed, only the ones that match.
-        if machine.phase == .switcher { sent.query = listQuery; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
+        if machine.phase == .switcher { sent.query = listQuery; sent.queryCaret = listField.caret; sent.queryAnchor = listField.anchor; sent.shown = ListFilter.ordered(projects, listQuery, now: Date()) }
         if machine.phase == .idle { sent.quiet = quietNow() }
         sent.allowing = waitingReply != nil
         sent.drafts = drafts
@@ -2076,14 +2077,32 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if let k { self.web.evaluateJavaScript("window.perch && window.perch.askKey('\(k)')", completionHandler: nil); self.restartTimer(); return nil }
             }
             if self.machine.phase == .switcher {
-                // Typing narrows the list. Backspace edits, Esc clears what you typed before it closes anything.
-                if e.keyCode == 51 { if !self.listQuery.isEmpty { self.listQuery.removeLast(); self.filterChanged() }; return nil }
-                if e.keyCode == 53, !self.listQuery.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
-                if e.keyCode == 125 || e.keyCode == 126 { self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
+                // Typing narrows the list, in a field with a caret: Left and Right move through it, Command+A selects it all, Command+C copies.
+                // Backspace edits, Esc clears what you typed before it closes anything.
+                let mods = e.modifierFlags.intersection([.command, .option, .control, .shift])
+                let wordsOrEdges: FilterField.Step = mods.contains(.command) ? .edge : mods.contains(.option) ? .word : .char
+                let marked = { self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil) }
+                if e.keyCode == 51 { if !self.listField.isEmpty { self.listField.deleteBackward(word: mods.contains(.option)); self.filterChanged() }; return nil }
+                if e.keyCode == 117 { if !self.listField.isEmpty { self.listField.deleteForward(); self.filterChanged() }; return nil }
+                if e.keyCode == 53, !self.listField.isEmpty { self.listQuery = ""; self.filterChanged(); return nil }
+                if !self.listField.isEmpty, [[], .command, .option].contains(mods.subtracting(.shift)) {
+                    // Right at the end of the text still opens the row you are on (below).
+                    if e.keyCode == 123 || (e.keyCode == 124 && (!self.listField.atEnd || mods.contains(.shift))) {
+                        self.listField.move(e.keyCode == 123 ? -1 : 1, by: wordsOrEdges, extend: mods.contains(.shift)); marked(); self.push(); return nil
+                    }
+                }
+                if mods == .command, !self.listField.isEmpty {
+                    switch KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode) {
+                    case "a": self.listField.selectAll(); marked(); self.push(); return nil
+                    case "c": if self.listField.hasSelection { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(self.listField.selected, forType: .string) }; return nil
+                    default: break
+                    }
+                }
+                if e.keyCode == 125 || e.keyCode == 126 { marked(); self.stepList(e.keyCode == 125 ? 1 : -1); return nil }
                 let typed = e.characters ?? ""
                 if e.modifierFlags.intersection([.command, .control]).isEmpty, typed.count == 1,
                    typed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
-                    if !(typed == " " && self.listQuery.isEmpty) { self.listQuery += typed; self.listMarked = true; self.web.evaluateJavaScript("window.perch && window.perch.listKey()", completionHandler: nil); self.filterChanged() }
+                    if !(typed == " " && self.listField.isEmpty) { self.listField.insert(typed); marked(); self.filterChanged() }
                     return nil
                 }
                 // Nothing left to open or look at when nothing matches.

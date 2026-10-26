@@ -1126,6 +1126,13 @@
     el.classList.add('on');
   }
   selPill.el = document.createElement('div'); selPill.el.className = 'sel-pill'; selPill.el.setAttribute('aria-hidden', 'true');
+  /* the typed words are a field: a caret anywhere in them, or a selection (Swift counts in characters) */
+  function typedHtml(typed, caret, anchor) {
+    var cs = window.Intl && Intl.Segmenter ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(typed), function (g) { return g.segment; }) : Array.from(typed);
+    caret = caret == null ? cs.length : Math.min(caret, cs.length); anchor = anchor == null ? caret : Math.min(anchor, cs.length);
+    var a = Math.min(caret, anchor), b = Math.max(caret, anchor), part = function (x, y, c) { var t = cs.slice(x, y).join(''); return t ? '<span dir="auto"' + (c ? ' class="s-sel"' : '') + '>' + esc(t) + '</span>' : ''; };
+    return part(0, a) + (a === b ? '<i class="s-caret"></i>' : part(a, b, true)) + part(b, cs.length);
+  }
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
@@ -1133,7 +1140,7 @@
     if (opening) { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
-    q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
+    q('.s-h').innerHTML = typed ? typedHtml(typed, s.queryCaret, s.queryAnchor) : 'Jump back in';
     var reading = switchFx === 'watch' && typed !== fxTyped && !!typed; fxTyped = typed;
     if (reading) { var caret = q('.s-h .s-caret'); if (caret) setTimeout(function () { lookAt(caret, 0); }, 0); }
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
@@ -3971,7 +3978,7 @@
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
     var base = { canUpdate: true, selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
-    var autoTimer, devQuery = '';
+    var autoTimer, devQuery = '', devCaret = 0, devAnchor = 0;
     function devShown() {
       var words = devQuery.toLowerCase().split(/\s+/).filter(Boolean);
       var mins = function (p) { var m = /^(\d+)([mhd])/.exec(p.away || ''); return m ? +m[1] * { m: 1, h: 60, d: 1440 }[m[2]] : 1e9; };
@@ -4246,12 +4253,29 @@
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
         base.selected = at < 0 ? shown[0] : shown[(at + d + shown.length) % shown.length];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown, timerToken: Math.random() }));
       },
       /* the same narrowing as ListFilter in Swift: every word must appear in the name or the title */
       type: function (t) {
-        devQuery = t; var shown = devShown(); if (shown.length) base.selected = shown[0];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
+        devQuery = t; devCaret = devAnchor = t.length; var shown = devShown(); if (shown.length) base.selected = shown[0];
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown, timerToken: Math.random() }));
+      },
+      /* the typed words as a field: caret anywhere, a selection, edits at the caret (Perch's FilterField) */
+      edit: function (e) {
+        var lo = Math.min(devCaret, devAnchor), hi = Math.max(devCaret, devAnchor), k = e.key;
+        var word = function (i, d) { var j = i; if (d < 0) { while (j > 0 && /\s/.test(devQuery[j - 1])) j--; while (j > 0 && !/\s/.test(devQuery[j - 1])) j--; } else { while (j < devQuery.length && /\s/.test(devQuery[j])) j++; while (j < devQuery.length && !/\s/.test(devQuery[j])) j++; } return j; };
+        var set = function (t, c) { devQuery = t; devCaret = devAnchor = c; var shown = devShown(); if (shown.length) base.selected = shown[0]; draw(shown); }, draw = function (shown) { apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown || devShown(), timerToken: Math.random() })); };
+        if (k === 'ArrowLeft' || k === 'ArrowRight') {
+          var d = k === 'ArrowLeft' ? -1 : 1, to = e.metaKey ? (d < 0 ? 0 : devQuery.length) : e.altKey ? word(devCaret, d) : lo !== hi && !e.shiftKey ? (d < 0 ? lo : hi) : Math.min(Math.max(devCaret + d, 0), devQuery.length);
+          devCaret = to; if (!e.shiftKey) devAnchor = to; draw(); return;
+        }
+        if (e.metaKey && k.toLowerCase() === 'a') { devAnchor = 0; devCaret = devQuery.length; draw(); return; }
+        if (e.metaKey && k.toLowerCase() === 'c') { if (lo !== hi && navigator.clipboard) navigator.clipboard.writeText(devQuery.slice(lo, hi)); return; }
+        if (k === 'Backspace' || k === 'Delete') {
+          if (lo === hi) { if (k === 'Backspace') { if (!lo) return; lo = e.altKey ? word(lo, -1) : lo - 1; } else { if (hi >= devQuery.length) return; hi++; } }
+          set(devQuery.slice(0, lo) + devQuery.slice(hi), lo); return;
+        }
+        set(devQuery.slice(0, lo) + k + devQuery.slice(hi), lo + k.length);
       }
     };
     /* recording and trying the shortcut with the browser's own keys (capture phase, before anything else sees them) */
@@ -4326,10 +4350,11 @@
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
+      else if (ph === 'switcher' && devQuery && (e.key === 'ArrowLeft' || (e.key === 'ArrowRight' && (devCaret < devQuery.length || devCaret !== devAnchor || e.shiftKey)) || (e.metaKey && /^[ac]$/i.test(e.key)))) { e.preventDefault(); window.perchDev.edit(e); }
       else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', false, true); }
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
-      else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
+      else if (ph === 'switcher' && (e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.edit(e); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
