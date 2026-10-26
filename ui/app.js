@@ -2,7 +2,7 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 400, CARD_MAX_H = 440;   /* the panel's height: a card taller than it is cut off */
+  var CARD_W = 400, CARD_MAX_H = 428;   /* what shows of the panel (440 less a hair): a card taller than it is cut off */
   var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
@@ -206,9 +206,9 @@
   /* a footer action: `act` is what it does, `key` its shortcut */
   function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
   /* On a card you opened, Up and Down flip to the next session's card; it says so, since nothing else would tell you.
-     The card Perch opened by itself offers Not now there instead (N snoozes either way). */
+     The card Perch opened by itself says nothing there: it offers no button for Not now (N still snoozes). */
   function Flip() {
-    if (snap && snap.proactive) return Act('ghost', 'Not now', 'N', 'snooze');
+    if (snap && snap.proactive) return '';
     return snap && snap.projects.length > 1 ? Button('ghost', 'Sessions', Keys('\u2191', '\u2193'), 'pr-1" data-act="flip') : '';
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
@@ -292,8 +292,6 @@
         '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
-      /* the summary is a gist: Space (or a click on it) reads the whole message */
-      '<div class="o-more rv mt-1 flex px-3" style="--i:2">' + Button('ghost', 'Preview', Kbd('space'), 'x-prev h-6 pl-1') + '</div>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
@@ -422,6 +420,7 @@
     else if (a === 'qback') askKey('back');
     else if (a === 'qnext') askKey('next');
     else if (a === 'flip') post({ type: 'flip' });
+    else if (a === 'preview') previewMenu(true);
     else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
@@ -631,6 +630,10 @@
     if (picked) document.dispatchEvent(new Event('copy'));
     var b = q('.o-pacts [data-act=copy] span'), l = b && b.firstChild; if (!l) return;
     l.nodeValue = 'Copied'; clearTimeout(previewCopy.t); previewCopy.t = setTimeout(function () { l.nodeValue = 'Copy'; }, 1400);
+    /* and the character smiles for a beat, with a small nudge: fine, not a show */
+    var was = cr.dataset.m; if (was === 'awake' || was === 'happy') {
+      cr.dataset.m = 'happy'; clearTimeout(previewCopy.m); previewCopy.m = setTimeout(function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }, 1600);
+    }
   }
   function previewKey(k) {
     if (!previewOn) return;
@@ -641,9 +644,9 @@
     else if (k === 'end' || k === 'top') saidScroll(k === 'end' ? 1e6 : -1e6, box);   /* the message's ends, past any table */
     else saidScroll({ pageDown: page, pageUp: -page, down: 57, up: -57 }[k] || 0);
   }
-  /* the summary and its Preview open Preview; dragging over the words to select them does not */
+  /* the summary opens Preview (as does the footer's Preview); dragging over the words to select them does not */
   q('.p-open').addEventListener('click', function (e) {
-    if (!e.target.closest('.o-h, .o-c, .x-prev')) return;
+    if (!e.target.closest('.o-h, .o-c')) return;
     var sel = window.getSelection(); if (sel && !sel.isCollapsed) return;
     previewMenu(true);
   });
@@ -948,7 +951,6 @@
     /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
     var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    q('.o-more').style.display = canPreview(p) ? '' : 'none';   /* never on a request: canPreview says no to one */
     /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
     if (repOn) showSaid(true);
     /* Preview too, read from where you were rather than from its end */
@@ -993,7 +995,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (canPreview(p) ? Act('ghost', 'Preview', 'space', 'preview') : Flip()) + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while

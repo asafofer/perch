@@ -376,7 +376,7 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 @media (prefers-reduced-motion: reduce) { .hl i { transition: none; } .hl.copied i { animation-duration: .25s; } }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
-.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx:not(.live), .p-open[data-rep="1"] .o-more { display: none !important; }
+.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx:not(.live) { display: none !important; }
 /* replying while it works: the step it is on stays under the message, so the reply never reads as stale */
 /* answering in your own words (Other): the agent's choices step back while you type */
 .p-open .o-ask button { transition: opacity 200ms ease, background-color 150ms ease; }
@@ -506,3 +506,5 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
 .nw .nrow.dz .nw-rt { display: none; }
 .nw .nrow.dz .nw-dz { display: inline-flex; }
+/* Preview runs the card to the panel's height: its buttons keep an easy gap under them */
+.p-open[data-prev="1"] .inner { padding-bottom: 8px; }
