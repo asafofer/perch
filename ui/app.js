@@ -1716,7 +1716,7 @@
     return [['pick', goLabel(p), '\u21a9']];
   }
   function actWords(p, k) {
-    if (p.ci && !p.ask) return p.status.text;   /* a pull request is why: say which, "Checks failing on #448" */
+    if (p.ci && !p.ask) return String(p.status.text).replace(/ on #\d+$/, '').replace('Changes requested', 'Changes asked');   /* a pull request is why: "Checks failing", short enough for the notch's wing */
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
   /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
