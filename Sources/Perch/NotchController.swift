@@ -129,6 +129,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         config.userContentController = controller
         web = CardWebView(frame: .zero, configuration: config)
         super.init()
+        // Pull requests: whether the GitHub CLI works is asked now and again; an answer from GitHub changes what the list shows.
+        let pulls = PullRequestState.shared
+        pulls.checker.onUpdate = { [weak self] in Task { @MainActor in self?.refreshProjects() } }
+        pulls.refreshAvailability(force: true) { [weak self] in Task { @MainActor in self?.refreshProjects(); self?.push() } }
         // A card that offers Reply (one asking you something has no field to drop into), or a new session's prompt.
         web.takesFiles = { [weak self] in
             if self?.machine.phase == .newSession { return true }
@@ -610,6 +614,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if p.terminal, p.pid == nil, p.sessionId != nil, let l = live[key] { live[key] = l.agentGone() }
             guard let l = live[key], l.holds(for: p) else { return p.agentGone() }
             return p.applying(l).agentGone()
+        }.map { p -> Project in
+            // Live hooks may have set the status again: a pull request that needs you still does, unless it is at work or asking.
+            guard p.prNeeds else { return p }
+            var q = p; q.liftForPullRequest(); return q
         }
         let since = newsSince
         let settled = withLive.map { $0.settled(since: since) }
@@ -1220,7 +1228,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if body["action"] as? String == "allow" { access.allow(); onboardingAction("accessibility") }
             else if body["action"] as? String == "said" { access.markSaid(); saveAccess(); push() }
         case "shortcut": if let a = body["action"] as? String { shortcutAction(a) }
-        case "settings": if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
+        case "settings": PullRequestState.shared.refreshAvailability(force: true) { [weak self] in self?.push() }
+            if machine.phase == .idle { place(on: ScreenChooser.target()); proactiveOpen = false; openedByHover = false }; send(.openSettings)
         case "feedbackOpen": setFeedbackOpen(body["open"] as? Bool ?? false)
         case "feedback":
             let info = body["info"] as? Bool ?? true
@@ -1247,6 +1256,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                     if case .display(let id) = choice { Prefs.showOnName = NSScreen.screens.first { $0.displayID == id }?.localizedName ?? Prefs.showOnName } else { Prefs.showOnName = nil }
                 }
                 if key == "login", let on = body["value"] as? Bool { setLaunchAtLogin(on) }
+                // Pull requests: Show (the marks) and Checks (GitHub's word). Checks on shows them too.
+                if key == "showPullRequests", let on = body["value"] as? Bool { Prefs.prShow = on; refreshProjects() }
+                if key == "pullRequests", let on = body["value"] as? Bool {
+                    Prefs.prChecks = on; if on { Prefs.prShow = true; PullRequestState.shared.refreshAvailability(force: true) { [weak self] in self?.push() } }
+                    refreshProjects()
+                }
                 push()
             }
         case "onbOpen":
@@ -1262,6 +1277,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 send(.dismiss)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.startOnboarding(step: step) }
             }
+        case "openpr":
+            // A pull request's mark opens it on GitHub, in your browser. Only an https address on a GitHub host is ever opened.
+            if let s = body["url"] as? String, PullRequests.isGitHub(s), let u = URL(string: s) { NSWorkspace.shared.open(u) }
         case "quit": NSApp.terminate(nil)
         case "update": if let a = body["action"] as? String { onUpdateAction?(a) }
         case "menuIcon":
@@ -1692,7 +1710,16 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
-                                   accessWas: access.had, back: machine.settingsFrom != nil)
+                                   accessWas: access.had, back: machine.settingsFrom != nil, showPRs: Prefs.prShow, prs: prsSetting)
+    }
+    /// Checks, as the page shows it: on, off, or why it cannot be (no GitHub CLI, or no login).
+    private var prsSetting: String {
+        switch PullRequestState.shared.availability {
+        case .notInstalled?: return "nogh"
+        case .notSignedIn?: return "login"
+        case .ready?: return Prefs.prChecks ? "on" : "off"
+        case nil: return "off"
+        }
     }
     /// The connected displays, then a chosen one that is not connected, under the name it had when chosen.
     private func displaysState() -> [UISnapshot.Display] {
@@ -1765,7 +1792,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     var onMenuIcon: ((NSImage) -> Void)?
     private var onbStep = 0
     /// Hello, then six setup steps: look, Accessibility, your shortcut, apps, live status, all set.
-    private let onbTotal = 7
+    /// With the GitHub CLI signed in, a seventh step offers to check pull requests: eight in all.
+    private var onbTotal: Int { onbPR ? 8 : 7 }
+    private var onbPR = false
     private var accessibilityWas = AXIsProcessTrusted()
     private var onbTask: Task<Void, Never>?
     /// Just the character step (Settings or the menu bar), not the whole setup.
@@ -1776,6 +1805,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     func startOnboarding(step: Int = 0, characterOnly: Bool = false) {
         guard machine.phase == .idle else { return }
         onbStep = step; onbOnly = characterOnly; onbBackToSettings = false
+        onbPR = PullRequestState.shared.availability == .ready
         snoozeTask?.cancel(); openedByHover = false; proactiveOpen = false
         place(on: ScreenChooser.target())
         if step >= 4 { refreshProjects() }
@@ -1785,7 +1815,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func onboardingState() -> UISnapshot.Onboarding {
         // Scanning until the first scan is in, never again: every scan covers every agent, and the session files change
         // (and start a scan) every half second while an agent works.
-        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), places: placesState(), only: onbOnly, live: liveState, shortcut: shortcutState())
+        return UISnapshot.Onboarding(step: onbStep, total: onbTotal, accessibility: AXIsProcessTrusted(), scanning: !scannedOnce, sources: sourcesState(), places: placesState(), only: onbOnly, live: liveState, shortcut: shortcutState(), prs: Prefs.prChecks && PullRequestState.shared.availability == .ready ? "on" : "off")
     }
 
     /// Leaves the character page: back to Settings when it came from there, otherwise closed.

@@ -20,6 +20,7 @@
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
+    pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     /* Settings rows (Lucide, lucide.dev, ISC) */
@@ -40,6 +41,8 @@
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
+    chevD: '<path d="m6 9 6 6 6-6"/>',
+    chevU: '<path d="m18 15-6-6-6 6"/>',
     tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
     clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
@@ -202,6 +205,86 @@
     var c = k === 'done' ? COLORS.done : k === 'down' ? COLORS.running : COLORS.attention;
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
   }
+  /* A session's pull requests (p.prs, a list; each: number, repo, url, state open|draft|merged|closed, checks pass|fail|running, review approved|changes,
+     conflict). Icon only. Its colour is the PR's state, in GitHub's: green open, purple merged, red closed, grey draft. When it is
+     yours to act on (checks failing, changes requested, conflicts) the whole icon turns orange. The number and the words show in a
+     small label while the pointer is on it (prTip); clicking it opens the pull request. */
+  var PRC = { open: '#3FB950', merged: '#A371F7', closed: '#F85149', draft: '#8B949E' };
+  var PRI = { open: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
+    merged: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+    draft: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="M18 5.5v.01"/><path d="M18 8.5v.01"/><path d="M18 11.5v.01"/>',
+    closed: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v12"/><path d="M21 3l-6 6"/><path d="M21 9l-6-6"/><path d="M18 11.5V15"/>' };
+  function prWord(pr) {
+    if (pr.state === 'merged') return { t: 'Merged' };
+    if (pr.state === 'closed') return { t: 'Closed' };
+    if (pr.state === 'draft') return { t: 'Draft' };
+    if (pr.conflict) return { t: 'Conflicts', c: COLORS.attention };
+    if (pr.checks === 'fail') return { t: 'Checks failing', c: COLORS.attention };
+    if (pr.review === 'changes') return { t: 'Changes requested', c: COLORS.attention };
+    if (pr.checks === 'running') return { t: 'Checks running' };
+    if (pr.review === 'approved' && pr.checks === 'pass') return { t: 'Ready to merge', c: COLORS.done };
+    if (pr.review === 'approved') return { t: 'Approved', c: COLORS.done };
+    return { t: 'Open' };
+  }
+  /* the icon's colour, and the words say it in the same colour */
+  function prColor(pr) { return prWord(pr).c === COLORS.attention ? COLORS.attention : PRC[pr.state]; }
+  function PRIcon(pr, cls) {
+    var w = prWord(pr), c = prColor(pr);
+    return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
+  }
+  /* One session can open several pull requests. Its mark shows the one that matters most (it needs you, then open, draft,
+     merged, closed) with a small count when there are more; the label lists them all. */
+  var PRRANK = { open: 1, draft: 2, merged: 3, closed: 4 };
+  function prTop(list) {
+    return list.slice().sort(function (a, b) {
+      var ra = prWord(a).c === COLORS.attention ? 0 : PRRANK[a.state] || 5, rb = prWord(b).c === COLORS.attention ? 0 : PRRANK[b.state] || 5;
+      return ra - rb;
+    })[0];
+  }
+  /* a session's pull requests as the page shows them: none at all while Show pull requests is off */
+  function prsOf(p) { return snap && (snap.showPRs === false || snap.settings && snap.settings.showPRs === false) || !p.prs || !p.prs.length ? null : p.prs; }
+  function PRMark(list, cls) {
+    return '<span class="flex items-center gap-1">' + PRIcon(prTop(list), cls) + (list.length > 1 ? '<span class="text-[11px] tabular-nums leading-none text-muted-foreground">' + list.length + '</span>' : '') + '</span>';
+  }
+  /* One label for every PR mark, drawn above the one under the pointer (below it when there is no room). It is Perch's own,
+     since a card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
+  var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
+  /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
+     pull request in it lights on hover and opens that pull request on a click. */
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0;
+  /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
+  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
+  function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
+  function prKeep() { clearTimeout(prHideT); }
+  prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
+  prTip.onclick = function (e) {
+    var it = e.target.closest('.pi'), pr = it && prShown && prShown[+it.dataset.i];
+    e.stopPropagation(); if (pr && pr.url) post({ type: 'openpr', url: pr.url });
+  };
+  function prHover(el) {
+    if (el.dataset.b) return; el.dataset.b = '1';
+    el.onmouseenter = function () {
+      var list = el._prs; if (!list || !list.length) return;
+      prKeep(); prShown = list; prAnchor = el;
+      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected) { prNow(); } }, 300);
+      prTip.innerHTML = list.map(function (pr, i) {
+        var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
+        /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
+        if (pr.title) return '<div class="pi p2" data-i="' + i + '"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div></div>';
+        return '<div class="pi" data-i="' + i + '"><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div></div>';
+      }).join('');
+      /* only as wide as its words, right edges together with the icon, and never past the card */
+      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.left = '0px'; prTip.style.width = 'max-content'; prTip.style.maxWidth = (nb.width - 24) + 'px';   /* from the edge, so where it was last never narrows it */
+      prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
+      var tw = prTip.offsetWidth, th = prTip.offsetHeight;
+      prTip.style.left = Math.max(nb.left + 12, Math.min(r.right - tw + 6, nb.right - tw - 12)) + 'px';
+      /* below the icon; above it when that is where the room is; else held inside the card */
+      var below = r.bottom + 4, above = r.top - th - 4, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
+      prTip.style.top = top + 'px'; prTip.classList.add('on');
+    };
+    el.onmouseleave = prHide;
+    el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
+  }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
@@ -289,8 +372,8 @@
          the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
          to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
-        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<span dir="auto" class="o-name fade min-w-0 text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub fade min-w-0 flex-1 text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr mt-px flex-none self-start"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
@@ -896,6 +979,7 @@
     /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
     var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre);
     /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
     if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
@@ -1078,11 +1162,11 @@
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '" data-k="' + esc(p.id) + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
-        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm fade min-w-0 text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
+        '<span class="pr flex-none"></span><span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
+        (second ? '<span dir="auto" class="mq tp fade min-w-0 text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
     /* The list stays open and sorts itself again (a session starts needing you): the rows glide to their new places and a new
        section header fades in, and each row keeps its mark so a change of mark still moves (no transitions.dev recipe: its
@@ -1128,6 +1212,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
+      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -1634,6 +1719,7 @@
     return [['pick', goLabel(p), '\u21a9']];
   }
   function actWords(p, k) {
+    if (p.ci && !p.ask) return String(p.status.text).replace(/ on #\d+$/, '').replace('Changes requested', 'Changes asked');   /* a pull request is why: "Checks failing", short enough for the notch's wing */
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
   /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
@@ -1879,13 +1965,19 @@
     run: ['<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>', COLORS.attention],
     ask: ['<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', COLORS.attention],
     plan: ['<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>', '#B7A3F0'],
-    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A']
+    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A'],
+    ci: [PRI.open, COLORS.attention]
   };
+  /* Checks failing is a moment only while PR checks is on: nothing else knows when a check fails */
+  function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
+  function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
+  /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
+  function nCol(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
   }
-  function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
+  function notifyKind(p) { var k = actKind(p); return p.ci && !p.ask ? 'ci' : actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
   function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
@@ -2816,12 +2908,14 @@
   function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
   /* off: Turn on, or Skip; on: Next */
   function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
+  function prsNote(on) { return on ? 'A failing check puts the session under Needs you. Change it in Settings.' : 'Read only: Perch never writes to GitHub. You can switch it off in Settings.'; }
+  function prsFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'prs'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-[4.5rem] flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
-    if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
+    if (a === 'hooks') post({ type: 'hooks', on: true }); else if (a === 'prs') post({ type: 'setting', key: 'pullRequests', value: true }); else post({ type: 'onb', action: a });
   }
   var pickedAt = 0;   /* apply() leaves the character alone just after a pick: a snapshot sent before the app heard of it still has the old one */
   function pickCharacter(c) {
@@ -2963,6 +3057,13 @@
           '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
         oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + liveNote(live) + '</p>') +
         oi(5, liveFoot(live));
+    } else if (st === 6 && o.total === 8) {
+      var pon = o.prs === 'on';
+      h = otitle(o, 'Know when a pull request needs you', 'Perch asks GitHub, with the gh login you already have, whether checks fail or a review wants changes.') +
+        oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + svg('pr', 'size-4 flex-none text-muted-foreground') + '<span class="flex-1">PR checks</span>' +
+          '<button role="switch" aria-checked="' + pon + '" aria-label="PR checks" class="o-prsw sw"><i></i></button></div></div>') +
+        oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + prsNote(pon) + '</p>') +
+        oi(5, prsFoot(pon));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -2986,6 +3087,7 @@
     /* a click on a one-agent tile ticks it; on Claude's tile only its own small checks do */
     box.querySelectorAll('.o-tile').forEach(function (t) { var b = t.querySelectorAll('.o-sw'); if (b.length !== 1) return; t.classList.add('cursor-pointer'); t.onclick = function (e) { if (!e.target.closest('.o-sw')) b[0].click(); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); tileDim(b.closest('.o-tile')); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-prsw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'setting', key: 'pullRequests', value: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
@@ -3054,6 +3156,7 @@
       var was = onbLast; onbLast = o;
       if (o.step === 4) onbSources(o);
       if (o.step === 5 && (!was || was.live !== o.live)) onbLive(o);
+      if (o.step === 6 && o.total === 8 && (!was || was.prs !== o.prs)) onbPrs(o);
       return;
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
@@ -3082,6 +3185,13 @@
     if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
     if (note) note.textContent = liveNote(on);
     if (foot) { foot.parentNode.innerHTML = liveFoot(on); onbBind(box); }
+  }
+  /* PR checks turned on or off on its step: the switch slides, the note and the buttons follow */
+  function onbPrs(o) {
+    var on = o.prs === 'on', box = q('.onb'), b = box.querySelector('.o-prsw'), note = box.querySelector('.o-note'), foot = box.querySelector('.o-foot');
+    if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
+    if (note) note.textContent = prsNote(on);
+    if (foot) { foot.parentNode.innerHTML = prsFoot(on); onbBind(box); }
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
@@ -3125,6 +3235,23 @@
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
+  /* Pull requests, one row, three choices: nothing, the mark (from the Claude app's own list), or the mark with checks (asks GitHub through
+     the GitHub CLI's login). Checks is greyed while there is no CLI or no login, and the line says what to do. */
+  function prsMode(o) { return o.showPRs === false ? 'off' : o.prs === 'on' ? 'checks' : 'marks'; }
+  function prsDesc(o) {
+    /* one line each: this page has no room for two */
+    if (prsMode(o) === 'off') return 'No mark on any session';
+    if (o.prs === 'nogh') return 'Marks only: Checks needs the GitHub CLI';
+    if (o.prs === 'login') return 'Marks only: Checks needs gh auth login';
+    return prsMode(o) === 'checks' ? 'Also asks GitHub if checks fail or changes are wanted' : 'A mark on a session that made a pull request';
+  }
+  function prsSeg(o) {
+    var mode = prsMode(o), nocli = o.prs === 'nogh' || o.prs === 'login';
+    return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + [['off', 'Off'], ['marks', 'Marks'], ['checks', 'Checks']].map(function (x) {
+      var dis = x[0] === 'checks' && nocli;
+      return '<button class="s-prm h-5 rounded px-2 text-xs transition-colors ' + (mode === x[0] ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground' + (dis ? ' opacity-40' : ' cursor-pointer hover:text-foreground')) + (dis ? '" disabled="' : '') + '" data-m="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</span>';
+  }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
   function drow(left, desc, right) {
@@ -3158,6 +3285,24 @@
     if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
     return false;
   }
+  /* The moments the notch announces: one row with the lit ones as small coloured icons, opening a menu with a check for each. */
+  var notifyMenuOpen = false, ntFocus = 0;
+  /* the card is measured again after the menu opens or folds, so it has room for all of it */
+  function ntRelayout() { if (snap && lastSt === 'set') layout('set', snap); }
+  function notifyMoments(o) {
+    var list = notifyList(o);
+      /* one row: the lit moments as icons and a chevron; it opens a menu over the rows below, a check for each moment that is on */
+      var faces = list.filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); }).map(function (x) { return nCol(x[0]); }).join('');
+      var items = list.map(function (x, i) {
+        var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o);
+        return '<div class="' + (dis ? '' : 's-nt cursor-pointer ') + 'nt-it flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors' + (dis ? '' : ' hover:bg-white/[0.07]') + '" data-i="' + i + '" data-k="' + x[0] + '" aria-pressed="' + y + '">' +
+          '<span class="grid flex-none transition-opacity ' + (y && !dis ? '' : dis ? 'opacity-25' : 'opacity-40') + '">' + nCol(x[0]) + '</span><span class="min-w-0 flex-1 truncate ' + (y && !dis ? '' : 'text-muted-foreground') + '">' + esc(x[1]) + '</span>' +
+          (dis ? '<span class="flex-none text-xs text-muted-foreground/70">Needs Checks</span>' : '<span class="grid size-4 flex-none place-items-center text-foreground/80">' + (y ? svg('check', 'size-4') : '') + '</span>') + '</div>';
+      }).join('');
+      var menu = notifyMenuOpen ? '<div class="nt-menu absolute right-0 top-[34px] z-30 w-[250px] rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]">' + items + '</div>' : '';
+      return '<div class="s-row s-menu relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
+        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5">' + (faces ? '<span class="flex items-center gap-1.5">' + faces + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>') + svg(notifyMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground') + '</span>' + menu + '</div>';
+  }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
@@ -3173,7 +3318,7 @@
       var rows, foot;
       if (!setPage) {
         var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-        var on = o.sources.filter(function (x) { return x.enabled; }), marks = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); });
         var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
@@ -3209,6 +3354,8 @@
     var pane = q('.p-set'), slid = by && !STILL ? crossSeen(pane, ['.set']) : [];
     var box = q('.set');
     box.innerHTML = html; q('.s-title').innerHTML = title;
+    /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
+    box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
     slid.forEach(function (x) {
       if (!x.g) return;
       var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
@@ -3245,6 +3392,16 @@
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
+    box.querySelectorAll('.s-nt').forEach(function (b) {
+      b.onclick = function (e) { if (e) e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
+      var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
+      if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
+    });
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
+    box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
+      var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
+    }; });
     var on2 = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
     on2('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
     on2('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
@@ -3267,17 +3424,16 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents; under them, the places Perch follows a
-         session into, as a line with their marks: nothing to choose there */
+      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents. The places Perch follows a session
+         into are named only in onboarding: this page has no room for them. */
       var ORDER = { claude: 0, cowork: 1, chat: 2 };
       var srcs = o.sources.slice().sort(function (a, b) { return (a.id in ORDER ? ORDER[a.id] : 9) - (b.id in ORDER ? ORDER[b.id] : 9); });
-      var where = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
       return srcs.map(function (x) {
         var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
         return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
       }).join('') + gap +
-        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', ckHtml(o.live === 'on', 'live', 'Live status'))) +
-        (where ? '<p class="mx-2 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + where + '</p>' : '');
+        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
+        gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
     }
     if (setPage === 'notify') {
       /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
@@ -3287,10 +3443,7 @@
         }).join('') + '</span>';
       };
       /* which moments the notch announces (the list and the cards say all of them) */
-      return NOTIFY.map(function (x) {
-        var y = notifyOn(x[0]);
-        return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
-      }).join('') + gap +
+      return notifyMoments(o) + gap +
         /* the minutes are how long you are away, not a reminder after an agent replies */
         drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -3543,16 +3696,42 @@
     var rows = q('.set').querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
     rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot)); });
+    /* in the icon row, the icon the keys are on */
+    q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) {
+      var inMenu = !!b.closest('.nt-menu'), on = setKb && (inMenu ? +b.dataset.i === ntFocus : rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus);
+      if (inMenu) b.classList.toggle('bg-white/[0.09]', on); else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
+    });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
   function settingsKey(k) {
     keyPtr = ptrAt.slice(); setKb = true;
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
     var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
+    /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
+    if (notifyMenuOpen) {
+      var its = q('.set').querySelectorAll('.nt-menu .s-nt');
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
+      if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
+      if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
+      return;
+    }
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
-    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
+    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
+    /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
+    if (row.classList.contains('s-menu')) { if (k === 'enter') row.click(); return; }
+    var nts = row.querySelectorAll('.s-nt');
+    if (nts.length) {
+      if (k === 'right') { ntFocus = Math.min(ntFocus + 1, nts.length - 1); paintFocus(); return; }
+      var cur = nts[Math.min(ntFocus, nts.length - 1)]; if (cur) cur.click(); return;
+    }
+    /* Pull requests: the same, over the choices that can be made (Checks needs the GitHub CLI) */
+    if (row.querySelector('.s-prm') && setLast) {
+      var pm = ['off', 'marks'].concat(setLast.prs === 'nogh' || setLast.prs === 'login' ? [] : ['checks']), pi = pm.indexOf(prsMode(setLast));
+      if (k === 'right' && pi >= pm.length - 1) return;
+      var to = pm[(pi + 1) % pm.length]; post({ type: 'setting', key: 'showPullRequests', value: to !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: to === 'checks' }); return;
+    }
     /* a segment: Right moves the choice along and stops at the end; Return comes round again from the start */
     var seg = row.querySelectorAll('.s-seg');
     if (seg.length && setLast) {
@@ -3573,7 +3752,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -3598,6 +3777,15 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
+  /* A title that does not fit fades at its end (.fade, input.css); one that fits is left whole. Checked again whenever the notch's words change. */
+  var fadeRaf = 0;
+  function fadeSweep() {
+    fadeRaf = 0;
+    n.querySelectorAll('.fade').forEach(function (el) { el.classList.toggle('cut', el.scrollWidth - el.clientWidth > 1); });
+  }
+  new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
+  window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
   window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
@@ -3703,8 +3891,12 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
-    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    /* the real app opens the pull request in the browser; the design page does the same in a new tab */
+    if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
+    if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
+    if (m.type === 'setting' && m.key === 'showPullRequests') { s.showPRs = m.value; if (s.settings) s.settings.showPRs = m.value; }
+    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'showPullRequests') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }
@@ -3757,6 +3949,17 @@
       { id: 'cursorchat', name: 'api-server', branch: 'main', away: '8m', at: '11:58 AM', headline: 'You were adding retries to the sync job.', context: 'The sync job now retries three times with backoff and logs the pages that never loaded.', next: '', topic: 'Retry the sync job with backoff', app: 'cursor', attention: false, fresh: true, line: 'Finished 8m ago', status: { kind: 'done', text: 'Cursor replied', app: 'cursor' },
         asked: 'Make the sync job retry three times with backoff, and log what never loads.', said: 'The sync job now retries three times with backoff (1, 4 and 16 seconds) and logs the pages that never loaded.' }
     ];
+    /* sample pull requests: one of each state */
+    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, url: 'https://github.com/asafofer/perch/pull/452', title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
+      website: [{ number: 448, url: 'https://github.com/asafofer/perch/pull/448', title: 'Tighten the hero spacing at phone width', repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
+      docs: [{ number: 455, url: 'https://github.com/asafofer/perch/pull/455', title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
+      planner: [{ number: 431, url: 'https://github.com/asafofer/perch/pull/431', title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, url: 'https://github.com/asafofer/perch/pull/436', title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
+      lukatz: [{ number: 12, url: 'https://github.com/asafofer/perch/pull/12', title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
+      api: [{ number: 460, url: 'https://github.com/asafofer/perch/pull/460', title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, url: 'https://github.com/asafofer/perch/pull/441', title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
+      fluid: [{ number: 87, url: 'https://github.com/asafofer/perch/pull/87', title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
+      gaps: [{ number: 23, url: 'https://github.com/asafofer/perch/pull/23', title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
+      tui: [{ number: 9, url: 'https://github.com/asafofer/perch/pull/9', title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, url: 'https://github.com/asafofer/perch/pull/7', title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
+    P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -3852,6 +4055,13 @@
       });
     }
     window.perchDev = {
+      /* a pull request mark (or the mark of several) for a scenario's button on the design page */
+      prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
+      /* every pull request mark with its words and colour, for the design page's grid */
+      prLegend: function () {
+        return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
+          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: prColor(pr) }; }).concat([{ icon: PRMark([{ number: 107, state: 'merged' }, { number: 109, state: 'merged' }], 'size-5'), word: 'Several', color: PRC.merged }]);
+      },
       /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
          index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
       listChange: function (over, sel) {
@@ -3888,12 +4098,12 @@
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', showPRs: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
         if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
-      onboarding: function (step, accessibility, only, live, all, scan, which) {
+      onboarding: function (step, accessibility, only, live, all, scan, which, gh) {
         devScBack();
         /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
         if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
@@ -3904,7 +4114,7 @@
         if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
         var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: gh ? 8 : 7, prs: gh === 'on' ? 'on' : 'off', shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {
@@ -3915,6 +4125,8 @@
         autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      /* the list with one session changed, as variant does for the card */
+      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
       /* the next refresh of the same card, a reply left open as it is */
       refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
