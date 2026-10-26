@@ -9,6 +9,8 @@ public final class DesktopSessions: @unchecked Sendable {
         public let archived: Bool
         /// The last time the session was in front of you in the Claude app.
         public let focusedAt: Date?
+        /// The pull requests the app lists for it (its `prs`).
+        public var prs: [PullRequest] = []
     }
     public static let shared = DesktopSessions(root: FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Claude/claude-code-sessions"))
@@ -40,7 +42,7 @@ public final class DesktopSessions: @unchecked Sendable {
                     // so it gets no row of its own: it would read just like the session, and a reply would land in it.
                     let sideChat = (o["spawnedFrom"] as? [String: Any])?["btw"] as? Bool ?? false
                     fresh[url.path] = (mtime, cli, Entry(id: id, title: o["title"] as? String, cwd: o["cwd"] as? String,
-                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused))
+                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused, prs: PullRequests.fromApp(o["prs"])))
                 }
             }
         }
@@ -191,7 +193,7 @@ public final class SessionScanner: @unchecked Sendable {
             let git = cachedGit(cwd).info
             Self.heardFrom(helpersOf: s.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
-                p.focusedAt = s.entry.focusedAt
+                p.focusedAt = s.entry.focusedAt; p.prs = s.entry.prs
                 out.append((p, digest, git, last))
             }
         }
