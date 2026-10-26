@@ -14,7 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
             // Names after the flag limit it to those agents (`--install-hooks cursor`).
-            let named = args.drop(while: { $0 != flag }).dropFirst().filter { HookInstaller.agents.contains($0) }
+            let given = args.drop(while: { $0 != flag }).dropFirst().filter { !$0.hasPrefix("-") }
+            // A name that is no agent is a typo: nothing is changed (no names at all means every agent).
+            if let bad = given.first(where: { !HookInstaller.agents.contains($0) }) { print("unknown agent \(bad); known: \(HookInstaller.agents.joined(separator: ", "))"); exit(1) }
+            let named = given
             for agent in HookInstaller.agents where named.isEmpty || named.contains(agent) {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }

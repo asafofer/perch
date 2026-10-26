@@ -1563,6 +1563,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // Cursor's link may have found no such chat, or Cursor was still starting: its prompt takes the words only once its
                 // window shows this very chat, never the new chat it would open on.
                 if let want = cursorTitle {
+                    // Two chats can share a title: the words are pasted only when the title names one chat in Cursor's sidebar.
+                    guard await Task.detached(operation: { CursorWindow.titleIsUnique(want) }).value else {
+                        NSLog("Perch: reply left on the clipboard (Cursor has more than one chat called this)"); self?.say("Paste in \(app)"); return
+                    }
                     var shown = false
                     for _ in 0..<60 {
                         if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, CursorWindow.matches(t, want) { shown = true; break }

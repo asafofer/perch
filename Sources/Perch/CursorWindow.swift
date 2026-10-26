@@ -100,36 +100,44 @@ extension CursorWindow {
         return want.hasSuffix("\u{2026}") && shown.hasPrefix(String(want.dropLast()))
     }
 
-    /// Answers what Cursor asks in the chat: opens the chat with its link, then presses the button of its prompt ("Run", or
-    /// "Skip" to refuse), which Cursor shows in the chat itself. Nothing is pressed unless the window shows this very chat.
-    /// Cursor's own hooks cannot answer it (they run for every command, ones Cursor runs unasked too). Blocks: call it off the main thread.
+    /// Answers what Cursor asks in the chat: the chat is chosen in the Agents window's sidebar (or, with Cursor not running, opened
+    /// with its link), then the button of its prompt is pressed ("Run", or "Skip" to refuse), which Cursor shows in the chat itself.
+    /// A title does not identify a chat (two can share one), and a button is pressed in whichever chat the window shows, so
+    /// nothing is pressed unless exactly one chat in the sidebar has this title: otherwise the chat is opened by its link, which
+    /// names it by id, and left for you to answer there (false). Cursor's own hooks cannot answer it (they run for every command,
+    /// ones Cursor runs unasked too). Blocks: call it off the main thread.
     nonisolated static func answer(chat: String, title: String, allow: Bool) -> Bool {
         guard AXIsProcessTrusted(), link(chat: chat) != nil else { return false }
         func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
-        // Cursor already running: pick the chat in its own sidebar, which leaves Cursor where it is (behind what you are using).
-        // The chat the window showed is put back afterwards. Only when that fails, or Cursor is not running, does the link
-        // bring Cursor forward.
+        var viaLink = false
+        if NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty {
+            _ = open(chat: chat, folder: nil); viaLink = true
+            for _ in 0..<60 where !showing() { Thread.sleep(forTimeInterval: 0.4) }
+        }
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        enableAccessibility(ax)
+        guard sidebarRows(ax, title: title).count == 1 else {
+            trace("not answering for \(title): its title is not unique in the sidebar; opened by its link")
+            if !viaLink { _ = open(chat: chat, folder: nil) }
+            return false
+        }
         var before: String?
-        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first, !showing() {
-            let ax = AXUIElementCreateApplication(app.processIdentifier)
-            AXUIElementSetMessagingTimeout(ax, 1)
-            enableAccessibility(ax)
+        if !viaLink, !showing() {
             if case .session(let t) = showingNow() { before = t }
             if selectInSidebar(ax, title: title) {
                 for _ in 0..<15 where !showing() { Thread.sleep(forTimeInterval: 0.2) }
             }
         }
-        var viaLink = false
         if !showing() {
+            // The row could not be chosen: the link names the chat by its id and brings Cursor forward.
             before = nil; viaLink = true
             _ = open(chat: chat, folder: nil)
             for _ in 0..<60 where !showing() { Thread.sleep(forTimeInterval: 0.4) }
         }
         trace("answering \(allow ? "yes" : "no") for \(title): \(viaLink ? "opened by its link" : "chosen in the sidebar")")
-        guard showing(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
-        let ax = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetMessagingTimeout(ax, 1)
-        enableAccessibility(ax)
+        guard showing() else { return false }
         defer { if let before { _ = selectInSidebar(ax, title: before) } }
         let labels: Set<String> = allow ? ["Run \u{23CE}", "Run", "Allow", "Allow \u{23CE}", "Accept", "Approve"] : ["Skip", "Reject", "Deny"]
         for _ in 0..<10 {
@@ -146,6 +154,29 @@ extension CursorWindow {
 }
 
 extension CursorWindow {
+    /// The chats' rows in the Agents window's sidebar with this title (a button named by it, clipped long titles by their start).
+    nonisolated static func sidebarRows(_ ax: AXUIElement, title: String) -> [AXUIElement] {
+        guard let window = agentsWindow(ax) else { return [] }
+        var queue = [window], rows: [AXUIElement] = [], seen = 0
+        while !queue.isEmpty, seen < 6000 {
+            let e = queue.removeFirst(); seen += 1
+            if ConductorApp.attr(e, kAXRoleAttribute) as? String == "AXButton", let t = ConductorApp.attr(e, kAXTitleAttribute) as? String,
+               !t.hasPrefix("Chat title."), matches(t, title),
+               (ConductorApp.attr(e, "AXDOMClassList") as? [String])?.contains("ui-sidebar-menu-button-trigger") == true { rows.append(e) }
+            queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+        }
+        return rows
+    }
+
+    /// Whether exactly one chat in the sidebar has this title, so a title names one chat. Runs off the main thread.
+    nonisolated static func titleIsUnique(_ title: String) -> Bool {
+        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        enableAccessibility(ax)
+        return sidebarRows(ax, title: title).count == 1
+    }
+
     /// Presses a chat's row in the Agents window's sidebar (a button named by the chat's title). False when it finds none.
     nonisolated static func selectInSidebar(_ ax: AXUIElement, title: String) -> Bool {
         guard let window = agentsWindow(ax), let row = ConductorApp.first(in: [window], limit: 4000, {
@@ -169,6 +200,9 @@ extension CursorWindow {
         AXUIElementSetMessagingTimeout(ax, 1)
         enableAccessibility(ax)
         func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
+        // A title does not name a chat: with two of the same, or none readable, the words go nowhere here (the paste fallback
+        // opens the chat by its link and leaves them on the clipboard when it cannot tell).
+        guard sidebarRows(ax, title: title).count == 1 else { return .failed }
         var before: String?
         if !showing() {
             if case .session(let t) = showingNow() { before = t }
@@ -190,7 +224,14 @@ extension CursorWindow {
             }) {
                 let ok = AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
                 trace("reply \(ok ? "sent" : "not sent") in \(title), chosen in the sidebar")
-                return ok ? .sent : .failed
+                if ok { return .sent }
+                // An error after the press does not say Cursor ignored it. Words gone from the prompt were sent (the fallback would
+                // send them twice); words still there are taken back out, and the fallback sends them.
+                Thread.sleep(forTimeInterval: 0.5)
+                let left = (ConductorApp.attr(prompt, kAXValueAttribute) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if left.isEmpty { return .sent }
+                _ = AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, "" as CFString)
+                return .failed
             }
             Thread.sleep(forTimeInterval: 0.2)
         }

@@ -51,19 +51,21 @@ public final class CursorStore {
     }
 
     /// The call a chat is waiting on you for: its newest tool call that has not finished. Only the chat's last few messages
-    /// are read, each by its key.
+    /// are read, each by its key, and only the fields wanted.
     public func pending(_ id: String) -> Pending? {
         var bubbles: [String] = []
-        query("SELECT CAST(value AS TEXT) FROM cursorDiskKV WHERE key = ?", "composerData:" + id) { st in
-            guard let json = Self.text(st, 0), let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] else { return }
-            bubbles = ((o["fullConversationHeadersOnly"] as? [[String: Any]]) ?? []).suffix(8).compactMap { $0["bubbleId"] as? String }
+        query("SELECT json_extract(CAST(value AS TEXT), '$.fullConversationHeadersOnly') FROM cursorDiskKV WHERE key = ?", "composerData:" + id) { st in
+            guard let json = Self.text(st, 0), let list = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [[String: Any]] else { return }
+            bubbles = list.suffix(8).compactMap { $0["bubbleId"] as? String }
         }
         for bubble in bubbles.reversed() {
             var hit: Pending?
-            query("SELECT CAST(value AS TEXT) FROM cursorDiskKV WHERE key = ?", "bubbleId:\(id):\(bubble)") { st in
-                guard let json = Self.text(st, 0), let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
-                      let t = o["toolFormerData"] as? [String: Any], t["status"] as? String == "loading", let name = t["name"] as? String else { return }
-                let params = ((t["params"] as? String).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]) ?? [:]
+            query("""
+                SELECT json_extract(v, '$.toolFormerData.status'), json_extract(v, '$.toolFormerData.name'), json_extract(v, '$.toolFormerData.params')
+                FROM (SELECT CAST(value AS TEXT) AS v FROM cursorDiskKV WHERE key = ?)
+                """, "bubbleId:\(id):\(bubble)") { st in
+                guard Self.text(st, 0) == "loading", let name = Self.text(st, 1) else { return }
+                let params = ((Self.text(st, 2)).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [String: Any]) ?? [:]
                 hit = Pending(name: name, params: params.compactMapValues { $0 as? String })
             }
             if let hit { return hit }
@@ -75,11 +77,13 @@ public final class CursorStore {
     /// touched), so this is asked for only when the transcript changed.
     public func chat(_ id: String) -> Chat? {
         var out: Chat?
-        query("SELECT CAST(value AS TEXT) FROM cursorDiskKV WHERE key = ?", "composerData:" + id) { st in
-            guard let json = Self.text(st, 0), let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] else { return }
-            let name = (o["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            out = Chat(name: name?.isEmpty == false ? name : nil, workspaceId: (o["workspaceIdentifier"] as? [String: Any])?["id"] as? String,
-                       unread: o["hasUnreadMessages"] as? Bool ?? false)
+        // Only the three fields wanted leave SQLite: the row also holds the chat's encryption keys.
+        query("""
+            SELECT json_extract(v, '$.name'), json_extract(v, '$.workspaceIdentifier.id'), json_extract(v, '$.hasUnreadMessages')
+            FROM (SELECT CAST(value AS TEXT) AS v FROM cursorDiskKV WHERE key = ?)
+            """, "composerData:" + id) { st in
+            let name = Self.text(st, 0)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            out = Chat(name: name?.isEmpty == false ? name : nil, workspaceId: Self.text(st, 1), unread: sqlite3_column_int(st, 2) != 0)
         }
         return out
     }
