@@ -100,6 +100,15 @@ extension CursorWindow {
         return want.hasSuffix("\u{2026}") && shown.hasPrefix(String(want.dropLast()))
     }
 
+    /// Calls `done` every `interval` seconds, at most `tries` times, and stops at the first yes (a `for … where` would go on reading
+    /// Cursor's windows for every try that is left).
+    nonisolated static func wait(_ tries: Int, _ interval: TimeInterval, until done: () -> Bool) {
+        for _ in 0..<tries {
+            if done() { return }
+            Thread.sleep(forTimeInterval: interval)
+        }
+    }
+
     /// The id of the chat the Agents window shows, as Cursor last saved it (`cursor/glass.selectedAgent`).
     nonisolated static func selectedChatId() -> String? { CursorStore(user: CursorApp.userDirectory)?.selectedChat() }
 
@@ -133,7 +142,7 @@ extension CursorWindow {
         func viaTheLink() {
             viaLink = true
             _ = open(chat: chat, folder: nil)
-            for _ in 0..<60 where !confirmed(chat: chat, title: title) { Thread.sleep(forTimeInterval: 0.4) }
+            wait(60, 0.4) { confirmed(chat: chat, title: title) }
         }
         if NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty { viaTheLink() }
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return false }
