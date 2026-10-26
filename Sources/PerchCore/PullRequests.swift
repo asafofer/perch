@@ -138,6 +138,7 @@ public struct GitHubCLI: Sendable {
 
     private static let located = NSLock()
     nonisolated(unsafe) private static var found: (done: Bool, path: String?) = (false, nil)
+    nonisolated(unsafe) private static var lookedAt = Date.distantPast
 
     /// Where `gh` is: the usual install folders, then whatever a login shell finds. Asked once, until it is not found.
     static func locate() -> String? {
@@ -145,6 +146,8 @@ public struct GitHubCLI: Sendable {
         // For trying Perch against a stand-in (PERCH_GH=<path>): the one place it looks, so a missing file reads as no GitHub CLI.
         if let forced = ProcessInfo.processInfo.environment["PERCH_GH"] { return FileManager.default.isExecutableFile(atPath: forced) ? forced : nil }
         if found.done, let p = found.path, FileManager.default.isExecutableFile(atPath: p) { return p }
+        // Not found: the login shell (it runs the user's profile) is asked again only every five minutes.
+        if found.done, found.path == nil, Date().timeIntervalSince(lookedAt) < 300 { return nil }
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var path = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh", home + "/.local/bin/gh", "/opt/local/bin/gh"]
             .first { FileManager.default.isExecutableFile(atPath: $0) }
@@ -152,7 +155,7 @@ public struct GitHubCLI: Sendable {
             let p = String(decoding: r.out, as: UTF8.self).split(separator: "\n").last.map(String.init)?.trimmingCharacters(in: .whitespaces)
             if let p, p.hasPrefix("/"), FileManager.default.isExecutableFile(atPath: p) { path = p }
         }
-        found = (path != nil, path)
+        found = (true, path); lookedAt = Date()
         return path
     }
 
@@ -196,8 +199,8 @@ public struct GitHubCLI: Sendable {
         return .success(pr)
     }
 
-    /// `gh pr view --json …` into a pull request. Checks count only when they hold the merge back: GitHub calls a pull request
-    /// with only optional checks failing UNSTABLE, and that is not a reason to look at it.
+    /// `gh pr view --json …` into a pull request. Any failing check counts: GitHub calls a pull request UNSTABLE both when only optional
+    /// checks fail and when the repository requires none at all (the usual case), and the two cannot be told apart from here.
     public static func parse(_ data: Data, url: String) -> PullRequest? {
         guard let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let number = o["number"] as? Int else { return nil }
         let state: PullRequest.State
@@ -246,7 +249,7 @@ public struct GitHubCLI: Sendable {
             default: break   // skipped, neutral, stale: they say nothing
             }
         }
-        if failing && merge != "UNSTABLE" { pr.checks = .fail }
+        if failing { pr.checks = .fail }
         else if running { pr.checks = .running }
         else if any { pr.checks = .pass }
         return pr

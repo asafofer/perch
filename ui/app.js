@@ -251,8 +251,10 @@
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
   /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
      pull request in it lights on hover and opens that pull request on a click. */
-  var prHideT = 0, prShown = null;
-  function prHide() { clearTimeout(prHideT); prHideT = setTimeout(function () { prTip.classList.remove('on'); prShown = null; }, 160); }
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0;
+  /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
+  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
+  function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
   function prKeep() { clearTimeout(prHideT); }
   prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
   prTip.onclick = function (e) {
@@ -263,7 +265,8 @@
     if (el.dataset.b) return; el.dataset.b = '1';
     el.onmouseenter = function () {
       var list = el._prs; if (!list || !list.length) return;
-      prKeep(); prShown = list;
+      prKeep(); prShown = list; prAnchor = el;
+      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected) { prNow(); } }, 300);
       prTip.innerHTML = list.map(function (pr, i) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
@@ -1970,7 +1973,6 @@
   function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
   /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
   function nCol(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
-  function nMono(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
@@ -3283,43 +3285,12 @@
     if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
     return false;
   }
-  /* The moments the notch announces, in the style being tried (design only, window.perchDev.notifyStyle): the switches as they are,
-     a row of icons, ticks, or a grid of tiles. */
-  var notifyStyle = 'menu', notifyMenuOpen = false, ntFocus = 0;
-  /* the tick: a small square box, filled when on, so it never reads as the round Finished mark */
+  /* The moments the notch announces: one row with the lit ones as small coloured icons, opening a menu with a check for each. */
+  var notifyMenuOpen = false, ntFocus = 0;
   /* the card is measured again after the menu opens or folds, so it has room for all of it */
   function ntRelayout() { if (snap && lastSt === 'set') layout('set', snap); }
-  function ntBox(on) { return on ? '<span class="grid size-4 place-items-center text-foreground/75">' + svg('check', 'size-4') + '</span>' : '<span class="block size-4"></span>'; }
   function notifyMoments(o) {
-    var list = notifyList(o), st = notifyStyle;
-    /* only the ticks list Checks failing before Checks is chosen (greyed, with where to turn it on); the other looks wait for it */
-    if (ciOff(o) && st !== 'ticks' && st !== 'icons' && st !== 'menu') list = list.filter(function (x) { return x[0] !== 'ci'; });
-    if (st === 'icons') {
-      /* one row like the two below it: the moments as a group of icons in one quiet colour, lit when on. The line under it says
-         what is off, and names an icon while the pointer is on it. */
-      var grp = '<span class="flex gap-0.5 rounded-lg bg-white/[0.06] p-0.5">' + list.map(function (x, i) {
-        var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o), name = esc(x[1]) + (dis ? ' (needs Checks)' : '');
-        return '<button class="' + (dis ? '' : 's-nt cursor-pointer ') + 'grid h-7 w-8 place-items-center rounded-md transition-colors ' + (y && !dis ? 'bg-white/[0.12]' : dis ? '' : 'hover:bg-white/[0.06]') + '" data-i="' + i + '" data-k="' + x[0] + '" data-name="' + name + '" aria-pressed="' + y + '" aria-label="' + name + '"' + (dis ? ' disabled' : '') + '>' +
-          '<span class="grid transition-opacity ' + (dis ? 'opacity-25' : y ? '' : 'opacity-35') + '">' + nCol(x[0]) + '</span></button>';
-      }).join('') + '</span>';
-      return drow(slabel('Notify me about', '', 'bell'), '<span class="s-ntl">' + notifyLine(list.filter(function (x) { return !(x[0] === 'ci' && ciOff(o)); })) + '</span>', grp);
-    }
-    if (st === 'presets') {
-      /* three presets over the same moments; none lit means a mix you made */
-      var keys = list.map(function (x) { return x[0]; }), offs = keys.filter(function (k) { return !notifyOn(k); }).join(',');
-      var cur = offs === '' ? 'all' : offs === 'done' ? 'needs' : offs === keys.join(',') ? 'none' : '';
-      var seg = '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + [['all', 'All'], ['needs', 'Needs me'], ['none', 'Off']].map(function (x) {
-        return '<button class="s-np h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (cur === x[0] ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-m="' + x[0] + '">' + x[1] + '</button>';
-      }).join('') + '</span>';
-      return drow(slabel('Notify me about', '', 'bell'), notifyLine(list) === 'All of them' ? 'Everything: finished, a command, a question, a plan, an error' : cur === 'needs' ? 'Everything but Finished' : notifyLine(list), seg);
-    }
-    if (st === 'pills') {
-      return shead('Notify me about') + '<div class="mx-2 flex flex-wrap gap-1.5 px-2 pb-1">' + list.map(function (x) {
-        var y = notifyOn(x[0]);
-        return '<button class="s-nt flex h-7 cursor-pointer items-center gap-1.5 rounded-full pl-2 pr-3 text-[13px] transition-colors ' + (y ? 'bg-white/[0.1]' : 'bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07]') + '" data-k="' + x[0] + '" aria-pressed="' + y + '"><span class="grid flex-none transition-opacity ' + (y ? '' : 'opacity-40') + '">' + nMark(x[0]) + '</span>' + esc(x[1]) + '</button>';
-      }).join('') + '</div>';
-    }
-    if (st === 'menu') {
+    var list = notifyList(o);
       /* one row: the lit moments as icons and a chevron; it opens a menu over the rows below, a check for each moment that is on */
       var faces = list.filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); }).map(function (x) { return nCol(x[0]); }).join('');
       var items = list.map(function (x, i) {
@@ -3331,29 +3302,7 @@
       var menu = notifyMenuOpen ? '<div class="nt-menu absolute right-0 top-[34px] z-30 w-[250px] rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]">' + items + '</div>' : '';
       return '<div class="s-row s-menu relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
         '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5">' + (faces ? '<span class="flex items-center gap-1.5">' + faces + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>') + svg(notifyMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground') + '</span>' + menu + '</div>';
-    }
-    if (st === 'ticks') {
-      return shead('Notify me about') + list.map(function (x) {
-        var y = notifyOn(x[0]);
-        /* Checks failing before Checks is chosen: greyed, and it says where to turn it on */
-        if (x[0] === 'ci' && ciOff(o)) return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] opacity-60">' + sthing(nMark('ci'), x[1], false) + '<span class="flex-none text-xs text-muted-foreground">Needs Checks</span></div>';
-        return '<div class="s-row s-nt s-tap mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-k="' + x[0] + '" aria-pressed="' + y + '">' + sthing(nMark(x[0]), x[1], y) +
-          '<span class="flex-none">' + ntBox(y) + '</span></div>';
-      }).join('');
-    }
-    if (st === 'grid') {
-      return shead('Notify me about') + '<div class="mx-2 grid grid-cols-2 gap-1.5 px-2 pb-1">' + list.map(function (x) {
-        var y = notifyOn(x[0]);
-        return '<button class="s-nt flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-left text-[13px] transition-colors ' + (y ? 'bg-white/[0.1]' : 'bg-white/[0.04] text-muted-foreground hover:bg-white/[0.07]') + '" data-k="' + x[0] + '" aria-pressed="' + y + '"><span class="grid flex-none transition-opacity ' + (y ? '' : 'opacity-40') + '">' + nMark(x[0]) + '</span><span class="min-w-0 truncate">' + esc(x[1]) + '</span></button>';
-      }).join('') + '</div>';
-    }
-    return list.map(function (x) {
-      var y = notifyOn(x[0]);
-      return stap(srow(sthing(nMark(x[0]), x[1], y), swHtml(y, 'ntf:' + x[0], x[1])));
-    }).join('');
   }
-  /* what the icon row says under it: the moments that are on, by name */
-  function notifyLine(list) { var off = list.filter(function (x) { return !notifyOn(x[0]); }).map(function (x) { return x[1]; }); return off.length === 0 ? 'All of them' : off.length === list.length ? 'Nothing' : 'Off: ' + esc(off.join(', ')); }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
@@ -3406,7 +3355,7 @@
     var box = q('.set');
     box.innerHTML = html; q('.s-title').innerHTML = title;
     /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
-    box.style.minHeight = setPage === 'notify' && notifyStyle === 'menu' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
+    box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
     slid.forEach(function (x) {
       if (!x.g) return;
       var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
@@ -3448,9 +3397,6 @@
       var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
       if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
     });
-    box.querySelectorAll('.s-np').forEach(function (b) { b.onclick = function () {
-      var m = b.dataset.m; notifyList(setLast).forEach(function (x) { post({ type: 'notify', kind: x[0], enabled: m === 'all' || (m === 'needs' && x[0] !== 'done') }); });
-    }; });
     box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
     box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
@@ -3806,7 +3752,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyStyle, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -4109,8 +4055,6 @@
       });
     }
     window.perchDev = {
-      /* which look the Notifications moments have, for comparing them (switches is today's) */
-      notifyStyle: function (st) { notifyStyle = st; notifyMenuOpen = false; setSig = ''; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */

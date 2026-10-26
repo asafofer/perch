@@ -99,7 +99,7 @@ Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello)
 ## Design rules (the owner is firm about these)
 
 - Linear-grade restraint. Neutral sans (Inter), tight tracking, sentence case, small type (card text 13 to 14 px), small call-to-action buttons.
-- **No dividing lines.** No pulsing or glowing dots (the list's status rings have a faint, still glow; nothing else). No drawn icons where a real app icon exists (use the real Claude, Codex and OpenCode icons from `AppIcons`). pi has no app, so the page draws pi.dev's own mark; OpenCode's opencode.ai mark stands in when its app is not installed.
+- **No dividing lines.** No pulsing or glowing dots (the list's status rings and the pull request mark have a faint, still glow; nothing else). No drawn icons where a real app icon exists (use the real Claude, Codex and OpenCode icons from `AppIcons`). pi has no app, so the page draws pi.dev's own mark; OpenCode's opencode.ai mark stands in when its app is not installed.
 - The character is a soft plush shape with flat, matte eyes. Its depth is one SVG filter on the body (`coatFilter` in `app.js`): light from the top left, a rounded form, shade that deepens its colour, a rim of light, and from 30 px up a fuzzy edge and faint grain. Small, it keeps a crisp outline. Nothing else goes on the character. Shapes live in `SHAPES` in `app.js`.
 - Glow is internal, soft, and tinted by status: orange needs you, green done, otherwise the character's colour. Dithering was tried and rejected.
 - Never suggest committing, pushing or merging as the "next step". Hide the Next row when there is nothing real to say.

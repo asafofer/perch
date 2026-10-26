@@ -8,7 +8,9 @@ public enum PullRequestScan {
     /// The ids a call carries in a log line: Claude Code's `id` and `tool_use_id`, Codex's `call_id`, pi's `toolCallId`,
     /// OpenCode's `callID`.
     private static let ids = try! NSRegularExpression(pattern: #""(?:id|call_id|tool_use_id|toolCallId|callID)"\s*:\s*"([^"]+)""#)
-    private static let urls = try! NSRegularExpression(pattern: #"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+"#)
+    /// An address that ends what was printed: the command prints the new pull request's address last, so a line of output that only
+    /// mentions one (a grep over docs, a list) is not it. The address is followed by the end of the string, after any newlines.
+    private static let urls = try! NSRegularExpression(pattern: #"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+(?=(?:\\+n|\\+r|\s)*[\"'\]}])"#)
 
     /// Reads a log as it grows: what a line says about a call is kept until its result comes.
     public struct Reader: Sendable {
@@ -59,7 +61,7 @@ public enum PullRequestScan {
                 carry = Data(carry[carry.index(after: nl)...])
             }
         }
-        lock.lock(); readers[url.path] = state; if readers.count > 400 { readers = [:] }; lock.unlock()
+        lock.lock(); readers[url.path] = state; if readers.count > 400 { readers = Dictionary(uniqueKeysWithValues: readers.prefix(200).map { ($0.key, $0.value) }) }; lock.unlock()
         return state.reader.found
     }
 

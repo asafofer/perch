@@ -96,10 +96,10 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         #expect(pr.checks == .fail); #expect(pr.needsYou); #expect(pr.needsWords == "Checks failing on #114")
     }
 
-    @Test func aFailingOptionalCheckDoesNot() {
-        // GitHub calls it UNSTABLE: only checks that do not hold the merge back are failing.
-        let pr = GitHubCLI.parse(view(merge: "UNSTABLE", rollup: [run("ci", "COMPLETED", "SUCCESS"), run("preview", "COMPLETED", "FAILURE")]), url: url)!
-        #expect(pr.checks == .pass); #expect(!pr.needsYou)
+    @Test func aFailingCheckCountsEvenWhenGitHubCallsItUnstable() {
+        // UNSTABLE is what GitHub says both for an optional check failing and for any failure in a repository that requires none.
+        let pr = GitHubCLI.parse(view(merge: "UNSTABLE", rollup: [run("ci", "COMPLETED", "FAILURE")]), url: url)!
+        #expect(pr.checks == .fail); #expect(pr.needsYou)
     }
 
     @Test func checksStillRunningAreRunning() {
@@ -346,6 +346,18 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         var r = PullRequestScan.Reader()
         r.feed(#"{"type":"tool","tool":"bash","callID":"call_00","state":{"status":"completed","input":{"command":"\#(make) -t x"},"output":"https://github.com/a/b/pull/3\n"}}"#)
         #expect(r.found == ["https://github.com/a/b/pull/3"])
+    }
+
+    @Test func aSearchThatMentionsTheCommandAndListsAddressesIsNotAPullRequest() {
+        var r = PullRequestScan.Reader()
+        r.feed(#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_G","name":"Bash","input":{"command":"grep -rn \#(make) docs/ AGENTS.md"}}]}}"#)
+        r.feed(#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_G","content":"docs/a.md:3: see https://github.com/a/b/pull/94 for how to run it\ndocs/b.md:9: after the PR https://github.com/a/b/pull/95 merged, run it again\nAGENTS.md:7: the command prints the address"}]}}"#)
+        #expect(r.found.isEmpty)
+        // The address that ends the output is the pull request, even with a hint line before it.
+        var s = PullRequestScan.Reader()
+        s.feed(#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_H","name":"Bash","input":{"command":"\#(make) -t x"}}]}}"#)
+        s.feed(#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_H","content":"Creating pull request for x into main in a/b\n\nhttps://github.com/a/b/pull/9\n"}]}}"#)
+        #expect(s.found == ["https://github.com/a/b/pull/9"])
     }
 
     @Test func anAddressThatIsNotTheResultOfOpeningOneIsNeverTaken() {
