@@ -913,7 +913,7 @@
       var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
-      var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
+      var said = !(norm(p.headline) === norm(p.topic || p.name)) && was;
       if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
       /* your own words quoted back (You said: / You asked:): the label is grey, so what is quoted reads first */
       var you = /^(You said|You asked):\s*/.exec(did);

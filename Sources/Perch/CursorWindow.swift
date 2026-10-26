@@ -8,6 +8,9 @@ enum CursorWindow {
     static func trace(_ s: String) { if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch cursor: %@", s) } }
     static var appURL: URL? { AppIcons.url("cursor") }
 
+    /// The title Cursor shows for a chat: the row's title, which a chat with no folder carries as its name instead.
+    static func title(of p: Project) -> String { p.topic.isEmpty ? p.name : p.topic }
+
     static func link(chat id: String) -> URL? {
         var parts = URLComponents(string: "cursor://anysphere.cursor-deeplink/agent")
         parts?.queryItems = [URLQueryItem(name: "id", value: id)]
@@ -149,5 +152,50 @@ extension CursorWindow {
             ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && (ConductorApp.attr($0, kAXTitleAttribute) as? String).map { !$0.hasPrefix("Chat title.") && matches($0, title) } == true
         }) else { return false }
         return AXUIElementPerformAction(row, kAXPressAction as CFString) == .success
+    }
+}
+
+extension CursorWindow {
+    enum Replied { case sent, draft, failed }
+
+    /// Replies in the chat without coming forward: the chat is chosen in the Agents window's sidebar, the words are set in its
+    /// prompt through Accessibility (the field is writable, and Cursor's editor takes them like typed text) and its Send
+    /// button is pressed; the chat the window showed is chosen again afterwards. `.draft` when something is already written
+    /// there (nothing is touched), `.failed` when any step could not be done (Cursor not running, no such row, no button).
+    /// Blocks: call it off the main thread.
+    nonisolated static func reply(_ text: String, chat: String, title: String) -> Replied {
+        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).first else { return .failed }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        enableAccessibility(ax)
+        func showing() -> Bool { if case .session(let t) = showingNow() { return matches(t, title) } else { return false } }
+        var before: String?
+        if !showing() {
+            if case .session(let t) = showingNow() { before = t }
+            guard selectInSidebar(ax, title: title) else { return .failed }
+            for _ in 0..<15 where !showing() { Thread.sleep(forTimeInterval: 0.2) }
+        }
+        defer { if let before { _ = selectInSidebar(ax, title: before) } }
+        guard showing(), let window = agentsWindow(ax),
+              let prompt = ConductorApp.first(in: [window], limit: 4000, {
+                  ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXTextArea" && ConductorApp.attr($0, kAXDescriptionAttribute) as? String == "Prompt"
+              }) else { return .failed }
+        let written = (ConductorApp.attr(prompt, kAXValueAttribute) as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard written.isEmpty else { return .draft }
+        guard AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, text as CFString) == .success else { return .failed }
+        // The Send button shows once the editor has taken the words.
+        for _ in 0..<15 {
+            if let button = ConductorApp.first(in: [window], limit: 4000, {
+                ConductorApp.attr($0, kAXRoleAttribute) as? String == "AXButton" && ConductorApp.attr($0, kAXDescriptionAttribute) as? String == "Send message"
+            }) {
+                let ok = AXUIElementPerformAction(button, kAXPressAction as CFString) == .success
+                trace("reply \(ok ? "sent" : "not sent") in \(title), chosen in the sidebar")
+                return ok ? .sent : .failed
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        // Nothing to send with: take the words back out so no stray text is left in the field.
+        _ = AXUIElementSetAttributeValue(prompt, kAXValueAttribute as CFString, "" as CFString)
+        return .failed
     }
 }

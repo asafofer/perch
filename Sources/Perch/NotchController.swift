@@ -320,7 +320,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             let chats = projects.filter { $0.app == Agent.cursor.id }
             switch focus.fresh(for: bid)?.claude {
             case .session(let title)?:
-                let here = Set(chats.filter { $0.topic == title || (title.hasPrefix($0.topic) && $0.topic.count >= 80) }.map(\.id))
+                let here = Set(chats.filter { CursorWindow.matches(title, CursorWindow.title(of: $0)) }.map(\.id))
                 return (r.sure.union(here), r.maybe.union(here))
             case .some(.none): return (r.sure, r.maybe)
             default: return (r.sure, r.maybe.union(chats.map(\.id)))
@@ -670,7 +670,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let p = projects[i]
         // Cursor asks in its own window: the chat is opened and the button of its prompt pressed there.
         if ask.agent == Agent.cursor.id, let chat = p.sessionId {
-            let back = whereYouWere(), title = p.topic, allow = choice == "allow"
+            let back = whereYouWere(), title = CursorWindow.title(of: p), allow = choice == "allow"
             markSeen(p)
             let onCard = machine.phase != .idle
             send(.dismiss)
@@ -1431,6 +1431,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             return
         }
+        // A chat in Cursor takes the words in the background when Cursor runs: its window never comes forward. Otherwise, or when
+        // that cannot be done, the words are pasted (Cursor comes forward for it).
+        if p.app == Agent.cursor.id, let chat = p.sessionId, !CursorWindow.title(of: p).isEmpty,
+           !NSRunningApplication.runningApplications(withBundleIdentifier: CursorApp.bundle).isEmpty {
+            let title = CursorWindow.title(of: p)
+            markSeen(p)
+            replying(p.id)
+            let old = machine.phase; machine.send(.dismiss); phaseChanged(old, machine.phase); putAway = nil; push()
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let r = CursorWindow.reply(text, chat: chat, title: title)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if r != .sent { self.replyHanded(p.id); self.pasteReply(text, to: p.id, send: r != .draft) }
+                    }
+                }
+            }
+            return
+        }
         pasteReply(text, to: p.id)
     }
     private func projectIndex(_ pid: String?) -> Int? {
@@ -1506,7 +1525,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let ours = pb.changeCount
         let frontBefore = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let app = Agent.of(projects[i].app).short, terminal = projects[i].terminal
-        let cursorTitle = projects[i].app == Agent.cursor.id && !projects[i].topic.isEmpty ? projects[i].topic : nil
+        let cursorTitle = projects[i].app == Agent.cursor.id ? CursorWindow.title(of: projects[i]) : nil
         pickUp(i) { [weak self] landing in
             guard trusted else { self?.say("Reply copied"); return }
             let target: String, settle: () async -> Bool
