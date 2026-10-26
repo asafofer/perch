@@ -1,6 +1,6 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode and pi as sources, herdr, tmux and cmux as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 
@@ -14,9 +14,9 @@ OpenCode and pi as sources, herdr, tmux and cmux as hosts, which process is whic
 - The title is the newest `session_info` name, else your first prompt.
 - Resume with `pi --session <id>`.
 
-## herdr, tmux and cmux
+## herdr, tmux, cmux and agterm
 
-- They host any agent. Every process in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). herdr wins, then tmux, since their servers can inherit a cmux tab's values.
+- They host any agent. Every process in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`; in agterm `AGTERM_WINDOW_ID`, `AGTERM_SESSION_ID` and `AGTERM_PANE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). herdr wins, then tmux, since their servers can inherit a cmux tab's values.
 - herdr: a server runs apart from any terminal, so the terminal you see it in is the one running a `herdr` client for that session (`LiveSessions.Viewer`). With none attached, Pick up opens one. herdr's own reading of each pane (working, blocked, done) counts below hooks and above the transcript (`HerdrStatus`).
 - tmux is the same with its own CLI (`Tmux`, the server's executable from its pid, `-S` the socket):
   - one call per server lists its panes and clients (`TmuxServer.listing`);
@@ -25,6 +25,12 @@ OpenCode and pi as sources, herdr, tmux and cmux as hosts, which process is whic
   - the session you are in is the pane the front tab's client shows (`display-message -c`);
   - a session that ended opens again as a new window in its tmux session.
 - cmux's command line tool only answers processes inside cmux (its default socket mode), so Perch drives cmux through AppleScript: a terminal's `id` is the `CMUX_SURFACE_ID` its processes carry. `input text` pastes (bracketed), so Return is sent separately with `perform action "text:\\r"`.
+- agterm's command line tool, `agtermctl` (inside agterm.app), answers over agterm's socket from outside agterm too, so Perch drives agterm with it (`Agterm`), never AppleScript:
+  - Pick up raises the session's window, selects the session (`session select`) and, in a split, shows it first when Cmd+D hid it (`session split visibility on`), then focuses the pane whose id the agent carries (`session focus`), left or right; a pane's id holds when the split's panes swap. It counts as exact only once that pane has the focus; a pane it cannot find or focus falls back to the tab, so a reply is never pasted into the split's other pane;
+  - a reply is `session type --target <session> --pane-id`, the text after `--` so a reply starting with a dash is not read as an option, naming the session since agterm otherwise looks in the window's active one; its Return a beat later as its own key, since agterm types as keys do;
+  - the session you are in is the focused pane of the active session in agterm's front window (`tree`);
+  - a new session, or one that ended, opens as a new agterm session in its folder, your shell typing the agent's command, so the shell stays when the agent ends. agterm may take a few seconds to make its first window after it starts, so Perch retries for about five seconds, or fifteen when it just started agterm; when no session can be made, the session opens in Terminal instead (wherever Perch opens one in agterm, new sessions included);
+  - with agterm's live sessions a pane's shell runs under a daemon, not under agterm, so an agent carrying agterm's ids with no app above it counts as agterm's. One with another app above it (an editor started from agterm) only inherited them and counts as that app's tab.
 
 ## Which process is which session
 

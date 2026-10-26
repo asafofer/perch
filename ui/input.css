@@ -325,7 +325,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
 /* the passing light: a white copy of the same words, the same markup (so a command in code lines up), seen through a moving band */
 .shimmer code, .shimmer strong { color: inherit; }
-.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%); mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
   -webkit-mask-size: 250% 100%; mask-size: 250% 100%; -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
   animation: shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite; }
@@ -508,3 +508,23 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .nw .nrow.dz .nw-dz { display: inline-flex; }
 /* Preview runs the card to the panel's height: its buttons keep an easy gap under them */
 .p-open[data-prev="1"] .inner { padding-bottom: 8px; }
+
+/* the label over a pull request icon (app.js prTip): a small raised surface, a row for each pull request */
+.pr-tip { position: fixed; z-index: 60; left: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 11px 7px 9px; border-radius: 10px; background: #1d1d20; color: #e4e4e7;
+  font: 500 12px/18px Inter, sans-serif; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 10px 28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4); }
+.pr-tip.on { opacity: 1; transform: none; pointer-events: auto; }
+.pr-tip .r { display: flex; align-items: center; gap: 7px; height: 18px; }
+.pr-tip { width: max-content; max-width: 340px; padding: 5px; gap: 2px; pointer-events: none; }
+.pr-tip .pi { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background-color .12s; }
+.pr-tip .pi:hover, .pr-tip .pi.hv { background: rgba(255,255,255,.08); }
+
+.pr-tip .p2 .t { max-width: 100%; font-size: 13px; color: #fafafa; }
+.pr-tip .p2 .r { font-size: 12px; }
+.pr-tip .m { color: #85858d; }
+@media (prefers-reduced-motion: reduce) { .pr-tip { transform: none; transition: none; } }
+
+/* a title or line that does not fit fades out at its end, as Claude's own list does, instead of ending in an ellipsis */
+.fade { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+.fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }

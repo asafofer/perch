@@ -17,7 +17,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* the desktop stays in view while you pick scenarios */
 .deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
 /* a real desktop: Raycast wallpapers (raycast.com/wallpapers), seen from the top of the screen like the notch sees it */
-.desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:340px;
+.desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:452px;
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
 .mb{position:absolute;inset:0 0 auto 0;height:34px;background:rgba(8,12,11,.38);backdrop-filter:blur(14px)}
 .desk #scene{position:absolute;left:50%;top:0;margin-left:-240px}
@@ -34,7 +34,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .now{position:absolute;z-index:6;left:14px;bottom:12px;font:500 12px Inter,sans-serif;color:rgba(255,255,255,.72);background:rgba(0,0,0,.35);border-radius:8px;padding:5px 9px;backdrop-filter:blur(8px)}
 
 /* the disk image window (Installing): Finder's window as a stand-in, the picture inside is the real one that ships (install/background.html) */
-.desk.inst{height:500px}
+.desk.inst .fin{top:14px}
 .fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#161B19;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 0 0 .5px rgba(0,0,0,.6),0 26px 64px rgba(0,0,0,.6);transition:opacity .35s,transform .35s}
 .fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#9AA39E;letter-spacing:-.005em}
 .fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#3A423E;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
@@ -93,9 +93,24 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .group{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .what{font-size:13px;line-height:1.5;color:var(--pg-muted);margin:12px 0 0;min-height:2.6em;max-width:70ch}
 .group[hidden],.sc[hidden],.dd[hidden]{display:none}
-.dd2{margin-left:8px}.dd2>button{min-width:150px}
+.pickrow{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pickrow .dd{margin:0}.dd2{margin-left:0}
+.sq{position:relative;flex:1 1 220px;max-width:340px}
+.sq input{display:block;width:100%;box-sizing:border-box;height:34px;font:400 13px Inter,sans-serif;color:var(--pg-fg);background:var(--pg-card);border:0;border-radius:9px;padding:0 10px 0 32px;outline:0;box-shadow:inset 0 0 0 1px var(--pg-line)}
+.sq input:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
+.sq input::placeholder{color:var(--pg-muted)}
+.sq>svg{position:absolute;left:10px;top:10px;width:15px;height:15px;color:var(--pg-muted);pointer-events:none}
+.sq .res{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;padding:5px;max-height:min(380px,55vh);overflow-y:auto;background:var(--pg-card);border-radius:11px;box-shadow:0 0 0 1px var(--pg-line),0 14px 34px rgba(0,0,0,.45)}
+.sq.open .res{display:block}
+.sq .res button{display:flex;align-items:center;gap:9px;width:100%;font:500 13px Inter,sans-serif;color:var(--pg-fg);background:transparent;border:0;border-radius:7px;padding:8px 10px;cursor:pointer;text-align:left}
+.sq .res button+button{margin-top:2px}
+.sq .res button:hover,.sq .res button.at{background:color-mix(in srgb,var(--pg-fg) 8%,transparent)}
+.sq .res button svg{width:15px;height:15px;flex:none;color:var(--pg-muted)}
+.sq .res .in{margin-left:auto;padding-left:12px;font-weight:400;font-size:12px;color:var(--pg-muted);white-space:nowrap}
+.sq .res .none{padding:8px 10px;font-size:13px;color:var(--pg-muted)}.dd2>button{min-width:150px}
 .sc{display:flex;align-items:center;min-height:42px;text-align:left;font:inherit;color:var(--pg-fg);background:transparent;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;transition:background .15s;box-shadow:inset 0 0 0 1px var(--pg-line)}
 .sc:hover{background:color-mix(in srgb,var(--pg-fg) 6%,transparent)}
+i.sci{flex:none;display:grid;place-items:center;min-width:16px;height:16px;margin-right:9px;color:var(--pg-muted);font-style:normal}
+i.sci svg{width:16px;height:16px}
 .sc b{font:500 12.5px/1.3 Inter,sans-serif;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .sc[aria-pressed="true"]{background:color-mix(in srgb,var(--pg-fg) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--pg-fg) 24%,transparent)}
 
@@ -115,13 +130,19 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 /* ?record (scripts/record.sh): only the desktop, filling the window */
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
-:root:not(.rec) .desk:has(.n[data-s=set]),:root:not(.rec) .desk:has(.n[data-s=onb]),:root:not(.rec) .desk:has(.p-open[data-prev="1"]){height:452px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
 @media (max-height:760px){.deskwrap{position:static}}
 @media (max-width:640px){.mrow{grid-template-columns:100px repeat(4,1fr)}.mrow>*{padding:8px 6px}}
+/* pull request marks */
+.prgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.prc{display:flex;align-items:center;gap:12px;background:var(--pg-card);border-radius:12px;box-shadow:0 0 0 1px var(--pg-line);padding:10px 12px}
+.prc .tile{display:grid;place-items:center;width:44px;height:44px;border-radius:10px;background:#0b0e0d;flex:none}
+.prc b{display:block;font:500 13px Inter,sans-serif}
+.prc span{display:block;font-size:12px;line-height:1.4;color:var(--pg-muted)}
+.prc i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-0.5px}
 </style>
 <main class="wrap">
   <header>
@@ -132,13 +153,19 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   <div class="deskwrap">
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div id="hw" title="The hardware notch"></div><div class="now" id="now">Welcome back</div></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
-      <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button><span style="margin-left:14px">Wallpaper</span><span id="walls" style="display:contents"><button data-w="blue-distortion-1" aria-pressed="true">Blue</button><button data-w="red-distortion-1" aria-pressed="false">Red</button><button data-w="chromatic-dark-1" aria-pressed="false">Chromatic</button></span></div>
+      <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button></div>
   </div>
 
   <section>
     <h2>Scenarios</h2>
     <div class="groups" id="groups"></div>
     <p class="what" id="what"></p>
+  </section>
+
+  <section>
+    <h2>Pull request marks</h2>
+    <p class="note" style="margin-bottom:10px">Icon only on the row and the card; the words show in a small label on hover. The colour is the pull request's state, and orange means it is yours to act on.</p>
+    <div class="prgrid" id="prgrid"></div>
   </section>
 
   <p class="note">Wallpapers by <a href="https://www.raycast.com/wallpapers" style="color:inherit">Raycast</a>. The glow is internal: light rising from the bottom edge of the card, tinted by status (orange needs you, green done, the character's colour otherwise). At rest the character is hidden; while you work, the notch itself says what happened (the live activity).</p>
@@ -396,14 +423,44 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Your words: you asked', 'Your last message was a question (a sentence ending in a question mark): You asked.', function () { d.variant(1, { topic: 'Hero jump on Safari', headline: '', context: 'You asked: \u201cwhy does the hero jump on Safari when the poster loads?\u201d', next: '', fresh: false, line: '8h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } }); }],
       ['Working, a long title', 'A title that runs long has its whole line: the status sits on the grey line under it, at the right.', function () { d.variant(2, { topic: 'Make Reply on a hovered card take one click and show the hand over it' }); }]
     ]],
+    ['Pull requests', [
+      ['PR, open', 'Green icon at the right of the grey line: the branch has an open pull request. Hover it for the number and state; click opens it.', function () { d.project(10); d.show('open', false, true); }],
+      ['PR, ready to merge', 'Approved and checks green: the same green icon.', function () { d.project(1); d.show('open'); }],
+      ['PR, checks failing', 'The icon turns orange: it is yours to look at. Hover for the words.', function () { d.project(7); d.show('open', false, true); }],
+      ['PR, changes requested', 'A reviewer asked for changes: orange.', function () { d.project(8); d.show('open'); }],
+      ['PR, merge conflicts', 'The branch no longer merges cleanly: orange.', function () { d.project(9); d.show('open'); }],
+      ['PR, checks running', 'Plain green while CI runs.', function () { d.project(0); d.show('open'); }],
+      ['PR, draft', 'Grey icon with dots.', function () { d.project(2); d.show('open'); }],
+      ['PR, merged', 'Purple icon.', function () { d.project(4); d.show('open'); }],
+      ['PR, two merged', 'One session, two pull requests: the icon with a small count; hover lists them.', function () { d.project(4); d.show('open'); }],
+      ['PR, failing and merged', 'The one that needs you leads (orange); the count says there is another. Hover lists both.', function () { d.project(7); d.show('open', false, true); }],
+      ['PR, checks running, popover', 'Running is only a word in the popover: the icon stays the plain open one, so nothing flickers while CI runs.', function () { d.project(0); d.show('open'); hoverPrWhenOpen(); }],
+      ['PR, closed', 'Red icon, not merged.', function () { d.project(6); d.show('open'); }],
+      ['All sessions, with PRs', 'Each row carries its PR icon beside the time. Hover one for its label.', function () { d.show('switcher'); }],
+      ['Settings: Pull requests, Checks', 'Checks: marks, and failing checks or a review asking for changes lift the session under Needs you; Notifications gets a Checks failing moment you can switch off. It needs the GitHub CLI signed in.', function () { d.settings({ page: 'agents', prs: 'on' }); }],
+      ['Settings: Checks needs the CLI', 'No GitHub CLI found: Checks is greyed and the line says to install it. Off and Marks still work.', function () { d.settings({ page: 'agents', prs: 'nogh' }); }],
+      ['Settings: Checks needs a login', 'The GitHub CLI is there but logged out: Checks is greyed and the line says to run gh auth login.', function () { d.settings({ page: 'agents', prs: 'login' }); }],
+      ['Settings: Pull requests, Marks', 'One row on the Agents page with three choices: Off, Marks (from the Claude app, no login) and Checks (asks GitHub through the gh login). Marks is the default.', function () { d.settings({ page: 'agents' }); }],
+      ['Settings: Pull requests, Off', 'Off: no mark on any row or card, and no Checks failing moment under Notifications.', function () { d.settings({ page: 'agents', prs: 'on', showPRs: false }); }],
+      ['Settings: Notifications, Checks failing', 'With PR checks on, Notifications has Checks failing beside Finished and Needs your OK: whether the notch speaks up when a check fails. The list and cards still say it.', function () { d.settings({ page: 'notify', prs: 'on' }); }],
+      ['Onboarding: PR checks', 'Its own step after Live status, shown only when the GitHub CLI is installed and signed in. Turn on, or Skip; without the CLI the step is not there at all.', function () { d.onboarding(6, true, false, 'on', false, false, undefined, 'off'); }],
+      ['Onboarding: PR checks on', 'Ticked: Next.', function () { d.onboarding(6, true, false, 'on', false, false, undefined, 'on'); }],
+      ['PR failing: needs you', 'With PR checks on, failing checks lift the session under Needs you: an orange status, and the icon turns orange.', function () { d.variant(1, { prs: [{ number: 448, repo: 'asafofer/perch', state: 'open', checks: 'fail' }], status: { kind: 'attention', text: 'Checks failing on #448', app: 'claude' }, attention: true, fresh: true, line: 'Checks failing' }); }],
+      ['PR changes requested: needs you', 'A review asking for changes counts the same.', function () { d.variant(8, { prs: [{ number: 87, repo: 'asafofer/perch', state: 'open', checks: 'pass', review: 'changes' }], status: { kind: 'attention', text: 'Changes requested on #87', app: 'codex' }, attention: true, fresh: true, line: 'Changes requested' }); }],
+      ['All sessions, a PR needs you', 'In the list the session sits under Needs you with the ! mark, and its PR icon is orange.', function () { d.variantList(1, { prs: [{ number: 448, repo: 'asafofer/perch', state: 'open', checks: 'fail' }], status: { kind: 'attention', text: 'Checks failing on #448', app: 'claude' }, attention: true, fresh: true, line: 'Checks failing' }); }]
+    ]],
     ['More agents', [
       ['OpenCode, working', 'OpenCode in Ghostty: Ghostty\u2019s icon with OpenCode\u2019s mark on its corner, what it says it is doing, and the step on the Now row.', function () { d.project(10); d.show('open', false, true); }],
       ['OpenCode needs your OK', 'OpenCode asks before running a command. Allow with A or Deny with D from the notch, or answer in OpenCode: whichever comes first.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode wants to run a command', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'OpenCode wants to run a command', subject: 'rm -rf dist && bun run build', options: [], answerable: true } }); }],
       ['OpenCode asked you something', 'Its question tool, answered with a number.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode asked you something', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'OpenCode asked you something', subject: 'Should Tab leave the table or move to the next cell?', answerable: true, questions: [Q('Should Tab leave the table or move to the next cell?', 'Tab key', [['Leave the table (Recommended)', 'Like a native grid: arrows move, Tab leaves'], ['Next cell', 'Like a spreadsheet']])] } }); }],
       ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', false, true); }],
+      ['Cursor, finished', 'A chat in Cursor: Cursor\u2019s own icon and Open Cursor on the button. Pick up opens that very chat in Cursor\u2019s Agents window through Cursor\u2019s own chat link, and Reply goes in with Cursor behind your app.', function () { d.project(13); d.show('open', false, true); }],
+      ['Cursor needs your OK', 'Cursor shows its own prompt in its window. Perch reads that it waits, and for what, from Cursor\u2019s database; Allow or Deny opens the chat, presses Run or Skip there and puts you back where you were.', function () { d.variant(13, { status: { kind: 'attention', text: 'Cursor is waiting for your OK', app: 'cursor' }, attention: true, now: null, fresh: false, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'Cursor wants to search the web', subject: '\u201ccurrent stable Node.js version 2026\u201d', options: [], answerable: true } }); }],
+      ['Cursor, working', 'A Cursor chat mid-turn: what it says it is doing and the step on the Now row, read from its transcript.', function () { d.variant(13, { status: { kind: 'running', text: 'Cursor is working', app: 'cursor' }, now: 'Editing sync.ts', context: 'Running the tests before I touch the scheduler.', fresh: false, line: 'Working now' }); }],
       ['Claude in Conductor', 'A workspace in Conductor: Conductor\u2019s icon with Claude\u2019s mark on its corner, and Open Conductor on the button. Pick up brings Conductor forward and opens that workspace. Hover the icon for where it runs.', function () { d.project(12); d.show('open', false, true); }],
       ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
+      ['Settings: five agents', 'Cursor joins the list once its chats are on this Mac.', function () { d.settings({ sources: FOUR.concat([{ id: 'cursor', name: 'Cursor', count: 2, enabled: true }]), page: 'agents' }); }],
       ['Settings: four agents', 'Settings, Agents: each agent Perch reads, how many sessions it has, and a switch. An agent switched off dims.', function () { d.settings({ sources: FOUR, page: 'agents' }); }],
       ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
     ]],
@@ -420,7 +477,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['A task, never opened here', 'A task whose words this Mac never cached (started on another device, or not opened lately): its title, its folder and a quiet grey line saying so. Status still comes through.', function () { var at = d.claudeApp(); d.project(at + 1); d.show('open', false, true); }],
       ['A chat', 'A chat in the Claude app: its title, and what Claude last said, like any session. Open Claude goes to the chat (claude://claude.ai/chat/<uuid>). What was said is cached only for chats opened lately on this Mac; see the spike notes.', function () { var at = d.claudeApp(); d.project(at + 2); d.show('open', false, true); }],
       ['The list with tasks and chats', 'Claude tasks and chats among the coding sessions, looking alike. A chat in a Claude project shows the project in grey (financials).', function () { d.claudeApp(); d.show('switcher'); }],
-      ['Settings: tasks and chats', 'Settings, Agents: every agent has a plain check, Claude tasks and Claude chats too, so you choose which Perch shows. Tasks start on, chats off. Under them, the places Perch works in.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), places: [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }], page: 'agents' }); }],
+      ['Settings: tasks and chats', 'Settings, Agents: every agent has a plain check, Claude tasks and Claude chats too, so you choose which Perch shows. Tasks start on, chats off. Under them, the places Perch works in.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), places: [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }], page: 'agents' }); }],
       ['Onboarding: tasks and chats', 'Choose your apps: Claude as one tile with Code, Tasks and Chats as small checks (chats start off and say only how many), the other agents beside it, and the places Perch works in with their marks.', function () { d.onboarding(4, true, false, null, 'app'); }]
     ]],
     ['Replying', [
@@ -763,7 +820,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
       ['Settings', 'The gear on the card or the list, or Command+comma: a short list of categories, each saying what it is set to now. Right or Return opens one; Left or Esc comes back. Below them, Perch\u2019s version with where its update stands, and Send feedback.', function () { d.project(1); d.show('open'); setTimeout(function () { d.settings(); }, 500); }],
       ['Settings: with the keys', 'Down to Notifications, Right opens it, Down twice and Return switches Asked you something off, Return again puts it back, Left goes back to the list.', function () { var me = ++charRun, ks = ['down', 'down', 'right', 'down', 'down', 'enter', 'enter', 'left']; d.settings();
         ks.forEach(function (k, i) { setTimeout(function () { if (me === charRun && document.querySelector('.set')) window.perch.setKey(k); }, 700 + i * 520); }); }],
-      ['Settings: Notifications', 'Which moments the notch announces, each with its switch, then how long you are away before the welcome card and how long a question stays. The list and the cards still say every moment.', function () { d.settings({ page: 'notify' }); }],
+      ['Settings: Notifications', 'Which moments the notch announces, each with a tick, then how long you are away before the welcome card and how long a question stays. The list and the cards still say every moment.', function () { d.settings({ page: 'notify' }); }],
       ['Settings: Finished off', 'Finished is switched off: its mark dims here, and leaves the Notifications row on the Settings list.', function () { d.settings({ notifyOff: ['done'], page: 'notify' }); }],
       ['Notify: finished stays quiet', 'Finished is off, so a finish stays quiet; then a command needing your OK still speaks. Plays for 6 s.', function () { var me = ++charRun; d.arrive(2, { status: { kind: 'done', text: 'Codex finished', app: 'codex' }, fresh: true }, ['done']); setTimeout(function () { if (me === charRun) d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }, ['done']); }, 5000); }],
       ['Settings: Shortcuts', 'Open Perch and New session, each with Change.', function () { d.settings({ page: 'shortcuts' }); }],
@@ -943,6 +1000,10 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     at(4600, function () { now.textContent = 'Let go: Applications takes it'; ghost.classList.add('in'); icA.classList.remove('hl'); icP.classList.remove('lift'); cur.style.opacity = '0'; });
     at(5500, function () { now.textContent = 'Perch is in Applications: open it from there'; });
   }
+  var MEAN = {"Open": "Open pull request, nothing to do yet", "Checks running": "Open, CI still running", "Ready to merge": "Approved and checks green", "Approved": "Approved, checks not finished", "Checks failing": "CI failed: yours to look at", "Changes requested": "A reviewer asked for changes", "Conflicts": "The branch no longer merges cleanly", "Draft": "Draft, not ready for review", "Merged": "Merged into its base branch", "Closed": "Closed without merging", "Several": "Several pull requests: the one that needs you shows, with a count"};
+  document.getElementById('prgrid').innerHTML = d.prLegend().map(function (x) {
+    return '<div class="prc"><div class="tile">' + x.icon + '</div><div><b style="color:' + x.color + '">' + x.word + '</b><span>' + (MEAN[x.word] || '') + '</span><span><i style="background:' + x.color + '"></i>' + x.color.toLowerCase() + '</span></div></div>';
+  }).join('');
   var now = document.getElementById('now'), btns = [], lastRun = null, dispPicked = false;
   function setDisplay(has) {
     d.setNotch(!!has); document.getElementById('desk').classList.toggle('ext', !has);
@@ -951,11 +1012,17 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); dispPicked = true; if (lastRun) lastRun(); dispPicked = false; }; });
   var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
-  document.querySelectorAll('#walls button').forEach(function (b) { b.onclick = function () {
-    document.getElementById('desk').style.setProperty('--wall', 'url(wallpapers/' + b.dataset.w + '.webp)');
-    document.querySelectorAll('#walls button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-  }; });
-  function run(b, name, fn) { lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
+
+  /* waits for the card to finish opening (the label is sized to it), then rests the pointer on the pull request icon */
+  function hoverPrWhenOpen() {
+    var t0 = Date.now();
+    (function wait() {
+      var nn = document.querySelector('.n'), e = document.querySelector('.o-pr');
+      if (nn && e && e.onmouseenter && nn.getBoundingClientRect().width >= 390 && e.getBoundingClientRect().width > 0) { setTimeout(e.onmouseenter, 250); return; }
+      if (Date.now() - t0 < 6000) setTimeout(wait, 120);
+    })();
+  }
+  function run(b, name, fn) { var pt = document.querySelector('.pr-tip'); if (pt) pt.classList.remove('on'); lastRun = fn; btns.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); now.textContent = name; d.fxStop(); d.updStop(); d.clearDrafts(); charRun++; fileDragStop(); diskStop(); fn(); }
   var wrap = document.getElementById('groups');
   var what = document.getElementById('what');
   /* Lucide (lucide.dev, ISC), one small mark for each category */
@@ -976,12 +1043,28 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     'Feedback': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     'Settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     'Accessibility': '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/>',
+    'Pull requests': '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
+    'Which screen': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
     'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
   };
   function tabIcon(n) { return TABICON[n] ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + TABICON[n] + '</svg>' : ''; }
+  /* each scenario leads with a mark: its category's, and for pull requests the very mark the card would show */
+  var PRSC = { 'PR, open': [{}], 'PR, ready to merge': [{ checks: 'pass', review: 'approved' }], 'PR, checks failing': [{ checks: 'fail' }], 'PR, changes requested': [{ review: 'changes' }], 'PR, merge conflicts': [{ conflict: true }],
+    'PR, checks running': [{ checks: 'running' }], 'PR, checks running, popover': [{ checks: 'running' }], 'PR, draft': [{ state: 'draft' }], 'PR, merged': [{ state: 'merged' }],
+    'PR, two merged': [{ state: 'merged' }, { state: 'merged' }], 'PR, failing and merged': [{ checks: 'fail' }, { state: 'merged' }], 'PR, closed': [{ state: 'closed' }],
+    'PR failing: needs you': [{ checks: 'fail' }], 'PR changes requested: needs you': [{ review: 'changes' }], 'All sessions, a PR needs you': [{ checks: 'fail' }] };
+  function scIcon(group, name) {
+    if (group === 'Pull requests') {
+      if (PRSC[name]) return d.prIcon(PRSC[name]);
+      if (/^Settings/.test(name)) return tabIcon('Settings');
+      if (/^Onboarding/.test(name)) return tabIcon('Onboarding');
+      return tabIcon('Reply formatting');
+    }
+    return tabIcon(group);
+  }
   var dd = document.createElement('div'); dd.className = 'dd'; wrap.parentNode.insertBefore(dd, wrap);
   var ddb = document.createElement('button'); ddb.setAttribute('aria-haspopup', 'listbox'); dd.appendChild(ddb);
   var menu = document.createElement('div'); menu.className = 'menu'; dd.appendChild(menu);
@@ -1047,25 +1130,30 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   var boxes = [];
   /* a category with two kinds of scenario (Update errors: the notch's, and Settings') gets a second drop-down to show one kind */
-  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']] };
+  var FILTERS = { 'Update errors': [['All', ''], ['Notch', 'notch'], ['Settings', 'settings']],
+    'Updates': [['All', ''], ['The update', 'flow'], ['Found by itself', 'peek'], ['List and card', 'list'], ['What\u2019s new', 'new'], ['Settings', 'settings']] };
   var dd2 = document.createElement('div'); dd2.className = 'dd dd2'; dd2.hidden = true; dd.parentNode.insertBefore(dd2, dd.nextSibling);
   var ddb2 = document.createElement('button'); ddb2.setAttribute('aria-haspopup', 'listbox'); dd2.appendChild(ddb2);
   var menu2 = document.createElement('div'); menu2.className = 'menu'; menu2.setAttribute('role', 'listbox'); dd2.appendChild(menu2);
   var curGroup = 0;
-  function tagOf(s) { return /^Settings/.test(s[0]) ? 'settings' : 'notch'; }
+  /* which kind a scenario is, for the category's second drop-down */
+  function tagOf(s, g) {
+    if (g === 'Updates') return /^Settings/.test(s[0]) ? 'settings' : /^(Found by itself|The peek)/.test(s[0]) ? 'peek' : /^(In the list|On a card)/.test(s[0]) ? 'list' : /^What\u2019s new/.test(s[0]) ? 'new' : 'flow';
+    return /^Settings/.test(s[0]) ? 'settings' : 'notch';
+  }
   function setFilter(i, tag) {
     var f = FILTERS[GROUPS[i][0]]; if (!f) return;
-    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s) !== tag; });
+    GROUPS[i][1].forEach(function (s, k) { boxes[i].children[k].hidden = !!tag && tagOf(s, GROUPS[i][0]) !== tag; });
     menu2.querySelectorAll('button').forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tag === tag)); });
     var label = f.filter(function (x) { return x[1] === tag; })[0];
-    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s) === tag; }).length + '</span>' + CHEV;
+    ddb2.innerHTML = label[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !tag || tagOf(s, GROUPS[i][0]) === tag; }).length + '</span>' + CHEV;
   }
   function filterMenu(i) {
     var f = FILTERS[GROUPS[i][0]]; dd2.hidden = !f; menu2.innerHTML = '';
     if (!f) return;
     f.forEach(function (x) {
       var t = document.createElement('button'); t.setAttribute('role', 'option'); t.dataset.tag = x[1];
-      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s) === x[1]; }).length + '</span>';
+      t.innerHTML = x[0] + '<span class="cnt">' + GROUPS[i][1].filter(function (s) { return !x[1] || tagOf(s, GROUPS[i][0]) === x[1]; }).length + '</span>';
       t.onclick = function () { setFilter(i, x[1]); dd2.classList.remove('open'); };
       menu2.appendChild(t);
     });
@@ -1073,6 +1161,40 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
   }
   ddb2.onclick = function (e) { e.stopPropagation(); dd2.classList.toggle('open'); ddOpen(false); };
   document.addEventListener('click', function () { dd2.classList.remove('open'); });
+  /* a search that is always there, beside the drop-downs: type, and every scenario whose name or words match is listed with its category */
+  var pickrow = document.createElement('div'); pickrow.className = 'pickrow'; dd.parentNode.insertBefore(pickrow, dd); pickrow.appendChild(dd); pickrow.appendChild(dd2);
+  var sq = document.createElement('div'); sq.className = 'sq'; pickrow.appendChild(sq);
+  sq.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Search scenarios" aria-label="Search scenarios" spellcheck="false"><div class="res"></div>';
+  var sqi = sq.querySelector('input'), sqr = sq.querySelector('.res'), sqAt = -1;
+  function sqFind() {
+    var t = sqi.value.trim(), found = [];
+    if (t) GROUPS.forEach(function (g, gi) { g[1].forEach(function (sc, si) {
+      var rank = matches(t, sc[0]) ? 0 : matches(t, sc[0] + ' ' + sc[1]) ? 1 : matches(t, g[0]) ? 2 : -1;
+      if (rank >= 0) found.push({ gi: gi, si: si, sc: sc, g: g, rank: rank });
+    }); });
+    found.sort(function (a, b) { return a.rank - b.rank; });
+    sqr.innerHTML = ''; sqAt = found.length ? 0 : -1;
+    found.slice(0, 40).forEach(function (f, k) {
+      var b = document.createElement('button'); b.className = k === 0 ? 'at' : '';
+      b.innerHTML = scIcon(f.g[0], f.sc[0]) + '<span>' + f.sc[0] + '</span><span class="in">' + f.g[0] + '</span>';
+      b.onclick = function () { sqPick(f); };
+      sqr.appendChild(b);
+    });
+    if (t && !found.length) sqr.innerHTML = '<div class="none">Nothing matches</div>';
+    sq.classList.toggle('open', !!t);
+  }
+  function sqPick(f) { sq.classList.remove('open'); sqi.value = ''; showTab(f.gi); boxes[f.gi].children[f.si].click(); boxes[f.gi].children[f.si].scrollIntoView({ block: 'nearest' }); sqi.blur(); }
+  sqi.addEventListener('input', sqFind);
+  sqi.addEventListener('focus', function () { if (sqi.value.trim()) sq.classList.add('open'); });
+  sqi.addEventListener('keydown', function (e) {
+    var bs = [].slice.call(sqr.querySelectorAll('button'));
+    e.stopPropagation();   /* typing here is not a key for the notch behind it */
+    if (e.key === 'Escape') { sq.classList.remove('open'); sqi.blur(); return; }
+    if (!bs.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sqAt = (sqAt + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length; bs.forEach(function (b, k) { b.classList.toggle('at', k === sqAt); }); bs[sqAt].scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (bs[Math.max(sqAt, 0)]) bs[Math.max(sqAt, 0)].click(); }
+  }, true);
+  document.addEventListener('click', function (e) { if (!sq.contains(e.target)) sq.classList.remove('open'); });
   function showTab(i) {
     curGroup = i; filterMenu(i); dd2.classList.remove('open');
     boxes.forEach(function (b, k) { b.hidden = k !== i; });
@@ -1096,7 +1218,7 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
     var box = document.createElement('div'); box.className = 'group'; box.setAttribute('role', 'tabpanel'); boxes.push(box);
     g[1].forEach(function (s) {
       var b = document.createElement('button'); b.className = 'sc'; b.setAttribute('aria-pressed', 'false');
-      b.innerHTML = '<b>' + s[0] + '</b>';
+      b.innerHTML = '<i class="sci">' + scIcon(g[0], s[0]) + '</i><b>' + s[0] + '</b>';
       /* a scenario says what it shows in its first sentence; the rest was detail */
       var says = s[1].split(/(?<=[.!?])\s/)[0];
       b.onclick = function () { run(b, s[0].indexOf(g[0]) === 0 ? s[0] : g[0] + ': ' + s[0], s[2]); what.textContent = says; linkTo(g[0], s[0]); };

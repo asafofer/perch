@@ -5,8 +5,9 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 ## The session you are in
 
 - Perch never nudges about the session you are in, or may be in (`NotchController.youAreIn`; `PERCH_TRACE=1` logs `Perch in:`).
-- `FocusProbe` reads what is in front, a second apart, off the main thread: the focused cmux surface, a Terminal or iTerm2 tab's tty, Ghostty's folder, herdr's focused pane, the pane a tmux client shows, the Claude window's session (Accessibility). A reading older than 3 s is not trusted.
-- `Focus` compares a running session's Spot (cmux surface, herdr pane, tty) with what is in front (Looking). Unsure means every live session in that app is a maybe.
+- `FocusProbe` reads what is in front, a second apart, off the main thread: the focused cmux surface or agterm pane, a Terminal or iTerm2 tab's tty, Ghostty's folder, herdr's focused pane, the pane a tmux client shows, the Claude window's session (Accessibility). A reading older than 3 s is not trusted.
+- `Focus` compares a running session's Spot (cmux surface, agterm pane, herdr pane, tty) with what is in front (Looking). Unsure means every live session in that app is a maybe.
+- Cursor's Agents window names its chat in a button ("Chat title. …"), which `CursorWindow.showingNow` reads through Accessibility; that chat is the session you are in. A Cursor window that cannot be read makes every Cursor chat a maybe.
 - The Claude app's own `lastFocusedAt` counts too: the session it focused last is the session you are in.
 
 ## The live activity
@@ -18,6 +19,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - The button under the pointer is lit from where the pointer is (app.js `markAct`), not WebKit's hover, which stays on a button the pointer left when the panel was never clicked.
 - A command on the row is said without the plumbing that only shapes its output for the agent: `npm run build 2>&1 | tail -n 30; echo "EXIT: $?"` reads `npm run build` (`Ask.brief`). The card shows it in full.
 - A finish shows only while Finished is on in Settings, Notifications (`notifyOff`, app.js `muted`).
+- A pull request that starts needing you (Checks failing, Changes requested, Merge conflicts) is announced as `ci`, unless Checks failing is off in Settings, Notifications ([pull-requests.md](pull-requests.md)).
 - A finish folds away. A request folds to wings until answered. A stop on an error (nothing to answer) says so once and folds away, and does not come back for the same error (`actErr`).
 
 ## Sent, or Didn't send

@@ -11,6 +11,15 @@ struct UISnapshot: Encodable {
     struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let brief: String; let questions: [UIQuestion]; let answerable: Bool
         /// Why a question with choices cannot be answered here, for the card to say under them.
         let why: String? }
+    /// A pull request, as the page draws its mark and its label.
+    struct UIPR: Encodable {
+        let number: Int; let repo: String; let url: String; let state: String
+        let title: String?; let checks: String?; let review: String?; let conflict: Bool
+        init(_ p: PullRequest) {
+            number = p.number; repo = p.repo; url = p.url; state = p.state.rawValue; title = p.title
+            checks = p.checks?.rawValue; review = p.review?.rawValue; conflict = p.conflict
+        }
+    }
     struct UIProject: Encodable {
         let id, name: String
         let branch: String?
@@ -41,6 +50,9 @@ struct UISnapshot: Encodable {
         let askedLast: Bool
         /// A session started from the list, before it is a real session: "starting", "started", "failed", "gone".
         var pending: String? = nil
+        /// Its pull requests, and whether one of them is why it needs you (so the notch announces it as Checks failing).
+        var prs: [UIPR] = []
+        var ci = false
     }
 
     /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
@@ -72,6 +84,8 @@ struct UISnapshot: Encodable {
         /// Perch's hook is in every enabled app: "on" or "off".
         let live: String
         let shortcut: ShortcutState
+        /// Whether Perch checks GitHub for pull requests: "on" or "off". The step exists only when the GitHub CLI works.
+        var prs = "off"
     }
     /// The shortcut that opens Perch, as the page draws it: the key caps, and where recording stands.
     struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool; let saved: Bool
@@ -100,7 +114,10 @@ struct UISnapshot: Encodable {
         /// Perch had Accessibility before: the row says needs access again.
         var accessWas = false
         /// It came from the card or the list, so Esc goes back there.
-        var back = false }
+        var back = false
+        /// Pull requests: whether the marks show, and Checks: "on", "off", or why it cannot be ("nogh": no GitHub CLI, "login": not signed in).
+        var showPRs = true
+        var prs = "off" }
     var newSession: NewSession?
 
     /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
@@ -114,6 +131,8 @@ struct UISnapshot: Encodable {
     let questionSeconds = Prefs.questionSeconds
     /// The kinds of live activity the notch does not announce (Settings, Notify me about); the page filters its live activity by them.
     let notifyOff = Prefs.notifyOff.sorted()
+    /// Pull requests are shown at all (Settings, Pull requests).
+    let showPRs = Prefs.prShow
     let phase: String
     let settings: Settings?
     let character: Character
@@ -199,7 +218,8 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
-                      section: ListFilter.section(p, now: now).rawValue, said: i == open ? p.said : Recap.clipSaid(p.said), asked: p.asked, askedLast: p.askedLast)
+                      section: ListFilter.section(p, now: now).rawValue, said: i == open ? p.said : Recap.clipSaid(p.said), asked: p.asked, askedLast: p.askedLast,
+                      prs: p.prs.map(UIPR.init), ci: p.prNeeds)
         }
     }
 }

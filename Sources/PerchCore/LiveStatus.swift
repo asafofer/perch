@@ -32,8 +32,9 @@ public struct HookEvent: Equatable, Sendable {
     /// Reads a hook's JSON body. `event` is the hook event name from the URL. Nil for anything Perch does not use.
     /// `pid`: the sender's process, when the request says (Perch's hook script sends its parent's, the plugins their own).
     public static func parse(agent: String, event: String, body: Data, requestId: String, at: Date = Date(), pid: Int32? = nil) -> HookEvent? {
-        guard let o = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any],
-              let session = o["session_id"] as? String, !session.isEmpty else { return nil }
+        guard let o = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] else { return nil }
+        if agent == Agent.cursor.id { return cursor(event: event, o, at: at) }
+        guard let session = o["session_id"] as? String, !session.isEmpty else { return nil }
         let helper = (o["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         let kind: Kind
         switch event {
@@ -58,6 +59,26 @@ public struct HookEvent: Equatable, Sendable {
         e.pid = pid ?? (o["pid"] as? Int).map(Int32.init)
         e.helper = helper
         return e
+    }
+
+    /// Cursor's hooks name their events in camelCase and carry the chat's id as `conversation_id`. They tell when a prompt was
+    /// sent, a tool ran and a turn stopped; Perch's script sends only those (see HookInstaller), so a chat's status is live.
+    static func cursor(event: String, _ o: [String: Any], at: Date) -> HookEvent? {
+        guard let session = (o["conversation_id"] as? String) ?? (o["session_id"] as? String), !session.isEmpty else { return nil }
+        let kind: Kind
+        switch event {
+        case "beforeSubmitPrompt": kind = .started
+        case "postToolUse", "postToolUseFailure": kind = .toolRan(tool: o["tool_name"] as? String ?? "")
+        case "stop":
+            switch o["status"] as? String {
+            case "aborted": kind = .interrupted
+            case "error": kind = .failed
+            default: kind = .finished(message: nil)
+            }
+        default: return nil
+        }
+        // The script's parent is one of Cursor's helpers, not the agent: it says nothing about which process runs the chat.
+        return HookEvent(agent: Agent.cursor.id, sessionId: session, kind: kind, at: at)
     }
 }
 

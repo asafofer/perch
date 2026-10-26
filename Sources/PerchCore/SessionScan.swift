@@ -9,6 +9,8 @@ public final class DesktopSessions: @unchecked Sendable {
         public let archived: Bool
         /// The last time the session was in front of you in the Claude app.
         public let focusedAt: Date?
+        /// The pull requests the app lists for it (its `prs`).
+        public var prs: [PullRequest] = []
     }
     public static let shared = DesktopSessions(root: FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/Claude/claude-code-sessions"))
@@ -40,7 +42,7 @@ public final class DesktopSessions: @unchecked Sendable {
                     // so it gets no row of its own: it would read just like the session, and a reply would land in it.
                     let sideChat = (o["spawnedFrom"] as? [String: Any])?["btw"] as? Bool ?? false
                     fresh[url.path] = (mtime, cli, Entry(id: id, title: o["title"] as? String, cwd: o["cwd"] as? String,
-                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused))
+                                                         archived: (o["isArchived"] as? Bool ?? false) || sideChat, focusedAt: focused, prs: PullRequests.fromApp(o["prs"], sessionBranches: ["branch", "sourceBranch", "worktreeName"].compactMap { o[$0] as? String })))
                 }
             }
         }
@@ -76,6 +78,7 @@ public final class SessionScanner: @unchecked Sendable {
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
     private var digestCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
+    private var prCache: [String: (mtime: Date, urls: [String])] = [:]
     private var gitCache: [String: (until: Date, info: GitInfo?, branch: String?)] = [:]
     /// Whether a folder is a worktree, and of which project, does not change.
     private var repoCache: [String: String?] = [:]
@@ -177,6 +180,7 @@ public final class SessionScanner: @unchecked Sendable {
             Self.heardFrom(helpersOf: t.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(t.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = Self.created(t.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: t.url))
                 out.append((p, digest, git, last)); if chat { chats += 1 } else { fromTerminal += 1 }
             }
         }
@@ -192,6 +196,8 @@ public final class SessionScanner: @unchecked Sendable {
             Self.heardFrom(helpersOf: s.url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: s.entry.id, quietFor: now.timeIntervalSince(s.mtime)), let last = digest.lastTimestamp {
                 p.focusedAt = s.entry.focusedAt
+                // The app lists the pull requests a session has; one it does not list but the session opened is found in its log.
+                p.prs = s.entry.prs + PullRequestScan.requests(PullRequestScan.created(in: s.url)).filter { f in !s.entry.prs.contains { $0.url == f.url } }
                 out.append((p, digest, git, last))
             }
         }
@@ -208,7 +214,7 @@ public final class SessionScanner: @unchecked Sendable {
             let git = cachedGit(entry.cwd).info
             Self.heardFrom(helpersOf: url, &digest)
             if var p = Recap.project(digest: digest, git: git, now: now, quietFor: now.timeIntervalSince(mtime), conductor: entry.workspaceId), let last = digest.lastTimestamp {
-                p.startedAt = Self.created(url)
+                p.startedAt = Self.created(url); p.prs = PullRequestScan.requests(PullRequestScan.created(in: url))
                 out.append((p, digest, git, last)); fromConductor += 1
             }
         }
@@ -292,6 +298,7 @@ public final class SessionScanner: @unchecked Sendable {
             if var p = Recap.project(digest: digest, git: git, now: now, desktopSessionId: nil, agent: .codex, quietFor: now.timeIntervalSince(item.mtime), conductor: workspace?.workspaceId), let last = digest.lastTimestamp {
                 p.terminal = head.entrypoint == "cli"   // the Codex CLI in a terminal, not the Codex app
                 p.startedAt = Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, git, last)); if !chat { real += 1 }
             }
         }
@@ -322,10 +329,22 @@ public final class SessionScanner: @unchecked Sendable {
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .opencode, quietFor: now.timeIntervalSince(s.updated)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = s.created; p.smallTalk = chat
+                p.prs = PullRequestScan.requests(openCodePullRequests(store, session: s))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
             }
         }
         return out
+    }
+
+    /// The pull requests an OpenCode session opened, read again only when the session changed.
+    private func openCodePullRequests(_ store: OpenCodeStore, session s: OpenCodeStore.Session) -> [String] {
+        let key = "opencode-pr:" + s.id
+        lock.lock(); let hit = prCache[key]; lock.unlock()
+        if let hit, hit.mtime == s.updated { return hit.urls }
+        var reader = PullRequestScan.Reader()
+        for record in store.pullRequestRecords(session: s.id) { reader.feed(record) }
+        lock.lock(); prCache[key] = (s.updated, reader.found); lock.unlock()
+        return reader.found
     }
 
     // MARK: pi (~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl)
@@ -355,11 +374,78 @@ public final class SessionScanner: @unchecked Sendable {
             digest.branch = cg.branch
             if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = head.startedAt ?? Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
             }
         }
         return out
     }
+
+    // MARK: Cursor (~/.cursor/projects/<folder>/agent-transcripts/<id>/<id>.jsonl; titles and folders from its database)
+    /// Cursor's agent chats, in the editor and in its Agents window alike. Subagents' and archived ones are left out.
+    public func cursor(limit: Int, now: Date = Date()) -> [Found] {
+        let fm = FileManager.default
+        let projects = home.appendingPathComponent(".cursor/projects")
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        var candidates: [(url: URL, id: String, slug: String, mtime: Date)] = []
+        for dir in (try? fm.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil)) ?? [] {
+            let chats = dir.appendingPathComponent("agent-transcripts")
+            for chat in (try? fm.contentsOfDirectory(at: chats, includingPropertiesForKeys: nil)) ?? [] {
+                let id = chat.lastPathComponent, file = chat.appendingPathComponent(id + ".jsonl")
+                if let m = Self.mtime(file), m > cutoff { candidates.append((file, id, dir.lastPathComponent, m)) }
+            }
+        }
+        guard !candidates.isEmpty else { return [] }
+        candidates.sort { $0.mtime > $1.mtime }
+        let user = home.appendingPathComponent("Library/Application Support/Cursor/User")
+        let store = CursorStore(user: user)
+        var out: [Found] = []
+        for item in candidates {
+            guard out.count < limit else { break }
+            let header = store?.header(item.id)
+            if header?.archived == true || header?.subagent == true { continue }
+            guard var digest = cachedDigest(item.url, mtime: item.mtime, parse: CursorTranscript.digest), digest.lastUserText != nil else { continue }
+            // The title and folder change rarely: asked of the database again only when the transcript changed.
+            let key = "cursor:" + item.id
+            lock.lock(); var meta = cursorMeta[key]; lock.unlock()
+            if meta?.mtime != item.mtime || meta?.folder == nil && header?.workspaceId != nil {
+                let chat = store?.chat(item.id)
+                let workspace = header?.workspaceId ?? chat?.workspaceId
+                let folder = workspace.flatMap { store?.folder(workspace: $0) }
+                    ?? (item.slug == CursorApp.noFolder ? projects.appendingPathComponent(CursorApp.noFolder).path : CursorApp.folder(forSlug: item.slug))
+                meta = (item.mtime, chat?.name, folder)
+                lock.lock(); cursorMeta[key] = meta; lock.unlock()
+            }
+            guard let cwd = meta?.folder, usable(cwd) else { continue }
+            digest.sessionId = item.id; digest.cwd = cwd; digest.title = meta?.name
+            // A transcript has no times of its own: the file was last written when the chat last moved, or Cursor says it did later
+            // (a call waiting on you writes nothing). Never later than now.
+            let moved = min(max(item.mtime, header?.updated ?? .distantPast), now)
+            digest.lastTimestamp = moved
+            if digest.title == nil { digest.title = digest.lastAsk ?? digest.lastUserText }
+            digest.repoName = cachedRepo(cwd)
+            let cg = cachedGit(cwd, withBranch: true)
+            digest.branch = cg.branch
+            // Cursor says in its database when it waits on you, and for what: that is a request, not a guess from a quiet transcript.
+            var quiet = now.timeIntervalSince(moved), request: (tool: String, input: [String: Any])?
+            if header?.blocking == true, quiet < 4 * 3600, let call = store?.pending(item.id) {
+                request = CursorApp.ask(call)
+                digest.turnOpen = true; digest.pendingTool = PendingTool(block: ["name": request!.tool, "input": request!.input])
+                quiet = max(quiet, 3600)
+            }
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .cursor, quietFor: quiet, inApp: true) {
+                p.startedAt = Self.created(item.url)
+                if let request {
+                    var ask = Ask(id: "cursor:" + item.id, agent: Agent.cursor.id, tool: request.tool, input: request.input)
+                    ask.transcriptAt = now
+                    p.ask = ask
+                }
+                out.append((p, digest, cg.info, moved))
+            }
+        }
+        return out
+    }
+    private var cursorMeta: [String: (mtime: Date, name: String?, folder: String?)] = [:]
 
     private var firstPrompts: [String: String] = [:]
     private func cachedFirstPrompt(_ url: URL) -> String? {
