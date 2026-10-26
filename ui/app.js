@@ -700,7 +700,7 @@
       setWords(q('.o-pacts'), Act('ghost', 'Copy', '\u2318C', 'copy') + Act('ghost', 'Reply', 'R', 'reply') + Act('default', goLabel(p), ENTER, 'go'));
       footer(fPrev);
       if (pane.dataset.rep === '1') layout('open', snap); else showSaid(true);
-      q('.o-said-in').scrollTop = 0;   /* read from the start, your own message first */
+      var sb = q('.o-said-in'); sb.scrollTop = sb.scrollHeight;   /* the end, as a chat opens: the latest words, Command+Up goes to the start */
     } else { footer(fMain); showSaid(false); }
     if (!quiet) post({ type: 'previewMenu', open: previewOn });
     if (back) post({ type: 'switcher' });
@@ -1694,9 +1694,11 @@
   function fitPreview(pane) {
     var box = pane.querySelector('.o-said-in');
     if (pane.dataset.prev !== '1') { box.style.maxHeight = ''; return; }
+    var at = box.scrollTop, end = at >= box.scrollHeight - box.clientHeight - 1;   /* measuring lets it grow whole, which would put it back at the top */
     box.style.maxHeight = 'none';
     var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
     box.style.maxHeight = over > 0 ? Math.max(120, box.offsetHeight - over) + 'px' : 'none';
+    box.scrollTop = end ? box.scrollHeight : at;
     box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);
   }
   function layout(st, s) {
