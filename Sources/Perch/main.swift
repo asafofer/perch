@@ -38,9 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Pull requests: ask whether the GitHub CLI works, and with Checks on let GitHub answer once before the list is printed.
             let pulls = PullRequestState.shared
             pulls.refreshAvailability(force: true); Thread.sleep(forTimeInterval: 2)
-            if pulls.mode == .checks { _ = RealSessionProvider().parkedProjects(); Thread.sleep(forTimeInterval: 10) }
+            let provider = RealSessionProvider(); if let n = ProcessInfo.processInfo.environment["PERCH_DUMP_MAX"].flatMap(Int.init) { provider.maxProjects = n }
+            if pulls.mode == .checks { _ = provider.parkedProjects(); Thread.sleep(forTimeInterval: 10) }
             print("pull requests: \(pulls.mode.rawValue) (GitHub CLI: \(pulls.availability.map { "\($0)" } ?? "not asked"))")
-            for p in RealSessionProvider().parkedProjects() {
+            for p in provider.parkedProjects() {
                 let opens = p.conductor != nil ? "Conductor, workspace \(p.conductor ?? "?")" : p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
