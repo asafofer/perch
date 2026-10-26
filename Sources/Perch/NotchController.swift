@@ -614,6 +614,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if p.terminal, p.pid == nil, p.sessionId != nil, let l = live[key] { live[key] = l.agentGone() }
             guard let l = live[key], l.holds(for: p) else { return p.agentGone() }
             return p.applying(l).agentGone()
+        }.map { p -> Project in
+            // Live hooks may have set the status again: a pull request that needs you still does, unless it is at work or asking.
+            guard p.prNeeds else { return p }
+            var q = p; q.liftForPullRequest(); return q
         }
         let since = newsSince
         let settled = withLive.map { $0.settled(since: since) }

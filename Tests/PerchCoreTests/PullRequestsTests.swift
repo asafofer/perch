@@ -270,6 +270,31 @@ private func run(_ name: String, _ status: String, _ conclusion: String) -> [Str
         #expect(list[0].status.text == "Checks failing on #5"); #expect(list[0].status.kind == "attention")
     }
 
+    @Test func aFailingPullRequestIsNotGivenUpAsOldNewsNorWhenYouLookElsewhere() {
+        // A guessed "needs you" from before your last break reads as history; GitHub's word about a pull request is not a guess.
+        var list = [session("a", [pr(5)], idle: 3 * 3600)]
+        let failing = pr(5, checks: .fail)
+        PullRequests.apply(&list, mode: .checks, answer: { _ in failing }, verified: [failing.url])
+        let kept = list[0].settled(since: Date())
+        #expect(kept.needsAttention); #expect(kept.status.text == "Checks failing on #5")
+        let other = session("b", [], idle: 60)
+        let moved = Project.movedOn([list[0], other], seen: [list[0].id: Date().timeIntervalSince1970, other.id: Date().timeIntervalSince1970 + 100])
+        #expect(moved[0].needsAttention)
+        // The same words on a plain guess are history.
+        var guess = session("c", [], idle: 3 * 3600, agents: [AgentStatus(kind: .needsYou, text: "Claude asked you something")])
+        guess.lastActive = Date().addingTimeInterval(-3 * 3600)
+        #expect(!guess.settled(since: Date()).needsAttention)
+    }
+
+    @Test func liftingAgainAfterLiveStatusKeepsItWhenNothingElseIsGoingOn() {
+        var p = session("a", [pr(5, checks: .fail)])
+        p.liftForPullRequest(); #expect(p.needsAttention)
+        p.agents = [AgentStatus(kind: .done, text: "Claude finished")]   // live status set it back
+        p.liftForPullRequest(); #expect(p.needsAttention)
+        p.agents = [AgentStatus(kind: .running, text: "Claude is working")]
+        p.liftForPullRequest(); #expect(p.status.kind == "running")
+    }
+
     @Test func aSessionAtWorkOrAskingIsNotLifted() {
         let failing = pr(5, checks: .fail)
         var working = [session("w", [pr(5)], agents: [AgentStatus(kind: .running, text: "Claude is working")])]

@@ -103,11 +103,7 @@ public enum PullRequests {
             var list = projects[i].prs
             if mode == .checks { urls += list.map(\.url); list = list.map { answer($0.url) ?? $0 } }
             projects[i].prs = visible(list, mode: mode, idle: now.timeIntervalSince(projects[i].lastActive ?? .distantPast), verified: verified)
-            if mode == .checks, let pr = projects[i].prs.first(where: \.needsYou), projects[i].ask == nil,
-               !projects[i].agents.contains(where: { $0.kind == .needsYou || $0.kind == .running }) {
-                projects[i].agents = [AgentStatus(kind: .needsYou, text: pr.needsWords, app: projects[i].app)]
-                projects[i].prNeeds = true
-            }
+            if mode == .checks { projects[i].liftForPullRequest() }
         }
         return urls
     }
@@ -311,4 +307,16 @@ public final class PullRequestChecker: @unchecked Sendable {
 
     /// Forgets everything (Checks was switched off, or a login changed).
     public func reset() { lock.lock(); answers = [:]; failures = [:]; lock.unlock() }
+}
+
+extension Project {
+    /// A pull request that needs you makes the session need you, unless it is at work or asking something already. It is a fact
+    /// GitHub gave, not a guess from a transcript, so it does not grow old (`settled`) and is not given up when you look
+    /// elsewhere (`movedOn`) while it stands. Safe to call again after something else has set the status.
+    public mutating func liftForPullRequest() {
+        guard let pr = prs.first(where: \.needsYou), ask == nil,
+              !agents.contains(where: { $0.kind == .needsYou || $0.kind == .running }) else { return }
+        agents = [AgentStatus(kind: .needsYou, text: pr.needsWords, app: app)]
+        prNeeds = true
+    }
 }
