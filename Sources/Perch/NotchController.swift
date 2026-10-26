@@ -1545,7 +1545,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // window shows this very chat, never the new chat it would open on.
                 if let want = cursorTitle {
                     var shown = false
-                    for _ in 0..<20 {
+                    for _ in 0..<60 {
                         if case .session(let t) = await Task.detached(operation: { CursorWindow.showingNow() }).value, t == want || t.hasPrefix(want) || want.hasPrefix(t) { shown = true; break }
                         try? await Task.sleep(for: .milliseconds(400))
                     }

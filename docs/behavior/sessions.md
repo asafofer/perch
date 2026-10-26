@@ -39,7 +39,7 @@ The card's words are in [card.md](card.md), replying in [replies.md](replies.md)
 
 ## Pick up
 
-- Cursor opens `cursor://anysphere.cursor-deeplink/agent?id=<chat id>`: its Agents window comes forward on that chat with the cursor in its prompt (`CursorWindow`). A reply is pasted only once the window's "Chat title. …" button names this chat (`CursorWindow.showingNow`), else it stays on the clipboard. Cursor has no link that starts a chat in a folder (its `prompt` link asks you to confirm and cannot name a repository), so New session does not offer it.
+- Cursor opens `cursor://anysphere.cursor-deeplink/agent?id=<chat id>`: its Agents window comes forward on that chat with the cursor in its prompt (`CursorWindow`). A reply is pasted only once the window's "Chat title. …" button names this chat (`CursorWindow.showingNow`), else it stays on the clipboard. With Cursor not running, its link is dropped while it starts, so Perch sends it again once the window can be read and waits up to 24 s for the chat. Cursor has no link that starts a chat in a folder (its `prompt` link asks you to confirm and cannot name a repository), so New session does not offer it.
 - The Claude app opens `claude://code/continue?session=local_<id>`, a task `claude://claude.ai/cowork/<cse_id>`,
   a chat `claude://claude.ai/chat/<uuid>`; the Codex app `codex://threads/<id>`.
 - A terminal session (`Project.terminal`) goes back to where it runs while it runs, found from the process table in `Terminals.swift`:

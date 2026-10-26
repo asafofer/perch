@@ -51,8 +51,19 @@ Cursor's window is Electron: `AXManualAccessibility` makes it expose a web area 
 `Chat title. <title>`; the prompt is an `AXTextArea` ("Prompt", ProseMirror) and is focused after the chat link opens, so a paste
 and Return reply works as it does for Codex. Pressing buttons by title (New Chat, Cancel) works through `AXPress`.
 
+Cold start (found by trying it, Cursor quit, then Reply from the card):
+- A link that arrives while Cursor is still starting is dropped: Cursor comes up on a new-chat page. So Perch sends it again once the Agents window is readable (`CursorWindow.open`).
+- The Agents window is not the focused window until Cursor is in front: it is found by its title in `AXWindows`, not by `AXFocusedWindow`.
+- `AXManualAccessibility` set before the window exists builds no tree: the web area only shows after it is set again, so Perch asks again every few seconds while there is none (`enableAccessibility`) and waits up to 24 s. It took about 5 s to read the chat after a start.
+
+## Tried since, all in the running Perch
+
+- A chat started in the classic editor window (`Cursor` window with a folder, its own agent panel): it has a transcript under the folder's name, a header with that window's workspace id, hooks fire, Perch lists it with the folder's name, and the link opens it in the Agents window (which lists the editor's chats under their repository).
+- Perch off: Cursor's prompts go through unchanged (the hook script still prints `{"continue":true}`).
+- Settings, Live status on and off, against a stand-in home (`PERCH_HOME`): four entries in `.cursor/hooks.json` and the other agents' hooks and plugins; off leaves `{"version": 1}`.
+- A 2.9 GB database made for the purpose (700 000 rows): the header and `composerData` lookups by key took under a millisecond.
+
 ## Open
 
-- A chat started in the classic editor window (not the Agents window) may not be found by the link ("We can't find this agent"); not seen on this Mac.
 - The `agent` CLI keeps its sessions elsewhere (not found here; no CLI binary installed). Not read.
-- A Cursor that predates the `composerHeaders` table: the folder then comes from the transcript folder's name.
+- A Cursor that predates the `composerHeaders` table: tested with a fixture only (`aCursorWithoutTheHeadersTableStillListsItsChats`); the folder then comes from the chat's own `workspaceIdentifier`, else the transcript folder's name.
