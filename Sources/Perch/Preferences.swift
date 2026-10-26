@@ -75,6 +75,10 @@ enum Prefs {
         get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
         set { d.set(newValue.sorted(), forKey: "notifyOff") }
     }
+    /// Whether sessions show their pull requests (the marks from the Claude app's own list). On by default.
+    static var prShow: Bool { get { d.object(forKey: "pr.show") as? Bool ?? true } set { d.set(newValue, forKey: "pr.show") } }
+    /// Whether Perch also asks GitHub, through the GitHub CLI's login, how each one stands (checks, reviews, conflicts). Off until switched on.
+    static var prChecks: Bool { get { d.bool(forKey: "pr.checks") } set { d.set(newValue, forKey: "pr.checks") } }
     /// What opens and closes Perch: a tap of Command and Option unless you recorded your own.
     static var openShortcut: Shortcut {
         get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }

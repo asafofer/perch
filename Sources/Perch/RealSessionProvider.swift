@@ -41,7 +41,9 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         out = Array(out.filter { !$0.project.smallTalk || $0.project.pid != nil }.prefix(maxProjects))
         let fresh = Dictionary(out.map { ($0.project.id, (digest: $0.digest, git: $0.git)) }, uniquingKeysWith: { a, _ in a })
         lock.lock(); _inputs = fresh; lock.unlock()
-        return out.map(\.project)
+        var projects = out.map(\.project)
+        PullRequestState.shared.apply(&projects)
+        return projects
     }
 
     /// For each terminal session: the process running it (if any), the terminal it shows in or would open in, whether that

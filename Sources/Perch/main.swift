@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
+                if !p.prs.isEmpty { print("   pull requests: " + p.prs.map { "#\($0.number) \($0.state.rawValue)\($0.needsYou ? " (needs you)" : "")" }.joined(separator: ", ")) }
             }
             let (hits, viewers) = LiveSessions.scan()
             for hit in hits {
