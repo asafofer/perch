@@ -558,7 +558,7 @@
       var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
     } else if (mode === 'delete' || mode === 'archive') {
       var del = mode === 'delete';
-      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', '', 'x-delyes flex-1') + '</div>';
+      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center justify-end gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
     } else {
       var ks = manageOf(p); mng.sel = Math.min(mng.sel || 0, ks.length - 1);
       mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('');
