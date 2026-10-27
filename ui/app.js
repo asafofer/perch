@@ -40,6 +40,9 @@
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+    archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+    trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
     dots: '<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
     chevD: '<path d="m6 9 6 6 6-6"/>',
@@ -365,9 +368,12 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
+    '<button aria-label="More" title="More (M)" data-act="more" class="x-more rv absolute right-[74px] top-[7px] z-10 hidden size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('dots', 'size-3.5') + '</button>' +
+      '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
-    '<div class="inner pt-8 pb-1.5">' +
+    /* the More menu: a popup over the card's corner, as Raycast draws its actions */
+'<div class="m-pop pointer-events-none absolute right-2.5 top-[30px] z-30 w-[236px] origin-top-right rounded-xl bg-[#1b2120]/95 p-1 opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_14px_36px_rgba(0,0,0,0.55)] backdrop-blur-xl" style="display:none"></div>' +
+      '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
          the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
@@ -387,9 +393,8 @@
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
       /* More: rename, archive or delete the session. Only what its agent can do is offered. */
-      '<div class="f-mng hidden h-9 items-center gap-1"><button aria-label="Close" title="Close (Esc)" class="x-mclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><span class="m-note min-w-0 flex-1 truncate pl-1 text-xs text-muted-foreground"></span><span class="m-btns flex items-center gap-0.5"></span></div>' +
       '<div class="f-ren hidden h-9 items-center gap-1.5"><button aria-label="Close" title="Back (Esc)" class="x-rnclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="m-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">' + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rensave h-7 rounded-lg pr-1') + '</div>' +
-      '<div class="f-del hidden h-9 items-center gap-1"><span class="m-dq min-w-0 flex-1 truncate pl-1.5 text-[13px] text-muted-foreground"></span>' + Button('ghost', 'Cancel', Kbd('esc'), 'x-delno') + Button('danger', 'Delete', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div></div>' +
+      '</div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
@@ -501,7 +506,7 @@
     if (a === 'go') post({ type: 'confirm' });
     else if (a === 'reply') replyMenu(true);
     else if (a === 'snooze') snoozeMenu(true);
-    else if (a === 'more') manageMenu('menu');
+    else if (a === 'more') manageMenu(mng.mode === 'menu' ? false : 'menu');
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
     else if (a === 'other') otherMenu(true);
@@ -511,7 +516,7 @@
     else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
-  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fMng = q('.f-mng'), fRen = q('.f-ren'), fDel = q('.f-del'), footers = [fMain, fSnz, fRep, fMng, fRen, fDel];
+  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fRen = q('.f-ren'), footers = [fMain, fSnz, fRep, fRen];
   /* The footer changes between its actions, Reply and Not now. The old row fades up and away while the new one rises in. */
   function footer(el) {
     footers.forEach(function (f) { if (f._out) { f._out.cancel(); f._out = null; f.style.position = f.style.left = f.style.right = f.style.top = ''; f.style.display = 'none'; } });
@@ -532,47 +537,82 @@
     footer(open ? fSnz : fMain);
     if (!quiet) post({ type: 'snoozeMenu', open: open });
   }
-  /* More (M): rename, archive or delete the session on the card. Swift says which of the three its agent can do (project.manage);
-     Delete asks once more. Rename is a field with the name in it, as Reply is. */
-  var mng = { id: '', mode: '' }, mIn = q('.m-in'), MANAGE = { rename: ['Rename', 'R'], archive: ['Archive', 'A'], delete: ['Delete', 'D'] };
+  /* More (M): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
+     which of the three its agent can do (project.manage). Delete asks once more, in the popup. Rename is a field with the name in
+     it in the footer, as Reply is. */
+  var mng = { id: '', mode: '' }, mIn = q('.m-in'), mPop = q('.m-pop'), MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
   function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
+  function mRow(k, p) {
+    var m = MANAGE[k], bad = k === 'delete';
+    return '<button data-act="m-' + k + '" class="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3.5 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
+  }
+  function mPaint(mode, p) {
+    var name = esc(p.topic || p.name || '');
+    var head = '<div class="truncate px-2.5 pb-1 pt-1.5 text-[11.5px] text-muted-foreground" title="' + name + '">' + name + '</div>';
+    if (mode === 'delete') {
+      mPop.innerHTML = head + '<div class="px-2.5 pb-2 pt-0.5 text-[13px] leading-[18px]">Delete this session for good?</div><div class="flex items-center justify-end gap-1 px-0.5 pb-0.5">' + Button('ghost', 'Cancel', Kbd('esc'), 'x-delno') + Button('danger', 'Delete', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
+    } else {
+      mPop.innerHTML = head + manageOf(p).map(function (k) { return mRow(k, p); }).join('') + (p.manageNote ? '<div class="px-2.5 pb-1.5 pt-1 text-[11px] leading-[14px] text-muted-foreground/80">' + esc(p.manageNote) + '</div>' : '');
+    }
+  }
+  /* the card grows to hold the popup, and settles back when it goes */
+  function mFit(on) {
+    var inner = q('.p-open .inner'); if (!inner) return;
+    inner.style.minHeight = '';
+    if (on) inner.style.minHeight = (30 + mPop.offsetHeight + 12) + 'px';
+    if (n.dataset.s !== 'open') return;
+    var h = inner.offsetHeight; n.style.height = h + 'px'; curH = h; post({ type: 'size', width: CARD_W, height: h });
+  }
+  function mShow(on, quiet) {
+    var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
+    if (on) {
+      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true);
+      if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    } else if (mPop.style.display !== 'none') {
+      mPop.style.pointerEvents = 'none';
+      var done = function () { mPop.style.display = 'none'; mPop.style.opacity = '0'; mPop._a = null; mFit(false); };
+      if (calm || quiet) done(); else { mPop._a = mPop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); mPop._a.onfinish = done; setTimeout(done, 160); }
+    }
+  }
   function manageMenu(mode, quiet) {
     var p = snap && snap.projects[snap.selected];
     if (mode && (!p || !manageOf(p).length)) mode = false;
-    if (mode === 'menu') {
-      mng.id = p.id; q('.m-note').textContent = p.manageNote || '';
-      q('.m-btns').innerHTML = manageOf(p).map(function (k) { return Act('ghost', MANAGE[k][0], MANAGE[k][1], 'm-' + k); }).join('');
-    } else if (mode === 'rename') {
-      mng.id = p.id; mIn.value = p.topic || p.name || '';
-      setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30);
-    } else if (mode === 'delete') { mng.id = p.id; q('.m-dq').textContent = 'Delete \u201c' + (p.topic || p.name) + '\u201d for good?'; q('.m-dq').title = p.topic || p.name; }
+    if (mode === 'menu' || mode === 'delete') { mng.id = p.id; mPaint(mode, p); }
+    else if (mode === 'rename') { mng.id = p.id; mIn.value = p.topic || p.name || ''; setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30); }
     if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
-    mng.mode = mode || '';
-    footer(mode === 'menu' ? fMng : mode === 'rename' ? fRen : mode === 'delete' ? fDel : fMain);
+    var was = mng.mode; mng.mode = mode || '';
+    mShow(mode === 'menu' || mode === 'delete', quiet || (was === 'menu' && mode === 'delete') || (was === 'delete' && mode === 'menu'));
+    if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain);
+    else if (!mode && fMain.style.display === 'none') footer(fMain);
     if (!quiet) post({ type: 'manageMenu', mode: mode || '' });
   }
   function manageDo(kind) {
     var p = snap && snap.projects[snap.selected]; if (!p) return;
     if (kind === 'rename') { var t = mIn.value.trim(); if (!t) return; manageMenu(false, true); post({ type: 'manage', action: 'rename', id: p.id, name: t }); return; }
-    manageMenu(false, true); post({ type: 'manage', action: kind, id: p.id });
+    manageMenu(false); post({ type: 'manage', action: kind, id: p.id });
   }
-  q('.f-mng').addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (!b) return; var k = b.dataset.act.slice(2); if (k === 'rename') manageMenu('rename'); else if (k === 'delete') manageMenu('delete'); else manageDo(k); });
-  q('.x-mclose').onclick = function () { manageMenu(false); };
-  q('.x-rnclose').onclick = function () { manageMenu('menu'); };
+  mPop.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('x-delno')) return manageMenu('menu');
+    if (b.classList.contains('x-delyes')) return manageDo('delete');
+    var k = (b.dataset.act || '').slice(2); if (k === 'rename') manageMenu('rename'); else if (k === 'delete') manageMenu('delete'); else if (k) manageDo(k);
+  });
+  /* a click anywhere else on the card closes the popup */
+  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete') && !e.target.closest('.m-pop, .x-more')) manageMenu(false); });
+  q('.x-rnclose').onclick = function () { manageMenu(false); };
   q('.x-rensave').onclick = function () { manageDo('rename'); };
-  q('.x-delno').onclick = function () { manageMenu('menu'); };
-  q('.x-delyes').onclick = function () { manageDo('delete'); };
   mIn.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); manageDo('rename'); }
-    else if (e.key === 'Escape') { e.preventDefault(); manageMenu('menu'); }
+    else if (e.key === 'Escape') { e.preventDefault(); manageMenu(false); }
     e.stopPropagation();
   });
-  /* the keys while the menu is open: the letter on each button, Esc steps back */
+  /* the keys while the popup is open: the letter on each row, Esc closes (from Delete's question, back to the rows) */
   function manageKey(e) {
     if (mng.mode === 'menu') {
-      var k = e.key.toLowerCase(), hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && q('.m-btns [data-act=m-' + x + ']'); })[0];
+      var k = e.key.toLowerCase(), hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && mPop.querySelector('[data-act=m-' + x + ']'); })[0];
       if (e.key === 'Escape') { manageMenu(false); return true; }
-      if (hit) { if (hit === 'rename') manageMenu('rename'); else if (hit === 'delete') manageMenu('delete'); else manageDo(hit); return true; }
+      if (hit) { if (hit === 'rename') manageMenu('rename'); else if (hit === 'delete') manageMenu('delete'); else manageDo(hit); }
       return true;
     }
     if (mng.mode === 'delete') {
@@ -1078,7 +1118,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5'), '', 'px-1.5" data-act="more" title="More (M)" aria-label="More') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -2398,8 +2438,9 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
-    if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
+    if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
+    q('.x-more').classList.toggle('hidden', !(st === 'open' && manageOf(p).length)); q('.x-more').classList.toggle('grid', st === 'open' && manageOf(p).length > 0);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -4391,7 +4432,7 @@
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
-      if (ph === 'open' && fMng.style.display !== 'none' && getComputedStyle(fMng).display !== 'none' || fDel.style.display === 'flex') { if (manageKey(e)) { e.preventDefault(); return; } }
+      if (ph === 'open' && (mng.mode === 'menu' || mng.mode === 'delete')) { if (manageKey(e)) { e.preventDefault(); return; } }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
@@ -4402,7 +4443,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
-      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && q('.o-acts [data-act=more]')) manageMenu('menu', true);
+      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && !q('.x-more').classList.contains('hidden')) manageMenu('menu', true);
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
