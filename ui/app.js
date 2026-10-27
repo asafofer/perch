@@ -293,11 +293,11 @@
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
   function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
-  /* On a card you opened, Up and Down flip to the next session's card; it says so, since nothing else would tell you.
-     The card Perch opened by itself offers Not now there instead (N snoozes either way). */
+  /* The card Perch opened by itself offers Not now here (N snoozes either way). On a card you opened, Up and Down still flip to the
+     next session's card, but no button says so: the list is one press away (List). */
   function Flip() {
     if (snap && snap.proactive) return Act('ghost', 'Not now', 'N', 'snooze');
-    return snap && snap.projects.length > 1 ? Button('ghost', 'Sessions', Keys('\u2191', '\u2193'), 'pr-1" data-act="flip') : '';
+    return '';
   }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
@@ -388,7 +388,7 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'List', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
+      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'List', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
       /* More: rename, archive or delete the session. Only what its agent can do is offered. */
@@ -567,10 +567,12 @@
     var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
     if (on) {
-      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true);
+      var more = q('.o-acts [data-act=more]'), box = mPop.parentNode.getBoundingClientRect();
+      if (more) mPop.style.right = Math.max(10, Math.round(box.right - more.getBoundingClientRect().right)) + 'px';   /* its right edge over the button's */
+      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true); q('.p-open').classList.add('m-dim');
       if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
     } else if (mPop.style.display !== 'none') {
-      mPop.style.pointerEvents = 'none';
+      mPop.style.pointerEvents = 'none'; q('.p-open').classList.remove('m-dim');
       var done = function () { mPop.style.display = 'none'; mPop.style.opacity = '0'; mPop._a = null; mFit(false); };
       if (calm || quiet) done(); else { mPop._a = mPop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); mPop._a.onfinish = done; setTimeout(done, 160); }
     }
@@ -1118,7 +1120,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5'), Kbd('M'), 'px-0.5" data-act="more" title="More (M)') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5 translate-y-[3px]'), Kbd('M'), 'px-0.5" data-act="more" title="More (M)') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while

@@ -43,6 +43,8 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new, .n[data-s=ns] .p-ns { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
+/* the More popup is open: the card behind it steps back, the footer and the popup stay */
+.n[data-s=open] .p-open.m-dim .inner > .rv:not(.mf) { opacity: .35; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: opacity .12s, transform .12s, filter .12s, color .15s, background-color .15s; }
 /* the rise names what it moves: a hover colour on a button that rises (the gear, the close) answers at once, not late and slow */
 .n[data-s=open] .p-open .rv, .n[data-s=switch] .p-switch .rv, .n[data-s=onb] .p-onb .rv, .n[data-s=set] .p-set .rv, .n[data-s=new] .p-new .rv, .n[data-s=ns] .p-ns .rv { opacity: 1; transform: none; filter: none;
