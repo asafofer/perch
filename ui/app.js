@@ -368,11 +368,10 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
-    '<button aria-label="More" title="More (M)" data-act="more" class="x-more rv absolute right-[74px] top-[7px] z-10 hidden size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('dots', 'size-3.5') + '</button>' +
-      '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
+    '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     /* the More menu: a popup over the card's corner, as Raycast draws its actions */
-'<div class="m-pop pointer-events-none absolute right-2.5 top-[28px] z-30 w-[148px] origin-top-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+
       '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
@@ -389,11 +388,13 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
+      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'List', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
       /* More: rename, archive or delete the session. Only what its agent can do is offered. */
       '<div class="f-ren hidden h-9 items-center gap-1.5"><button aria-label="Close" title="Back (Esc)" class="x-rnclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="m-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">' + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rensave h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="m-pop pointer-events-none absolute bottom-[44px] right-2.5 z-30 w-[148px] origin-bottom-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+      '</div>' +
       '</div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
@@ -558,7 +559,7 @@
   function mFit(on) {
     var inner = q('.p-open .inner'); if (!inner) return;
     inner.style.minHeight = '';
-    if (on) inner.style.minHeight = (28 + mPop.offsetHeight + 10) + 'px';
+    if (on) inner.style.minHeight = (mPop.offsetHeight + 44 + 36) + 'px';
     if (n.dataset.s !== 'open') return;
     var h = inner.offsetHeight; n.style.height = h + 'px'; curH = h; post({ type: 'size', width: CARD_W, height: h });
   }
@@ -567,7 +568,7 @@
     if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
     if (on) {
       mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true);
-      if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
     } else if (mPop.style.display !== 'none') {
       mPop.style.pointerEvents = 'none';
       var done = function () { mPop.style.display = 'none'; mPop.style.opacity = '0'; mPop._a = null; mFit(false); };
@@ -598,7 +599,7 @@
     var k = (b.dataset.act || '').slice(2); if (k === 'rename') manageMenu('rename'); else if (k === 'delete') manageMenu('delete'); else if (k) manageDo(k);
   });
   /* a click anywhere else on the card closes the popup */
-  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete') && !e.target.closest('.m-pop, .x-more')) manageMenu(false); });
+  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete') && !e.target.closest('.m-pop, [data-act=more]')) manageMenu(false); });
   q('.x-rnclose').onclick = function () { manageMenu(false); };
   q('.x-rensave').onclick = function () { manageDo('rename'); };
   mIn.addEventListener('keydown', function (e) {
@@ -1117,7 +1118,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5'), Kbd('M'), 'px-0.5" data-act="more" title="More (M)') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -2439,7 +2440,6 @@
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
-    q('.x-more').classList.toggle('hidden', !(st === 'open' && manageOf(p).length)); q('.x-more').classList.toggle('grid', st === 'open' && manageOf(p).length > 0);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -4442,7 +4442,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
-      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && !q('.x-more').classList.contains('hidden')) manageMenu('menu', true);
+      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && q('.o-acts [data-act=more]')) manageMenu('menu', true);
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
