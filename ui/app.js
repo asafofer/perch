@@ -1120,7 +1120,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5 translate-y-[3px]'), Kbd('M'), 'px-0.5" data-act="more" title="More (M)') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Act('ghost', 'More', 'M', 'more') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
