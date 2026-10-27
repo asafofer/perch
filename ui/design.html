@@ -572,7 +572,7 @@ i.sci svg{width:16px;height:16px}
       }],
     ]],
     ['Acting on it', [
-      ['Sessions', 'A card you open yourself has no button for the other sessions: List (Left) is one press away, and Up and Down still flip to the next card. The welcome card offers Not now instead (N snoozes either way).', function () { d.project(1); d.show('open', false, true); }],
+      ['Sessions', 'A card you open yourself has no button for the other sessions: Back (Left) is one press away, and Up and Down still flip to the next card. The welcome card offers Not now instead (N snoozes either way).', function () { d.project(1); d.show('open', false, true); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.snoozeMenu(true); }, 700); }],
       ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
       ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
@@ -580,13 +580,13 @@ i.sci svg{width:16px;height:16px}
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
     ['Managing a session', [
-      ['More: the menu', 'A More button in the footer, beside Reply: the word More and its key, M. The popup opens above it with Rename, Archive and Delete, each with its icon and letter; Esc or a click elsewhere closes it. All sessions is now List, to make room.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
+      ['More: the menu', 'A More button in the footer, beside Reply: the word More and its key, M. The popup opens above it with Rename, Archive and Delete, each with its icon and letter; Esc or a click elsewhere closes it. All sessions is now Back, to make room. Up and Down choose a row, Return does it.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
       ['More: Rename', 'R: the name in a field, selected, as Reply is. Return renames, Esc goes back to the menu.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('rename'); }, 700); }],
-      ['More: Delete asks once', 'D: the popup asks whether to delete it for good, with Cancel and a red Delete. Archive does not ask: it can be undone in the agent.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('delete'); }, 700); }],
+      ['More: Delete asks once', 'D: the popup asks whether to delete it for good, with No and a red Delete. Return says yes, Esc goes back to the rows.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('delete'); }, 700); }],
       ['Codex: all three', 'Codex does all three itself, with no window brought forward.', function () { d.project(2); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
       ['pi: no Archive', 'pi has no archive of its own, so the menu offers only Rename and Delete.', function () { d.project(11); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
       ['Cursor: no More', 'Cursor keeps its chats in a file it holds open, so Perch cannot change them: the card has no More button.', function () { d.project(13); d.show('open', false, true); }],
-      ['Archive: gone from the list', 'Press A in the menu. The session leaves the list and the card says Archived.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 600); setTimeout(function () { document.querySelector('.m-btns [data-act=m-archive]').click(); }, 1800); }],
+      ['Archive: asks, then gone', 'A in the menu asks once more (Archive this session?, No and Archive). Yes: the session leaves the list and the card says Archived.', function () { d.project(1); d.show('open', false, true); setTimeout(function () { window.perch.manageMenu('menu'); }, 600); setTimeout(function () { window.perch.manageMenu('archive'); }, 1700); setTimeout(function () { document.querySelector('.m-pop .x-delyes').click(); }, 3200); }],
     ]],
     ['New session', [
       ['The whole flow', 'From the list to a running session: Command+Option+N, pick the agent, pick the folder, type, Return. Plays it once; then try it yourself (Command+Option+N works from anywhere on this page, as it would on the Mac).', function () {

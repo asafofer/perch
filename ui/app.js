@@ -388,7 +388,7 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'List', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
+      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'Back', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
       /* More: rename, archive or delete the session. Only what its agent can do is offered. */
@@ -541,20 +541,25 @@
   /* More (M): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
      which of the three its agent can do (project.manage). Delete asks once more, in the popup. Rename is a field with the name in
      it in the footer, as Reply is. */
-  var mng = { id: '', mode: '' }, mIn = q('.m-in'), mPop = q('.m-pop'), MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
+  var mng = { id: '', mode: '', sel: 0 }, mIn = q('.m-in'), mPop = q('.m-pop'), MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
   function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
   function mRow(k, p) {
     var m = MANAGE[k], bad = k === 'delete';
     return '<button data-act="m-' + k + '" class="flex h-6 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
   }
   function mPaint(mode, p) {
-    if (mode === 'delete') {
-      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">Delete for good?</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button('danger', 'Delete', '', 'x-delyes flex-1') + '</div>';
+    if (mode === 'delete' || mode === 'archive') {
+      var del = mode === 'delete';
+      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', '', 'x-delyes flex-1') + '</div>';
     } else {
-      mPop.innerHTML = manageOf(p).map(function (k) { return mRow(k, p); }).join('');
+      var ks = manageOf(p); mng.sel = Math.min(mng.sel || 0, ks.length - 1);
+      mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('') + '<div class="flex items-baseline justify-end gap-1.5 px-2 pb-0.5 pt-1 text-[11px] text-muted-foreground">' + Keys('\u2191', '\u2193') + 'Choose</div>';
+      mMark();
     }
     mPop.title = p.manageNote || '';
   }
+  /* the row the arrows are on */
+  function mMark() { [].forEach.call(mPop.querySelectorAll('[data-act^=m-]'), function (r, i) { r.classList.toggle('bg-white/[0.08]', i === mng.sel); }); }
   /* the card grows to hold the popup, and settles back when it goes */
   function mFit(on) {
     var inner = q('.p-open .inner'); if (!inner) return;
@@ -580,11 +585,13 @@
   function manageMenu(mode, quiet) {
     var p = snap && snap.projects[snap.selected];
     if (mode && (!p || !manageOf(p).length)) mode = false;
-    if (mode === 'menu' || mode === 'delete') { mng.id = p.id; mPaint(mode, p); }
+    if (mode === 'menu' && mng.mode !== 'menu') mng.sel = 0;
+    if (mode === 'menu' || mode === 'delete' || mode === 'archive') { mng.id = p.id; mPaint(mode, p); }
     else if (mode === 'rename') { mng.id = p.id; mIn.value = p.topic || p.name || ''; setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30); }
     if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
     var was = mng.mode; mng.mode = mode || '';
-    mShow(mode === 'menu' || mode === 'delete', quiet || (was === 'menu' && mode === 'delete') || (was === 'delete' && mode === 'menu'));
+    var up = mode === 'menu' || mode === 'delete' || mode === 'archive', was_up = was === 'menu' || was === 'delete' || was === 'archive';
+    mShow(up, quiet || (up && was_up));
     if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain);
     else if (!mode && fMain.style.display === 'none') footer(fMain);
     if (!quiet) post({ type: 'manageMenu', mode: mode || '' });
@@ -597,11 +604,11 @@
   mPop.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.classList.contains('x-delno')) return manageMenu('menu');
-    if (b.classList.contains('x-delyes')) return manageDo('delete');
-    var k = (b.dataset.act || '').slice(2); if (k === 'rename') manageMenu('rename'); else if (k === 'delete') manageMenu('delete'); else if (k) manageDo(k);
+    if (b.classList.contains('x-delyes')) return manageDo(mng.mode);
+    var k = (b.dataset.act || '').slice(2); if (k) manageMenu(k);
   });
   /* a click anywhere else on the card closes the popup */
-  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete') && !e.target.closest('.m-pop, [data-act=more]')) manageMenu(false); });
+  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive') && !e.target.closest('.m-pop, [data-act=more]')) manageMenu(false); });
   q('.x-rnclose').onclick = function () { manageMenu(false); };
   q('.x-rensave').onclick = function () { manageDo('rename'); };
   mIn.addEventListener('keydown', function (e) {
@@ -609,17 +616,21 @@
     else if (e.key === 'Escape') { e.preventDefault(); manageMenu(false); }
     e.stopPropagation();
   });
-  /* the keys while the popup is open: the letter on each row, Esc closes (from Delete's question, back to the rows) */
+  /* the keys while the popup is open: the letter on each row, Up and Down choose and Return does it, Esc closes (from a question,
+     back to the rows). Archive and Delete ask once more; Return there says yes. */
   function manageKey(e) {
     if (mng.mode === 'menu') {
-      var k = e.key.toLowerCase(), hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && mPop.querySelector('[data-act=m-' + x + ']'); })[0];
+      var k = e.key.toLowerCase(), rows = [].map.call(mPop.querySelectorAll('[data-act^=m-]'), function (r) { return r.dataset.act.slice(2); });
+      var hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && rows.indexOf(x) >= 0; })[0];
       if (e.key === 'Escape') { manageMenu(false); return true; }
-      if (hit) { if (hit === 'rename') manageMenu('rename'); else if (hit === 'delete') manageMenu('delete'); else manageDo(hit); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { mng.sel = (mng.sel + (e.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length; mMark(); return true; }
+      if (e.key === 'Enter') hit = rows[mng.sel];
+      if (hit) manageMenu(hit);
       return true;
     }
-    if (mng.mode === 'delete') {
+    if (mng.mode === 'delete' || mng.mode === 'archive') {
       if (e.key === 'Escape') { manageMenu('menu'); return true; }
-      if (e.key === 'Enter') { manageDo('delete'); return true; }
+      if (e.key === 'Enter') { manageDo(mng.mode); return true; }
       return true;
     }
     return false;
@@ -4433,7 +4444,7 @@
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
-      if (ph === 'open' && (mng.mode === 'menu' || mng.mode === 'delete')) { if (manageKey(e)) { e.preventDefault(); return; } }
+      if (ph === 'open' && (mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive')) { if (manageKey(e)) { e.preventDefault(); return; } }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
