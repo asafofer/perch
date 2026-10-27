@@ -372,7 +372,7 @@
       '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     /* the More menu: a popup over the card's corner, as Raycast draws its actions */
-'<div class="m-pop pointer-events-none absolute right-2.5 top-[30px] z-30 w-[236px] origin-top-right rounded-xl bg-[#1b2120]/95 p-1 opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_14px_36px_rgba(0,0,0,0.55)] backdrop-blur-xl" style="display:none"></div>' +
+'<div class="m-pop pointer-events-none absolute right-2.5 top-[28px] z-30 w-[148px] origin-top-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
       '<div class="inner pt-8 pb-1.5">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
@@ -544,22 +544,21 @@
   function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
   function mRow(k, p) {
     var m = MANAGE[k], bad = k === 'delete';
-    return '<button data-act="m-' + k + '" class="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3.5 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
+    return '<button data-act="m-' + k + '" class="flex h-6 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
   }
   function mPaint(mode, p) {
-    var name = esc(p.topic || p.name || '');
-    var head = '<div class="truncate px-2.5 pb-1 pt-1.5 text-[11.5px] text-muted-foreground" title="' + name + '">' + name + '</div>';
     if (mode === 'delete') {
-      mPop.innerHTML = head + '<div class="px-2.5 pb-2 pt-0.5 text-[13px] leading-[18px]">Delete this session for good?</div><div class="flex items-center justify-end gap-1 px-0.5 pb-0.5">' + Button('ghost', 'Cancel', Kbd('esc'), 'x-delno') + Button('danger', 'Delete', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
+      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">Delete for good?</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button('danger', 'Delete', '', 'x-delyes flex-1') + '</div>';
     } else {
-      mPop.innerHTML = head + manageOf(p).map(function (k) { return mRow(k, p); }).join('') + (p.manageNote ? '<div class="px-2.5 pb-1.5 pt-1 text-[11px] leading-[14px] text-muted-foreground/80">' + esc(p.manageNote) + '</div>' : '');
+      mPop.innerHTML = manageOf(p).map(function (k) { return mRow(k, p); }).join('');
     }
+    mPop.title = p.manageNote || '';
   }
   /* the card grows to hold the popup, and settles back when it goes */
   function mFit(on) {
     var inner = q('.p-open .inner'); if (!inner) return;
     inner.style.minHeight = '';
-    if (on) inner.style.minHeight = (30 + mPop.offsetHeight + 12) + 'px';
+    if (on) inner.style.minHeight = (28 + mPop.offsetHeight + 10) + 'px';
     if (n.dataset.s !== 'open') return;
     var h = inner.offsetHeight; n.style.height = h + 'px'; curH = h; post({ type: 'size', width: CARD_W, height: h });
   }
