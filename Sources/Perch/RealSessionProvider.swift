@@ -187,7 +187,8 @@ enum Restorer {
     /// Where a session in the Claude app opens: a Code session, a task (what was Cowork), a chat. Nil for anything else.
     nonisolated static func link(_ p: Project) -> URL? {
         switch p.app {
-        case Agent.cowork.id: return p.desktopSessionId.flatMap { URL(string: "claude://claude.ai/cowork/\($0)") }
+        // A cloud Code session ("session_...") has no link into the app that is known; the web page is the one that works.
+        case Agent.cowork.id: return p.desktopSessionId.flatMap { URL(string: $0.hasPrefix("session_") ? "https://claude.ai/code/\($0)" : "claude://claude.ai/cowork/\($0)") }
         case Agent.chat.id: return p.sessionId.flatMap { URL(string: "claude://claude.ai/chat/\($0)") }
         default: return p.desktopSessionId.flatMap { URL(string: "claude://code/continue?session=\($0)") }
         }

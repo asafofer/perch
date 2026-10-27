@@ -480,7 +480,7 @@ public enum Recap {
         let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
         var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
                         at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
-                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle ? "Not opened on this Mac yet" : "",
+                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle && !t.cloud ? "Not opened on this Mac yet" : "",
                         context: words.flatMap(said(from:)) ?? "", next: "",
                         topic: clip(t.title, 90), app: a, agents: [status],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],

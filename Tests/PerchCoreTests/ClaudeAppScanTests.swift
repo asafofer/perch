@@ -250,6 +250,28 @@ private final class Home {
         #expect(ClaudeCache.contents(fromBlob: data) == nil)
     }
 
+    /// A Claude Code session in the cloud as the Code tab lists it (`sessions_api_list_sessions`): a title, a repository, a status. No words.
+    @Test func cloudCodeSessionsComeFromTheCodeTabsList() throws {
+        let row: KeyValuePairs<String, Any> = [
+            "id": "session_01LRokGZZCoaaUKCUK87AyWF", "title": "Single-word greeting reply", "type": "session", "origin": "claude_code_cli",
+            "environment_kind": "anthropic_cloud", "session_status": "idle", "status_bucket": "completed", "worker_status": "requires_action", "unread": false,
+            "created_at": "2026-10-27T20:06:29.147150Z", "updated_at": "2026-10-27T20:06:41.423083Z",
+            "session_context": ["sources": [["type": "git_repository", "url": "https://github.com/asafofer/perch", "revision": "5272fc4"] as KeyValuePairs<String, Any>] as [Any]] as KeyValuePairs<String, Any>,
+        ]
+        let query: KeyValuePairs<String, Any> = [
+            "queryKey": ["sessions_api_list_sessions", ["statuses": ["active", "paused"], "orgUuid": "org"] as KeyValuePairs<String, Any>] as [Any],
+            "state": ["data": ["pages": [["data": [row] as [Any], "has_more": false] as KeyValuePairs<String, Any>] as [Any], "pageParams": [0] as [Any]] as KeyValuePairs<String, Any>] as KeyValuePairs<String, Any>,
+        ]
+        let blob: KeyValuePairs<String, Any> = ["timestamp": 1, "buster": "conversations_v2:1", "clientState": ["mutations": [] as [Any], "queries": [query] as [Any]] as KeyValuePairs<String, Any>]
+        let tasks = try #require(ClaudeCache.contents(fromBlob: V8.blob(blob))?.tasks)
+        #expect(tasks.count == 1)
+        #expect(tasks[0].cloud && tasks[0].state == .awaiting && !tasks[0].unread)
+        #expect(tasks[0].title == "Single-word greeting reply")
+        let p = Recap.task(tasks[0], now: Date())
+        #expect(p.name == "perch")
+        #expect(p.agents.first?.kind == .needsYou && p.headline == "Answer it in Claude")
+    }
+
     @Test func chatsStartSwitchedOffAndTasksOn() {
         #expect(Agent.chat.onByDefault == false)
         #expect(Agent.cowork.onByDefault)
