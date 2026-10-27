@@ -579,6 +579,15 @@ i.sci svg{width:16px;height:16px}
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
     ]],
+    ['Managing a session', [
+      ['More: the menu', 'A small More button on the card, beside Reply (or M). The footer becomes Rename, Archive and Delete, each with its letter; Esc closes it. A Claude app session says it brings Claude forward, which is how the app lets anything else change its list.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
+      ['More: Rename', 'R: the name in a field, selected, as Reply is. Return renames, Esc goes back to the menu.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.manageMenu('rename'); }, 700); }],
+      ['More: Delete asks once', 'D: the footer asks whether to delete it for good, with Cancel and a red Delete. Archive does not ask: it can be undone in the agent.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.manageMenu('delete'); }, 700); }],
+      ['Codex: all three', 'Codex does all three itself, with no window brought forward.', function () { d.project(2); d.show('open'); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
+      ['pi: no Archive', 'pi has no archive of its own, so the menu offers only Rename and Delete.', function () { d.project(11); d.show('open'); setTimeout(function () { window.perch.manageMenu('menu'); }, 700); }],
+      ['Cursor: no More', 'Cursor keeps its chats in a file it holds open, so Perch cannot change them: the card has no More button.', function () { d.project(13); d.show('open'); }],
+      ['Archive: gone from the list', 'Press A in the menu. The session leaves the list and the card says Archived.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.manageMenu('menu'); }, 600); setTimeout(function () { document.querySelector('.m-btns [data-act=m-archive]').click(); }, 1800); }],
+    ]],
     ['New session', [
       ['The whole flow', 'From the list to a running session: Command+Option+N, pick the agent, pick the folder, type, Return. Plays it once; then try it yourself (Command+Option+N works from anywhere on this page, as it would on the Mac).', function () {
         var me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); }, key = function (k, meta) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, code: meta ? 'KeyN' : '', metaKey: !!meta, altKey: !!meta, bubbles: true })); };

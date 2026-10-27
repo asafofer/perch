@@ -40,6 +40,7 @@
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    dots: '<circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
     chevD: '<path d="m6 9 6 6 6-6"/>',
     chevU: '<path d="m18 15-6-6-6 6"/>',
@@ -50,7 +51,7 @@
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
   var BTN = 'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-6 px-2 cursor-pointer';
   function Button(v, label, extra, cls) {
-    var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }[v];
+    var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground', danger: 'bg-red-500/90 text-white hover:bg-red-500' }[v];
     /* label and key share a baseline: the key's letter sits on the line of the words, its box around it */
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + (extra ? '<span class="inline-flex items-baseline gap-1">' + label + extra + '</span>' : label) + '</button>';
   }
@@ -384,7 +385,11 @@
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
-      '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
+      '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
+      /* More: rename, archive or delete the session. Only what its agent can do is offered. */
+      '<div class="f-mng hidden h-9 items-center gap-1"><button aria-label="Close" title="Close (Esc)" class="x-mclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><span class="m-note min-w-0 flex-1 truncate pl-1 text-xs text-muted-foreground"></span><span class="m-btns flex items-center gap-0.5"></span></div>' +
+      '<div class="f-ren hidden h-9 items-center gap-1.5"><button aria-label="Close" title="Back (Esc)" class="x-rnclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="m-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">' + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rensave h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="f-del hidden h-9 items-center gap-1"><span class="m-dq min-w-0 flex-1 truncate pl-1.5 text-[13px] text-muted-foreground"></span>' + Button('ghost', 'Cancel', Kbd('esc'), 'x-delno') + Button('danger', 'Delete', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
@@ -496,6 +501,7 @@
     if (a === 'go') post({ type: 'confirm' });
     else if (a === 'reply') replyMenu(true);
     else if (a === 'snooze') snoozeMenu(true);
+    else if (a === 'more') manageMenu('menu');
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
     else if (a === 'other') otherMenu(true);
@@ -505,7 +511,7 @@
     else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
-  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), footers = [fMain, fSnz, fRep];
+  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fMng = q('.f-mng'), fRen = q('.f-ren'), fDel = q('.f-del'), footers = [fMain, fSnz, fRep, fMng, fRen, fDel];
   /* The footer changes between its actions, Reply and Not now. The old row fades up and away while the new one rises in. */
   function footer(el) {
     footers.forEach(function (f) { if (f._out) { f._out.cancel(); f._out = null; f.style.position = f.style.left = f.style.right = f.style.top = ''; f.style.display = 'none'; } });
@@ -525,6 +531,56 @@
   function snoozeMenu(open, quiet) {
     footer(open ? fSnz : fMain);
     if (!quiet) post({ type: 'snoozeMenu', open: open });
+  }
+  /* More (M): rename, archive or delete the session on the card. Swift says which of the three its agent can do (project.manage);
+     Delete asks once more. Rename is a field with the name in it, as Reply is. */
+  var mng = { id: '', mode: '' }, mIn = q('.m-in'), MANAGE = { rename: ['Rename', 'R'], archive: ['Archive', 'A'], delete: ['Delete', 'D'] };
+  function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
+  function manageMenu(mode, quiet) {
+    var p = snap && snap.projects[snap.selected];
+    if (mode && (!p || !manageOf(p).length)) mode = false;
+    if (mode === 'menu') {
+      mng.id = p.id; q('.m-note').textContent = p.manageNote || '';
+      q('.m-btns').innerHTML = manageOf(p).map(function (k) { return Act('ghost', MANAGE[k][0], MANAGE[k][1], 'm-' + k); }).join('');
+    } else if (mode === 'rename') {
+      mng.id = p.id; mIn.value = p.topic || p.name || '';
+      setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30);
+    } else if (mode === 'delete') { mng.id = p.id; q('.m-dq').textContent = 'Delete \u201c' + (p.topic || p.name) + '\u201d for good?'; q('.m-dq').title = p.topic || p.name; }
+    if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
+    mng.mode = mode || '';
+    footer(mode === 'menu' ? fMng : mode === 'rename' ? fRen : mode === 'delete' ? fDel : fMain);
+    if (!quiet) post({ type: 'manageMenu', mode: mode || '' });
+  }
+  function manageDo(kind) {
+    var p = snap && snap.projects[snap.selected]; if (!p) return;
+    if (kind === 'rename') { var t = mIn.value.trim(); if (!t) return; manageMenu(false, true); post({ type: 'manage', action: 'rename', id: p.id, name: t }); return; }
+    manageMenu(false, true); post({ type: 'manage', action: kind, id: p.id });
+  }
+  q('.f-mng').addEventListener('click', function (e) { var b = e.target.closest('[data-act]'); if (!b) return; var k = b.dataset.act.slice(2); if (k === 'rename') manageMenu('rename'); else if (k === 'delete') manageMenu('delete'); else manageDo(k); });
+  q('.x-mclose').onclick = function () { manageMenu(false); };
+  q('.x-rnclose').onclick = function () { manageMenu('menu'); };
+  q('.x-rensave').onclick = function () { manageDo('rename'); };
+  q('.x-delno').onclick = function () { manageMenu('menu'); };
+  q('.x-delyes').onclick = function () { manageDo('delete'); };
+  mIn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); manageDo('rename'); }
+    else if (e.key === 'Escape') { e.preventDefault(); manageMenu('menu'); }
+    e.stopPropagation();
+  });
+  /* the keys while the menu is open: the letter on each button, Esc steps back */
+  function manageKey(e) {
+    if (mng.mode === 'menu') {
+      var k = e.key.toLowerCase(), hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && q('.m-btns [data-act=m-' + x + ']'); })[0];
+      if (e.key === 'Escape') { manageMenu(false); return true; }
+      if (hit) { if (hit === 'rename') manageMenu('rename'); else if (hit === 'delete') manageMenu('delete'); else manageDo(hit); return true; }
+      return true;
+    }
+    if (mng.mode === 'delete') {
+      if (e.key === 'Escape') { manageMenu('menu'); return true; }
+      if (e.key === 'Enter') { manageDo('delete'); return true; }
+      return true;
+    }
+    return false;
   }
   /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
   var rIn = q('.r-in');
@@ -1022,7 +1078,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Button('ghost', svg('dots', 'size-3.5'), '', 'px-1.5" data-act="more" title="More (M)" aria-label="More') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -2339,9 +2395,10 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
-    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
+    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
@@ -3786,7 +3843,7 @@
   new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
   window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, manageMenu: function (o) { manageMenu(o); }, manageKey: manageKey, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3864,8 +3921,15 @@
       if (!onCard) setTimeout(function () { if (k2 === updTok) base.access = null; }, 4000);
       return;
     }
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'manageMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
+    /* More: renamed in place; archived or deleted, the row is gone and the list is back */
+    if (m.type === 'manage') {
+      var mi = s.projects.map(function (x) { return x.id; }).indexOf(m.id); if (mi < 0) return;
+      if (m.action === 'rename') { s.projects[mi].topic = m.name; if (!s.projects[mi].topic) s.projects[mi].name = m.name; s.timerToken++; apply(s); pop('awake', 2200, 'Renamed'); return; }
+      var gone = s.projects.splice(mi, 1)[0]; window.perchDev.drop(gone.id);
+      s.selected = 0; s.phase = s.projects.length ? 'switcher' : 'idle'; s.timerToken++; apply(s); pop('awake', 2200, m.action === 'archive' ? 'Archived' : 'Deleted'); return;
+    }
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
     if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { replying(snap.projects[snap.selected].id); setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
@@ -3960,6 +4024,12 @@
       gaps: [{ number: 23, url: 'https://github.com/asafofer/perch/pull/23', title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
       tui: [{ number: 9, url: 'https://github.com/asafofer/perch/pull/9', title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, url: 'https://github.com/asafofer/perch/pull/7', title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
     P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
+    /* what More offers per agent (Swift sends this per session): the Claude app and Codex do all three; a terminal Claude Code and pi have
+       no archive of their own; Cursor keeps its chats in a file it holds open, so nothing */
+    P.forEach(function (p) {
+      p.manage = p.app === 'cursor' ? [] : p.app === 'claude' && !p.via ? ['rename', 'archive', 'delete'] : p.app === 'claude' || p.app === 'pi' ? ['rename', 'delete'] : ['rename', 'archive', 'delete'];
+      if (p.app === 'claude' && !p.via) p.manageNote = 'Brings Claude forward';
+    });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -3968,7 +4038,7 @@
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
-    function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
+    function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); }
     var base = { canUpdate: true, selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer, devQuery = '';
@@ -4055,6 +4125,7 @@
       });
     }
     window.perchDev = {
+      drop: function (id) { P = P.filter(function (x) { return x.id !== id; }); base.projects = P; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
@@ -4073,7 +4144,7 @@
       },
       /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
       newSession: function (o) {
-        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
+        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); nw.on = false;
         if (o.text !== undefined) nw.text = o.text;
         var front = P.filter(function (x) { return x.id === 'api'; })[0];
         var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
@@ -4082,7 +4153,7 @@
       },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
-      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
       tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
@@ -4096,7 +4167,7 @@
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
-        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', showPRs: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
         if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
@@ -4108,7 +4179,7 @@
         /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
         if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
         else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
-        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
         if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
@@ -4124,9 +4195,9 @@
         };
         autoTimer = setTimeout(again, 1600);
       },
-      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       /* the list with one session changed, as variant does for the card */
-      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
+      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
       /* the next refresh of the same card, a reply left open as it is */
       refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
@@ -4150,7 +4221,7 @@
       say: function (t) { window.perch.say(t); },
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
-        o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) { updNotes = false; updOpen = false; } }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
         base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, listOnly: !!o.listOnly, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
@@ -4320,6 +4391,7 @@
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
+      if (ph === 'open' && fMng.style.display !== 'none' && getComputedStyle(fMng).display !== 'none' || fDel.style.display === 'flex') { if (manageKey(e)) { e.preventDefault(); return; } }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
@@ -4330,6 +4402,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
+      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && q('.o-acts [data-act=more]')) manageMenu('menu', true);
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
