@@ -292,9 +292,9 @@
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
-  function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
+  function Act(v, label, key, act, cls) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + (cls ? ' ' + cls : '') + '" data-act="' + act); }
   /* The card Perch opened by itself offers Not now here (N snoozes either way). On a card you opened, Up and Down still flip to the
-     next session's card, but no button says so: the list is one press away (List). */
+     next session's card, but no button says so: the list is one press away (Back). */
   function Flip() {
     if (snap && snap.proactive) return Act('ghost', 'Not now', 'N', 'snooze');
     return '';
@@ -388,7 +388,7 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-px">' + Button('ghost', 'Back', Kbd('\u2190'), 'x-list pl-1') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-px"></span></div>' +
+      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'Back', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
       /* More: rename, archive or delete the session. Only what its agent can do is offered. */
@@ -553,7 +553,7 @@
       mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', '', 'x-delyes flex-1') + '</div>';
     } else {
       var ks = manageOf(p); mng.sel = Math.min(mng.sel || 0, ks.length - 1);
-      mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('') + '<div class="flex items-baseline justify-end gap-1.5 px-2 pb-0.5 pt-1 text-[11px] text-muted-foreground">' + Keys('\u2191', '\u2193') + 'Choose</div>';
+      mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('');
       mMark();
     }
     mPop.title = p.manageNote || '';
