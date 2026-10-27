@@ -404,7 +404,12 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
+      '<div class="rv s-ft relative flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3">' +
+        '<button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span>' +
+        '<button class="x-lmore flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="More (\u2318K)">' + Kbd('\u2318K') + 'More</button>' +
+        '<button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button>' +
+        '<div class="m-pop pointer-events-none absolute right-2.5 z-30 w-[148px] origin-bottom-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+      '</div>' +
     '</div></div>' +
     /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
     '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -541,14 +546,17 @@
   /* More (M): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
      which of the three its agent can do (project.manage). Delete asks once more, in the popup. Rename is a field with the name in
      it in the footer, as Reply is. */
-  var mng = { id: '', mode: '', sel: 0 }, mIn = q('.m-in'), mPop = q('.m-pop'), MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
+  var mng = { id: '', mode: '', sel: 0 }, mIn = q('.m-in'), popO = q('.p-open .m-pop'), popS = q('.p-switch .m-pop'), mPop = popO, MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
   function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
   function mRow(k, p) {
     var m = MANAGE[k], bad = k === 'delete';
     return '<button data-act="m-' + k + '" class="flex h-6 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
   }
   function mPaint(mode, p) {
-    if (mode === 'delete' || mode === 'archive') {
+    if (mode === 'rename') {
+      mPop.innerHTML = '<input class="m-in2 h-6 w-full cursor-text rounded-md bg-white/[0.1] px-2 text-xs text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name"><div class="flex justify-end px-1 pb-0.5 pt-1">' + Kbd(svg('enter', 'size-2')) + '</div>';
+      var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
+    } else if (mode === 'delete' || mode === 'archive') {
       var del = mode === 'delete';
       mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno flex-1') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', '', 'x-delyes flex-1') + '</div>';
     } else {
@@ -562,53 +570,69 @@
   function mMark() { [].forEach.call(mPop.querySelectorAll('[data-act^=m-]'), function (r, i) { r.classList.toggle('bg-white/[0.08]', i === mng.sel); }); }
   /* the card grows to hold the popup, and settles back when it goes */
   function mFit(on) {
-    var inner = q('.p-open .inner'); if (!inner) return;
+    var inner = q('.p-open .inner'); if (!inner || mPop === popS) return;
     inner.style.minHeight = '';
     if (on) inner.style.minHeight = (mPop.offsetHeight + 44 + 36) + 'px';
     if (n.dataset.s !== 'open') return;
     var h = inner.offsetHeight; n.style.height = h + 'px'; curH = h; post({ type: 'size', width: CARD_W, height: h });
   }
+  function mClose(pop, quiet, calm) {
+    if (pop._a) { pop._a.cancel(); pop._a = null; }
+    if (pop.style.display === 'none') return;
+    pop.style.pointerEvents = 'none';
+    var done = function () { pop.style.display = 'none'; pop.style.opacity = '0'; pop._a = null; if (pop === popO) mFit(false); };
+    if (calm || quiet) done(); else { pop._a = pop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); pop._a.onfinish = done; setTimeout(done, 160); }
+  }
   function mShow(on, quiet) {
     var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
+    var other = mPop === popS ? popO : popS; mClose(other, true, true);
     if (on) {
-      var more = q('.o-acts [data-act=more]'), box = mPop.parentNode.getBoundingClientRect();
-      if (more) mPop.style.right = Math.max(10, Math.round(box.right - more.getBoundingClientRect().right)) + 'px';   /* its right edge over the button's */
-      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true); q('.p-open').classList.add('m-dim');
+      if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
+      var more = mPop === popS ? q('.x-lmore') : q('.o-acts [data-act=more]'), box = mPop.parentNode.getBoundingClientRect();
+      if (more) { var mr = more.getBoundingClientRect(); mPop.style.right = Math.max(10, Math.round(box.right - mr.right)) + 'px'; mPop.style.bottom = Math.round(box.bottom - mr.top + 6) + 'px'; }   /* over its button, its right edges together */
+      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true); (mPop === popS ? q('.p-switch') : q('.p-open')).classList.add('m-dim');
       if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
-    } else if (mPop.style.display !== 'none') {
-      mPop.style.pointerEvents = 'none'; q('.p-open').classList.remove('m-dim');
-      var done = function () { mPop.style.display = 'none'; mPop.style.opacity = '0'; mPop._a = null; mFit(false); };
-      if (calm || quiet) done(); else { mPop._a = mPop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); mPop._a.onfinish = done; setTimeout(done, 160); }
+    } else {
+      q('.p-open').classList.remove('m-dim'); q('.p-switch').classList.remove('m-dim');
+      mClose(mPop, quiet, calm);
     }
   }
   function manageMenu(mode, quiet) {
+    var inList = n.dataset.s === 'switch';
+    if (mode || n.dataset.s === 'open' || inList) mPop = inList ? popS : popO;
     var p = snap && snap.projects[snap.selected];
     if (mode && (!p || !manageOf(p).length)) mode = false;
+    var pop = inList ? mode : false;   /* in the list the rename field is in the popup, on the card it is in the footer */
     if (mode === 'menu' && mng.mode !== 'menu') mng.sel = 0;
-    if (mode === 'menu' || mode === 'delete' || mode === 'archive') { mng.id = p.id; mPaint(mode, p); }
+    if (mode === 'menu' || mode === 'delete' || mode === 'archive' || (mode === 'rename' && inList)) { mng.id = p.id; mPaint(mode, p); }
     else if (mode === 'rename') { mng.id = p.id; mIn.value = p.topic || p.name || ''; setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30); }
     if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
     var was = mng.mode; mng.mode = mode || '';
-    var up = mode === 'menu' || mode === 'delete' || mode === 'archive', was_up = was === 'menu' || was === 'delete' || was === 'archive';
-    mShow(up, quiet || (up && was_up));
-    if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain);
-    else if (!mode && fMain.style.display === 'none') footer(fMain);
+    var isUp = function (m) { return m === 'menu' || m === 'delete' || m === 'archive' || (m === 'rename' && inList); };
+    mShow(isUp(mode), quiet || (isUp(mode) && isUp(was)));
+    if (!inList) { if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain); else if (!mode && fMain.style.display === 'none') footer(fMain); }
     if (!quiet) post({ type: 'manageMenu', mode: mode || '' });
   }
   function manageDo(kind) {
     var p = snap && snap.projects[snap.selected]; if (!p) return;
-    if (kind === 'rename') { var t = mIn.value.trim(); if (!t) return; manageMenu(false, true); post({ type: 'manage', action: 'rename', id: p.id, name: t }); return; }
+    if (kind === 'rename') { var f = mPop === popS ? popS.querySelector('input') : mIn, t = f ? f.value.trim() : ''; if (!t) return; manageMenu(false, true); post({ type: 'manage', action: 'rename', id: p.id, name: t }); return; }
     manageMenu(false); post({ type: 'manage', action: kind, id: p.id });
   }
-  mPop.addEventListener('click', function (e) {
+  [popO, popS].forEach(function (pp) { pp.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.classList.contains('x-delno')) return manageMenu('menu');
     if (b.classList.contains('x-delyes')) return manageDo(mng.mode);
     var k = (b.dataset.act || '').slice(2); if (k) manageMenu(k);
+  }); });
+  popS.addEventListener('keydown', function (e) {
+    if (e.target.tagName !== 'INPUT') return;
+    if (e.key === 'Enter') { e.preventDefault(); manageDo('rename'); }
+    else if (e.key === 'Escape') { e.preventDefault(); manageMenu('menu'); }
+    e.stopPropagation();
   });
+  q('.x-lmore').onclick = function () { manageMenu(mng.mode === 'menu' ? false : 'menu'); };
   /* a click anywhere else on the card closes the popup */
-  q('.p-open').addEventListener('mousedown', function (e) { if ((mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive') && !e.target.closest('.m-pop, [data-act=more]')) manageMenu(false); });
+  ['.p-open', '.p-switch'].forEach(function (c) { q(c).addEventListener('mousedown', function (e) { if (mng.mode && mng.mode !== 'rename' && !e.target.closest('.m-pop, [data-act=more], .x-lmore')) manageMenu(false); }); });
   q('.x-rnclose').onclick = function () { manageMenu(false); };
   q('.x-rensave').onclick = function () { manageDo('rename'); };
   mIn.addEventListener('keydown', function (e) {
@@ -619,6 +643,7 @@
   /* the keys while the popup is open: the letter on each row, Up and Down choose and Return does it, Esc closes (from a question,
      back to the rows). Archive and Delete ask once more; Return there says yes. */
   function manageKey(e) {
+    if (mng.mode === 'rename' && mPop === popS) return false;
     if (mng.mode === 'menu') {
       var k = e.key.toLowerCase(), rows = [].map.call(mPop.querySelectorAll('[data-act^=m-]'), function (r) { return r.dataset.act.slice(2); });
       var hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && rows.indexOf(x) >= 0; })[0];
@@ -2453,6 +2478,7 @@
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
+    q('.x-lmore').style.display = st === 'switch' && manageOf(p).length ? '' : 'none';
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -4444,7 +4470,7 @@
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
-      if (ph === 'open' && (mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive')) { if (manageKey(e)) { e.preventDefault(); return; } }
+      if ((ph === 'open' || ph === 'switcher') && (mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive')) { if (manageKey(e)) { e.preventDefault(); return; } }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
@@ -4455,6 +4481,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
+      else if (e.metaKey && (e.key === 'k' || e.key === 'K') && (ph === 'open' || ph === 'switcher')) { e.preventDefault(); manageMenu(mng.mode === 'menu' ? false : 'menu', true); }
       else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && q('.o-acts [data-act=more]')) manageMenu('menu', true);
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
