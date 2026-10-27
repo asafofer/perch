@@ -54,7 +54,7 @@
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
   var BTN = 'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-6 px-2 cursor-pointer';
   function Button(v, label, extra, cls) {
-    var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground', danger: 'bg-red-500/90 text-white hover:bg-red-500' }[v];
+    var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }[v];
     /* label and key share a baseline: the key's letter sits on the line of the words, its box around it */
     return '<button class="' + BTN + ' ' + c + ' ' + (cls || '') + '">' + (extra ? '<span class="inline-flex items-baseline gap-1">' + label + extra + '</span>' : label) + '</button>';
   }
@@ -558,7 +558,7 @@
       var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
     } else if (mode === 'delete' || mode === 'archive') {
       var del = mode === 'delete';
-      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center justify-end gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno') + Button(del ? 'danger' : 'default', del ? 'Delete' : 'Archive', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
+      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete for good?' : 'Archive this session?') + '</div><div class="flex items-center justify-end gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno') + Button('default', del ? 'Delete' : 'Archive', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
     } else {
       var ks = manageOf(p); mng.sel = Math.min(mng.sel || 0, ks.length - 1);
       mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('');
