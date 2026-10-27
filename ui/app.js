@@ -406,8 +406,8 @@
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft relative flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3">' +
         '<button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span>' +
-        '<button class="x-lmore flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="More (\u2318K)">' + Kbd('\u2318K') + 'More</button>' +
         '<button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button>' +
+        '<button class="x-lmore flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="More (\u2318K)">' + Kbd('\u2318K') + 'More</button>' +
         '<div class="m-pop pointer-events-none absolute right-2.5 z-30 w-[148px] origin-bottom-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
       '</div>' +
     '</div></div>' +
@@ -543,7 +543,7 @@
     footer(open ? fSnz : fMain);
     if (!quiet) post({ type: 'snoozeMenu', open: open });
   }
-  /* More (M): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
+  /* More (Command K): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
      which of the three its agent can do (project.manage). Delete asks once more, in the popup. Rename is a field with the name in
      it in the footer, as Reply is. */
   var mng = { id: '', mode: '', sel: 0 }, mIn = q('.m-in'), popO = q('.p-open .m-pop'), popS = q('.p-switch .m-pop'), mPop = popO, MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
@@ -1156,7 +1156,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Act('ghost', 'More', 'M', 'more') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (manageOf(p).length ? Act('ghost', 'More', '\u2318K', 'more') : '') + Flip() + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -4481,8 +4481,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
-      else if (e.metaKey && (e.key === 'k' || e.key === 'K') && (ph === 'open' || ph === 'switcher')) { e.preventDefault(); manageMenu(mng.mode === 'menu' ? false : 'menu', true); }
-      else if ((e.key === 'm' || e.key === 'M') && ph === 'open' && q('.o-acts [data-act=more]')) manageMenu('menu', true);
+      else if (e.metaKey && (e.key === 'k' || e.key === 'K') && (ph === 'open' || ph === 'switcher') && (ph === 'switcher' ? q('.x-lmore').style.display !== 'none' : q('.o-acts [data-act=more]'))) { e.preventDefault(); manageMenu(mng.mode === 'menu' ? false : 'menu', true); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
