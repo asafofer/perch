@@ -4,7 +4,7 @@ import Foundation
 /// from speaking about it: the list, the cards, the status rings and the welcome card still say everything.
 /// The page decides which kind a session is in (app.js `notifyKind`); these are the names it and Swift share.
 public enum NotifyKind: String, CaseIterable, Sendable {
-    case done, run, ask, plan, error
+    case done, run, ask, plan, error, ci
 }
 
 public enum NotifyKinds {

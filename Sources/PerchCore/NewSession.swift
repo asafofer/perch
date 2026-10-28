@@ -99,14 +99,38 @@ public enum NewSession {
 
     /// The new session, once the scan finds it: one Perch had not seen before, of that agent, run where it was asked for
     /// (in its app or a terminal), in that folder (or a worktree of it), and begun after it was started. With an id, only that one.
-    public static func started(in projects: [Project], choice: Choice, folder: String?, since: Date, known: Set<String>, sessionId: String? = nil) -> Project? {
+    /// anyFolder: the app asked you to confirm first, where you can also pick another folder, so a new session of that
+    /// agent begun since counts wherever it runs.
+    public static func started(in projects: [Project], choice: Choice, folder: String?, since: Date, known: Set<String>, sessionId: String? = nil, anyFolder: Bool = false) -> Project? {
         projects.first { p in
             if let sessionId { return p.sessionId == sessionId }
             guard !known.contains(p.id), p.app == choice.agent, p.terminal == choice.terminal else { return false }
-            if let folder, let cwd = p.cwd, root(cwd) != folder { return false }
+            if !anyFolder, let folder, let cwd = p.cwd, root(cwd) != folder { return false }
             let began = p.startedAt ?? p.lastActive ?? .distantPast
             return began >= since.addingTimeInterval(-5)
         }
+    }
+
+    /// The Claude app's own list of projects ("environments" in its menu by the message field: a name, a folder, settings).
+    public static let claudePresets = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Application Support/Claude/ccd-session-presets.json")
+
+    /// The name the Claude app gives the project on this folder, the most recently used if several: its link names a folder
+    /// but starts the session with none, so Perch picks the project in Claude's menu instead. Nil when Claude has none for it.
+    public static func claudeProject(for folder: String, presets: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: presets) as? [String: Any],
+              let accounts = json["byAccount"] as? [String: Any] else { return nil }
+        let want = root(folder)
+        var best: (name: String, used: Double)?
+        for case let account as [String: Any] in accounts.values {
+            for case let p as [String: Any] in (account["presets"] as? [Any]) ?? [] {
+                guard let name = p["name"] as? String, !name.isEmpty, let target = p["target"] as? [String: Any],
+                      target["kind"] as? String == "local", let cwd = target["cwd"] as? String, root(cwd) == want else { continue }
+                let used = (p["lastUsedAt"] as? Double) ?? 0
+                if best == nil || used > best!.used { best = (name, used) }
+            }
+        }
+        return best?.name
     }
 
     /// How long to wait for the new session to show before saying it did not start.

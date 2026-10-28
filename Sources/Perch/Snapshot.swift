@@ -8,9 +8,18 @@ struct UISnapshot: Encodable {
     struct Step: Encodable { let icon: String; let text: String }
     /// What the agent is asking, for the card to answer: permission, question or plan.
     struct UIQuestion: Encodable { let text: String; let header: String; let multi: Bool; let options: [String]; let notes: [String] }
-    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let questions: [UIQuestion]; let answerable: Bool
+    struct UIAsk: Encodable { let kind: String; let title: String; let subject: String; let brief: String; let questions: [UIQuestion]; let answerable: Bool
         /// Why a question with choices cannot be answered here, for the card to say under them.
         let why: String? }
+    /// A pull request, as the page draws its mark and its label.
+    struct UIPR: Encodable {
+        let number: Int; let repo: String; let url: String; let state: String
+        let title: String?; let checks: String?; let review: String?; let conflict: Bool
+        init(_ p: PullRequest) {
+            number = p.number; repo = p.repo; url = p.url; state = p.state.rawValue; title = p.title
+            checks = p.checks?.rawValue; review = p.review?.rawValue; conflict = p.conflict
+        }
+    }
     struct UIProject: Encodable {
         let id, name: String
         let branch: String?
@@ -37,8 +46,13 @@ struct UISnapshot: Encodable {
         let said: String?
         /// Your last message, shown above it.
         let asked: String?
+        /// It came after the agent's last message (not answered yet): shown below it.
+        let askedLast: Bool
         /// A session started from the list, before it is a real session: "starting", "started", "failed", "gone".
         var pending: String? = nil
+        /// Its pull requests, and whether one of them is why it needs you (so the notch announces it as Checks failing).
+        var prs: [UIPR] = []
+        var ci = false
     }
 
     /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
@@ -56,17 +70,22 @@ struct UISnapshot: Encodable {
     struct Character: Encodable { let shape: String; let color: String }
     struct Display: Encodable { let id: String; let name: String; let connected: Bool }
     struct Source: Encodable { let id: String; let name: String; let count: Int; let names: [String]; let enabled: Bool }
+    /// A place Perch follows a session into (Conductor, herdr, tmux, cmux), shown by name and mark where it is on this Mac.
+    struct Place: Encodable { let id: String; let name: String }
     struct Onboarding: Encodable {
         let step: Int
         let total: Int
         let accessibility: Bool
         let scanning: Bool
         let sources: [Source]
+        let places: [Place]
         /// Only the character step, opened from Settings or the menu: no step count, and Done instead of Next.
         let only: Bool
         /// Perch's hook is in every enabled app: "on" or "off".
         let live: String
         let shortcut: ShortcutState
+        /// Whether Perch checks GitHub for pull requests: "on" or "off". The step exists only when the GitHub CLI works.
+        var prs = "off"
     }
     /// The shortcut that opens Perch, as the page draws it: the key caps, and where recording stands.
     struct ShortcutState: Encodable { let keys: [String]; let kind: String; let custom: Bool; let recording: Bool; let error: String; let tried: Bool; let saved: Bool
@@ -84,7 +103,7 @@ struct UISnapshot: Encodable {
     struct NewShortcut: Encodable { let keys: [String]; let custom: Bool }
 
     /// `live`: "on" when every enabled app has Perch's hook, "off" otherwise.
-    struct Settings: Encodable { let sources: [Source]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
+    struct Settings: Encodable { let sources: [Source]; let places: [Place]; let accessibility: Bool; let idleMinutes: Int; let questionSeconds: Int; let login: Bool; let live: String
         /// A display without a notch is connected, and whether hovering its top edge opens Perch there.
         let hasExternal: Bool; let hoverExternal: Bool
         /// Show Perch on: "mouse", "window" or a display's id, and the displays to choose from (a chosen one that is not
@@ -92,8 +111,13 @@ struct UISnapshot: Encodable {
         let showOn: String; let displays: [Display]
         let shortcut: ShortcutState
         var newShortcut: NewShortcut? = nil
+        /// Perch had Accessibility before: the row says needs access again.
+        var accessWas = false
         /// It came from the card or the list, so Esc goes back there.
-        var back = false }
+        var back = false
+        /// Pull requests: whether the marks show, and Checks: "on", "off", or why it cannot be ("nogh": no GitHub CLI, "login": not signed in).
+        var showPRs = true
+        var prs = "off" }
     var newSession: NewSession?
 
     /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
@@ -107,11 +131,13 @@ struct UISnapshot: Encodable {
     let questionSeconds = Prefs.questionSeconds
     /// The kinds of live activity the notch does not announce (Settings, Notify me about); the page filters its live activity by them.
     let notifyOff = Prefs.notifyOff.sorted()
+    /// Pull requests are shown at all (Settings, Pull requests).
+    let showPRs = Prefs.prShow
     let phase: String
     let settings: Settings?
     let character: Character
     let onboarding: Onboarding?
-    let selected: Int
+    var selected: Int
     let autoCollapse: Bool
     let timerToken: Int
     let screen: Screen
@@ -141,7 +167,13 @@ struct UISnapshot: Encodable {
     var update: UpdateInfo?
     /// The first start after an update: what is new (phase "whatsnew").
     var whatsNew: WhatsNewCard?
-    struct WhatsNewCard: Encodable { let version: String; let headline: String; let bullets: [String] }
+    struct WhatsNewCard: Encodable { let version: String; let headline: String; let bullets: [String]
+        /// The update lost Accessibility Perch had: lost, asked (Allow pressed) or granted. The card says so with Allow.
+        var access: String? = nil }
+    /// Accessibility Perch had, gone (AccessLoss): the notch row's phase (lost, asked, granted), whether an update brought it
+    /// about, and which loss it is, so the page tells a new one from one it put away. Only at rest, once per loss.
+    var access: AccessRow?
+    struct AccessRow: Encodable { let phase: String; let afterUpdate: Bool; let since: Int }
     /// This build can look for updates, so Settings offers it.
     var canUpdate = false
     /// The version and build, "0.1.0 (198)", shown small at the foot of the list.
@@ -150,7 +182,14 @@ struct UISnapshot: Encodable {
     /// PERCH_NOTCH_GUIDE=1 paints the resting notch magenta at the full size the system reports; =2 paints the shape Perch really draws.
     /// Either way any overhang past the hardware shows.
     var guide: String? = ProcessInfo.processInfo.environment["PERCH_NOTCH_GUIDE"]
-    var version: String? = {
+    /// The macOS this is, "26.1": Send feedback says it goes along, when you let it.
+    var macOS: String = UISnapshot.macOSVersion
+    var version: String? = UISnapshot.appVersion
+    static let macOSVersion: String = {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.patchVersion > 0 ? "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)" : "\(v.majorVersion).\(v.minorVersion)"
+    }()
+    static let appVersion: String? = {
         let info = Bundle.main.infoDictionary ?? [:]
         guard let short = info["CFBundleShortVersionString"] as? String else { return nil }
         return (info["CFBundleVersion"] as? String).map { "\(short) (\($0))" } ?? short
@@ -174,11 +213,12 @@ struct UISnapshot: Encodable {
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
                       status: Status(kind: p.status.kind, text: p.status.text, app: p.status.app),
                       steps: p.steps.map { Step(icon: $0.icon, text: $0.text) },
-                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject,
+                      ask: p.ask.map { UIAsk(kind: $0.kind.rawValue, title: $0.title, subject: $0.subject, brief: $0.brief,
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked)
+                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked, askedLast: p.askedLast,
+                      prs: p.prs.map(UIPR.init), ci: p.prNeeds)
         }
     }
 }

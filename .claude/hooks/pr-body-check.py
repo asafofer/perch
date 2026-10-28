@@ -16,24 +16,38 @@ else:
     except ValueError:
         args = cmd.split()
     body = None
+    # A PR into another repo (the website's, say) has its own rules: only Perch's template is enforced here.
+    repo = None
+    for i, a in enumerate(args):
+        if a in ("--repo", "-R") and i + 1 < len(args):
+            repo = args[i + 1]
+        elif a.startswith("--repo=") or a.startswith("-R="):
+            repo = a.split("=", 1)[1]
+        elif a.startswith("-R") and len(a) > 2:
+            repo = a[2:]
+    if repo and "/".join(repo.rstrip("/").split("/")[-2:]).lower() != "asafofer/perch":
+        sys.exit(0)
+unread = None
 for i, a in enumerate(args):
     for flag in ("--body-file", "-F"):
-        if a == flag and i + 1 < len(args):
-            path = args[i + 1]
-            try:
-                body = open(os.path.expanduser(path)).read()
-            except OSError:
-                body = ""
-        elif a.startswith(flag + "="):
-            try:
-                body = open(os.path.expanduser(a.split("=", 1)[1])).read()
-            except OSError:
-                body = ""
+        path = args[i + 1] if a == flag and i + 1 < len(args) else a.split("=", 1)[1] if a.startswith(flag + "=") else None
+        if path is None:
+            continue
+        try:
+            body = open(os.path.expanduser(os.path.expandvars(path))).read()   # $HOME/x.md as Bash would see it, nothing run
+        except OSError:
+            body, unread = "", path
     if a in ("--body", "-b") and i + 1 < len(args):
         body = args[i + 1]
     elif a.startswith("--body="):
         body = a.split("=", 1)[1]
 
+# The hook runs before the command: a body file the same command writes is not there yet.
+if unread:
+    print("The body file " + unread + " is not there yet: this check reads it before the command runs, so a command "
+          "that writes it and opens the PR together is refused. Write the file first (a step of its own), then run "
+          "the PR command with --body-file on its own.", file=sys.stderr)
+    sys.exit(2)
 missing = []
 if body is None:
     missing.append("a body (--body-file with the filled template)")

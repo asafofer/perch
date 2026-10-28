@@ -14,22 +14,33 @@ enum Prefs {
     static var color: String { get { d.string(forKey: "character.color") ?? "#F5B83D" } set { d.set(newValue, forKey: "character.color") } }
     /// Which agents Perch reads: all of them, except the ones you switched off. Kept as the ones switched off, so an agent
     /// Perch learns later starts on. (Before, the ones switched on were kept, when there were only Claude and Codex.)
+    /// One that starts off (`Agent.onByDefault`: Claude chats) is kept the other way round, as switched on.
     static var enabledSources: Set<String> {
         get {
-            let all = Set(Agent.all.map(\.id))
+            let all = Set(Agent.all.filter(\.onByDefault).map(\.id)).union(d.stringArray(forKey: "sources.optedIn") ?? [])
             if let off = d.array(forKey: "sources.disabled") as? [String] { return all.subtracting(off) }
             if let on = d.array(forKey: "sources.enabled") as? [String] { return all.subtracting(Set(["claude", "codex"]).subtracting(on)) }
             return all
         }
-        set { d.set(Array(Set(Agent.all.map(\.id)).subtracting(newValue)), forKey: "sources.disabled") }
+        set {
+            let byDefault = Set(Agent.all.filter(\.onByDefault).map(\.id))
+            d.set(Array(byDefault.subtracting(newValue)), forKey: "sources.disabled")
+            d.set(Array(newValue.subtracting(byDefault)), forKey: "sources.optedIn")
+        }
     }
+    /// Accessibility Perch had (AccessLoss): whether it ever had it, the build that last had it (a loss on another build came
+    /// with an update), and whether this loss was said, so a relaunch does not say it again.
+    /// nil on an install from before it was kept (AccessLoss.seeded).
+    static var accessHad: Bool? { get { d.object(forKey: "access.had") as? Bool } set { d.set(newValue, forKey: "access.had") } }
+    static var accessHadOn: String? { get { d.string(forKey: "access.hadOn") } set { d.set(newValue, forKey: "access.hadOn") } }
+    static var accessSaid: Bool { get { d.bool(forKey: "access.said") } set { d.set(newValue, forKey: "access.said") } }
     /// The agent and folder you last started a new session with (NewSession.Choice id, folder path).
     static var lastNewChoice: String? { get { d.string(forKey: "new.choice") } set { d.set(newValue, forKey: "new.choice") } }
     static var lastNewFolder: String? { get { d.string(forKey: "new.folder") } set { d.set(newValue, forKey: "new.folder") } }
     /// The terminal app you used most recently, so Pick up opens a closed terminal session there.
     static var lastTerminal: String? { get { d.string(forKey: "terminal.last") } set { d.set(newValue, forKey: "terminal.last") } }
     /// Where each terminal session last ran, by session id: {"kind": "herdr", "socket", "session", "workspace", "bin"} or
-    /// {"kind": "cmux"}. A session that stopped reopens there.
+    /// {"kind": "cmux"} or {"kind": "agterm"}. A session that stopped reopens there.
     static var places: [String: [String: String]] {
         get { d.dictionary(forKey: "places") as? [String: [String: String]] ?? [:] }
         set { d.set(newValue, forKey: "places") }
@@ -64,6 +75,10 @@ enum Prefs {
         get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
         set { d.set(newValue.sorted(), forKey: "notifyOff") }
     }
+    /// Whether sessions show their pull requests (the marks from the Claude app's own list). On by default.
+    static var prShow: Bool { get { d.object(forKey: "pr.show") as? Bool ?? true } set { d.set(newValue, forKey: "pr.show") } }
+    /// Whether Perch also asks GitHub, through the GitHub CLI's login, how each one stands (checks, reviews, conflicts). Off until switched on.
+    static var prChecks: Bool { get { d.bool(forKey: "pr.checks") } set { d.set(newValue, forKey: "pr.checks") } }
     /// What opens and closes Perch: a tap of Command and Option unless you recorded your own.
     static var openShortcut: Shortcut {
         get { (d.data(forKey: "shortcut.open").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { Shortcut.problem($0) == nil ? $0 : nil } ?? .standard }

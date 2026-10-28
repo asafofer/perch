@@ -1,7 +1,7 @@
 import AppKit
 import PerchCore
 
-/// Reads the recent sessions of Claude Code, Codex, OpenCode and pi and turns each into a card. One row per session.
+/// Reads the recent sessions of Claude Code, Codex, OpenCode, pi and Cursor and turns each into a card. One row per session.
 final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     /// The list shows five rows at a time and scrolls for the rest.
     var maxProjects = 15
@@ -18,25 +18,32 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     private let scanner = SessionScanner()
 
     func parkedProjects() -> [Project] {
-        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects)
+        var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects) + scanner.cursor(limit: maxProjects)
+            + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects, words: isEnabled(Agent.chat.id))
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
-        for item in all {
+        for item in all where !item.project.smallTalk {
             let key = item.project.app, cwd = item.project.cwd ?? item.project.id
             var entry = perApp[key] ?? ([], [])
             if entry.seen.insert(cwd).inserted { entry.names.append(item.project.name) }
             perApp[key] = entry
         }
         lock.lock(); _counts = perApp.mapValues { Count(count: $0.names.count, names: $0.names) }; lock.unlock()
-        var out = Array(all.filter { isEnabled($0.project.app) }.prefix(maxProjects))
+        // Small talk in a terminal takes no real session's place: it is matched to the running agents with the rest (so its
+        // process does not claim another session in that folder), then kept only if one of them runs it.
+        let on = all.filter { isEnabled($0.project.app) }
+        var out = (Array(on.filter { !$0.project.smallTalk }.prefix(maxProjects)) + on.filter(\.project.smallTalk)).sorted { $0.last > $1.last }
         if out.contains(where: { $0.project.terminal }) {
             var projects = out.map(\.project)
             Self.placeTerminalSessions(&projects)
             for i in out.indices { out[i].project = projects[i] }
         }
+        out = Array(out.filter { !$0.project.smallTalk || $0.project.pid != nil }.prefix(maxProjects))
         let fresh = Dictionary(out.map { ($0.project.id, (digest: $0.digest, git: $0.git)) }, uniquingKeysWith: { a, _ in a })
         lock.lock(); _inputs = fresh; lock.unlock()
-        return out.map(\.project)
+        var projects = out.map(\.project)
+        PullRequestState.shared.apply(&projects)
+        return projects
     }
 
     /// For each terminal session: the process running it (if any), the terminal it shows in or would open in, whether that
@@ -46,7 +53,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         FocusProbe.setKnown((live, viewers))
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
-        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.herdrBin) } }
+        for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.bin) } }
         func seen(_ h: LiveSessions.Hit) -> (status: String, session: String?)? {
             if case .herdr(let pane, let socket, _) = h.place { return herdr[socket]?[pane] }
             return nil
@@ -71,10 +78,15 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                 switch h.place {
                 case .herdr(_, let socket, let session):
                     projects[i].host = "herdr"; projects[i].via = h.app ?? preferred
-                    places[id] = ["kind": "herdr", "socket": socket, "session": session, "workspace": h.place.herdrWorkspace ?? "", "bin": h.herdrBin ?? ""]
+                    places[id] = ["kind": "herdr", "socket": socket, "session": session, "workspace": h.place.herdrWorkspace ?? "", "bin": h.bin ?? ""]
                     if let s = seen(h) { projects[i] = HerdrStatus.apply(s.status, to: projects[i]) }
+                case .tmux(_, let socket):
+                    projects[i].host = "tmux"; projects[i].via = h.app ?? preferred
+                    places[id] = ["kind": "tmux", "socket": socket, "session": h.tmuxSession ?? "", "bin": h.bin ?? ""]
                 case .cmux:
                     projects[i].via = Terminals.cmux; places[id] = ["kind": "cmux"]
+                case .agterm:
+                    projects[i].via = Terminals.agterm; places[id] = ["kind": "agterm"]
                 case .tab:
                     projects[i].via = h.app ?? preferred
                     if let app = h.app { places[id] = ["kind": "tab", "app": app] }
@@ -85,8 +97,12 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                 switch last?["kind"] {
                 case "herdr":
                     projects[i].host = "herdr"
-                    projects[i].via = viewers.first { $0.session == last?["session"] }?.app ?? preferred
+                    projects[i].via = viewers.first { $0.tmux == nil && $0.session == last?["session"] }?.app ?? preferred
+                case "tmux":
+                    projects[i].host = "tmux"
+                    projects[i].via = viewers.first { $0.tmux == last?["socket"] && $0.session == last?["session"] }?.app ?? preferred
                 case "cmux": projects[i].via = Terminals.cmux
+                case "agterm": projects[i].via = Terminals.agterm
                 default: projects[i].via = preferred
                 }
             }
@@ -108,10 +124,10 @@ enum Landing {
 }
 
 /// What "Pick up" does: Claude app sessions open in the Claude app, Codex threads in Codex, Conductor workspaces in Conductor, terminal sessions in their tab,
-/// herdr pane or cmux surface, or open again where they last ran.
+/// herdr pane, cmux surface or agterm pane, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", conductorApp = ConductorApp.bundle
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
@@ -125,9 +141,15 @@ enum Restorer {
                 let landing: Landing
                 let live = LiveSessions.all()
                 let hit = live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }
-                if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch pick up: \(agent) \(id.prefix(8)) in \(cwd); running: \(hit.map { "\($0.pid) \($0.place)" } ?? "no")") }
-                if let hit, let app = Terminals.focus(hit, hints: hints) {
-                    landing = .app(app, exact: true)
+                if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("%@", "Perch pick up: \(agent) \(id.prefix(8)) in \(cwd); running: \(hit.map { "\($0.pid) \($0.place)" } ?? "no")") }
+                if let hit, let shown = Terminals.focus(hit, hints: hints) {
+                    landing = .app(shown.app, exact: shown.exact)
+                } else if hit != nil {
+                    // It runs where Perch cannot follow (no terminal app above it). Never start a second copy of it: bring
+                    // forward the terminal you used last, which is most of the way there.
+                    let app = Terminals.preferred
+                    NSRunningApplication.runningApplications(withBundleIdentifier: app).first?.activate()
+                    landing = .app(app, exact: false)
                 } else {
                     landing = reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id))
                 }
@@ -145,30 +167,62 @@ enum Restorer {
             }
             return
         }
+        if p.app == Agent.cursor.id {
+            done(.app(cursorApp, exact: CursorWindow.open(chat: p.sessionId, folder: p.cwd)))
+            return
+        }
         if p.app == "codex" {
             if let id = p.sessionId, let url = URL(string: "codex://threads/\(id)") { NSWorkspace.shared.open(url); done(.app(codexApp, exact: true)) }
             else if let app = AppIcons.url("codex") { NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration()); done(.app(codexApp, exact: false)) }
             else { done(.none) }
             return
         }
-        if let id = p.desktopSessionId, let url = URL(string: "claude://code/continue?session=\(id)") {
+        if let url = link(p) {
             NSWorkspace.shared.open(url); done(.app(claudeApp, exact: true))
             return
         }
         done(.none)   // sample data does nothing
     }
 
-    /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, the cmux surface
-    /// that kept it (cmux resumes it), a new cmux workspace, the OpenCode app, or a new window of your terminal.
+    /// Where a session in the Claude app opens: a Code session, a task (what was Cowork), a chat. Nil for anything else.
+    nonisolated static func link(_ p: Project) -> URL? {
+        switch p.app {
+        case Agent.cowork.id: return p.desktopSessionId.flatMap { URL(string: "claude://claude.ai/cowork/\($0)") }
+        case Agent.chat.id: return p.sessionId.flatMap { URL(string: "claude://claude.ai/chat/\($0)") }
+        default: return p.desktopSessionId.flatMap { URL(string: "claude://code/continue?session=\($0)") }
+        }
+    }
+
+    /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, a new window in its
+    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, a new agterm session, the
+    /// OpenCode app, or a new window of your terminal.
     /// Blocks on the tools it drives, so call it off the main thread.
+    /// Where a session opened again in a herdr or tmux client's terminal lands. A tab of that terminal that was only a guess
+    /// is no place to type into, so it lands as an app that is not exact.
+    nonisolated private static func shown(_ s: Terminals.Shown?, or preferred: String, cwd: String, agent: String) -> Landing {
+        guard let s else { return .newTerminal(preferred, cwd: cwd, agent: agent) }
+        return s.exact ? .newTerminal(s.app, cwd: cwd, agent: agent) : .app(s.app, exact: false)
+    }
+
     nonisolated static func reopen(agent: String, session id: String, cwd: String, command: String) -> Landing {
         let last = Prefs.places[id], preferred = Terminals.preferred
         if last?["kind"] == "herdr", let socket = last?["socket"], let name = last?["session"] {
             let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
             if Herdr.running(socket: socket, bin: bin), Herdr.run(command, cwd: cwd, workspace: last?["workspace"], socket: socket, bin: bin) {
-                if let v = LiveSessions.scan().viewers.first(where: { $0.session == name }) { return .newTerminal(Terminals.show(v) ?? preferred, cwd: cwd, agent: agent) }
-                Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
-                return .newTerminal(preferred, cwd: cwd, agent: agent)
+                if let v = LiveSessions.scan().viewers.first(where: { $0.tmux == nil && $0.session == name }) { return shown(Terminals.show(v), or: preferred, cwd: cwd, agent: agent) }
+                let app = Terminals.open(Herdr.attach(session: name, bin: bin), in: cwd, app: preferred)
+                return .newTerminal(app, cwd: cwd, agent: agent)
+            }
+        }
+        if last?["kind"] == "tmux", let socket = last?["socket"] {
+            let bin = last?["bin"].flatMap { $0.isEmpty ? nil : $0 }
+            if let pane = Tmux.run(command, cwd: cwd, session: last?["session"], socket: socket, bin: bin) {
+                // Shown in the client already on that session, else the one used last; with none, a terminal attaches to it.
+                if let c = Tmux.ask(socket: socket, bin: Tmux.bin(bin))?.viewer(of: pane), Tmux.show(pane: pane, socket: socket, client: c.tty, bin: bin) {
+                    return shown(Terminals.show(LiveSessions.viewer(c, socket: socket, bin: Tmux.bin(bin))), or: preferred, cwd: cwd, agent: agent)
+                }
+                let app = Terminals.open(Tmux.attach(pane: pane, socket: socket, bin: bin), in: cwd, app: preferred)
+                return .newTerminal(app, cwd: cwd, agent: agent)
             }
         }
         if Cmux.app != nil {
@@ -177,12 +231,17 @@ enum Restorer {
             }
             if last?["kind"] == "cmux" { Terminals.open(command, in: cwd, app: Terminals.cmux); return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent) }
         }
+        // Terminals.open falls back to Terminal when agterm cannot make the session.
+        if last?["kind"] == "agterm" {
+            let app = Terminals.open(command, in: cwd, app: Terminals.agterm)
+            return .newTerminal(app, cwd: cwd, agent: agent)
+        }
         // An OpenCode session that never ran in a terminal Perch saw may be the desktop app's.
         if agent == "opencode", last == nil, let app = NSRunningApplication.runningApplications(withBundleIdentifier: opencodeApp).first {
             app.activate()
             return .app(opencodeApp, exact: false)
         }
-        Terminals.open(command, in: cwd, app: preferred)
-        return .newTerminal(preferred, cwd: cwd, agent: agent)
+        let app = Terminals.open(command, in: cwd, app: preferred)
+        return .newTerminal(app, cwd: cwd, agent: agent)
     }
 }

@@ -1,0 +1,8 @@
+# only the function goes up: nothing else here is served
+*
+!api
+!api/**
+!package.json
+!package-lock.json
+!vercel.json
+!tsconfig.json

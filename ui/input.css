@@ -205,6 +205,18 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .fly { position: absolute; z-index: 20; max-width: 260px; padding: 4px 10px; border-radius: 12px 12px 12px 4px; background: rgba(255,255,255,.14);
   color: #fafafa; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; transform-origin: 50% 50%; }
 /* switches: narrow, in the character's colour when on; the knob keeps a hairline so it reads on Cream */
+/* one of Claude's kinds on its onboarding tile: its name and a check, the name greyed while it is off */
+.o-chip { display: flex; height: 22px; align-items: center; gap: 3px; border-radius: 6px; padding: 0 5px 0 7px; font-size: 11.5px; cursor: pointer; background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); transition: color .18s, background-color .18s; }
+.o-chip[aria-checked="false"] { color: rgba(255,255,255,.45); background: rgba(255,255,255,.04); }
+.o-chip svg { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
+.o-chip[aria-checked="true"] svg { opacity: 1; scale: 1; }
+.o-chip:hover, .o-chip.hv { background: rgba(255,255,255,.11); }
+@media (prefers-reduced-motion: reduce) { .o-chip svg { transition: none; } }
+/* a check that stands for a switch: the mark when on, nothing when off, fading between */
+.ck { display: grid; place-items: center; width: 16px; height: 16px; flex: none; cursor: pointer; color: rgba(255,255,255,.8); }
+.ck svg { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
+.ck[aria-checked="true"] svg { opacity: 1; scale: 1; }
+@media (prefers-reduced-motion: reduce) { .ck svg { transition: none; } }
 .sw { position: relative; width: 26px; height: 16px; flex: none; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; transition: background-color .2s; }
 .sw[aria-checked="true"] { background: var(--cr); }
 .sw > i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 .5px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.3); translate: 0 0; }
@@ -225,10 +237,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .s-bar > i { position: absolute; top: 0; right: 2px; width: 3px; border-radius: 3px; background: rgba(255,255,255,.26); transition: width .15s, background-color .15s; }
 .s-bar:hover > i, .s-bar.hv > i, .s-bar.drag > i { width: 5px; background: rgba(255,255,255,.42); }
 /* the live activity (app.js activity): the notch grows to the sides with the session and what happened, and down by a row of buttons */
-.n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings], .n[data-s=idle][data-act=sent] {
+.n[data-s=idle][data-act=full], .n[data-s=idle][data-act=wings], .n[data-s=idle][data-act=sent], .n[data-s=idle][data-act=peek] {
   transition: width .46s cubic-bezier(.2,1.3,.35,1), margin-left .46s cubic-bezier(.2,1.3,.35,1), height .5s .04s cubic-bezier(.3,1.35,.45,1), border-radius .4s, --gcol .7s; }
 .n[data-s=idle][data-act=full] { border-radius: 0 0 20px 20px; }
-.n[data-s=idle][data-act=full] .ear, .n[data-s=idle][data-act=wings] .ear, .n[data-s=idle][data-act=sent] .ear { transform: scale(1); }
+.n[data-s=idle][data-act=full] .ear, .n[data-s=idle][data-act=wings] .ear, .n[data-s=idle][data-act=sent] .ear, .n[data-s=idle][data-act=peek] .ear { transform: scale(1); }
 .act { position: absolute; inset: 0; pointer-events: none; color: #fafafa; font-size: 12.5px; letter-spacing: -.011em; }
 .act > * { position: absolute; opacity: 0; transition: opacity .18s, transform .3s cubic-bezier(.2,.9,.3,1), left .45s cubic-bezier(.3,1.2,.45,1), right .45s cubic-bezier(.3,1.2,.45,1); }
 .act-l { left: var(--as); top: 0; height: var(--ah); display: flex; align-items: center; gap: 7px; max-width: calc(var(--aw) + 22px); }
@@ -245,7 +257,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-body.tall { flex-direction: column; align-items: stretch; justify-content: flex-start; padding-top: 4px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }   /* a long list scrolls, six lines show */
 .act-body.fail { top: calc(var(--ah) + 5px); }   /* a failed update's line sits a little lower, clear of the row above */
 .act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
-.act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; }
+.act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; cursor: pointer; transition: color .15s; }
+.act-q.pt { color: #fff; }   /* clicked, the question opens on the card, all of it */
+.act-b.act-o { background: rgba(255,255,255,.08); margin-left: 4px; }   /* to the app: a button of its own, set apart from the choices */
+.act-b.act-o.pt { background: rgba(255,255,255,.14); }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
 .act-rec { margin-left: 6px; font-style: normal; font-weight: 500; font-size: inherit; color: #a1a1aa; }
 .act-ex b { display: block; font-weight: 500; color: #e4e4e7; }
@@ -260,11 +275,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-b { height: 24px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 3px 0 8px; border-radius: 7px; color: #d4d4d8; font-size: 12px; font-weight: 500; cursor: pointer;
   transition: background-color .15s, color .15s; max-width: 190px; }
 .act-b.nk { padding: 0 10px; justify-content: center; }   /* a button with no key beside its words */
-.act-b:hover, .act-b.hv { background: rgba(255,255,255,.1); color: #fafafa; }
+/* lit from where the pointer is (app.js markAct), not :hover: WebKit leaves a panel it was never clicked in hovering what the pointer left */
+.act-b.pt { background: rgba(255,255,255,.1); color: #fafafa; }
 .act-b.act-x { width: 24px; padding: 0; justify-content: center; color: #71717a; margin-right: 2px; }
-.act-b.act-x:hover, .act-b.act-x.hv { color: #fafafa; }
+.act-b.act-x.pt { color: #fafafa; }
 .act-b.go { background: #fafafa; color: #0a0a0a; }
-.act-b.go:hover, .act-b.go.hv { background: #e4e4e7; }
+.act-b.go.pt { background: #e4e4e7; }
 .act-b.ch { flex: 1 1 0; min-width: 0; max-width: none; justify-content: flex-start; padding: 0 8px 0 3px; }
 .act-mod { flex: none; padding: 0 4px 0 2px; font: 500 10.5px/1 Inter, sans-serif; color: #71717a; letter-spacing: .02em; }
 .act-bl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -279,11 +295,14 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 /* folded to wings: only the app and the mark, beside the camera */
 .act[data-mode=wings] > .act-l, .act[data-mode=wings] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
 .act[data-mode=wings] .act-n, .act[data-mode=wings] .act-s { display: none; }
+/* an update found by itself peeks: Update available, and the version beside its mark; a click opens it into the row */
+.act[data-mode=peek] > .act-l, .act[data-mode=peek] > .act-r { opacity: 1; transition-delay: .2s, 0s, 0s, 0s; }
+.n[data-act=peek] .act { pointer-events: auto; cursor: pointer; }
 /* an answer went (app.js sentShow): the row folds to its top line; the question and the buttons fade up and away */
 .act[data-mode=sent] > .act-l, .act[data-mode=sent] > .act-r { opacity: 1; transform: none; }
 /* the choice you pressed lights for a beat before the row folds; the rest step back */
 .act.chose .act-b:not(.on):not(.act-x) { opacity: .35; transition: opacity .12s; }
-.act-b.on, .act-b.on:hover, .act-b.on.hv { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
+.act-b.on, .act-b.on.pt { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
 .act-b.on kbd { background: rgba(0,0,0,.08); color: #52525b; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 @media (prefers-reduced-motion: reduce) { .act > * { transition: opacity .15s; } }
 /* the list's section headers: what needs you, today, earlier */
@@ -305,7 +324,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
 /* the passing light: a white copy of the same words, the same markup (so a command in code lines up), seen through a moving band */
 .shimmer code, .shimmer strong { color: inherit; }
-.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%); mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
   -webkit-mask-size: 250% 100%; mask-size: 250% 100%; -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
   animation: shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite; }
@@ -342,10 +361,11 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .p-open .o-x .shine, .p-open .o-ask button { user-select: none; -webkit-user-select: none; }
 /* The character's colour lifted toward white, so it reads the same on every colour (Saffron would go olive on black). */
 .perch { --hl: color-mix(in srgb, var(--cr) 62%, #fff); }
-.p-open ::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
+.p-open ::selection, .nw-in::selection, .fb-in::selection, .fb-mail::selection { background: color-mix(in srgb, var(--hl) 34%, transparent); color: #fff; }
 /* The highlight is drawn by the page (app.js `hlDraw`): one soft, rounded piece per line that fades in, screened over the
-   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. */
-html:not([data-hl=native]) .p-open ::selection { background: transparent; }
+   words so they stay white. The system's own is hidden but still there: it is what Command+C copies. A field (the reply,
+   the new session's prompt) keeps the system's own, in the same colour: the page draws none there. */
+html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transparent; }
 .hl { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
 .hl i { position: absolute; border-radius: 4px; background: var(--hl); opacity: .3; mix-blend-mode: screen; transition: opacity .12s; }
 .hl i.in { opacity: 0; }
@@ -355,19 +375,25 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 @media (prefers-reduced-motion: reduce) { .hl i { transition: none; } .hl.copied i { animation-duration: .25s; } }
 .o-said { display: none; }
 .p-open[data-rep="1"] .o-said { display: block; }
-.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx { display: none !important; }
+.p-open[data-rep="1"] .o-h, .p-open[data-rep="1"] .o-c, .p-open[data-rep="1"] .o-ask, .p-open[data-rep="1"] .o-nx:not(.live) { display: none !important; }
+/* replying while it works: the step it is on stays under the message, so the reply never reads as stale */
+/* answering in your own words (Other): the agent's choices step back while you type */
+.p-open .o-ask button { transition: opacity 200ms ease, background-color 150ms ease; }
+.p-open[data-oth="1"] .o-ask button:not(.o-other) { opacity: .35; }
 /* what you last said: a bubble at the top of the message, a scroll up from where it opens */
+.o-you.last { margin: 10px 0 0 auto; }
 .o-you { width: fit-content; max-width: 88%; margin: 0 0 8px auto; padding: 5px 11px; border-radius: 14px 14px 4px 14px; background: rgba(255, 255, 255, .1); white-space: pre-wrap; overflow-wrap: anywhere; }
 .o-said .o-said-in { padding-top: 10px; padding-bottom: 10px; }
 .o-said-in { scrollbar-width: none; overscroll-behavior: contain; }
 .o-said-in::-webkit-scrollbar { display: none; }
-.o-said-in.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
-/* a file dragged over the card (app.js dragOver): the reply field lights up as where it goes */
-.f-rep .r-in.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
-.f-rep .r-in.drop::placeholder { color: rgba(255, 255, 255, .62); }
+/* the fade goes on the still box around a list that scrolls, never on the scroller: WebKit repaints a masked scroller every frame */
+.o-said.ov, .wn-lw.ov { -webkit-mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(transparent, #000 14px, #000 calc(100% - 10px), transparent); }
+/* a file dragged over the card (app.js dragOver, nwDragOver): the reply field, or the new session's prompt, lights up as where it goes */
+.f-rep .r-in.drop, .p-ns .nw-box.drop, .p-set .fb-box.drop { background-color: rgba(255, 255, 255, .15); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .42); }
+.f-rep .r-in.drop::placeholder, .p-ns .nw-box.drop .nw-in::placeholder, .p-set .fb-box.drop .fb-in::placeholder { color: rgba(255, 255, 255, .62); }
 /* and the file right on it: ready to let go */
-.f-rep .r-in.drop.on { background-color: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .75); }
-.f-rep .r-in.drop.on::placeholder { color: rgba(255, 255, 255, .9); }
+.f-rep .r-in.drop.on, .p-ns .nw-box.drop.on, .p-set .fb-box.drop.on { background-color: rgba(255, 255, 255, .22); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .75); }
+.f-rep .r-in.drop.on::placeholder, .p-ns .nw-box.drop.on .nw-in::placeholder, .p-set .fb-box.drop.on .fb-in::placeholder { color: rgba(255, 255, 255, .9); }
 .md-code { color: var(--cr, hsl(var(--foreground))); }
 .o-said-in > :first-child { margin-top: 0; } .o-said-in > :last-child { margin-bottom: 0; }
 /* a table in what the agent said (app.js mdTable): no lines. The header in grey, a faint band on every other row, even
@@ -375,11 +401,11 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .md-tbl { max-height: 138px; overflow: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .md-tbl::-webkit-scrollbar { display: none; }
 /* a table taller than the message's window scrolls in its own, as tall as that window, its header staying put */
-.md-tbl[data-f] { --l: 0px; --r: 0px; --b: 0px;
+.md-tw[data-f] { --l: 0px; --r: 0px; --b: 0px;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
   mask-image: linear-gradient(to right, transparent, #000 var(--l), #000 calc(100% - var(--r)), transparent), linear-gradient(#000 calc(100% - var(--b)), transparent);
   -webkit-mask-composite: source-in; mask-composite: intersect; }
-.md-tbl[data-f~="l"] { --l: 24px; } .md-tbl[data-f~="r"] { --r: 24px; } .md-tbl[data-f~="b"] { --b: 16px; }
+.md-tw[data-f~="l"] { --l: 24px; } .md-tw[data-f~="r"] { --r: 24px; } .md-tw[data-f~="b"] { --b: 16px; }
 .md-tbl table { border-collapse: separate; border-spacing: 0; font-size: 12px; line-height: 17px; font-variant-numeric: tabular-nums; }
 .md-tbl th, .md-tbl td { padding: 2px 8px; text-align: left; vertical-align: top; white-space: nowrap; }
 /* the message's own colour (white at 5% on the card's black), so rows pass under it */
@@ -434,6 +460,9 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .o-st .st-t { align-self: baseline; display: inline-block; }
 .o-st .st-ic { width: 0; margin-right: 0; justify-items: end; transition: width .25s ease-in-out, margin-right .25s ease-in-out; }
 .o-st .st-ic.has { width: 12px; margin-right: 6px; }
+/* Settings' Send feedback row, the same way: the spinner, the check or the orange mark brings its own room and takes it away */
+.fb-st .fb-ic { width: 0; margin-right: 0; justify-items: end; transition: width .25s ease-in-out, margin-right .25s ease-in-out; }
+.fb-st .fb-ic.has { width: 16px; margin-right: 6px; }
 /* text states swap: out up with a blur, then in from below (app.js swapText) */
 .t-swap { transition: transform .15s ease-in-out, filter .15s ease-in-out, opacity .15s ease-in-out; }
 .t-swap.is-exit { transform: translateY(-4px); filter: blur(2px); opacity: 0; }
@@ -459,6 +488,40 @@ html:not([data-hl=native]) .p-open ::selection { background: transparent; }
 .sel-pill.on { opacity: 1; }
 .sel-pill.snap { transition: none; }
 .p-switch.nomark .sel-pill { opacity: 0; transition-duration: .2s; }
+/* a question card's choice under the pointer, the same slide (app.js markChoice); a picked choice keeps its own fill */
+.ch-pill { left: 0; right: 0; border-radius: 8px; background: rgba(255,255,255,.06); }
+/* a question taller than the panel: its choices scroll (app.js fitAsk) */
+.ch-box.fit { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
 .p-switch .s-l .row.bg-accent:not(.crossed) { background-color: transparent; }
 .p-switch .s-l .row { position: relative; }
 @media (prefers-reduced-motion: reduce) { .sel-pill { transition: opacity .01ms; } }
+/* a row of attachments scrolls sideways with no bar (app.js attChips) */
+.r-att, .nw-att, .fb-att { scrollbar-width: none; overscroll-behavior: contain; }
+.r-att::-webkit-scrollbar, .nw-att::-webkit-scrollbar, .fb-att::-webkit-scrollbar { display: none; }
+/* a file over a new session's agent or folder: that row says Drop to start (app.js nwDropRow) */
+/* the whole card says it takes the file, and the row under it is lit a step brighter than a chosen row */
+.nw.dropping .nw-right { display: none; }
+.nw.dropping .nw-dhint { display: inline; }
+.nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
+.nw .nrow.dz .nw-rt { display: none; }
+.nw .nrow.dz .nw-dz { display: inline-flex; }
+
+/* the label over a pull request icon (app.js prTip): a small raised surface, a row for each pull request */
+.pr-tip { position: fixed; z-index: 60; left: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 11px 7px 9px; border-radius: 10px; background: #1d1d20; color: #e4e4e7;
+  font: 500 12px/18px Inter, sans-serif; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 10px 28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4); }
+.pr-tip.on { opacity: 1; transform: none; pointer-events: auto; }
+.pr-tip .r { display: flex; align-items: center; gap: 7px; height: 18px; }
+.pr-tip { width: max-content; max-width: 340px; padding: 5px; gap: 2px; pointer-events: none; }
+.pr-tip .pi { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background-color .12s; }
+.pr-tip .pi:hover, .pr-tip .pi.hv { background: rgba(255,255,255,.08); }
+
+.pr-tip .p2 .t { max-width: 100%; font-size: 13px; color: #fafafa; }
+.pr-tip .p2 .r { font-size: 12px; }
+.pr-tip .m { color: #85858d; }
+@media (prefers-reduced-motion: reduce) { .pr-tip { transform: none; transition: none; } }
+
+/* a title or line that does not fit fades out at its end, as Claude's own list does, instead of ending in an ellipsis */
+.fade { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+.fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }

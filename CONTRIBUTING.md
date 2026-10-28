@@ -2,11 +2,11 @@
 
 Thanks for wanting to help. Perch is small on purpose: the bar is polish and restraint, not more features. A bug fix or a rough edge smoothed is the easiest thing to land. For a new feature, open an issue first and say what it is for, so nobody builds something that will not be merged.
 
-[AGENTS.md](AGENTS.md) is the full guide, for people and coding agents alike: architecture, design rules and the things that will bite you. Read it before a change of any size.
+[AGENTS.md](AGENTS.md) is the full guide, for people and coding agents alike: architecture, design rules and the things that will bite you. Read it before a change of any size, and the file in [docs/behavior](docs/behavior) for the area you change.
 
 ## Set up
 
-You need macOS 26 on Apple silicon, Xcode 26 and Node 20 or later.
+Perch runs on macOS 15 (Sequoia) or later. To build it you need a Mac on Apple silicon with Xcode 26 or later (Swift 6.2) and Node 20 or later.
 
 ```bash
 cd ui && npm install && cd ..       # once
@@ -28,7 +28,7 @@ swift test
 
 Every pull request runs:
 
-- **Tests:** `swift test` on macOS 26.
+- **Tests:** `swift test` on macOS 26. The app targets macOS 15, so an API newer than that needs an `if #available` check with a fallback.
 - **UI:** `ui/app.js` is ASCII only, the scripts parse, and the committed `ui/dist/ui.css` matches a fresh build.
 - **PR description:** it follows the template.
 

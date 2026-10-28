@@ -12,12 +12,20 @@ public struct Agent: Equatable, Sendable {
     let resumeCommand: String
     /// Perch can answer what it asks from the notch: allow, deny, a question's choices.
     public let answersFromNotch: Bool
+    /// Read from the start. Off until you switch it on: Claude chats, which are not coding work and can be personal.
+    public var onByDefault = true
 
     public static let claude = Agent(id: "claude", name: "Claude Code", short: "Claude", resumeCommand: "claude --resume", answersFromNotch: true)
     public static let codex = Agent(id: "codex", name: "Codex", short: "Codex", resumeCommand: "codex resume", answersFromNotch: false)
     public static let opencode = Agent(id: "opencode", name: "OpenCode", short: "OpenCode", resumeCommand: "opencode -s", answersFromNotch: true)
     public static let pi = Agent(id: "pi", name: "pi", short: "pi", resumeCommand: "pi --session", answersFromNotch: false)
-    public static let all = [claude, codex, opencode, pi]
+    /// Cursor's agent chats live in the Cursor app: they open there, and have no command of their own.
+    public static let cursor = Agent(id: "cursor", name: "Cursor", short: "Cursor", resumeCommand: "", answersFromNotch: true)
+    /// Tasks (what was Cowork) and chats live in the Claude app: they open there, and have no command and no hooks. They
+    /// look the same in Perch; each has its own switch.
+    public static let cowork = Agent(id: "cowork", name: "Claude tasks", short: "Claude", resumeCommand: "", answersFromNotch: false)
+    public static let chat = Agent(id: "chat", name: "Claude chats", short: "Claude", resumeCommand: "", answersFromNotch: false, onByDefault: false)
+    public static let all = [claude, codex, opencode, pi, cursor, cowork, chat]
 
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }
@@ -31,10 +39,11 @@ public struct Agent: Equatable, Sendable {
 
     /// Which agent a process is, from its executable path and argv[0]. pi, and Claude Code installed with npm, run under
     /// node or bun and name themselves in argv[0].
-    /// The native Claude installer runs ~/.local/share/claude/versions/<version>. Nil for anything else.
+    /// The native Claude installer runs ~/.local/share/claude/versions/<version>; Claude Code 2.1 from npm runs its native
+    /// binary as the package's bin/claude.exe. Nil for anything else.
     public static func recognise(executable: String, argv0: String?) -> Agent? {
         let name = (executable as NSString).lastPathComponent
-        if executable.contains("/claude/versions/") || name == "claude" { return .claude }
+        if executable.contains("/claude/versions/") || name == "claude" || name == "claude.exe" { return .claude }
         if name == "codex" || name.hasPrefix("codex-") { return .codex }
         if name == "opencode" { return .opencode }
         if name == "pi" { return .pi }
@@ -43,5 +52,11 @@ public struct Agent: Equatable, Sendable {
             if a == "claude" { return .claude }
         }
         return nil
+    }
+
+    /// Worth reading a process's arguments for: an executable `recognise` could take for an agent (node and bun by argv[0]).
+    public static func mayBe(_ executable: String) -> Bool {
+        let name = (executable as NSString).lastPathComponent
+        return ["claude", "claude.exe", "codex", "opencode", "pi", "node", "bun"].contains(name) || name.hasPrefix("codex-") || executable.contains("/claude/versions/")
     }
 }

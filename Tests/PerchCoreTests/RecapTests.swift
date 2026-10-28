@@ -69,6 +69,18 @@ import Foundation
         let edit = tool("Edit", #"{"file_path":"/Users/a/site/a.swift","old_string":"a","new_string":"b"}"#)
         #expect(card([ask("fix it"), edit, result, reply("Done."), ask("thanks, anything else?"), reply("Sure!")]).context == "You asked: \u{201C}thanks, anything else?\u{201D}")
     }
+    @Test func aMessageNotAnsweredYetComesAfterTheAgents() {
+        // Sent and not answered: the reply shows yours below the agent's last message, not above it.
+        let waiting = card([ask("calendar?"), reply("It is mocked."), ask("what about the realtime api?")])
+        #expect(waiting.said == "It is mocked." && waiting.asked == "what about the realtime api?" && waiting.askedLast)
+        #expect(!card([ask("calendar?"), reply("It is mocked.")]).askedLast)
+    }
+    @Test func youAskedOnlyWhenItIsAQuestion() {
+        #expect(Recap.youSaid("Perch shimmer test. Reply with just ok, use no tools.") == "You said: \u{201C}Perch shimmer test. Reply with just ok, use no tools.\u{201D}")
+        #expect(Recap.youSaid("why does it jump? fix it") == "You asked: \u{201C}why does it jump? fix it\u{201D}")
+        #expect(Recap.youSaid("is it \"done?\"") == "You asked: \u{201C}is it \"done?\"\u{201D}")
+        #expect(Recap.youSaid("open https://a.dev/x?y=1") == "You said: \u{201C}open https://a.dev/x?y=1\u{201D}")
+    }
     @Test func codexPatchesNameTheFiles() {
         let lines = [
             #"{"type":"session_meta","payload":{"id":"c1","cwd":"/Users/a/site","originator":"codex-tui"}}"#,

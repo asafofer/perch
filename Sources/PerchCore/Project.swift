@@ -42,10 +42,16 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var focusedAt: Date?
     /// While it works: the step it is on ("Running `swift test`"). The card shows it on a Now row.
     public var now: String?
+    /// Its turn is over but not its work: helpers, a watch or a command it left in the background have not reported back,
+    /// and it carries on when they do. A Stop hook does not make it done.
+    public var waiting = false
     /// Conductor's id for the workspace the session lives in. When set, Pick up opens it in Conductor.
     public var conductor: String?
     /// Started in a terminal (Claude Code or Codex on the command line), not in an app. Pick up goes back to its tab.
     public var terminal = false
+    /// Only small talk so far (`Recap.isTrivial`), in a terminal: listed only while its agent still runs there, so a
+    /// "hello" does not vanish the moment its reply lands, and is gone once you close it.
+    public var smallTalk = false
     /// The terminal app it runs in, or would open in (a bundle id). In herdr, the terminal that shows herdr.
     public var via: String?
     /// The multiplexer it runs in, when that is not the terminal itself: "herdr".
@@ -60,8 +66,19 @@ public struct Project: Identifiable, Equatable, Sendable {
     public var said: String?
     /// Your own last message, as you wrote it. The card shows it above the agent's while you reply.
     public var asked: String?
+    /// Your message came after the agent's: it has not answered yet, so the card shows yours below.
+    public var askedLast = false
     /// When you stopped it (Esc, or Stop in the app), from the transcript. Claude sends no hook for a stop.
     public var stoppedAt: Date?
+    /// Its transcript ends on a tool call with no result yet: running, or waiting for your OK.
+    public var toolOpen = false
+    /// Its own app says how it stands (a Claude task: the app's `running`, `awaiting`, `idle`), not a guess from a transcript:
+    /// a wait it reports stands until the app says otherwise, however old.
+    public var appSays = false
+    /// The pull requests it worked on, as it shows them (`PullRequests.visible`, and what GitHub said when Checks is on).
+    public var prs: [PullRequest] = []
+    /// A pull request needs you, and that is why the session reads as needing you (so the notch can tell it from a question).
+    public var prNeeds = false
 
     public init(id: String, name: String, branch: String?, away: String, at: String, headline: String,
                 context: String, next: String, topic: String, app: String,
@@ -72,6 +89,17 @@ public struct Project: Identifiable, Equatable, Sendable {
     }
 
     public var needsAttention: Bool { agents.contains { $0.kind == .needsYou } }
+
+    /// A terminal session no process runs any more (the scan found none): a tool call it left open waits on no one, so it
+    /// is neither asking you anything nor at work. Sample data (no session id) is left as it is.
+    public func agentGone() -> Project {
+        guard terminal, pid == nil, sessionId != nil, needsAttention || status.kind == "running", ask != nil || toolOpen else { return self }
+        if ask?.answerable == true { return self }   // held by its hook, which settles it when it goes
+        var p = self
+        p.agents = [AgentStatus(kind: .idle, text: "\(Agent.of(app).name) stopped mid-task", app: app)]
+        p.ask = nil; p.next = ""; p.now = nil
+        return p
+    }
 
     /// The one status worth showing: whatever needs you, else what finished, else idle.
     public var status: (kind: String, text: String, app: String) {
@@ -155,11 +183,20 @@ public enum ListFilter {
         return calendar.isDate(at, inSameDayAs: now) ? .today : .earlier
     }
     /// The rows that stay, in the order the list draws them: by section, newest first in each. Up and Down follow it.
+    /// Sessions at work lead their section and keep their places, newest begun first: each writes all the time, so by
+    /// last activity two of them would trade places on every refresh.
     public static func ordered(_ list: [Project], _ query: String, now: Date, calendar: Calendar = .current) -> [Int] {
         let rank: (Int) -> Int = { [.needsYou: 0, .today: 1, .earlier: 2][section(list[$0], now: now, calendar: calendar)] ?? 2 }
+        let working: (Int) -> Bool = { list[$0].status.kind == "running" }
         return shown(list, query).sorted { a, b in
             let ra = rank(a), rb = rank(b)
             if ra != rb { return ra < rb }
+            let wa = working(a), wb = working(b)
+            if wa != wb { return wa }
+            if wa {
+                let sa = list[a].startedAt ?? .distantPast, sb = list[b].startedAt ?? .distantPast
+                return sa != sb ? sa > sb : list[a].id < list[b].id
+            }
             let ta = list[a].lastActive ?? .distantPast, tb = list[b].lastActive ?? .distantPast
             return ta != tb ? ta > tb : a < b
         }

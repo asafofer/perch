@@ -2,7 +2,7 @@
    this file only draws and reports user actions back through the "perch" message handler. */
 (function () {
   var NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.perch);
-  var CARD_W = 400;
+  var CARD_W = 400, CARD_MAX_H = 440;   /* the panel's height: a card taller than it is cut off */
   var COLORS = { attention: '#E9A877', done: '#8CCFA4', idle: '#71717A', running: '#8DC8E8' };
   var DOME = { d: 'M2 19V13A10 10 0 0 1 5.4 5.5L5.2 2.6Q5 1.4 6 1.9L9.6 3.7A10 10 0 0 1 14.4 3.7L18.2 1.9Q19.2 1.4 18.8 2.6L18.6 5.5A10 10 0 0 1 22 13v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z', et: '44%' };
 
@@ -11,13 +11,16 @@
     enter: '<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    open: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
     chev: '<path d="m6 9 6 6 6-6"/>',
     list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     load: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     win: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
+    doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
     file: '<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     down: '<path d="M12 4.5v11"/><path d="M7.5 11.5l4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>',
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
+    pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     /* Settings rows (Lucide, lucide.dev, ISC) */
@@ -37,6 +40,11 @@
     chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    chevR: '<path d="m9 18 6-6-6-6"/>',
+    chevD: '<path d="m6 9 6 6 6-6"/>',
+    chevU: '<path d="m18 15-6-6-6 6"/>',
+    tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+    clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
   function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
@@ -53,20 +61,25 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   /* each agent's name, and the short one sentences and buttons use */
-  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'] };
+  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cursor: ['Cursor', 'Cursor'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
   /* Claude's own icon too, the one Claude.app ships, so no page ever draws a stand-in for it */
   var MARKS = { claude: 'data:image/png;base64,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', codex: 'data:image/png;base64,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' };
-  function iconOf(k) { return icons[k] || MARKS[k]; }
+  /* Claude tasks (Cowork) and chats live in the Claude app and wear its icon */
+  /* the places Perch follows a session into that have no app: herdr's own ram (herdr.dev) and tmux's logomark (tmux/tmux) */
+  MARKS.herdr = 'data:image/png;base64,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';
+  MARKS.tmux = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20160%20160%22%3E%3Cpath%20fill%3D%22%233C3C3C%22%20d%3D%22M83%2070V0h-6v146h6V76h77v-6H83zM0%2015C0%206.7%206.7%200%2015%200h130c8.3%200%2015%206.7%2015%2015v131H0V15z%22/%3E%3Cpath%20fill%3D%22%231BB91F%22%20d%3D%22M0%20116h160v29c0%208.3-6.7%2015-15%2015H15c-8.3%200-15-6.7-15-15v-29z%22/%3E%3C/svg%3E';
+  function iconOf(k) { if (k === 'cowork' || k === 'chat') k = 'claude'; return icons[k] || MARKS[k]; }
   function App(k, c) {
     if (iconOf(k)) return '<img class="' + (c || 'size-5') + ' flex-none ' + (c === 'size-[34px]' ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + iconOf(k) + '" alt="">';
     /* stand-ins for the design page; the app has the real icons. pi has no app, and OpenCode's app is optional: both draw
        their own published marks (pi.dev's logo, opencode.ai's), not ours. */
     var g = {
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
+      cursor: ['#14120B', '<path d="M12 4.5l6.5 3.75v7.5L12 19.5l-6.5-3.75v-7.5z" fill="#EDECEC"/><path d="M12 4.5l6.5 3.75L12 12z" fill="#B8B6B0"/><path d="M12 12l6.5-3.75v7.5z" fill="#8A8883"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
@@ -74,7 +87,7 @@
   /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
      OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
      the terminal is the one showing herdr. */
-  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', agterm: 'agterm', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
   function AppOf(p, c) {
     /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
     var host = p.via || p.opens;
@@ -82,7 +95,7 @@
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
     var term = icons[host] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[host] + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host === 'herdr' ? 'herdr, in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
+    return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host ? esc(p.host) + ', in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
          the ring sits on the icon's own edge instead of leaving a dark band between them */
       '<span class="absolute ' + b + ' flex overflow-hidden ' + (tile ? 'rounded-[5px] ring-2' : 'rounded-[3px] ring-[1.5px]') + ' ring-black">' + App(p.app, iconOf(p.app) ? 'size-full scale-[1.24]' : 'size-full') + '</span></span>';
@@ -192,6 +205,86 @@
     var c = k === 'done' ? COLORS.done : k === 'down' ? COLORS.running : COLORS.attention;
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '"' + (label ? ' aria-label="' + esc(label) + '"' : ' aria-hidden="true"') + '><circle cx="12" cy="12" r="9.5"/>' + (RING[k] || RING.need) + '</svg>';
   }
+  /* A session's pull requests (p.prs, a list; each: number, repo, url, state open|draft|merged|closed, checks pass|fail|running, review approved|changes,
+     conflict). Icon only. Its colour is the PR's state, in GitHub's: green open, purple merged, red closed, grey draft. When it is
+     yours to act on (checks failing, changes requested, conflicts) the whole icon turns orange. The number and the words show in a
+     small label while the pointer is on it (prTip); clicking it opens the pull request. */
+  var PRC = { open: '#3FB950', merged: '#A371F7', closed: '#F85149', draft: '#8B949E' };
+  var PRI = { open: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
+    merged: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+    draft: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="M18 5.5v.01"/><path d="M18 8.5v.01"/><path d="M18 11.5v.01"/>',
+    closed: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v12"/><path d="M21 3l-6 6"/><path d="M21 9l-6-6"/><path d="M18 11.5V15"/>' };
+  function prWord(pr) {
+    if (pr.state === 'merged') return { t: 'Merged' };
+    if (pr.state === 'closed') return { t: 'Closed' };
+    if (pr.state === 'draft') return { t: 'Draft' };
+    if (pr.conflict) return { t: 'Conflicts', c: COLORS.attention };
+    if (pr.checks === 'fail') return { t: 'Checks failing', c: COLORS.attention };
+    if (pr.review === 'changes') return { t: 'Changes requested', c: COLORS.attention };
+    if (pr.checks === 'running') return { t: 'Checks running' };
+    if (pr.review === 'approved' && pr.checks === 'pass') return { t: 'Ready to merge', c: COLORS.done };
+    if (pr.review === 'approved') return { t: 'Approved', c: COLORS.done };
+    return { t: 'Open' };
+  }
+  /* the icon's colour, and the words say it in the same colour */
+  function prColor(pr) { return prWord(pr).c === COLORS.attention ? COLORS.attention : PRC[pr.state]; }
+  function PRIcon(pr, cls) {
+    var w = prWord(pr), c = prColor(pr);
+    return '<svg class="' + (cls || 'size-3.5') + ' flex-none cursor-pointer" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(c) + '" role="img" aria-label="' + esc('#' + pr.number + ' ' + w.t) + '">' + (PRI[pr.state] || PRI.open) + '</svg>';
+  }
+  /* One session can open several pull requests. Its mark shows the one that matters most (it needs you, then open, draft,
+     merged, closed) with a small count when there are more; the label lists them all. */
+  var PRRANK = { open: 1, draft: 2, merged: 3, closed: 4 };
+  function prTop(list) {
+    return list.slice().sort(function (a, b) {
+      var ra = prWord(a).c === COLORS.attention ? 0 : PRRANK[a.state] || 5, rb = prWord(b).c === COLORS.attention ? 0 : PRRANK[b.state] || 5;
+      return ra - rb;
+    })[0];
+  }
+  /* a session's pull requests as the page shows them: none at all while Show pull requests is off */
+  function prsOf(p) { return snap && (snap.showPRs === false || snap.settings && snap.settings.showPRs === false) || !p.prs || !p.prs.length ? null : p.prs; }
+  function PRMark(list, cls) {
+    return '<span class="flex items-center gap-1">' + PRIcon(prTop(list), cls) + (list.length > 1 ? '<span class="text-[11px] tabular-nums leading-none text-muted-foreground">' + list.length + '</span>' : '') + '</span>';
+  }
+  /* One label for every PR mark, drawn above the one under the pointer (below it when there is no room). It is Perch's own,
+     since a card hovered open gets no native tooltips (hoverAt plays the enter and leave). */
+  var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
+  /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
+     pull request in it lights on hover and opens that pull request on a click. */
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0;
+  /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
+  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
+  function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
+  function prKeep() { clearTimeout(prHideT); }
+  prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
+  prTip.onclick = function (e) {
+    var it = e.target.closest('.pi'), pr = it && prShown && prShown[+it.dataset.i];
+    e.stopPropagation(); if (pr && pr.url) post({ type: 'openpr', url: pr.url });
+  };
+  function prHover(el) {
+    if (el.dataset.b) return; el.dataset.b = '1';
+    el.onmouseenter = function () {
+      var list = el._prs; if (!list || !list.length) return;
+      prKeep(); prShown = list; prAnchor = el;
+      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected) { prNow(); } }, 300);
+      prTip.innerHTML = list.map(function (pr, i) {
+        var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
+        /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
+        if (pr.title) return '<div class="pi p2" data-i="' + i + '"><div class="fade t">' + esc(pr.title) + '</div><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span><span class="m tabular-nums">' + repo + '#' + pr.number + '</span></div></div>';
+        return '<div class="pi" data-i="' + i + '"><div class="r">' + PRIcon(pr, 'size-3.5') + '<span style="color:' + col + '">' + esc(w.t) + '</span>' + (list.length > 1 && pr.repo ? '<span class="m">' + esc(String(pr.repo).split('/').pop()) + '</span>' : '') + '<span class="m tabular-nums">#' + pr.number + '</span></div></div>';
+      }).join('');
+      /* only as wide as its words, right edges together with the icon, and never past the card */
+      var nb = n.getBoundingClientRect(), r = el.getBoundingClientRect(); prTip.style.left = '0px'; prTip.style.width = 'max-content'; prTip.style.maxWidth = (nb.width - 24) + 'px';   /* from the edge, so where it was last never narrows it */
+      prTip.querySelectorAll('.fade').forEach(function (t) { t.classList.toggle('cut', t.scrollWidth - t.clientWidth > 1); });
+      var tw = prTip.offsetWidth, th = prTip.offsetHeight;
+      prTip.style.left = Math.max(nb.left + 12, Math.min(r.right - tw + 6, nb.right - tw - 12)) + 'px';
+      /* below the icon; above it when that is where the room is; else held inside the card */
+      var below = r.bottom + 4, above = r.top - th - 4, top = below + th <= nb.bottom - 6 ? below : above >= nb.top + 6 ? above : Math.max(nb.top + 6, nb.bottom - th - 6);
+      prTip.style.top = top + 'px'; prTip.classList.add('on');
+    };
+    el.onmouseleave = prHide;
+    el.onclick = function (e) { e.stopPropagation(); var t = el._prs && el._prs.length ? prTop(el._prs) : null; if (t && t.url) post({ type: 'openpr', url: t.url }); };
+  }
   function Phrase(ph) { return (ph.spin ? Spinner('size-3', glow(COLORS.running)) : '') + '<span class="' + (ph.c ? '' : 'text-muted-foreground') + '"' + (ph.c ? ' style="color:' + ph.c + '"' : '') + '>' + esc(ph.t) + '</span>'; }
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
@@ -279,16 +372,18 @@
          the project and what you were doing with the status at its right. Then, apart, what happened; then Next. Read top
          to bottom in a glance. */
       '<div class="rv mt-1.5 flex items-center gap-[11px] px-4" style="--i:1"><span class="o-app flex flex-none"></span><div class="flex min-w-0 flex-1 flex-col gap-px">' +
-        '<span dir="auto" class="o-name min-w-0 truncate text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
-        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub min-w-0 flex-1 truncate text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
+        '<span dir="auto" class="o-name fade min-w-0 text-left text-sm font-semibold leading-[19px] tracking-[-0.02em]"></span>' +
+        '<div class="flex min-w-0 items-baseline gap-2"><p dir="auto" class="o-sub fade min-w-0 flex-1 text-left text-[13px] leading-[18px] text-muted-foreground"></p><span class="o-pr mt-px flex-none self-start"></span><span class="o-st ml-auto flex flex-none items-center gap-1.5 text-xs"></span></div></div></div>' +
       '<p dir="auto" class="o-h rv mt-2.5 px-4 text-[13px] leading-[18px]" style="--i:2"></p>' +
       '<p dir="auto" class="o-c rv mt-0.5 px-4 text-[13px] leading-[18px] text-muted-foreground line-clamp-2" style="--i:2"></p>' +
       '<div class="o-ask rv px-4" style="--i:3"></div>' +
       /* while you reply: what the agent actually said, in place of the summary, so you answer what you read */
       '<div class="o-said rv mt-2.5 px-4" style="--i:2"><div class="o-said-in max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5 text-[13px] leading-[19px] text-foreground/90"></div></div>' +
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
+      /* files for the reply, as chips over its field (attChips) */
+      '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
       '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-center gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
-      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
+      '<div class="f-rep hidden h-9 items-center gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-snz hidden h-9 items-center gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
@@ -305,7 +400,7 @@
     '<div class="inner pt-8"><div class="nw"></div></div></div>' +
     '<div class="pane p-onb">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="onb"></div></div></div>' +
-    '<div class="pane p-set">' + '<span class="rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<span class="s-ver rv absolute right-[36px] top-[7px] z-10 flex h-[18px] items-center text-[11px] tabular-nums text-muted-foreground/60" style="--i:0"></span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="pane p-set">' + '<span class="s-title rv absolute left-11 top-[7px] z-10 flex h-[18px] items-center gap-1 text-[13px] font-medium tracking-[-0.01em]" style="--i:0">Settings</span>' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="inner pt-8 pb-1.5"><div class="set"></div></div></div>' +
     /* what is new after an update: shown once, on the first start of the new version. Got it goes on to the list. */
     '<div class="pane p-new">' + '<button aria-label="Close" title="Close" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -378,8 +473,9 @@
     });
     var long = head.map(function (h, j) { return [h].concat(body.map(function (r) { return r[j]; })).some(function (v) { return v.length > 28; }); });
     var cell = function (tag, v, j) { return '<' + tag + ' dir="auto"' + (align[j] ? ' data-a="' + align[j] + '"' : '') + (long[j] ? ' data-w="1"' : '') + '>' + md(v) + '</' + tag + '>'; };
-    return '<div class="md-tbl -mx-3 my-1.5 px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
-      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+    /* the fades sit on a still wrapper (md-tw), not on the table that scrolls: WebKit repaints a masked scroller every frame */
+    return '<div class="md-tw -mx-3 my-1.5"><div class="md-tbl px-1"><table><thead><tr>' + head.map(function (h, j) { return cell('th', h, j); }).join('') + '</tr></thead><tbody>' +
+      body.map(function (r) { return '<tr>' + r.map(function (v, j) { return cell('td', v, j); }).join('') + '</tr>'; }).join('') + '</tbody></table></div></div>';
   }
   function md(t) {
     var h = String(t || '').replace(/^\s*(#{1,6}\s+|[-*]\s+)/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -402,6 +498,7 @@
     else if (a === 'snooze') snoozeMenu(true);
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
+    else if (a === 'other') otherMenu(true);
     else if (a === 'qback') askKey('back');
     else if (a === 'qnext') askKey('next');
     else if (a === 'flip') post({ type: 'flip' });
@@ -437,28 +534,69 @@
   /* the session the open reply is for; what you type there is kept as its draft (Swift holds them, snap.drafts) */
   var replyFor = '';
   function replyMenu(open, quiet) {
+    if (asking.typing) { if (!open) otherMenu(false, quiet); return; }
     footer(open ? fRep : fMain);
     showSaid(open);
     var p = snap && snap.projects[snap.selected];
     /* the words you left in this session's reply are still there, the caret after them */
     if (open && p && p.id !== replyFor) { replyFor = p.id; rIn.value = (snap.drafts && snap.drafts[p.id]) || ''; }
+    repOn = !!open; repAtt();
     /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
     if (open) setTimeout(function () { caretAt(rIn.value.length); }, 30); else { replyFor = ''; rIn.value = ''; rIn.blur(); }
     if (!quiet) post({ type: 'replyMenu', open: open });
   }
-  rIn.addEventListener('input', function () { if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
-  /* files dropped on the card or pasted from Finder: their paths go in where the caret is, opening the reply if need be */
+  rIn.addEventListener('input', function () { if (asking.typing) return; if (replyFor) post({ type: 'draft', id: replyFor, text: rIn.value }); });
+  /* Files dropped on the card or pasted from Finder are attachments: a chip each (the file's name, its path on hover, an x
+     to take it off; Backspace in an empty field takes the last), opening the reply if need be. Sent, their paths follow
+     your words, quoted when they have spaces. A reply's files are kept with its session, as its words are. */
+  var repFiles = {}, repOn = false;
   function addPaths(list) {
-    if (lastSt !== 'open' || !list || !list.length) return;
+    if (!list || !list.length) return;
+    if (lastSt === 'ns') return nwPaths(list);
+    if (lastSt === 'set') return fbPaths(list);
+    if (lastSt !== 'open') return;
     if (dropping) dropped();
+    /* an answer in your own words is words: a file goes in as its path */
+    if (asking.typing) { rIn.value = withFiles(rIn.value.trim(), addFiles([], list)); setTimeout(function () { caretAt(rIn.value.length); }, 40); return; }
     if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true); }
-    var v = rIn.value, a = document.activeElement === rIn ? rIn.selectionStart : v.length, b = document.activeElement === rIn ? rIn.selectionEnd : v.length;
-    var t = list.join(' ');
-    if (a > 0 && !/\s/.test(v.charAt(a - 1))) t = ' ' + t;
-    if (b < v.length && !/\s/.test(v.charAt(b))) t += ' ';
-    rIn.value = v.slice(0, a) + t + v.slice(b);
-    rIn.dispatchEvent(new Event('input'));
-    var e = a + t.length; setTimeout(function () { caretAt(e); }, 40);
+    repFiles[replyFor] = addFiles(repFiles[replyFor] || [], list); repAtt();
+    setTimeout(function () { caretAt(rIn.value.length); }, 40);
+  }
+  function addFiles(had, list) { return had.concat(list.filter(function (x, i) { return had.indexOf(x) < 0 && list.indexOf(x) === i; })); }
+  function withFiles(t, files) {
+    var paths = (files || []).map(function (f) { return /[\s"']/.test(f) ? '"' + f.replace(/"/g, '\\"') + '"' : f; }).join(' ');
+    return paths ? (t ? t + ' ' : '') + paths : t;
+  }
+  /* One line of chips, however many: more than fit scroll sideways, the edges fading where there is more, and the one
+     just added scrolled into view. Each wears the file's own icon as Finder shows it, a picture a thumbnail of itself
+     (Swift sends them a moment after the files, fileIcons); the design page has stand-ins by kind (file.png, ...). */
+  var fileIcons = {};
+  function fileIcon(f) {
+    var ext = /\/$/.test(f) || !/\.[^./]+$/.test(f) ? 'folder' : f.split('.').pop().toLowerCase();
+    return fileIcons[f] || icons['file.' + ext];
+  }
+  function attChips(box, files, drop) {
+    var had = box.children.length;
+    box.innerHTML = files.map(function (f, i) {
+      var name = f.replace(/\/+$/, '').split('/').pop() || f, ic = fileIcon(f);
+      return '<span class="att inline-flex h-[22px] max-w-[168px] flex-none items-center gap-1 rounded-md bg-white/[0.09] pl-1 pr-0.5 text-[12px] leading-4 text-foreground/90" title="' + esc(f) + '">' +
+        (ic ? '<img class="size-4 flex-none rounded-[3px] object-cover" src="' + ic + '" alt="">' : svg('doc', 'size-3 flex-none text-muted-foreground')) +
+        '<span dir="auto" class="min-w-0 truncate">' + esc(name) + '</span>' +
+        '<button class="att-x grid size-4 flex-none cursor-pointer place-items-center rounded text-muted-foreground transition-colors hover:bg-white/[0.12] hover:text-foreground" data-i="' + i + '" aria-label="Remove ' + esc(name) + '">' + svg('x', 'size-2.5') + '</button></span>';
+    }).join('');
+    box.style.display = files.length ? 'flex' : 'none';
+    box.querySelectorAll('.att-x').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function (e) { e.stopPropagation(); drop(+b.dataset.i); }; });
+    if (files.length > had) box.scrollLeft = box.scrollWidth;
+    attEdges(box); box.onscroll = function () { attEdges(box); };
+  }
+  function attEdges(box) {
+    var l = box.scrollLeft > 1, r = box.scrollLeft + box.clientWidth < box.scrollWidth - 1;
+    box.style.webkitMaskImage = box.style.maskImage = l || r ? 'linear-gradient(90deg, ' + (l ? 'transparent, #000 20px' : '#000, #000') + ', ' + (r ? '#000 calc(100% - 20px), transparent' : '#000') + ')' : '';
+  }
+  function repAtt() {
+    var files = (replyFor && repFiles[replyFor]) || [];
+    attChips(q('.r-att'), repOn ? files : [], function (i) { files.splice(i, 1); repAtt(); rIn.focus({ preventScroll: true }); });
+    if (snap && lastSt === 'open') layout('open', snap);
   }
   /* Files dragged over the card (n of them; 0 when the drag goes away), the pointer at x, y in the page. The reply opens for them if
      it was closed, and closes again if they go elsewhere; its field lights up and says what a drop does, and more so with
@@ -466,6 +604,8 @@
      and hops. */
   var dropping = 0, dropOpened = false;
   function dragOver(n, x, y) {
+    if (lastSt === 'ns') return nwDragOver(n, x, y);
+    if (lastSt === 'set') return fbDragOver(n, x, y);
     if (lastSt !== 'open') return;
     if (n && !dropping) {
       if (fRep.style.display !== 'flex') { if (!q('.o-acts [data-act=reply]')) return; replyMenu(true, true); dropOpened = true; }
@@ -475,7 +615,7 @@
     var r = rIn.getBoundingClientRect();
     var on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
     rIn.classList.toggle('drop', !!n); rIn.classList.toggle('on', on);
-    rIn.placeholder = !n ? replyHint() : (on ? 'Release to add ' : 'Drop to add ') + (n > 1 ? 'their paths' : 'its path');
+    rIn.placeholder = !n ? replyHint() : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
     if (!n && was) {
       if (dropOpened) { dropOpened = false; replyMenu(false, true); }
       if (snap) layout('open', snap);   /* its face goes back to the session's */
@@ -488,21 +628,37 @@
     var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
     setTimeout(function () { if (!dropping && snap && lastSt === 'open') layout('open', snap); }, 1100);
   }
-  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? 'Reply to ' + agentShort(p.app || p.status.app) + '\u2026' : ''; }
+  function replyHint() { var p = snap && snap.projects[snap.selected]; return p ? (asking.typing ? 'Your answer for ' : 'Reply to ') + agentShort(p.app || p.status.app) + '\u2026' : ''; }
   /* focus the field with the caret at i, the words scrolled so it shows */
   function caretAt(i) {
     rIn.focus({ preventScroll: true }); rIn.setSelectionRange(i, i);
     if (i >= rIn.value.length) rIn.scrollLeft = rIn.scrollWidth;
   }
   /* replying: the card shows the agent's own last message instead of the summary, and grows or shrinks to fit */
+  var saidKey = '', saidLater = false;   /* a redraw held for a selection, made when it ends (selCheck) */
   function showSaid(open) {
-    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && p.said);
-    if ((pane.dataset.rep === '1') === on) return;
+    /* a first message with nothing said back yet opens it too, with only your words */
+    var pane = q('.p-open'), p = snap && snap.projects[snap.selected], on = !!(open && p && (p.said || p.asked));
+    var key = on ? [p.id, p.said, p.asked, !!p.askedLast].join('\u0001') : '', was = pane.dataset.rep === '1';
+    if (was === on && key === saidKey) return;
+    var box = q('.o-said-in'), sel = window.getSelection();
+    /* it answered while the reply was open: drawn again in the new order, but never under words you are selecting */
+    if (was && on && sel && !sel.isCollapsed && (box.contains(sel.anchorNode) || box.contains(sel.focusNode))) { saidLater = true; return; }
+    /* drawn again in place: where your message was, and the words that were already there */
+    var redraw = was && on && !STILL, mine = redraw && box.querySelector('.o-you'), from = mine && mine.getBoundingClientRect().top, before = redraw && box.textContent;
+    saidKey = key; saidLater = false;
     pane.dataset.rep = on ? '1' : '';
     /* a long one opens at its end, where the question usually is, with a soft edge saying there is more above */
-    if (on) { var box = q('.o-said-in'); box.innerHTML = (p.asked ? '<div dir="auto" class="o-you">' + esc(p.asked) + '</div>' : '') + mdBlock(p.said); box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge); }
+    if (on) { var you = p.asked ? '<div dir="auto" class="o-you' + (p.askedLast ? ' last' : '') + '">' + esc(p.asked) + '</div>' : '', said = p.said ? mdBlock(p.said) : '';
+      /* sent and not answered yet: yours is the newest, so it goes below the agent's and is what the card opens on */
+      box.innerHTML = p.askedLast ? said + you : you + said; box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1); fitLastTable(box); box.scrollTop = box.scrollHeight; box.querySelectorAll('.md-tbl').forEach(tblEdge);
+      /* the answer landed: your message glides to its new place and the answer comes in softly, as words do on the card */
+      if (redraw && p.said && box.textContent !== before) [].forEach.call(box.children, function (el) {
+        if (el.classList.contains('o-you')) { var dy = from != null ? from - el.getBoundingClientRect().top : 0; if (dy) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1)' }); }
+        else el.animate([{ opacity: 0, filter: 'blur(2px)', transform: 'translateY(14px)' }, { opacity: 1, filter: 'blur(0)', transform: 'none' }], { duration: 340, delay: 60, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
+      }); }
     if (snap && lastSt === 'open') layout('open', snap);
-    if (on && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
+    if (on && !was && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches))
       q('.o-said').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
   /* The message opens at its end, where the question is. A table just before it gives up rows of its window (down to
@@ -519,18 +675,19 @@
     var set = function () {
       var x = w.scrollLeft, mx = w.scrollWidth - w.clientWidth, my = w.scrollHeight - w.clientHeight;
       var f = [x > 1 ? 'l' : '', x < mx - 1 ? 'r' : '', w.scrollTop < my - 1 ? 'b' : ''].join(' ').trim();
-      if (f) w.dataset.f = f; else delete w.dataset.f;
+      if (f) w.parentNode.dataset.f = f; else delete w.parentNode.dataset.f;
     };
     set(); w.onscroll = set;
   }
   function sendReply() {
-    var t = rIn.value.trim(); if (!t) return;
+    if (asking.typing) { otherSend(); return; }
+    var files = repFiles[replyFor] || [], t = withFiles(rIn.value.trim(), files); if (!t) return;
     var p = snap && snap.projects[snap.selected];
     /* a terminal session takes it right here: the card clears and the words go off into the notch */
-    if (p && p.via && sendFly(t)) { post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
+    if (p && p.via && sendFly(t)) { delete repFiles[replyFor]; post({ type: 'reply', text: t, close: SEND_CLOSE }); return; }
     /* without Accessibility Perch asks for it first; your words stay here and go out once it is on */
     if (snap.canSend === false && !(p && p.via)) { if (!snap.allowing) post({ type: 'reply', text: t }); rIn.focus({ preventScroll: true }); return; }
-    replyMenu(false, true); post({ type: 'reply', text: t });
+    delete repFiles[replyFor]; replyMenu(false, true); post({ type: 'reply', text: t });
   }
   /* Sent to a terminal. Everything above the field clears first, nearest first, so only your words are moving; then they
      shoot up into the notch as a bubble, stretching as they go, and the notch swallows them with a green ripple. The
@@ -590,7 +747,9 @@
     return hit || box;
   }
   rIn.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
+    var rf = repFiles[replyFor];
+    if (e.key === 'Backspace' && rf && rf.length && !rIn.selectionStart && !rIn.selectionEnd) { e.preventDefault(); rf.pop(); repAtt(); }
+    else if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
     else if (e.key === 'Escape') { e.preventDefault(); replyMenu(false); }
     /* up and down read the message above, a few lines at a time, while the words you are typing stay put */
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && q('.p-open').dataset.rep === '1') {
@@ -610,28 +769,93 @@
   var snap = null;
 
   /* Questions, one at a time: a number answers and moves on, Back returns, the last one sends them all together. */
-  var asking = { key: '', step: 0, picks: [], p: null };
+  var asking = { key: '', step: 0, picks: [], own: [], typing: false, p: null };
   function questionCard(p, a) {
     var key = p.id + '|' + a.subject + '|' + a.questions.length;
-    if (asking.key !== key) asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), p: p };
+    if (asking.key !== key) { if (asking.typing) otherMenu(false); asking = { key: key, step: 0, picks: a.questions.map(function () { return []; }), own: a.questions.map(function () { return ''; }), typing: false, p: p }; }
     asking.p = p;
     var n = a.questions.length, qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    var own = asking.own[asking.step], ownOn = !!own && picks.indexOf(own) >= 0;
     status({ t: n > 1 ? 'Question ' + (asking.step + 1) + ' of ' + n : 'Asked you something', c: COLORS.attention });
     var h = q('.o-h'); setWords(h, esc(qn.text) + (qn.multi ? ' <span class="text-muted-foreground">Choose any</span>' : '')); h.title = qn.text; h.classList.add('line-clamp-2');
     h.style.marginTop = '6px';   /* the tallest card there is: every point goes to the choices */
     var c = q('.o-c'); setWords(c, ''); c.style.display = 'none';
     /* the choices stand a little apart, so two picked ones read as two; each number sits level with its choice */
-    setWords(q('.o-ask'), '<div class="-mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
+    /* the pointer's choice is one highlight that slides from choice to choice, as on the list (chPill); a note is said in full */
+    setWords(q('.o-ask'), '<div class="ch-box relative -mx-2 mt-1.5 flex flex-col gap-0.5">' + qn.options.map(function (o, i) {
       var on = picks.indexOf(o) >= 0, rec = /\s*\(recommended\)\s*$/i, label = o.replace(rec, ''), note = qn.notes[i] || '';
-      return '<button data-act="pick" data-i="' + i + '" class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : 'hover:bg-white/[0.06]') + '">' +
+      return '<button data-act="pick" data-i="' + i + '" class="relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (on ? 'bg-white/[0.1]' : '') + '">' +
         Kbd(String(i + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">' + esc(label) + (rec.test(o) ? '<span class="ml-1.5 text-xs text-muted-foreground">Recommended</span>' : '') + '</span>' +
-        (note ? '<span class="block truncate text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
+        (note ? '<span class="block text-[11.5px] leading-[14px] text-muted-foreground">' + esc(note) + '</span>' : '') + '</span>' +
         (qn.multi ? '<span class="flex-none self-center ' + (on ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
-    }).join('') + '</div>');
+    }).join('') + otherRow(qn, own, ownOn) + '</div>');
     q('.o-nx').style.display = 'none';
     var last = asking.step === n - 1, ready = qn.multi && picks.length;
     setWords(q('.o-acts'), (asking.step ? Act('ghost', 'Back', '\u2190', 'qback') : Flip()) +
       (ready ? Act('default', last ? 'Send' : 'Next', ENTER, 'qnext') : Act(asking.step ? 'ghost' : 'default', goLabel(p), ENTER, 'go')));
+  }
+  /* The choice under the pointer: one highlight that slides from choice to choice, put where the pointer is (not from enter
+     and leave, which a card hovered open gets played late and out of order, so two choices lit at once or one stayed lit). */
+  var chPill = document.createElement('div'); chPill.className = 'sel-pill ch-pill'; chPill.setAttribute('aria-hidden', 'true');
+  function markChoice() {
+    var box = q('.o-ask .ch-box');
+    if (!box || !box.offsetParent) { chPill.classList.remove('on'); chPill.at = null; return; }
+    if (chPill.parentNode !== box) { box.insertBefore(chPill, box.firstChild); chPill.at = null; chPill.classList.remove('on'); }
+    var e = ptrAt[0] >= 0 ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, b = e && e.closest && e.closest('.ch-box > button');
+    if (!b || b.parentNode !== box) { chPill.classList.remove('on'); return; }
+    var at = b.offsetTop + ':' + b.offsetHeight; if (at === chPill.at && chPill.classList.contains('on')) return;
+    var first = !chPill.classList.contains('on'); chPill.at = at;
+    if (first) chPill.classList.add('snap');
+    chPill.style.transform = 'translateY(' + b.offsetTop + 'px)'; chPill.style.height = b.offsetHeight + 'px';
+    if (first) { void chPill.offsetWidth; chPill.classList.remove('snap'); }
+    chPill.classList.add('on');
+  }
+  /* Other: the choice after the agent's own, for an answer in your own words. It opens the card's reply field with the
+     question still above it and the agent's choices dimmed; Return answers with what you typed (on a question that takes
+     several, it is one more pick). What you typed stays on the row, so Esc and Other again bring it back. */
+  function otherRow(qn, own, ownOn) {
+    if (qn.options.length >= 9) return '';   /* the number keys end at 9 */
+    return '<button data-act="other" data-i="' + qn.options.length + '" class="o-other relative flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2 py-[3px] text-left transition-colors ' + (ownOn || asking.typing ? 'bg-white/[0.1]' : '') + '">' +
+      Kbd(String(qn.options.length + 1)) + '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] leading-4">Other</span>' +
+      '<span dir="auto" class="block truncate text-[11.5px] leading-[14px] ' + (own ? 'text-foreground/75">\u201c' + esc(own) + '\u201d' : 'text-muted-foreground">Answer in your own words') + '</span></span>' +
+      (qn.multi ? '<span class="flex-none self-center ' + (ownOn ? 'text-[#8CCFA4]' : 'text-transparent') + '">' + svg('check', 'size-3') + '</span>' : '') + '</button>';
+  }
+  function otherMenu(open, quiet) {
+    var a = asking.p && asking.p.ask, qn = a && a.questions && a.questions[asking.step];
+    if (open && !qn) return;
+    if (asking.typing === open) { if (open) caretAt(rIn.value.length); return; }
+    if (!open) keepOwn();
+    asking.typing = open;
+    q('.p-open').dataset.oth = open ? '1' : '';
+    footer(open ? fRep : fMain);
+    if (open) {
+      var last = asking.step === a.questions.length - 1;
+      rIn.value = asking.own[asking.step] || '';
+      q('.x-send-l').textContent = qn.multi ? 'Add' : last ? 'Send' : 'Next';
+      setTimeout(function () { caretAt(rIn.value.length); }, 30);
+    } else { rIn.value = ''; rIn.blur(); q('.x-send-l').textContent = 'Send'; }
+    rIn.placeholder = replyHint();
+    if (!quiet) post({ type: 'replyMenu', open: open });
+    /* the Other row lights (or goes back), the agent's choices dim: only while the card still shows this question */
+    var p = snap && snap.projects[snap.selected];
+    if (lastSt === 'open' && p && p.id === asking.p.id) { cardMove = 'live'; questionCard(asking.p, a); cardMove = ''; layout(lastSt, snap); }
+  }
+  /* the words in the field stay this question's own answer when it closes; already picked, the pick changes with them
+     (emptied, it is taken back) */
+  function keepOwn() {
+    var t = rIn.value.trim(), was = asking.own[asking.step], picks = asking.picks[asking.step] || [], at = picks.indexOf(was);
+    if (t === was) return;
+    if (at >= 0) { if (t) picks[at] = t; else picks.splice(at, 1); }
+    asking.own[asking.step] = t;
+  }
+  /* Return in the field: the words answer this question (a question that takes several gets them as one more pick) */
+  function otherSend() {
+    var t = rIn.value.trim(), a = asking.p && asking.p.ask; if (!a) return;
+    var qn = a.questions[asking.step], picks = asking.picks[asking.step];
+    if (!t && !qn.multi) return;
+    otherMenu(false);
+    if (!qn.multi) { asking.picks[asking.step] = [t]; askKey('forward'); }
+    else if (t && picks.indexOf(t) < 0) { picks.push(t); askKey('redraw'); drawCheck(qn.options.length, true); }
   }
   /* A question Perch cannot answer (no hooks, or read from the transcript): its first question and its choices, to read.
      Nothing on it is pressable: a message sent while a question is open dismisses it, so the only way on is the app itself. */
@@ -671,19 +895,26 @@
       var pane = q('.p-open'), seen = how === 'step' && !STILL ? crossSeen(pane, ['.o-h', '.o-ask']) : [];
       cardMove = 'live'; questionCard(asking.p, a); cardMove = '';
       if (snap) layout(lastSt, snap);
+      markChoice();
       crossIn(pane, seen);
-      if (how === 'pick') drawCheck(pick, on);
+      if (how === 'pick' && pick != null) drawCheck(pick, on);
     };
     var forward = function () {
       if (asking.step < n - 1) { asking.step++; redraw('step'); return; }
       var answers = {}; a.questions.forEach(function (x, i) { answers[x.text] = asking.picks[i].join(', '); });
       post({ type: 'answer', answers: answers });
     };
+    if (k === 'redraw') { redraw('pick'); return; }
+    if (k === 'forward') { forward(); return; }
+    if (/^[1-9]$/.test(k) && +k === qn.options.length + 1) { otherMenu(true); return; }
     if (/^[1-9]$/.test(k)) {
       var o = qn.options[+k - 1]; if (!o) return;
       if (qn.multi) { var at = picks.indexOf(o); if (at >= 0) picks.splice(at, 1); else picks.push(o); redraw('pick', +k - 1, at < 0); }
       else { asking.picks[asking.step] = [o]; forward(); }
-    } else if (k === 'back') { if (asking.step) { asking.step--; redraw('step'); } }
+    } else if (k === 'back' || k === 'left') {
+      /* Left on the first question goes to All sessions, as the footer says; Backspace there stays put */
+      if (asking.step) { asking.step--; redraw('step'); } else if (k === 'left') post({ type: 'switcher' });
+    }
     else if (k === 'next') { if (picks.length) forward(); }
     else if (k === 'enter') { if (qn.multi && picks.length) forward(); else post({ type: 'confirm' }); }
   }
@@ -745,8 +976,12 @@
     if (!asks) status(ph, p.status.text);
     h.classList.remove('line-clamp-2'); h.title = ''; h.style.display = ''; h.style.marginTop = '';
     /* the grey line: the project, then (on a plain card) what you were doing */
-    var sub = q('.o-sub'), proj = p.topic ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
+    /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
+    var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
+    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre);
+    /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
+    if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
     if (a && a.kind === 'question' && a.questions && a.questions.length && a.questions[0].options.length) { readQuestion(p, a); return; }
     if (a) {
@@ -762,9 +997,11 @@
       var norm = function (t) { return String(t || '').replace(/[.\u2026\s]+$/, '').toLowerCase().slice(0, 60); };
       var was = String(p.headline || '').replace(/^\s*you were\s+/i, '').replace(/[.\s]+$/, '');
       var did = String(p.context || '').replace(/^\s*the assistant\s+/i, '');
-      var said = !(p.topic && norm(p.headline) === norm(p.topic)) && was;
+      var said = !(norm(p.headline) === norm(p.topic || p.name)) && was;
       if (said) { setWords(sub, proj + (proj ? ' \u00b7 ' : '') + esc(was.charAt(0).toUpperCase() + was.slice(1))); sub.title = (p.topic ? p.name + ': ' : '') + p.headline; sub.style.display = ''; }
-      if (did) { setWords(h, md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
+      /* your own words quoted back (You said: / You asked:): the label is grey, so what is quoted reads first */
+      var you = /^(You said|You asked):\s*/.exec(did);
+      if (did) { setWords(h, you ? '<span class="text-muted-foreground">' + esc(you[1]) + '</span> ' + md(did.slice(you[0].length)) : md(did.charAt(0).toUpperCase() + did.slice(1))); h.classList.add('line-clamp-2'); }
       else setWords(h, said ? '' : md(p.headline));
       setWords(c, ''); setWords(box, '');
     }
@@ -777,6 +1014,7 @@
     if (now) nx = now;
     q('.o-nl').textContent = 'Next'; q('.o-nl').style.display = now ? 'none' : '';   /* while it works the shimmer says so; no label */
     orbFor(now);
+    q('.o-nx').classList.toggle('live', !!now);   /* kept in the reply too */
     q('.o-x').classList.toggle('truncate', !!now);   /* the step changes every few seconds: one line, never a jump in height */
     q('.o-x').classList.toggle('shimmer', !!now);    /* grey with a passing light: it is happening, not yours to do */
     q('.o-x').classList.toggle('line-clamp-2', !now);   /* the step is one line; the next step may take two */
@@ -890,6 +1128,9 @@
   selPill.el = document.createElement('div'); selPill.el.className = 'sel-pill'; selPill.el.setAttribute('aria-hidden', 'true');
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
+    /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
+    var opening = lastSt !== 'switch';
+    if (opening) { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
     q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
@@ -921,11 +1162,11 @@
       return head + '<div class="row flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors" data-i="' + k + '" data-k="' + esc(p.id) + '">' +
         AppOf(p) +
         /* title and project each truncate on their own, so a Hebrew title loses its end, not its start */
-        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm min-w-0 truncate text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
-        '<span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
+        '<span class="flex min-w-0 flex-1 items-center gap-2"><span dir="auto" class="mq nm fade min-w-0 text-left font-medium' + (still ? ' shimmer' : '') + '"><span class="mq-in">' + esc(first) + '</span>' + (still ? '<span class="shine" aria-hidden="true"><span class="mq-in">' + esc(first) + '</span></span>' : '') + '</span>' +
+        '<span class="pr flex-none"></span><span class="tm flex-none text-xs tabular-nums text-muted-foreground"></span></span>' +
         (p.pending && p.pending !== 'gone' ? pendHtml(p.pending, p.app) : p.pending ? '' :
         '<span class="flex min-w-0 max-w-[38%] flex-none items-center justify-end gap-2"><span class="rk t-ic grid size-4 flex-none place-items-center"></span>' +
-        (second ? '<span dir="auto" class="mq tp min-w-0 truncate text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
+        (second ? '<span dir="auto" class="mq tp fade min-w-0 text-xs text-muted-foreground"><span class="mq-in">' + esc(second) + '</span></span>' : '') + '</span>') + '</div>';
     }).join('');
     /* The list stays open and sorts itself again (a session starts needing you): the rows glide to their new places and a new
        section header fades in, and each row keeps its mark so a change of mark still moves (no transitions.dev recipe: its
@@ -971,6 +1212,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
+      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -982,6 +1224,17 @@
       var top = sel.offsetParent === sl ? sel.offsetTop : sel.offsetTop - sl.offsetTop, pad = 20;
       if (top - pad < sl.scrollTop) sl.scrollTop = top - pad;
       else if (top + sel.offsetHeight > sl.scrollTop + sl.clientHeight - pad) sl.scrollTop = top + sel.offsetHeight - sl.clientHeight + pad;
+    }
+    /* Opened again after the card folded to the notch, WebKit could keep showing the list where it was scrolled last time
+       while the page had moved it to the top: the choice sat out of sight and the arrows seemed to do nothing. Once the card
+       has grown, the scrolling area is made again (off and on) and told where it is, so what shows is where the page put it. */
+    if (opening) {
+      [60, 320].forEach(function (ms) { setTimeout(function () {
+        if (lastSt !== 'switch') return;
+        var at = sl.scrollTop;   /* the page's own idea, the true one */
+        sl.style.overflowY = 'hidden'; void sl.offsetHeight; sl.style.overflowY = '';
+        sl.scrollTop = at + (at > 0 ? -1 : 1); sl.scrollTop = at;
+      }, ms); });
     }
     /* a started row: it slides in once; each new state says itself; once real, its spinner and project fade in; gone, it folds away */
     s.projects.forEach(function (p, k) {
@@ -1063,8 +1316,10 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0;
+  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
+  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
+  /* what a row says while a file is over it (nwDropRow) */
+  var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
   /* the folders, narrowed by what you typed; No project first and Choose a folder last stay whatever you type */
   function nwRows() {
@@ -1085,14 +1340,27 @@
   function nwNone(a) { return !a.via && a.app === 'claude' ? ['Let Claude choose', 'The folder picked in Claude', 'Claude chooses'] : ['No project', a.via ? 'Starts in your home folder' : 'A chat with no folder', 'No project']; }
   function nwWhere(a) { return a.via ? TERMS[a.via] || 'Terminal' : agentShort(a.app) + ' app'; }
   function newApply(o, entering) {
+    /* While it is open, what you are choosing holds still: a scan that finds activity elsewhere (another folder moving to
+       the top, an agent found) would move the rows under you, change the folder chosen, or redraw the field and its caret
+       as you type. Only a list that was empty (the first scan not yet done) is filled in. */
+    if (!entering) {
+      var had = (nw.o && nw.o.projects) || [];
+      if (had.length || !(o.projects || []).length) return;
+      nw.o = o;
+      if (nw.step === 'app') { var fi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; }); nw.proj = fi < 0 ? 0 : fi; }
+      return newRender();
+    }
     nw.o = o;
     if (entering) {
-      var ai = nwApps().findIndex(function (a) { return a.id === o.agent; });
+      /* a draft waiting comes back with the agent and folder it was written for, not the defaults of where you are now */
+      var kept = (nw.text || nw.files.length) && nw.kept, agent = kept ? kept.app : o.agent;
+      var ai = nwApps().findIndex(function (a) { return a.id === agent; });
       nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
-      var pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
+      var pi = nwRows().findIndex(function (r) { return kept ? (kept.none ? r.none : !r.none && !r.pick && r.path === kept.path) : !r.none && !r.pick && r.name === o.project; });
+      if (pi < 0 && kept) pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
       /* a draft waiting: straight back to it, as you left it */
-      nw.step = nw.text ? 'prompt' : 'app';
+      nw.step = nw.text || nw.files.length ? 'prompt' : 'app';
     }
     newRender(entering);
   }
@@ -1108,33 +1376,41 @@
     var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
-      (right ? '<span class="flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') + '</div>';
+      (right ? '<span class="nw-right flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') +
+      (nw.step !== 'prompt' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
     if (nw.step === 'app') {
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="flex-none text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="nw-rt flex flex-none items-center gap-2"><span class="text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else if (nw.step === 'project') {
       var rows = nwRows();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + rows.map(function (r, i) {
         var on = i === nw.proj ? ' bg-accent' : '';
         if (r.none) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('chat') +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span></div>';
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + nwNone(a)[0] + '</span><span class="nw-rt flex-none text-xs text-muted-foreground">' + nwNone(a)[1] + '</span>' + NW_DZ + '</div>';
         if (r.pick) return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folderPlus') +
           '<span class="nm min-w-0 flex-1 truncate text-muted-foreground">Choose a folder\u2026</span>' + Kbd('\u2318O') + '</div>';
         return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + on + '" data-i="' + i + '">' + nwTile('folder') +
           '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="nm min-w-0 truncate font-medium">' + esc(r.name) + '</span><span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(r.away || '') + '</span></span>' +
-          '<span dir="ltr" class="min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span></div>';
+          '<span dir="ltr" class="nw-rt min-w-0 max-w-[45%] flex-none truncate text-xs text-muted-foreground">' + esc(r.label || r.path) + '</span>' + NW_DZ + '</div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else {
-      html += '<div class="px-2.5"><textarea class="nw-in block max-h-[124px] min-h-[68px] w-full resize-none rounded-lg bg-white/[0.1] px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" rows="3" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div>' +
+      /* the field is a box: the files attached along its top (nwPaths), then your words */
+      html += '<div class="px-2.5"><div class="nw-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
+        '<div class="nw-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
+        '<textarea class="nw-in block cursor-text max-h-[124px] min-h-[68px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="false" placeholder="What should ' + esc(agentShort(a.app)) + ' do?" aria-label="Prompt"></textarea></div></div>' +
         '<div class="mt-1.5 flex h-9 items-center gap-1 px-2.5 pb-1.5"><button aria-label="Back" title="Back (Esc)" class="nw-back flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
         '<span class="flex-1"></span>' + Button('ghost', 'Start and go', Kbd('\u2318' + '\u21a9'), 'nw-go') + Button('default', 'Start', Kbd(svg('enter', 'size-2'), 1), 'nw-start pr-0.5') + '</div>';
     }
     /* a step forward slides in from the right, a step back from the left, the old one going the other way (transitions.dev
        page side by side) */
     var by = nwSlide; nwSlide = 0;   /* taken once: a draw again from inside this one (an answer to what it posts) does not slide */
+    /* a refresh that changes nothing here leaves the card alone: drawn again, the prompt would lose what you selected in it
+       (a double or triple click, Command+A) and its caret would jump to the end */
+    if (!entering && !by && html === nwDrawn && box.firstChild) return;
+    nwDrawn = html;
     var slid = by && !STILL ? crossSeen(q('.p-ns'), ['.nw'])[0] : null;
     box.innerHTML = html;
     if (slid && slid.g) {
@@ -1148,14 +1424,15 @@
     box.querySelectorAll('.nw-chip').forEach(function (c) { c.onclick = function () { nwTo(c.dataset.go); }; });
     box.querySelectorAll('.nrow').forEach(function (r) {
       r.onclick = function () { nwPick(+r.dataset.i); nwNext(); };
-      r.onmouseenter = function () { if (!ptrMoved()) return; nwPick(+r.dataset.i, true); };
+      r.onmouseenter = function () { if (!ptrMoved() || nwDrop) return; nwPick(+r.dataset.i, true); };   /* a file dragged across the rows chooses nothing */
     });
     var ta = q('.nw-in');
     if (ta) {
-      ta.value = nw.text; nwGrow(ta);
+      ta.value = nw.text; nwAtt();
       ta.oninput = function () { nw.text = ta.value; nwGrow(ta); };
       ta.onkeydown = function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
+        if (e.key === 'Backspace' && nw.files.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); nw.files.pop(); nwAtt(); }
+        else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); nwStart(e.metaKey); }
         else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); nwBack(); }
       };
       q('.nw-start').onclick = function () { nwStart(false); };
@@ -1177,7 +1454,8 @@
     var up = l.scrollTop > 1, down = l.scrollTop + l.clientHeight < l.scrollHeight - 1;
     l.style.webkitMaskImage = l.style.maskImage = up || down ? 'linear-gradient(' + (up ? 'transparent, #000 24px' : '#000, #000') + ', ' + (down ? '#000 calc(100% - 24px), transparent' : '#000') + ')' : '';
   }
-  function nwGrow(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(68, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
+  /* three lines to write in; two with files over them, so the field is about the same height either way */
+  function nwGrow(ta) { var min = nw.files.length ? 44 : 68; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(124, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && nw.on) layout('ns', snap); }
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
@@ -1189,6 +1467,9 @@
   function nwTo(step) {
     /* leaving the agents: the one you chose keeps its place in the whole list */
     if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    /* and leaving the folders: the one you chose keeps its place too, rather than whatever row the narrowed one sat at
+       (it was No project, then the app's own choice: a typed "perch" started in another folder) */
+    if (nw.step === 'project' && step !== 'project' && nw.q) { var f = nwRows()[nw.proj]; nw.q = ''; var fi = nwRows().indexOf(f); nw.proj = fi < 0 ? 0 : fi; }
     nwSlide = NW_STEPS.indexOf(step) - NW_STEPS.indexOf(nw.step);
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
@@ -1204,23 +1485,31 @@
   /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
      session shows in the list, working. Command+Return starts it and takes you there. */
   function nwStart(go) {
-    var t = nw.text.trim(), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
+    var words = nw.text.trim(), t = withFiles(words, nw.files), ta = q('.nw-in'); if (!t) { if (ta) ta.focus(); return; }
     var a = nwAgent(), f = nwFolder(), from = (nw.o && nw.o.from) || 'list';
-    nw.last = nw.text; nw.text = '';
+    nw.last = nw.text; nw.text = ''; nw.lastFiles = nw.files; nw.files = [];
     /* from anywhere the words fly into the notch; from the list it is simply back, the new row already there and shimmering */
-    if (!go && from !== 'list') newFly(t);
+    if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, go: !!go, from: from, close: SEND_CLOSE });
+    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
      place; in the list, the header says it and the row slides in. A session that did not start leaves your words as the draft. */
   function nwStarted(ok, app) {
     /* the app asks you to trust the folder first: the line says to confirm there, and waits */
-    if (ok === 'confirm') { if (act.mode === 'sent' && act.p && act.p.id === 'new-session') sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
-    if (!ok && nw.last) nw.text = nw.last;
-    nw.last = '';
+    if (ok === 'confirm') {
+      if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { sentShow(act.p, 'Confirm in ' + app, true, false, '', true, true); return; }
+      /* asked before the card had folded into its line: the line, when it comes, says it */
+      if (sentNext && sentNext.p.id === 'new-session') { sentNext.words = 'Confirm in ' + app; sentNext.asks = true; return; }
+      /* started from the list: the app has the keyboard now, so the list (Swift closes it next) folds into that same line */
+      var pr = lastSt === 'switch' && snap && snap.projects.filter(function (x) { return x.pending === 'starting' || x.pending === 'confirm'; })[0];
+      if (pr) sentNext = { p: { id: 'new-session', name: pr.name, topic: '', app: pr.app, via: pr.via, status: { kind: 'running', text: 'Starting', app: pr.app } }, words: 'Confirm in ' + app, at: Date.now(), pending: true, asks: true };
+      return;
+    }
+    if (!ok && (nw.last || nw.lastFiles.length)) { nw.text = nw.last; nw.files = nw.lastFiles; }
+    nw.last = ''; nw.lastFiles = [];
     if (act.mode === 'sent' && act.p && act.p.id === 'new-session') { if (ok) sentShow(act.p, 'Started'); else sentShow(act.p, '', false, false, 'Didn\u2019t start'); }
   }
   function newFly(text) {
@@ -1249,6 +1538,51 @@
   function nwPicked(name, path) {
     var o = nw.o || {}; o.projects = (o.projects || []).filter(function (p) { return p.path !== path; });
     o.projects.unshift({ name: name, path: path, away: '' }); nw.o = o; nw.q = ''; nw.proj = 1; nwTo('prompt');
+  }
+  /* Files dropped on the card or pasted from Finder go into the prompt as their paths, as on a reply. Dropped while the
+     agent or the folder is still being chosen, the card goes on to the prompt with what is chosen so far (the chips
+     change it). Over the card the field lights up, more so with the file right on it, and the character watches. */
+  var nwDrop = 0, nwHint = '', nwDropWas = null;
+  function nwPaths(list) {
+    nwDropWas = null;   /* dropped on a row: that row is the choice */
+    if (nwDrop) nwDragOver(0);
+    if (nw.step !== 'prompt') nwTo('prompt');
+    var ta = q('.nw-in'); if (!ta) return;
+    nw.files = addFiles(nw.files, list); nwAtt();
+    setTimeout(function () { var e = ta.value.length; ta.focus({ preventScroll: true }); ta.setSelectionRange(e, e); }, 40);
+    var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop');
+    setTimeout(function () { if (!nwDrop && snap && lastSt === 'ns') layout('ns', snap); }, 1100);
+  }
+  function nwAtt() {
+    var box = q('.nw-att'); if (!box) return;
+    attChips(box, nw.files, function (i) { nw.files.splice(i, 1); nwAtt(); var ta = q('.nw-in'); if (ta) ta.focus({ preventScroll: true }); });
+    var ta = q('.nw-in'); if (ta) nwGrow(ta);
+  }
+  /* A file over the agents or the folders: the row under it lights up and says Drop to start, and a drop there picks it
+     and goes on to the prompt with the file attached. Off the rows (or gone), the row you had chosen comes back.
+     Choose a folder... takes no file. */
+  function nwDropRow(x, y) {
+    var el = x == null ? null : document.elementFromPoint(x, y), row = el && el.closest ? el.closest('.nw .nrow') : null, i = row ? +row.dataset.i : -1;
+    if (i >= 0 && nw.step === 'project' && (nwRows()[i] || {}).pick) i = -1;
+    var cur = nw.step === 'app' ? nw.app : nw.proj;
+    if (x != null && nwDropWas == null) nwDropWas = cur;
+    var to = i >= 0 ? i : nwDropWas;
+    if (to != null && to !== cur) nwPick(to, true);
+    q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('dz', +r.dataset.i === i); });
+    q('.nw').classList.toggle('dropping', x != null);
+    if (x == null) nwDropWas = null;
+  }
+  function nwDragOver(n, x, y) {
+    var ta = q('.nw-in'), fb = q('.nw-box'), was = nwDrop; nwDrop = n;
+    if (n && !was) { cr.dataset.m = 'alert'; if (ta) nwHint = ta.placeholder; }
+    if (n) lookAt(ta || q('.nw'), 60);
+    if (nw.step !== 'prompt') nwDropRow(n ? x : null, y);
+    if (ta) {
+      var r = fb.getBoundingClientRect(), on = !!n && x != null && x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+      fb.classList.toggle('drop', !!n); fb.classList.toggle('on', on);
+      ta.placeholder = !n ? nwHint || ta.placeholder : (on ? 'Release to attach ' : 'Drop to attach ') + (n > 1 ? 'them' : 'it');
+    }
+    if (!n && was && snap) layout('ns', snap);   /* its face goes back */
   }
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
@@ -1290,11 +1624,19 @@
     return 'path("M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z")';
   }
   var crHideT = 0;
+  /* A question taller than the panel (four choices with long notes, and Other): its choices scroll, so the buttons below
+     stay on the card. One that fits is left as it is. */
+  function fitAsk(pane) {
+    var box = pane.querySelector('.o-ask .ch-box'); if (!box) return;
+    box.style.maxHeight = ''; box.classList.remove('fit');
+    var over = pane.querySelector('.inner').offsetHeight - CARD_MAX_H;
+    if (over > 0 && box.offsetHeight) { box.style.maxHeight = Math.max(120, box.offsetHeight - over) + 'px'; box.classList.add('fit'); }
+  }
   function layout(st, s) {
     /* No hardware notch (an external display): nothing is drawn at rest. The live activity and the card grow from the top centre; the box keeps a size to grow from. */
     var scr = s.screen, virt = !scr.hasNotch, idleW = virt ? 148 : scr.notchW, idleH = virt ? Math.min(scr.notchH || 24, 28) : scr.notchH;
     var w = st === 'idle' ? idleW : CARD_W, h = idleH;
-    if (st !== 'idle') { var pane = q('.p-' + st); h = pane.querySelector('.inner').offsetHeight; }
+    if (st !== 'idle') { var pane = q('.p-' + st); if (st === 'open') fitAsk(pane); h = pane.querySelector('.inner').offsetHeight; }
     else if (act.mode) { var sz = actSize(idleW, idleH); w = sz[0]; h = sz[1]; placeAct(idleW, idleH, w); }
     n.dataset.act = st === 'idle' ? act.mode : '';
     n.style.width = w + 'px'; n.style.marginLeft = (-w / 2) + 'px'; n.style.height = h + 'px';
@@ -1334,12 +1676,15 @@
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
-      : st === 'new' ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
+      : st === 'new' || (st === 'set' && fbGlow.k === 'done' && Date.now() - fbGlow.at < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
-    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && act.p.update) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update has buttons for the mouse only */
-    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join()].join('|');
-    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys }); }
+    var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
+    /* a question on the row or in the wings: the shortcut that opens Perch opens it on the card instead */
+    var toCard = (mode === 'full' || mode === 'wings') && act.keys.indexOf('card') >= 0;
+    var sig = [mode, w, h, act.p ? act.p.id : '', keys.join(), toCard].join('|');
+    if (sig !== actSent.sig) { actSent = { sig: sig }; post({ type: 'activity', mode: mode, width: w, height: h, keys: keys, card: toCard }); }
+    if (st === 'open') markChoice();
   }
 
   /* ---- the live activity ----
@@ -1352,15 +1697,17 @@
      wings. When you come back from a break, the welcome card says all this instead. */
   var act = { mode: '', p: null, kind: '', keys: [] }, actKnown = null, actTimer = 0, actSent = { mode: '' }, actEl = q('.act'), actGone = {}, actHeld = false, actMore = null, actMoreT = 0;
   var CMDOPT = '\u2318\u2325';
+  var actNoKeys = [];   /* row keys Swift could not take (window.perch.actNoKeys): their buttons show no key */
   var MARK = {
     done: Ring('done'), ask: Ring('question'), run: Ring('permission'), plan: Ring('plan'), need: Ring('need')
   };
   function actKind(p) {
     if (p.update) return 'update';
+    if (p.access) return 'access';
     if (p.ask) return { permission: 'run', question: 'ask', plan: 'plan' }[p.ask.kind] || 'need';
     return p.status.kind === 'attention' ? 'need' : 'done';
   }
-  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
+  function actKey(p) { return p.update ? 'update|' + p.update.version + '|' + p.update.phase + '|' + (p.update.nudge || 0) : p.access ? 'access|' + p.access.phase + '|' + (p.access.since || 0) : p.id + '|' + actKind(p) + '|' + (p.ask ? p.ask.subject : p.status.text); }
   /* what you can do from here, as [action, label, key]; the first one is the main one */
   function actButtons(p, k) {
     var a = p.ask;
@@ -1372,6 +1719,7 @@
     return [['pick', goLabel(p), '\u21a9']];
   }
   function actWords(p, k) {
+    if (p.ci && !p.ask) return String(p.status.text).replace(/ on #\d+$/, '').replace('Changes requested', 'Changes asked');   /* a pull request is why: "Checks failing", short enough for the notch's wing */
     return k === 'done' ? 'Finished' : k === 'run' ? 'Needs your OK' : k === 'ask' ? 'Asked you' : k === 'plan' ? 'Has a plan' : phrase(p, true).t;
   }
   /* Hovering a choice says its title and note below everything else: only what is under the pointer, and nothing that
@@ -1383,6 +1731,8 @@
       var o = qs.options[actMore.c]; if (o == null) return '';
       return '<div class="act-ex"><b>' + esc(o.replace(/\s*\(recommended\)\s*$/i, '')) + (/\(recommended\)\s*$/i.test(o) ? '<i class="act-rec">Recommended</i>' : '') + '</b>' + esc((qs.notes && qs.notes[actMore.c]) || '') + '</div>';
     }
+    /* the question hovered: a click shows it all on the card, and where Open Claude has no button, its key */
+    if (actMore.q) return '<div class="act-ex">Click to see it all' + (act.keys.indexOf('app') >= 0 && !actEl.querySelector('.act-o') && actNoKeys.indexOf('app') < 0 ? ' \u00b7 ' + CMDOPT + 'O opens ' + esc(goLabel(p).replace(/^Open /, '')) : '') + '</div>';
     return '';
   }
   function renderAct() {
@@ -1394,11 +1744,16 @@
     var p = act.p, k = act.kind, a = p.ask, body = '', bodyCls = '';
     if (act.mode !== 'full' || k !== 'ask') actMore = null;
     if (k === 'update') { renderUpd(p.update); return; }
-    if (k === 'run') body = '<span class="act-cmd">' + esc(a.subject || 'a command') + '</span>';
-    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
+    if (k === 'access') { renderAccess(p.access); return; }
+    if (k === 'run') body = '<span class="act-cmd">' + esc(a.brief || a.subject || 'a command') + '</span>';   /* the command without its output plumbing (Ask.brief); the card shows it all */
+    else if (k === 'ask') { bodyCls = ' askq'; body = '<span dir="auto" class="act-q" data-a="card" title="Show it all">' + esc((a.questions && a.questions[0] && a.questions[0].text) || a.subject || 'Asked you something') + '</span>'; }   /* a question is said in full: it wraps */
     else if (k === 'plan' && a.subject) body = '<span dir="auto" class="act-t">' + esc(a.subject) + '</span>';
     var bs = actButtons(p, k);
-    act.keys = ['gone'].concat(bs.map(function (b) { return b[0]; }));
+    /* Open Claude at the right of the row opens the session in its app, on Command+Option+O on every row ('app'), unless a
+       button already does (then a cross at the left puts it away); three choices need the room, so there it is the key alone. Command+Option+. puts it
+       away either way. Clicking the question opens the whole of it on the card ('card'). */
+    var toApp = !bs.some(function (b) { return b[0] === 'pick'; }), opener = toApp && !(/^pick\d$/.test(bs[0][0]) && bs.length >= 3);   /* three choices: the key alone */
+    act.keys = ['gone'].concat(toApp ? ['app'] : [], k === 'ask' ? ['card'] : [], bs.map(function (b) { return b[0]; }));
     /* the cross to put it away at the left; actions at the right, the main one at the edge. A question's choices keep
        their order, 1 to 3, and shrink to fit; the recommended one, if any, is the bright one. */
     var choices = /^pick\d$/.test(bs[0][0]), list = choices ? bs : bs.slice().reverse();
@@ -1407,7 +1762,10 @@
        cross at the left of the row puts it away (Command+Option+. does too). A chat with no project is named by its title
        alone, on top. */
     var split = p.topic && p.name !== p.topic;
-    var btns = '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>' +
+    /* no key when Command+Option+O is Perch's own shortcut or another app holds it (Swift says, actNoKeys) */
+    var openKey = actNoKeys.indexOf('app') < 0;
+    var openB = opener ? '<button class="act-b act-o' + (openKey ? '' : ' nk') + '" data-a="app" title="' + esc(goLabel(p)) + '"><span class="act-bl">' + esc(goLabel(p)) + '</span>' + (openKey ? '<kbd>' + CMDOPT + 'O</kbd>' : '') + '</button>' : '';
+    var btns = (!bs.some(function (b) { return b[0] === 'pick'; }) ? '' : '<button class="act-b act-x" data-a="gone" aria-label="Dismiss" title="Dismiss (\u2318\u2325.)">' + svg('x', 'size-3') + '</button>') +
       (choices ? '<span class="act-mod">' + CMDOPT + '</span>' : split ? '<span dir="auto" class="act-p"><span class="mq-in">' + esc(p.topic) + '</span></span>' : '<span class="act-gap"></span>') +
       list.map(function (b, i) {
         var main = choices ? !!b[3] : i === list.length - 1;
@@ -1415,12 +1773,23 @@
         var label = '<span class="act-bl">' + esc(b[1]) + '</span>', key = '<kbd>' + (choices ? '' : b[0] === 'reply' ? '\u2318' : CMDOPT) + b[2] + '</kbd>';
         return '<button class="act-b' + (main ? ' go' : '') + (choices ? ' ch' : '') + '" data-a="' + b[0] + '" title="' + esc(b[1]) + '">' + (choices ? key + label : label + key) + '</button>';
       }).join('');
+    /* after the choices at the right edge; before the actions, whose main one keeps the edge */
+    if (openB) btns = choices ? btns + openB : btns.replace(/(<button class="act-b(?! act-x)[^"]*" data-a="(?:allow|deny|open|pick\d)")/, openB + '$1');
     var html = '<span class="act-l">' + AppOf(p, 'size-[15px]') + '<span dir="auto" class="act-n"><span class="mq-in">' + esc(split ? p.name : p.topic || p.name) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' + actExtra(p, k) +
+      '<span class="act-r"><span class="act-s' + (k === 'done' ? ' ok' : '') + '">' + esc(actWords(p, k)) + '</span>' + MARK[k] + '</span>' +
       (body ? '<div class="act-body' + bodyCls + '">' + body + '</div>' : '') + '<div class="act-btns">' + btns + '</div>';
     /* drawn again only when it changes, so a name gliding along is not cut short by a refresh */
     if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
+    /* what a hovered choice says comes and goes on its own: drawing the row again would replay the buttons' entrance, the
+       row would slide under the pointer, and the choice it passed would open it again */
+    var ex = actExtra(p, k), had = actEl.querySelector('.act-ex');
+    if (!ex) { if (had) had.remove(); }
+    else if (!had || had._h !== ex) {
+      var t = document.createElement('div'); t.innerHTML = ex; var el = t.firstChild; el._h = ex; el.style.transition = 'none';
+      if (had) actEl.replaceChild(el, had); else actEl.insertBefore(el, actEl.querySelector('.act-body, .act-btns'));
+    }
     actEl._for = p.id;
+    markAct();
     actGlide();
   }
   /* An update of Perch itself, in the same notch. It downloads in the background: only the character beside the camera and a ring that
@@ -1454,11 +1823,36 @@
     if (ph === 'available') { keys = ['gone', 'notes', 'install']; btns = (notes ? '' : btn('notes', 'What\u2019s new')) + '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('install', 'Update', true); }
     if (ph === 'failed' && u.problem) { keys = u.fix === 'none' ? ['gone'] : ['gone', u.fix === 'move' ? 'reveal' : 'retry']; btns = '<span class="act-gap"></span>' + (u.fix === 'none' ? btn('gone', 'Okay', true) : btn('gone', 'Later') + (u.fix === 'move' ? btn('reveal', 'Show in Finder', true) : btn('retry', 'Try again', true))); }
     act.keys = keys;
-    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake') + '<span class="act-n"><span class="mq-in">Perch ' + esc(u.version) + '</span></span></span>' +
-      '<span class="act-r"><span class="act-s ' + (ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    /* the peek: Update available on one side, the version beside its mark on the other; no character */
+    var peeking = act.mode === 'peek';
+    if (peeking) { words = esc(u.version); body = ''; btns = ''; }
+    var html = '<span class="act-l">' + (peeking ? '' : crHtml('', 15, shapeOf(charNow.shape), ph === 'restarting' ? 'sleep' : 'awake')) + '<span class="act-n"><span class="mq-in">' + (peeking ? 'Update available' : 'Perch ' + esc(u.version)) + '</span></span></span>' +
+      '<span class="act-r"><span class="act-s ' + (peeking ? 'said' : ph === 'updated' || ph === 'current' ? 'ok' : 'mu') + '">' + words + '</span>' + mark + '</span>' + body + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
     var key = html.replace(/stroke-dashoffset="[^"]*"/, '');   /* the ring moves in place, so it eases instead of snapping */
     if (actEl._h !== key) { actEl.innerHTML = html; actEl._h = key; }
     var arc = actEl.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (u.progress || 0)));
+    actGlide();
+  }
+  /* Accessibility Perch had, gone: an update signed another way (macOS ties the grant to the signature) or a switch turned off
+     in System Settings. The notch says it once, at a quiet moment, in the same row as an update: the character, Needs access
+     in orange, one line on what waits, and Allow for the mouse (it opens by itself, so no keys). Allow clears the stale switch
+     and opens System Settings; the row waits there until the switch is on, says Allowed and folds away. */
+  function accP(a) { return { id: 'perch-access', name: 'Perch', topic: 'Perch', app: 'perch', access: a, status: { kind: 'idle', text: 'Accessibility', app: 'perch' } }; }
+  function renderAccess(a) {
+    var ph = a.phase;
+    var words = { lost: 'Needs access', asked: 'Turn it on', granted: 'Allowed' }[ph];
+    var mark = ph === 'granted' ? Ring('done') : ph === 'asked' ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var line = ph === 'lost' ? (a.afterUpdate ? 'macOS asks again after an update. Command+Option and replies wait.' : 'Accessibility is off. Command+Option and replies wait until it is on.')
+      : ph === 'asked' ? 'In macOS\u2019s prompt, choose Open System Settings.' : '';
+    var btn = function (x, label, main) { return '<button class="act-b' + (main ? ' go' : '') + ' nk" data-a="' + x + '"><span class="act-bl">' + label + '</span></button>'; };
+    var btns = '', keys = ['gone'];
+    if (ph === 'lost') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Allow', true); }
+    if (ph === 'asked') { keys = ['gone', 'axallow']; btns = '<span class="act-gap"></span>' + btn('gone', 'Later') + btn('axallow', 'Open System Settings'); }
+    act.keys = keys;
+    var html = '<span class="act-l">' + crHtml('', 15, shapeOf(charNow.shape), 'awake') + '<span class="act-n"><span class="mq-in">Perch</span></span></span>' +
+      '<span class="act-r"><span class="act-s' + (ph === 'granted' ? ' ok' : ph === 'asked' ? ' mu' : '') + '">' + words + '</span>' + mark + '</span>' +
+      (line ? '<div class="act-body fail" data-h="32"><span dir="auto" class="act-t">' + esc(line) + '</span></div>' : '') + (btns ? '<div class="act-btns">' + btns + '</div>' : '');
+    if (actEl._h !== html) { actEl.innerHTML = html; actEl._h = html; }
     actGlide();
   }
   /* A name that does not fit, beside the camera or on the row below, reads itself out as a list row does: after a moment it
@@ -1503,7 +1897,8 @@
     actEl.style.setProperty('--aw', '999px');   /* measured at full length, before anything is cut short */
     var l = actEl.querySelector('.act-l'), r = actEl.querySelector('.act-r'), bb = actEl.querySelector('.act-btns');
     var side = Math.max(l ? l.scrollWidth : 0, r ? r.scrollWidth : 0) + 26;
-    if (act.mode === 'sent') return [Math.ceil(Math.min(460, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went */
+    if (act.mode === 'sent') return [Math.ceil(Math.min(480, Math.max(idleW + 2 * side, idleW + 150)) / 2) * 2, idleH];   /* one line: what it was about, and that it went; as wide as the panel at most, so Confirm in Claude fits */
+    if (act.mode === 'peek') return [Math.ceil(Math.max(idleW + 2 * side, idleW + 120) / 2) * 2, idleH];   /* an update found by itself: one line, as wide as the version */
     var bw = 0; if (bb) { bb.style.width = 'max-content'; bw = bb.offsetWidth + 28; bb.style.width = ''; }
     /* an even width: centred in the panel, an odd one puts everything in it on a half pixel, and a turning spinner wobbles there */
     var even = function (x) { return Math.ceil(x / 2) * 2; };
@@ -1518,7 +1913,7 @@
     }
     var base = idleH + (bd ? +bd.dataset.h || 24 : 0) + 44, ex = actEl.querySelector('.act-ex');
     /* the buttons hang from the top while there is more below them, so the notch growing does not carry them down */
-    bb.style.bottom = ex ? 'auto' : ''; bb.style.top = ex ? (base - 35) + 'px' : '';
+    bb.style.bottom = 'auto'; bb.style.top = (base - 35) + 'px';   /* always from the top: a note going away does not carry them up and back on the spring */
     if (ex) {
       /* as tall as its words are at this width, up to a point */
       var m = ex.cloneNode(true); m.style.cssText = 'position:absolute;visibility:hidden;left:0;top:0;width:' + (w - 26) + 'px';
@@ -1570,13 +1965,19 @@
     run: ['<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>', COLORS.attention],
     ask: ['<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', COLORS.attention],
     plan: ['<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>', '#B7A3F0'],
-    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A']
+    error: ['<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>', '#F08A8A'],
+    ci: [PRI.open, COLORS.attention]
   };
+  /* Checks failing is a moment only while PR checks is on: nothing else knows when a check fails */
+  function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
+  function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
+  /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
+  function nCol(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
     var m = NMARK[k];
     return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
   }
-  function notifyKind(p) { var k = actKind(p); return actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
+  function notifyKind(p) { var k = actKind(p); return p.ci && !p.ask ? 'ci' : actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
   function blocking(p) { return !!p.ask && (p.ask.kind === 'permission' || p.ask.kind === 'plan'); }
   function actExpired(p) {
@@ -1594,6 +1995,7 @@
   }
   var updTok = 0;
   var updNotes = false;   /* What's new open */
+  var updOpen = false;    /* the peek was clicked open into the row */
   function updP(u) { return { id: 'perch-update', name: 'Perch', topic: 'Perch ' + u.version, app: 'perch', update: Object.assign({}, u, { notesOpen: updNotes }), status: { kind: 'idle', text: 'Perch ' + u.version, app: 'perch' } }; }
   function actLater(ms) { clearTimeout(actTimer); actTimer = setTimeout(function () { if (!actHeld) actSettle(); }, ms); }
   function activity(s, st) {
@@ -1621,28 +2023,50 @@
     var known = actKnown; actKnown = now;
     if (st !== 'idle') { clearTimeout(actTimer); clearTimeout(sentT); sent = null; sentBase = null; setAct('', null, true); return; }   /* the card is up: it says all of this */
     /* an answer just given on the card: the card closes into the line that says it went */
-    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending); return; }
+    if (sentNext && Date.now() - sentNext.at < 3000) { var sn = sentNext; sentNext = null; actGone[actKey(sn.p)] = 1; sentBase = known; sentShow(sn.p, sn.words, true, true, '', sn.pending, sn.asks); return; }
     sentNext = null;
     if (actPressing) return;   /* the choice you pressed is lighting up: the row folds in a moment, nothing else moves it */
     /* Perch's own update: downloading or waiting to restart it is only wings (and gives way to a session that needs you); restarting
        and arriving say their piece in the row */
     var u = s.update, up = u && updP(u), ukey = up && actKey(up);
+    if (!u || u.phase !== 'available') updOpen = false;
+    /* found by itself and peeked already (this version, or a Not now holds): the notch says nothing, the list's Update says it */
+    var updList = !!(u && u.phase === 'available' && u.peek && u.listOnly && !updOpen);
     /* the timer of the phase before (the offer folding away) must not fold this one */
     if (u && act.p && act.p.update && act.p.update.phase !== u.phase) clearTimeout(actTimer);
-    if (up && !s.quiet && !actGone[ukey]) {
+    if (up && !s.quiet && !actGone[ukey] && !updList) {
       var showing = act.mode === 'full' && act.p && act.p.update && act.p.update.phase === u.phase && (u.phase !== 'failed' || act.p.update.problem === u.problem);   /* a failure that says something else is a new one */
       /* downloading: only the character and the ring. Downloaded: nothing on the notch, it restarts at a quiet moment (the list and Settings have Restart). */
       if (u.phase === 'downloading' && !need.length) { setAct('wings', up, true); return; }
       if (u.phase === 'restarting' || u.phase === 'checking') { clearTimeout(actTimer); setAct('full', up, true); return; }
-      if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
+      /* found by itself (a check on the schedule): it peeks first, one line for four seconds, and opens to the row only when you click
+         it. A session waiting on you goes first: the peek waits until the notch is free. Once it folds, the list's Update says the rest. */
+      if (u.phase === 'available' && u.peek && !updOpen) {
+        if (!need.length) {
+          var peeking = act.mode === 'peek' && act.p && act.p.update; setAct('peek', up, true);
+          if (!peeking) { actLater(4000); post({ type: 'update', action: 'peeked' }); }   /* once per version: Swift remembers it */
+          return;
+        }
+      } else if (u.phase === 'available') { setAct('full', up, true); if (!showing && !up.update.notesOpen) actLater(9000); return; }
       /* a small row that says it and goes: updated, up to date, could not check */
       if (u.phase === 'updated' || u.phase === 'current' || u.phase === 'failed') { setAct('full', up, true); if (!showing) actLater(u.phase === 'failed' ? (u.problem ? 9000 : 4500) : 3500); return; }
     }
-    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && u.phase !== 'ready')) { setAct('', null, true); }
+    if (act.p && act.p.update && !(up && !s.quiet && !actGone[ukey] && !updList && u.phase !== 'ready')) { setAct('', null, true); }
     var arrived = known && heard.filter(function (p) { return known.need.indexOf(actKey(p)) < 0; })[0];
     var landed = known && done.filter(function (p) { return known.done.indexOf(p.id) < 0; })[0];
     /* it is saying an answer went: it says it to the end; what arrives meanwhile is said after it (sentDone) */
     if (act.mode === 'sent') return;
+    /* Accessibility gone: said when nothing else is on the notch, and a session's news goes first. Once said (it folded, or
+       Later) Swift stops sending it until it is lost again. Waiting for the switch it stays; Allowed folds away. */
+    var ax = s.access, ap = ax && accP(ax), akey = ap && actKey(ap);
+    var axShowing = act.mode === 'full' && act.p && act.p.access;
+    if (ap && !s.quiet && !actGone[akey] && !arrived && !landed && (axShowing || !need.length) && (axShowing || act.mode !== 'full')) {
+      var same = axShowing && act.p.access.phase === ax.phase;
+      setAct('full', ap, true);
+      if (!same) { clearTimeout(actTimer); if (ax.phase === 'lost') actLater(12000); else if (ax.phase === 'granted') actLater(3500); }
+      return;
+    }
+    if (axShowing) { clearTimeout(actTimer); setAct(need.length ? 'wings' : '', need[0], true); }
     var full = act.mode === 'full' && act.p;
     /* you went to that session while it showed: it is the one you are in now, so it goes */
     if (full && inside(s, act.p.id)) {
@@ -1660,23 +2084,26 @@
   /* it has said its piece: whatever still waits on you stays as wings */
   function actSettle() {
     if (!snap) return;
-    if (act.p && (actErr(act.p) || act.p.update)) actGone[actKey(act.p)] = 1;   /* said once */
+    if (act.p && act.p.access && act.p.access.phase === 'lost') post({ type: 'access', action: 'said' });
+    if (act.p && (actErr(act.p) || act.p.update || act.p.access)) actGone[actKey(act.p)] = 1;   /* said once */
     var n2 = waiting(snap); setAct(n2.length ? 'wings' : '', n2[0]); }
   function actDo(a) {
     var p = act.p; if (!p || !act.mode || act.keys.indexOf(a) < 0) return;
     if (a === 'gone') {
       if (p.update) { updNotes = false; post({ type: 'update', action: 'later' }); }
+      if (p.access) post({ type: 'access', action: 'said' });
       actGone[actKey(p)] = 1; clearTimeout(actTimer);
       if (act.kind === 'done') post({ type: 'activitySeen', id: p.id });
       actSettle(); return;
     }
     if (a === 'notes') { updNotes = !updNotes; clearTimeout(actTimer); if (snap && snap.update) setAct('full', updP(snap.update)); return; }
     if (a === 'reveal' || a === 'retry') { post({ type: 'update', action: a === 'reveal' ? 'reveal' : 'check' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
+    if (a === 'axallow') { clearTimeout(actTimer); post({ type: 'access', action: 'allow' }); return; }   /* the row stays: it waits for the switch */
     if (a === 'install') { updNotes = false; post({ type: 'update', action: 'install' }); actGone[actKey(p)] = 1; clearTimeout(actTimer); setAct('', null); return; }
     var m = null;
     if (a === 'allow' || a === 'deny') m = { type: 'activityAnswer', id: p.id, choice: a };
     else if (/^pick\d$/.test(a)) { var qn = p.ask.questions[0], ans = {}; ans[qn.text] = qn.options[+a.slice(4) - 1]; m = { type: 'activityAnswer', id: p.id, answers: ans }; }
-    else post({ type: a === 'pick' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
+    else post({ type: a === 'pick' || a === 'app' ? 'activityPick' : 'activityOpen', id: p.id, reply: a === 'reply' });
     actGone[actKey(p)] = 1; clearTimeout(actTimer);
     if (!m) { setAct('', null); return; }
     /* an answer: the button you chose lights for a beat, then the row folds into the line that says it went */
@@ -1701,6 +2128,18 @@
   function noteAnswer(m) {
     var p = snap && snap.projects[snap.selected]; if (!p) return;
     delete sentLate[p.id]; sentNext = { p: p, words: sentWords(m), at: Date.now() };
+  }
+  /* Swift: a reply is on its way to the session in the background (typed into its terminal, or Claude's composer took it).
+     Like an answer, the card closes into the line that says it went. */
+  function replying(id) {
+    var p = snap && snap.projects.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    delete sentLate[p.id]; sentNext = { p: p, words: 'Sent', at: Date.now() };
+  }
+  /* Swift: it could not go in the background, so the session comes forward with the words to paste. The line was early:
+     it goes without a word (the session in front, or Reply copied, says the rest). */
+  function replyHanded(id) {
+    if (sentNext && sentNext.p.id === id) sentNext = null;
+    if (act.mode === 'sent' && act.p && act.p.id === id) { clearTimeout(sentT); sentDone(); }
   }
   /* Swift: that answer reached nothing (the request was settled or let go a moment before). The line says so, however far it got. */
   var sentLate = {};
@@ -1753,6 +2192,8 @@
     mark.animate([{ opacity: 0, transform: 'translate(-7px, 7px) scale(.75)' }, { opacity: 1, transform: 'translate(1px, -1px)', offset: .7 }, { opacity: 1, transform: 'none' }], { duration: 480, delay: 200 + lag, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
   }
   actEl.addEventListener('click', function (e) {
+    /* the peek opens into the update's row, with its headline and buttons */
+    if (act.mode === 'peek' && act.p && act.p.update && snap && snap.update) { updOpen = true; clearTimeout(actTimer); setAct('full', updP(snap.update)); actLater(9000); return; }
     if (act.mode !== 'full') return;
     var b = e.target.closest('[data-a]'); if (b) actDo(b.dataset.a);
   });
@@ -1776,14 +2217,23 @@
       questions: [{ text: 'Which layout should the hero use?', header: 'Layout', multi: false, options: ['Centered', 'Split (Recommended)', 'Full bleed'], notes: ['', '', ''] }] } })); }, 21000);
     setTimeout(function () { actDemoOn = false; actKnown = null; known = null; actGone = {}; apply(actDemoLast || s0); actDemoLast = null; }, 33000);   /* no All clear for a pretend request */
   }
+  /* The button (or question) under the pointer, from where the pointer is, as the list's row: WebKit's own hover stays on a
+     button the pointer left when the panel was never clicked, so two lit at once. */
+  function markAct() {
+    var e = ptrAt[0] >= 0 && act.mode === 'full' ? document.elementFromPoint(ptrAt[0], ptrAt[1]) : null, t = e && e.closest && e.closest('.act-b, .act-q');
+    if (t && !actEl.contains(t)) t = null;
+    [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { if (x !== t) x.classList.remove('pt'); });
+    if (t) t.classList.add('pt');
+  }
   /* resting the pointer on it holds it open; leaving gives it a moment more */
-  actEl.addEventListener('mouseenter', function () { if (act.mode === 'full') { actHeld = true; clearTimeout(actTimer); } });
-  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); });
+  actEl.addEventListener('mouseenter', function () { if (act.mode === 'full' || act.mode === 'peek') { actHeld = true; clearTimeout(actTimer); } });
+  actEl.addEventListener('mouseleave', function () { if (actHeld) { actHeld = false; actLater(2500); } actMoreSet(null); [].forEach.call(actEl.querySelectorAll('.pt'), function (x) { x.classList.remove('pt'); }); });
   /* the pointer's moves reach here from WebKit, or from the page's own replay of them */
   actEl.addEventListener('mousemove', function (e) {
     if (act.mode !== 'full' || act.kind !== 'ask' || !e.target.closest) return;
     var qs = act.p.ask && act.p.ask.questions && act.p.ask.questions[0], ch = e.target.closest('.act-b.ch');
-    if (ch && qs) {
+    if (e.target.closest('.act-q')) actMoreSet({ q: 1 });
+    else if (ch && qs) {
       var i = +ch.dataset.a.replace('pick', '') - 1, l = ch.querySelector('.act-bl');
       if ((qs.notes && qs.notes[i]) || (l && l.scrollWidth > l.clientWidth + 1)) actMoreSet({ c: i }); else actMoreSet(null);
     } else actMoreSet(null);
@@ -1803,7 +2253,7 @@
   /* left of the row, only when the right is a button (or nothing): what the button is about. While it works or has answered, the right says it. */
   function updSub(s) {
     var u = s.update, ph = u ? u.phase : '', v = u ? esc(u.version) : '';
-    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : ph ? '' : 'checked daily';
+    return ph === 'available' ? v + ' is available' : ph === 'ready' ? v + ' is ready' : ph === 'failed' ? '<span style="color:' + COLORS.attention + '">' + esc(u.short || (u.during === 'update' ? 'couldn\u2019t update' : 'couldn\u2019t check')) + '</span>' : '';
   }
   function updSlot(s) {
     var u = s.update, ph = u ? u.phase : '';
@@ -1840,32 +2290,49 @@
       b.onclick = function () { if (ph !== 'downloading') post({ type: 'update', action: ph === 'ready' ? 'restart' : 'install' }); };
     });
   }
-  var verSig = '';
   /* What is new, after an update. The card says it once: Perch and its version, the headline, then the few lines behind it (six show,
      the rest scroll). It opens by itself, so it takes no keys; Got it goes on to the list. */
   var wnSig = '';
   /* Got it. WebKit sometimes never turns a press and release into a click on this card, which opens by itself, often under
      a pointer resting on the notch; so Swift also passes on each release over the card (wnUp) and the page checks what is there. */
-  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); });
-  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); }
+  /* Allow on the card, once however it arrives (a click, a release Swift passes on, or both) */
+  var wnAxAt = 0;
+  function wnAllow() { if (Date.now() - wnAxAt < 1500) return; wnAxAt = Date.now(); post({ type: 'access', action: 'allow' }); }
+  q('.wn').addEventListener('click', function (e) { if (e.target.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (e.target.closest('.wn-ax')) wnAllow(); });
+  function wnUp(x, y) { var el = lastSt === 'new' && document.elementFromPoint(x, y); if (el && el.closest('.wn-ok')) post({ type: 'whatsnew', action: 'done' }); else if (el && el.closest('.wn-ax')) wnAllow(); }
+  /* The update that lost Accessibility (a build signed another way) says so on its own What's new card, under the lines: one row
+     with the orange ring, what waits, and Allow. Pressed, it waits for the switch in System Settings; on, it turns green. Got it
+     stays the card's main button either way: Settings keeps the row for later. */
+  function wnAccess(ax) {
+    if (!ax) return '';
+    var on = ax === 'granted', asked = ax === 'asked';
+    var mark = on ? Ring('done') : asked ? Spinner('size-4', glow(COLORS.running)) : Ring('need');
+    var title = on ? 'Accessibility is on' : asked ? 'Turn Perch on in System Settings' : 'Allow Accessibility again';
+    var sub = on ? 'Command+Option and replies work again.' : asked ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on.' : 'macOS asks once more after this update. Until then Command+Option and replies wait.';
+    return '<div class="wn-a rv mx-4 mt-2 flex items-center gap-2.5 rounded-lg bg-black/[0.18] py-2 pl-3 pr-2" style="--i:3">' + mark +
+      '<div class="min-w-0 flex-1"><div class="text-[12.5px] font-medium leading-[17px]">' + title + '</div><div class="text-xs leading-4 text-muted-foreground">' + sub + '</div></div>' +
+      (on ? '' : Button('ghost', asked ? 'Open' : 'Allow', '', 'wn-ax flex-none bg-white/[0.08] text-foreground')) + '</div>';
+  }
   function whatsNew(w) {
     if (!w) return;
-    var sig = JSON.stringify(w); if (sig === wnSig) return; wnSig = sig;
+    var sig = JSON.stringify(w); if (sig === wnSig) return;
+    /* only the Accessibility row changed (Allow pressed, the switch turned on): that row alone, the list keeps its scroll */
+    var was = wnSig; wnSig = sig;
+    var a0 = q('.wn-a'), bare = function (x) { var o = JSON.parse(x); delete o.access; return JSON.stringify(o); };
+    if (was && a0 && w.access && bare(was) === bare(sig)) { a0.outerHTML = wnAccess(w.access); return; }
     var bl = w.bullets || [], rows = bl.filter(function (b) { return b !== w.headline; });
-    var list = rows.length ? '<div class="wn-l o-said-in rv mx-4 mt-1.5 max-h-[150px] overflow-y-auto rounded-lg bg-black/[0.18] px-3 py-1.5" style="--i:2">' + rows.map(function (b) {
+    /* the fade sits on a still wrapper, not on the list that scrolls: a mask on the scroller itself makes WebKit repaint it
+       every frame of a scroll, and the lines judder behind the trackpad */
+    var list = rows.length ? '<div class="wn-lw rv mx-4 mt-1.5 overflow-hidden rounded-lg bg-black/[0.18]" style="--i:2"><div class="wn-l o-said-in max-h-[150px] overflow-y-auto px-3 py-1.5">' + rows.map(function (b) {
       return '<div dir="auto" class="flex items-start gap-2 py-[3px] text-[12.5px] leading-[18px] text-foreground/80"><i class="mt-[8px] size-[3px] flex-none rounded-full bg-zinc-500"></i><span class="min-w-0">' + esc(b) + '</span></div>';
-    }).join('') + '</div>' : '';
+    }).join('') + '</div></div>' : '';
     q('.wn').innerHTML =
       header('<div class="truncate text-sm font-medium leading-4">What\u2019s new in Perch</div>', '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + esc(w.version) + '</span>') +
-      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list +
-      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:3">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
-    var box = q('.wn-l'); if (box) box.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
+      '<div dir="auto" class="rv px-4 pb-0.5 pt-1 text-[13.5px] font-medium leading-[19px] tracking-[-0.01em]" style="--i:1">' + esc(w.headline || 'Perch ' + w.version) + '</div>' + list + wnAccess(w.access) +
+      '<div class="rv flex h-9 items-center justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
+    var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
   function apply(s) {
-    /* Settings says which build this is, small, beside its close; a test build says so under the notch instead. A downloaded update waits beside it until Perch is quiet: Restart does it now. */
-    /* Settings says which build this is, small, beside its close (the hardware notch hides anything nearer the middle) */
-    var head = s.testBuild ? '' : (s.version || '');
-    if (head !== verSig) { verSig = head; q('.s-ver').textContent = head; }
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     if (s.icons) icons = s.icons;
@@ -1875,15 +2342,22 @@
     if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
+    else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
+      if (liveNext) { setPage = 'agents'; setSig = ''; }
       settingsApply(s.settings);
-      if (liveNext) { liveNext = false; setFocus = 3; setKb = true; paintFocus(); setTimeout(flashLive, 300); }
-    } else { setSig = ''; setFocus = 0; setKb = true; setHot = -1; appsAt = 0; appsOpen = false; showOpen = false; }
+      if (liveNext) { liveNext = false; var lr = q('.set .s-sw[data-k=live]'); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), lr && lr.closest('.s-row')); setKb = true; paintFocus(); setTimeout(flashLive, 300); }
+    } else {
+      /* the character picker and the shortcut recorder come back to the page and row they opened from; anywhere else,
+         Settings starts again at the top of the list */
+      if (st !== 'onb') { setPage = ''; setFocus = setRootAt = 0; if (fbState === 'sent') fbState = ''; }
+      setSig = ''; setKb = true; setHot = -1;
+    }
     var flipped = st === 'open' && lastSt === 'open' && p && cardId && p.id !== cardId;
     cardMove = st === 'open' && lastSt === 'open' && p ? (p.id !== cardId ? 'flip' : 'live') : '';
     if (p) { if (st === 'open' && lastSt === 'open') settleCard(function () { fill(p); }, p.id !== cardId); else fill(p); }
@@ -1895,7 +2369,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else nw.on = false;
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -1903,11 +2377,11 @@
     /* while it waits there is nothing to press: no Return on it, and it steps back */
     q('.x-send kbd').style.display = !canSend && s.allowing ? 'none' : '';
     q('.x-send').style.opacity = !canSend && s.allowing ? '.6' : '';
-    q('.x-send').title = canSend ? '' : s.allowing ? 'Turn Perch on in System Settings, Accessibility. Your reply goes out as soon as it is on.'
+    q('.x-send').title = canSend ? '' : s.allowing ? 'Choose Open System Settings in macOS\u2019s prompt, then switch Perch on. Your reply goes out as soon as it is on.'
       : 'Perch needs Accessibility to send for you. Allow it once and this reply goes out.';
     /* green only while a finished session is news, blue while it works; one you have already seen glows in the character's colour */
     var glow = { attention: ['233,168,119', '244,210,180'], done: ['140,207,164', '196,234,210'], running: ['141,200,232', '198,228,246'] };
-    var gk = st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
+    var gk = st === 'set' && Date.now() - fbGlow.at < 2600 ? glow[fbGlow.k] : st === 'open' && p && glow[p.status.kind] && !(p.status.kind === 'done' && p.fresh === false) ? glow[p.status.kind] : null, g = gk || ['245,184,59', '255,222,140'];
     n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
     n.dataset.g = gk ? 'status' : 'char';
     n.dataset.run = st === 'open' && p && p.status.kind === 'running' ? '1' : '';   /* working: the light breathes (input.css) */
@@ -2042,7 +2516,7 @@
     var end = document.elementFromPoint(x, y);
     if (last && !(end && end.closest && end.closest('.row, .s-row'))) last.dispatchEvent(new MouseEvent('mouseenter'));
   }
-  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
+  document.addEventListener('mousemove', function (e) { if (e.isTrusted) { ptrSeen(e.clientX, e.clientY); sweep(e.clientX, e.clientY); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct(); realMoveAt = Date.now(); if (hvEls.length) hoverAt(-1, -1); } }, true);
   function hoverAt(x, y) {
     var el = x < 0 ? null : document.elementFromPoint(x, y), chain = [];
     for (var c = el; c && c !== document.documentElement; c = c.parentElement) chain.push(c);
@@ -2067,8 +2541,10 @@
     if (!on && node && (lastSt !== 'open' || !el.getClientRects().length)) s.removeAllRanges();
     if (on !== selOn) { selOn = on; post({ type: 'selected', on: on }); }
     hlDraw();
+    if (saidLater && (!s || s.isCollapsed) && repOn) showSaid(true);
   }
   document.addEventListener('selectionchange', selCheck);
+  document.addEventListener('mouseleave', function () { chPill.classList.remove('on'); });
   /* The selection, drawn (input.css .hl): one rounded piece per line, from the selected words' own boxes, cut to what shows of
      them (the reply's scroll, a table's window, a clamped line), fading in as a drag reaches each line. The system's
      highlight stays underneath, hidden, and is what gets copied. */
@@ -2122,11 +2598,11 @@
   hlLayer.addEventListener('animationend', function () { hlLayer.classList.remove('copied'); });
   /* Selecting in the message above took the caret from the reply: what you type next goes back into the field. */
   document.addEventListener('keydown', function (e) {
-    if (fRep.style.display !== 'flex' || document.activeElement === rIn || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
+    if (fRep.style.display !== 'flex' || document.activeElement === rIn || (document.activeElement && document.activeElement.tagName === 'INPUT') || e.metaKey || e.ctrlKey || !(e.key.length === 1 || e.key === 'Backspace')) return;
     caretAt(rIn.selectionEnd == null ? rIn.value.length : rIn.selectionEnd);
   }, true);
   function cursor(x, y) {
-    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList();
+    ptrSeen(x, y); sweep(x, y); if (lastSt === 'switch') markList(); if (lastSt === 'open') markChoice(); if (act.mode) markAct();
     if (Date.now() - realMoveAt > 400) hoverAt(x, y);
     if (cr.dataset.m !== 'awake' && cr.dataset.m !== 'alert') return;
     var r = cr.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
@@ -2156,7 +2632,9 @@
       if (!rest) requestAnimationFrame(step);
     }
   }
-  if (!NATIVE) scene.addEventListener('mousemove', function (e) { cursor(e.clientX, e.clientY); });
+  /* the real pointer only: hoverAt's own mousemove (for the page's hover handlers) would come back here and loop, and the
+     design page's pretend pointer calls cursor itself */
+  if (!NATIVE) scene.addEventListener('mousemove', function (e) { if (e.isTrusted) cursor(e.clientX, e.clientY); });
   if (!NATIVE) scene.addEventListener('mousemove', function (e) {
     if (!snap || snap.phase !== 'idle') return;
     var r = n.getBoundingClientRect(), pad = 10;
@@ -2425,16 +2903,19 @@
       Button('default', label, Kbd(svg('enter', 'size-2'), 1), 'o-primary pr-0.5" data-a="' + action) + '</div>';
   }
   /* a tile's second line on the apps step: one quiet word while the first scan runs, then what it found */
-  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
+  /* chats are named by count only: their titles can be personal, and the tile is seen before you choose */
+  function srcLine(o, x) { return o.scanning ? 'Scanning\u2026' : x.id === 'chat' ? (x.count ? x.count + ' recent' : 'Nothing found yet') : x.count ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : 'Nothing found yet'; }
   function liveNote(on) { return on ? 'Codex may ask you once to trust the new hook.' : 'Adds a small hook to each agent. You can remove it in Settings.'; }
   /* off: Turn on, or Skip; on: Next */
   function liveFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'hooks'); }
+  function prsNote(on) { return on ? 'A failing check puts the session under Needs you. Change it in Settings.' : 'Read only: Perch never writes to GitHub. You can switch it off in Settings.'; }
+  function prsFoot(on) { return ofootIn(true, on ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), on ? 'Next' : 'Turn on', on ? 'next' : 'prs'); }
   function tick(done) { return done ? Ring('done') : '<span class="size-4 flex-none rounded-full border border-muted-foreground/40"></span>'; }
   function orow(icon, label, right) { return '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + icon + '<span class="flex-1">' + label + '</span><span class="text-muted-foreground">' + right + '</span></div>'; }
   function ohint(left, text) { return '<div class="flex items-baseline gap-3"><span class="flex w-[4.5rem] flex-none">' + left + '</span><span class="text-muted-foreground">' + text + '</span></div>'; }
   function onbDo(a) {
     if (a === 'finish') helloNext = true;
-    if (a === 'hooks') post({ type: 'hooks', on: true }); else post({ type: 'onb', action: a });
+    if (a === 'hooks') post({ type: 'hooks', on: true }); else if (a === 'prs') post({ type: 'setting', key: 'pullRequests', value: true }); else post({ type: 'onb', action: a });
   }
   var pickedAt = 0;   /* apply() leaves the character alone just after a pick: a snapshot sent before the app heard of it still has the old one */
   function pickCharacter(c) {
@@ -2544,19 +3025,30 @@
     } else if (st === 2) {
       h = otitle(o, 'Let Perch reply for you', 'Perch pastes and sends your replies, and listens for its shortcut. macOS asks you to allow it once.') +
         oi(3, '<div class="mt-3 px-4">' + orow(tick(g), 'Accessibility', g ? 'Allowed' : 'Waiting for you\u2026') + '</div>') +
-        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">Switch Perch on in System Settings. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
+        oi(4, g ? '' : '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS asks next: choose Open System Settings there, then switch Perch on. Switched it on but nothing changes? <button class="o-restart cursor-pointer underline underline-offset-2 hover:text-foreground">Restart Perch</button></p>') +
         ofoot(5, true, g ? '' : Button('ghost', 'Skip', Kbd('S'), 'o-skip'), g ? 'Next' : 'Open System Settings', g ? 'next' : 'accessibility');
     } else if (st === 3) {
       h = shortcutStep(o);
     } else if (st === 4) {
-      var rows = o.sources.map(function (x) {
-        var sw = '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw sw"><i></i></button>';
-        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3" data-id="' + x.id + '"><span class="o-ic flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-5') + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + x.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(srcLine(o, x)) + '</span></span>' + sw + '</div>';
-      }).join('');
-      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you switch on. You can change this later from the menu bar.') +
-        /* more than two agents sit two to a row, so the card keeps its height */
-        oi(3, '<div class="mt-3 ' + (o.sources.length > 2 ? 'grid grid-cols-2' : 'flex flex-col') + ' gap-1.5 px-4">' + rows + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+      /* Claude is one tile, its kinds (Code, tasks, chats) as small checks inside, so a new kind never adds a tile; the other
+         agents sit beside each other under it. The places Perch follows a session into are named under them, with their marks:
+         nothing to choose there, Perch finds them by itself. */
+      var KINDS = { claude: 'Code', cowork: 'Tasks', chat: 'Chats' };
+      var kinds = o.sources.filter(function (x) { return KINDS[x.id]; }), others = o.sources.filter(function (x) { return !KINDS[x.id]; });
+      var srcTick = function (x, cls) { return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ' + cls + '">' + (cls === 'ck' ? '' : KINDS[x.id]) + svg('check', cls === 'ck' ? 'size-4' : 'size-3') + '</button>'; };
+      var tile = function (id, icon, name, line, on, right, wide) {
+        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (wide ? ' col-span-full' : '') + '" data-id="' + id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + icon + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' + right + '</div>';
+      };
+      var code = kinds.filter(function (x) { return x.id === 'claude'; })[0];
+      var rows = (kinds.length ? tile('claude-group', App('claude', 'size-5'), 'Claude', code ? srcLine(o, code) : '', kinds.some(function (x) { return x.enabled; }),
+        '<span class="flex flex-none gap-1">' + kinds.map(function (x) { return srcTick(x, 'o-chip'); }).join('') + '</span>', true) : '') +
+        others.map(function (x) { return tile(x.id, App(x.id, 'size-5'), x.name, srcLine(o, x), x.enabled, srcTick(x, 'ck')); }).join('');
+      var cols = 'grid-cols-2';   /* three to a row leaves an agent's name no room */
+      var places = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +
+        oi(3, '<div class="mt-3 grid ' + cols + ' gap-1.5 px-4">' + rows + '</div>') +
+        oi(4, (places ? '<p class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + places + '</p>' : '') +
+          '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
@@ -2565,6 +3057,13 @@
           '<button role="switch" aria-checked="' + live + '" aria-label="Live status" class="o-live sw"><i></i></button></div></div>') +
         oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + liveNote(live) + '</p>') +
         oi(5, liveFoot(live));
+    } else if (st === 6 && o.total === 8) {
+      var pon = o.prs === 'on';
+      h = otitle(o, 'Know when a pull request needs you', 'Perch asks GitHub, with the gh login you already have, whether checks fail or a review wants changes.') +
+        oi(3, '<div class="mt-3 px-4"><div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-[13px]">' + svg('pr', 'size-4 flex-none text-muted-foreground') + '<span class="flex-1">PR checks</span>' +
+          '<button role="switch" aria-checked="' + pon + '" aria-label="PR checks" class="o-prsw sw"><i></i></button></div></div>') +
+        oi(4, '<p class="o-note mt-2 px-4 text-xs leading-4 text-muted-foreground">' + prsNote(pon) + '</p>') +
+        oi(5, prsFoot(pon));
     } else {
       h = otitle(o, 'You\u2019re all set!', 'Here is how to reach Perch.') +
         oi(3, '<div class="mt-3 flex flex-col gap-2 px-4 text-[13px]">' + ohint(scKeysHtml(o.shortcut), scWords(o.shortcut)) + ohint(Kbd('\u2303\u2325P'), 'The welcome card') + ohint(Kbd('\u2303\u2325L'), 'Other projects') + ohint('<span class="text-xs text-muted-foreground">Hover</span>', 'Rest on the notch to peek') + '</div>') +
@@ -2585,7 +3084,10 @@
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); b.closest('.o-tile').querySelector('.o-ic').classList.toggle('opacity-50', !on); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    /* a click on a one-agent tile ticks it; on Claude's tile only its own small checks do */
+    box.querySelectorAll('.o-tile').forEach(function (t) { var b = t.querySelectorAll('.o-sw'); if (b.length !== 1) return; t.classList.add('cursor-pointer'); t.onclick = function (e) { if (!e.target.closest('.o-sw')) b[0].click(); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); tileDim(b.closest('.o-tile')); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-prsw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'setting', key: 'pullRequests', value: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
     box.querySelectorAll('.o-color').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: charNow.shape, color: b.dataset.c }); }; });
@@ -2649,11 +3151,12 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') : ''].join('|');
+    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') + '|' + (o.places || []).map(function (x) { return x.id; }).join(',') + '|' + Object.keys(icons).length : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
       if (o.step === 4) onbSources(o);
       if (o.step === 5 && (!was || was.live !== o.live)) onbLive(o);
+      if (o.step === 6 && o.total === 8 && (!was || was.prs !== o.prs)) onbPrs(o);
       return;
     }
     /* the introduction uses none of this data: a scan finishing must not cut it short */
@@ -2662,11 +3165,14 @@
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
+  /* a tile's mark dims once nothing in it is ticked */
+  function tileDim(t) { t.querySelector('.o-ic').classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
   function onbSources(o) {
+    var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
+    q('.onb').querySelectorAll('.o-sw').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); tileDim(b.closest('.o-tile')); } });
     q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
-      var x = o.sources.filter(function (y) { return y.id === t.dataset.id; })[0], b = t.querySelector('.o-sw'), sub = t.querySelector('.o-line'), line;
+      var x = src(t.dataset.id === 'claude-group' ? 'claude' : t.dataset.id), sub = t.querySelector('.o-line'), line;
       if (!x) return;
-      if (b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); t.querySelector('.o-ic').classList.toggle('opacity-50', !x.enabled); }
       line = srcLine(o, x);
       if (sub.textContent === line) return;
       sub.textContent = line; sub.classList.toggle('opacity-60', !!o.scanning);
@@ -2679,6 +3185,13 @@
     if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
     if (note) note.textContent = liveNote(on);
     if (foot) { foot.parentNode.innerHTML = liveFoot(on); onbBind(box); }
+  }
+  /* PR checks turned on or off on its step: the switch slides, the note and the buttons follow */
+  function onbPrs(o) {
+    var on = o.prs === 'on', box = q('.onb'), b = box.querySelector('.o-prsw'), note = box.querySelector('.o-note'), foot = box.querySelector('.o-foot');
+    if (b && b.getAttribute('aria-checked') !== String(on)) setSw(b, on);
+    if (note) note.textContent = prsNote(on);
+    if (foot) { foot.parentNode.innerHTML = prsFoot(on); onbBind(box); }
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
@@ -2702,82 +3215,176 @@
     pickCharacter({ shape: SHAPES[i][0], color: charNow.color });
   }
 
-  /* ---- settings, inside the notch ---- */
-  var setLast = null, setSig = '';
+  /* ---- settings, inside the notch ----
+     A short list of categories, each saying what it is set to now. Right or Return opens one; Left or Esc comes back, and
+     on the list itself goes back to where Settings came from. A category shows its settings inline, with no menus to drop
+     down, so a page is only as tall as it needs. Character opens its picker; Send feedback is the last row. */
+  var setLast = null, setSig = '', setPage = '', setSlide = 0, setRootAt = 0;
+  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
+  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', notify: 'Notifications', general: 'General' };
   /* a switch changes in place so it slides, with a double settle (.sw.is-init); redrawing it would just snap to the new state */
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
     b.setAttribute('aria-checked', String(on));   /* .sw in input.css draws it from this */
   }
+  /* the same setting as a plain check at the right, nothing while it is off (the look of the Notifications menu's moments):
+     a click anywhere on its row flips it, as with a switch */
+  function ckHtml(on, key, label) {
+    return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw ck">' + svg('check', 'size-4') + '</button>';
+  }
   function swHtml(on, key, label) {
     return '<button role="switch" aria-checked="' + on + '" aria-label="' + label + '" data-k="' + key + '" class="s-sw sw"><i></i></button>';
   }
+  /* Pull requests, one row, three choices: nothing, the mark (from the Claude app's own list), or the mark with checks (asks GitHub through
+     the GitHub CLI's login). Checks is greyed while there is no CLI or no login, and the line says what to do. */
+  function prsMode(o) { return o.showPRs === false ? 'off' : o.prs === 'on' ? 'checks' : 'marks'; }
+  function prsDesc(o) {
+    /* one line each: this page has no room for two */
+    if (prsMode(o) === 'off') return 'No mark on any session';
+    if (o.prs === 'nogh') return 'Marks only: Checks needs the GitHub CLI';
+    if (o.prs === 'login') return 'Marks only: Checks needs gh auth login';
+    return prsMode(o) === 'checks' ? 'Also asks GitHub if checks fail or changes are wanted' : 'A mark on a session that made a pull request';
+  }
+  function prsSeg(o) {
+    var mode = prsMode(o), nocli = o.prs === 'nogh' || o.prs === 'login';
+    return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + [['off', 'Off'], ['marks', 'Marks'], ['checks', 'Checks']].map(function (x) {
+      var dis = x[0] === 'checks' && nocli;
+      return '<button class="s-prm h-5 rounded px-2 text-xs transition-colors ' + (mode === x[0] ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground' + (dis ? ' opacity-40' : ' cursor-pointer hover:text-foreground')) + (dis ? '" disabled="' : '') + '" data-m="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</span>';
+  }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
-  /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance */
-  function stile(ic) { return ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
+  /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
+  function drow(left, desc, right) {
+    /* the line is as tall as a segment (24 pt), so the control never reaches the words under it */
+    return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-1 text-[13px] transition-colors"><span class="flex h-6 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
+      '<span class="block pl-[26px] pt-[3px] text-[11.5px] leading-[15px] text-muted-foreground">' + desc + '</span></div>';
+  }
+  /* a few words over a group of rows: not a row, the keys pass it by */
+  function shead(t) { return '<div class="mx-2 px-2 pb-1 pt-2 text-[11.5px] font-medium text-muted-foreground/80">' + t + '</div>'; }
+  /* each setting leads with its mark in a small quiet tile, so the rows tell apart at a glance ('-' keeps the room, empty) */
+  function stile(ic) { return ic === '-' ? '<span class="size-[18px] flex-none" aria-hidden="true"></span>' : ic ? '<span class="grid size-[18px] flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-[11px]') + '</span>' : ''; }
   function slabel(t, sub, ic) {
     var txt = t + (sub ? ' <span class="text-muted-foreground">' + sub + '</span>' : '');
     return ic ? '<span class="flex min-w-0 flex-1 items-center gap-2">' + stile(ic) + '<span class="min-w-0 truncate">' + txt + '</span></span>' : '<span class="min-w-0 flex-1 truncate">' + txt + '</span>';
+  }
+  /* a row that is one thing (an agent, a moment, a screen): its mark first, dimmed while it is off */
+  function sthing(mark, name, on, after) {
+    return '<span class="flex min-w-0 flex-1 items-center gap-2"><span class="s-dim grid size-[18px] flex-none place-items-center transition-opacity' + (on ? '' : ' opacity-40') + '">' + mark + '</span><span class="min-w-0 truncate' + (on ? '' : ' text-muted-foreground') + '">' + name + '</span>' + (after || '') + '</span>';
+  }
+  /* a click anywhere on such a row switches or picks it */
+  function stap(html, attrs) { return html.replace('<div class="', '<div ' + (attrs || '') + ' class="s-tap cursor-pointer '); }
+  function setHints(l) { return '<span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground">' + l.map(function (h) { return '<span class="flex items-baseline gap-1.5">' + (h[0] === '\u2191\u2193' ? Keys('\u2191', '\u2193') : Kbd(h[0])) + h[1] + '</span>'; }).join('') + '</span>'; }
+  function showNow(o) { var all = showChoices(o), cur = o.showOn || 'mouse'; return all.filter(function (x) { return x.id === cur; })[0] || all[0]; }
+  /* what each switch says, by its key, so a refresh slides only the ones that moved */
+  function swVal(o, k) {
+    if (k === 'login') return !!o.login;
+    if (k === 'live') return o.live === 'on';
+    if (k === 'hover') return !!o.hoverExternal;
+    if (k === 'fbinfo') return fbInfo;
+    if (/^src:/.test(k)) return o.sources.some(function (x) { return x.id === k.slice(4) && x.enabled; });
+    if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
+    return false;
+  }
+  /* The moments the notch announces: one row with the lit ones as small coloured icons, opening a menu with a check for each. */
+  var notifyMenuOpen = false, ntFocus = 0;
+  /* the card is measured again after the menu opens or folds, so it has room for all of it */
+  function ntRelayout() { if (snap && lastSt === 'set') layout('set', snap); }
+  function notifyMoments(o) {
+    var list = notifyList(o);
+      /* one row: the lit moments as icons and a chevron; it opens a menu over the rows below, a check for each moment that is on */
+      var faces = list.filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); }).map(function (x) { return nCol(x[0]); }).join('');
+      var items = list.map(function (x, i) {
+        var y = notifyOn(x[0]), dis = x[0] === 'ci' && ciOff(o);
+        return '<div class="' + (dis ? '' : 's-nt cursor-pointer ') + 'nt-it flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors' + (dis ? '' : ' hover:bg-white/[0.07]') + '" data-i="' + i + '" data-k="' + x[0] + '" aria-pressed="' + y + '">' +
+          '<span class="grid flex-none transition-opacity ' + (y && !dis ? '' : dis ? 'opacity-25' : 'opacity-40') + '">' + nCol(x[0]) + '</span><span class="min-w-0 flex-1 truncate ' + (y && !dis ? '' : 'text-muted-foreground') + '">' + esc(x[1]) + '</span>' +
+          (dis ? '<span class="flex-none text-xs text-muted-foreground/70">Needs Checks</span>' : '<span class="grid size-4 flex-none place-items-center text-foreground/80">' + (y ? svg('check', 'size-4') : '') + '</span>') + '</div>';
+      }).join('');
+      var menu = notifyMenuOpen ? '<div class="nt-menu absolute right-0 top-[34px] z-30 w-[250px] rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]">' + items + '</div>' : '';
+      return '<div class="s-row s-menu relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + slabel('Notify me about', '', 'bell') +
+        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5">' + (faces ? '<span class="flex items-center gap-1.5">' + faces + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>') + svg(notifyMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground') + '</span>' + menu + '</div>';
   }
   var scSetSaved = '';
   var axAsked = false;   /* Allow was clicked: if it is still not working, the switch in System Settings is stale */
   function settingsRender(o) {
     setLast = o;
-    var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-    /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
-    var segOf = function (key, vals, name) {
-      return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + vals.map(function (m) {
-        return '<button class="s-seg h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o[key] === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-key="' + key + '" data-m="' + m + '">' + name(m) + '</button>';
-      }).join('') + '</span>';
-    };
-    var awaySeg = segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; });
-    var questSeg = segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; });
-    var sc = scOf(o.shortcut),
-      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
-      scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
-    /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
-    var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
-    var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
-    var rows = [
-      scRow,
-      newRow,
-      srow(slabel('Character', sh[1] + ', ' + colorName, 'cat'), Button('ghost', 'Change', '', 's-change s-gr')).replace('<div class="', '<div class="s-char '),
-      srow(slabel('Apps', '', 'grid'), appsHtml(o)).replace('<div class="', '<div class="s-appsrow relative '),
-      /* which moments the notch announces (the list and the cards say all of them) */
-      srow(slabel('Notify me about', '', 'bell'), notifyHtml()).replace('<div class="', '<div class="s-notrow relative '),
-      srow(slabel('Live status', '', 'pulse'), swHtml(o.live === 'on', 'live', 'Live status')),
-      /* the minutes are how long you are away, not a reminder after an agent replies: the line under it says what follows */
-      srow(slabel('Welcome back after', '', 'timer'), awaySeg),
-      /* a question nobody answers leaves the notch after this long (it stays in the list) */
-      srow(slabel('Questions stay in the notch for', '', 'hourglass'), questSeg),
-      /* where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen */
-      srow(slabel('Show Perch on', '', 'monitor'), showHtml(o)).replace('<div class="', '<div class="s-showrow relative '),
-    ].concat([
-      /* nothing to do when it is allowed, so the row only shows while it is not */
-      o.accessibility ? '' : srow(slabel('Reply and shortcuts', o.accessibility ? 'allowed' : (axAsked ? 'turn Perch on there' : 'needs access'), 'access'), o.accessibility ? '' : Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.')),
-      srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login'))
-    ]).concat(snap && snap.canUpdate ? [
-      /* a build that can update says where it stands; a local test build has no updater and no row */
-      srow(slabel('Updates', '<span class="s-updsub">' + updSub(snap) + '</span>', 'refresh'), '<span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span>')
-    ] : []).filter(Boolean);
-    /* the same room between the settings whatever rows show; the panel is tall enough for all eleven (408 pt). New session's
-       row makes twelve at most (438 pt), so building it grows the panel by a row. */
-    rows = rows.join('');
-    var box = q('.set');
-    box.innerHTML = '<div>' + rows + '</div>' +
+    if (o.accessibility) axAsked = false;   /* on now: if it is ever lost again, the row starts over at Allow */
+    var sc = scOf(o.shortcut), chev = svg('chevR', 'size-3 flex-none text-muted-foreground/60');
+    var small = function (t, c) { return '<span class="min-w-0 truncate text-xs' + (c ? '' : ' text-muted-foreground') + '"' + (c ? ' style="color:' + c + '"' : '') + '>' + t + '</span>'; };
+    /* nothing to do when it is allowed, so the row only shows while it is not: what is wrong in orange, and Allow, the one thing to do here */
+    var axRow = o.accessibility ? '' : srow(slabel('Reply and shortcuts', axAsked ? 'turn on in System Settings' : '<span style="color:' + COLORS.attention + '">' + (o.accessWas ? 'needs access again' : 'needs access') + '</span>', 'access'), Button('ghost', axAsked ? 'Open' : 'Allow', '', 's-ax s-gr bg-white/[0.08] text-foreground" title="Opens Accessibility in System Settings with a fresh switch for this build of Perch. Turn it on there.'));
+    var html, by = setSlide; setSlide = 0;
+    if (setPage === 'feedback') html = fbHtml();
+    else {
+      var rows, foot;
+      if (!setPage) {
+        var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
+        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); });
+        var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
+        /* each category says what it is set to now, so the list alone answers most questions */
+        var sum = {
+          shortcuts: scKeysHtml(sc, sc.works ? '' : COLORS.attention),
+          agents: (o.live === 'on' ? '' : small('Live status off')) + (on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None')),
+          notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
+          character: small(esc(sh[1]) + ', ' + colorName),
+          general: small(esc(showNow(o).name))
+        };
+        var go = function (id, label, ic, right) { return srow(slabel(label, '', ic), '<span class="flex items-center gap-2">' + right + chev + '</span>').replace('<div class="', '<div data-go="' + id + '" class="s-go cursor-pointer ' + (id === 'character' ? 's-char ' : '')); };
+        /* which build this is, and on the right where its update stands: Check for updates when there is nothing to say,
+           what is out with Update, a ring while it downloads, Restart to update, a failure in orange with what to do. A local
+           test build has no updater: its version only, and no row when the notch already says it is a test build. */
+        var ver = snap && !snap.testBuild && snap.version ? '<span class="tabular-nums">' + esc(snap.version) + '</span>' : '';
+        var upd = snap && snap.canUpdate ? srow(slabel('Version', ver, 'tag'), '<span class="flex items-center gap-2"><span class="s-updsub min-w-0 truncate text-xs text-muted-foreground">' + updSub(snap) + '</span><span class="s-updslot flex h-6 items-center gap-1.5">' + updSlot(snap) + '</span></span>')
+          : ver ? srow(slabel('Version', ver, 'tag'), '') : '';
+        rows = axRow + SET_PAGES.map(function (p) { return go(p[0], p[1], p[2], sum[p[0]]); }).join('') +
+          upd + go('feedback', 'Send feedback', 'chat', '<span class="fb-st flex items-center text-xs"><span class="fb-ic t-ic"></span><span class="t-swap"></span></span>');
+        foot = setHints([['\u2191\u2193', 'Choose'], ['\u2192', 'Open']]) + '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done');
+      } else {
+        /* the page says which it is under the notch's line (beside the notch there is room only for Settings), with Left as
+           its way back, drawn as the key, as Raycast does */
+        rows = '<div class="mx-2 flex h-7 items-center gap-2 px-1.5"><button aria-label="Back" title="Back (\u2190)" class="s-back -my-1 flex h-6 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('\u2190') + '</button>' +
+          '<span class="truncate text-[13px] font-medium">' + SET_TITLES[setPage] + '</span></div>' + pageRows(o, sc, axRow);
+        foot = '<span class="flex flex-1 justify-center">' + setHints([['\u2191\u2193', 'Choose'], [ENTER, 'Change'], ['\u2190', 'Back']]) + '</span>';
+      }
       /* the keys, like the list's: every setting can be changed without the mouse */
-      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5"><span class="flex items-center gap-3.5 pl-1.5 text-xs text-muted-foreground"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Change</span></span>' +
-      '<span class="flex-1"></span>' + Button('ghost', 'Quit Perch', '', 's-quit') + Button('default', o.back ? 'Back' : 'Done', Kbd('esc', 1), 's-done') + '</div>';
+      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-center gap-1 px-2.5">' + foot + '</div>';
+    }
+    /* inside a category, Settings steps back and is a way back */
+    var title = setPage ? '<button class="s-crumb cursor-pointer rounded text-muted-foreground transition-colors hover:text-foreground" title="Back (\u2190)">Settings</button>' : 'Settings';
+    /* a category opens from the right and comes back from the left, the old page going the other way (transitions.dev page side by side) */
+    var pane = q('.p-set'), slid = by && !STILL ? crossSeen(pane, ['.set']) : [];
+    var box = q('.set');
+    box.innerHTML = html; q('.s-title').innerHTML = title;
+    /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
+    box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
+    slid.forEach(function (x) {
+      if (!x.g) return;
+      var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
+      pane.appendChild(g);
+      g.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateX(' + (-dx) + 'px)', filter: 'blur(3px)' }], { duration: 250, easing: SMOOTH, fill: 'forwards' }).onfinish = gone;
+      setTimeout(gone, 370);   /* the timer finishes it even when animations are paused */
+      x.el.animate([{ opacity: 0, transform: 'translateX(' + dx + 'px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: SMOOTH });
+    });
+    var crumb = q('.s-crumb'); if (crumb) crumb.onclick = function () { setGo(''); };
+    if (setPage === 'feedback') { fbBind(box); return; }
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
-    box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
-      var on = b.getAttribute('aria-checked') !== 'true';
-      setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
-      if (b.dataset.k === 'login') post({ type: 'setting', key: b.dataset.k, value: on });
-      else if (b.dataset.k === 'live') post({ type: 'hooks', on: on });
+    box.querySelectorAll('.s-go').forEach(function (r) { r.onclick = function () { setGo(r.dataset.go); }; });
+    box.querySelectorAll('.s-tap').forEach(function (r) { r.onclick = function (e) {
+      if (e.target.closest('.s-sw')) return;
+      if (r.dataset.show) { post({ type: 'setting', key: 'showOn', value: r.dataset.show }); return; }
+      var c = r.querySelector('.s-sw'); if (c) c.click();
     }; });
-    bindApps(box); bindNotify(box); bindShow(box); bindUpdSlot(box, snap);
-    var sb0 = box.querySelector('.s-show'); if (sb0) { sb0._k = showKey(o); showClamp(sb0.querySelector('.s-showmenu')); }
+    box.querySelectorAll('.s-sw').forEach(function (b) { b.onclick = function () {
+      var on = b.getAttribute('aria-checked') !== 'true', k = b.dataset.k, r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim');
+      setSw(b, on);   /* slide now; the app confirms (or puts it back) a moment later */
+      if (dm) { dm.classList.toggle('opacity-40', !on); dm.nextSibling.classList.toggle('text-muted-foreground', !on); }
+      if (k === 'login') post({ type: 'setting', key: k, value: on });
+      else if (k === 'live') post({ type: 'hooks', on: on });
+      else if (k === 'hover') post({ type: 'setting', key: 'hoverExternal', value: on });
+      else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
+      else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
+    }; });
+    bindUpdSlot(box, snap); fbRow(true);
     /* a shortcut you just recorded: its keys spring once, so it never lands without a word */
     var chip = box.querySelector('button.s-sc');
     if (chip && sc.saved && !sc.recording && scSetSaved !== sc.keys.join('')) { if (chip.animate && !STILL) chip.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.14)', offset: .5 }, { transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' }); }
@@ -2785,244 +3392,373 @@
     var row = box.querySelector('.s-char');
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
-    var on = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
-    on('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
-    on('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
-    on('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
-    on('.s-change', function () { post({ type: 'onbOpen', step: 1, only: true }); });
-    on('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); });
-    on('.s-quit', function () { post({ type: 'quit' }); });
+    box.querySelectorAll('.s-nt').forEach(function (b) {
+      b.onclick = function (e) { if (e) e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
+      var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
+      if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
+    });
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
+    box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
+      var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
+    }; });
+    var on2 = function (sel, fn) { box.querySelectorAll(sel).forEach(function (b) { b.onclick = fn; }); };
+    on2('.s-sc', function () { post({ type: 'onbOpen', step: 3, only: true }); });
+    on2('.s-scr', function () { post({ type: 'shortcut', action: 'reset' }); });
+    on2('.s-nsc', function () { post({ type: 'onbOpen', step: 3, only: true, which: 'new' }); });
+    on2('.s-ax', function () { axAsked = true; post({ type: 'onb', action: 'accessibility' }); if (snap && snap.settings) settingsApply(snap.settings); });   /* the row says turn on in System Settings at once */
+    on2('.s-quit', function () { post({ type: 'quit' }); });
     /* Esc and this button go back to the card or list Settings came from, or close it when it came from elsewhere */
-    on('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
+    on2('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
+    on2('.s-back', function () { setGo(''); });
   }
-  /* Apps: the icons of the agents Perch reads and a chevron; it opens a menu with a check for each */
-  var appsOpen = false;
-  function appsHtml(o) {
-    var on = o.sources.filter(function (x) { return x.enabled; });
-    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return App(x.id, 'size-4'); }).join('') + '</span>'
-      : '<span class="text-xs text-muted-foreground">None</span>';
-    var items = o.sources.map(function (x, i) {
-      return '<button role="menuitemcheckbox" aria-checked="' + x.enabled + '" data-k="' + x.id + '" data-i="' + i + '" class="s-app flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.enabled ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-none ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="flex-1 truncate">' + x.name + '</span>' +
-        (x.count ? '<span class="text-xs text-muted-foreground">' + x.count + '</span>' : '') +
-        '<span class="flex size-3.5 flex-none items-center">' + (x.enabled ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('');
-    return '<span class="s-apps"><button aria-haspopup="menu" aria-expanded="' + appsOpen + '" aria-label="Apps Perch reads" class="s-apptrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (appsOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-appmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[196px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (appsOpen ? ' is-open' : '') + '">' + items + '</span></span>';
+  /* a category's own rows */
+  function pageRows(o, sc, axRow) {
+    var gap = '<div class="h-1.5"></div>';
+    if (setPage === 'shortcuts') {
+      /* when it does not work the keys turn orange and the tooltip says why; the Accessibility row below carries the fix. The recorder page says it in words. */
+      var scRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('keyboard') + '<span class="truncate">Open Perch</span><button class="s-sc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the shortcut" title="' + (sc.works ? 'Change' : sc.why) + '">' + scKeysHtml(sc, sc.works ? '' : COLORS.attention) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-sc') + (sc.custom ? Button('ghost', 'Reset', '', 's-scr') : '') + '</span>');
+      /* the shortcut that opens Perch straight on a new session (a global hotkey too; Finder takes the same keys for New Smart Folder, so it can change) */
+      var nsc = o.newShortcut || { keys: ['\u2325', '\u2318', 'N'], custom: false };
+      var newRow = srow('<span class="flex min-w-0 flex-1 items-center gap-2">' + stile('plus') + '<span class="truncate">New session</span><button class="s-nsc -my-0.5 cursor-pointer rounded-md px-0.5 py-0.5 transition hover:bg-white/10 active:scale-95" aria-label="Change the new session shortcut" title="Change">' + scKeysHtml({ keys: nsc.keys }) + '</button></span>', '<span class="s-gr flex items-center gap-1">' + Button('ghost', 'Change', '', 's-nsc') + '</span>');
+      return scRow + newRow + axRow;
+    }
+    if (setPage === 'agents') {
+      /* Claude's kinds (Code, tasks, chats) together at the top, then the other agents. The places Perch follows a session
+         into are named only in onboarding: this page has no room for them. */
+      var ORDER = { claude: 0, cowork: 1, chat: 2 };
+      var srcs = o.sources.slice().sort(function (a, b) { return (a.id in ORDER ? ORDER[a.id] : 9) - (b.id in ORDER ? ORDER[b.id] : 9); });
+      return srcs.map(function (x) {
+        var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
+        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
+      }).join('') + gap +
+        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
+        gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
+    }
+    if (setPage === 'notify') {
+      /* a small segmented choice: each button says which setting it is (data-key) and its value (data-m) */
+      var segOf = function (key, vals, name) {
+        return '<span class="flex rounded-md bg-white/[0.07] p-0.5">' + vals.map(function (m) {
+          return '<button class="s-seg h-5 cursor-pointer rounded px-2 text-xs transition-colors ' + (o[key] === m ? 'bg-white/[0.16] text-foreground' : 'text-muted-foreground hover:text-foreground') + '" data-key="' + key + '" data-m="' + m + '">' + name(m) + '</button>';
+        }).join('') + '</span>';
+      };
+      /* which moments the notch announces (the list and the cards say all of them) */
+      return notifyMoments(o) + gap +
+        /* the minutes are how long you are away, not a reminder after an agent replies */
+        drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
+        /* a question nobody answers leaves the notch after this long (it stays in the list) */
+        drow(slabel('Questions stay for', '', 'hourglass'), 'Then they wait in the list', segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; }));
+    }
+    if (setPage === 'general') {
+      /* Where the shortcut opens Perch and where it shows up by itself; hovering a screen's top still opens it on that screen.
+         One check: the two ways of following you, then each display by name. A display you chose that is not connected
+         stays listed, greyed, so the choice is still there to see; until it is back Perch follows the mouse. While a
+         display without a notch is connected, Hover opens on external displays follows them. */
+      var now = showNow(o), mark = { mouse: 'pointer', window: 'win' };
+      var screens = showChoices(o).map(function (x) {
+        var y = x.id === now.id;
+        return stap(srow(sthing(svg(mark[x.id] || 'monitor', 'size-3.5 text-muted-foreground'), esc(x.name), x.on, x.on ? '' : '<span class="flex-none text-xs text-muted-foreground">Not connected</span>'),
+          '<span class="flex size-4 items-center justify-center">' + (y ? svg('check', 'size-3.5') : '') + '</span>'), 'role="menuitemradio" aria-checked="' + y + '" data-show="' + x.id + '"');
+      }).join('');
+      var hover = o.hasExternal ? stap(drow(slabel('Hover opens on external displays', '', '-'), 'Rest the pointer on its top edge and Perch opens there', swHtml(!!o.hoverExternal, 'hover', 'Hover opens on external displays'))) : '';
+      return srow(slabel('Open at login', '', 'login'), swHtml(o.login, 'login', 'Open at login')) + gap + shead('Show Perch on') + screens + hover;
+    }
+    return '';
   }
-  function bindApps(box) {
-    var trig = box.querySelector('.s-apptrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); appsMenu(!appsOpen); };
-    box.querySelectorAll('.s-app').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { if (ptrMoved()) { appsAt = +b.dataset.i; paintFocus(); } };
+  /* a category, the list (''), Character's picker, or feedback; `still` opens it in place, without the slide */
+  function setGo(id, still) {
+    if (!setPage) setRootAt = setFocus;
+    if (id === 'character') { post({ type: 'onbOpen', step: 1, only: true }); return; }
+    if (id === setPage) return;
+    var was = setPage;
+    setSlide = still ? 0 : id ? 1 : -1;
+    setPage = id; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
+    /* the app gives Send feedback's fields the keys while it is open, and takes files dropped on the card */
+    if (id === 'feedback' || was === 'feedback') post({ type: 'feedbackOpen', open: id === 'feedback' });
+    if (id === 'feedback' && fbState === 'sent') fbState = '';
+    if (!id) { var a = document.activeElement; if (a && a.blur) a.blur(); }
+    setSig = ''; if (setLast) settingsApply(setLast);
+    /* back on the list, on the row of the page you left */
+    if (!id && was) { var rows = [].slice.call(q('.set').querySelectorAll('.s-row')), at = rows.indexOf(q('.set .s-go[data-go=' + was + ']')); if (at >= 0) { setFocus = at; paintFocus(); } }
+    if (snap && lastSt === 'set') layout('set', snap);
+  }
+
+  /* ---- feedback, from Settings ----
+     Your words, files dropped on the card, pasted or attached, and an email if you would like an answer. Return sends;
+     Esc, or Left in an empty field, goes back and keeps what you wrote (the Send feedback row says Draft). Sent, your
+     words fly into the notch and the list comes back, its Send feedback row saying how it is going. */
+  var fbText = '', fbMail = '', fbFiles = [], fbInfo = true, fbState = '', fbFlying = false;   /* fbState: '', sending, sent, failed */
+  var fbGlow = { at: 0, k: '' };   /* the card glows green for a moment when it goes, orange when it could not */
+  function fbHas() { return !!(fbText.trim() || fbFiles.length); }
+  function fbHtml() {
+    var ver = (snap && snap.version) || '0.4.3', mac = (snap && snap.macOS) || '26.1';
+    /* the title as a category's, with Esc as its way back: Left moves through your words here */
+    return '<div class="mx-2 flex h-7 items-center gap-2 px-1.5"><button aria-label="Back" title="Back (Esc)" class="fb-back -my-1 flex h-6 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button>' +
+      '<span class="truncate text-[13px] font-medium">Send feedback</span></div>' +
+      '<div class="fb px-2.5">' +
+      '<p class="px-1 pb-2 text-[12px] leading-4 text-muted-foreground">Bugs, ideas, anything. It goes straight to the maker of Perch.</p>' +
+      /* the field is a box: the files attached along its top, then your words */
+      '<div class="fb-box rounded-lg bg-white/[0.1] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] transition-[background-color,box-shadow] duration-200 focus-within:bg-white/[0.13] focus-within:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]">' +
+        '<div class="fb-att mx-2 hidden gap-1 overflow-x-auto pt-2"></div>' +
+        '<textarea class="fb-in block cursor-text max-h-[150px] min-h-[92px] w-full resize-none bg-transparent px-2.5 py-[7px] text-[13px] leading-[19px] text-foreground caret-white outline-none placeholder:text-white/35" rows="1" spellcheck="true" placeholder="What happened, or what you wish Perch did\u2026" aria-label="Feedback"></textarea></div>' +
+      '<input class="fb-mail mt-1.5 block h-7 w-full cursor-text rounded-lg bg-white/[0.06] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.1] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" type="email" spellcheck="false" autocomplete="email" placeholder="Your email, if you\u2019d like an answer" aria-label="Your email">' +
+      /* what else goes with it, said plainly; on by default, a click turns it off */
+      '<div class="s-tap fb-inf mt-1.5 flex h-6 cursor-pointer items-center gap-2 px-1 text-[12px] text-muted-foreground">' + swHtml(fbInfo, 'fbinfo', 'Include version details') + '<span class="truncate">Include Perch ' + esc(ver) + ' and macOS ' + esc(mac) + '</span></div>' +
+      /* what stands in the way, in orange, when something does: files over the limit, or a send that failed */
+      '<p class="fb-err mt-1 hidden px-1 text-[12px] leading-4" style="color:' + COLORS.attention + '"></p>' +
+      '</div>' +
+      '<div class="mt-1 flex h-9 items-center gap-1 px-2.5">' +
+        Button('ghost', svg('clip', 'size-3') + 'Attach', Kbd('\u2318O'), 'fb-attach -ml-1') + '<span class="flex-1"></span>' +
+        /* the way round both: Mail, with a new message to the maker of Perch, your words and files in it */
+        Button('ghost', 'Email it instead', '', 'fb-mailit hidden') +
+        Button('default', '<span class="fb-send-l">Send</span>', Kbd(ENTER, 1), 'fb-send pr-0.5') +
+      '</div>';
+  }
+  function fbBind(box) {
+    var ta = box.querySelector('.fb-in'), mail = box.querySelector('.fb-mail');
+    ta.value = fbText; mail.value = fbMail; fbAtt(); fbPaint(true);
+    ta.oninput = function () { fbText = ta.value; if (fbState === 'failed') fbState = ''; fbGrow(ta); fbPaint(); };
+    /* An email that does not look like one is said once you leave the field or press Send, never while you type; said,
+       it goes away the moment the address is right (or the field is empty: an email is not needed) */
+    mail.oninput = function () { fbMail = mail.value; if (fbMailSaid) { if (!fbMailBad()) fbMailSaid = false; fbPaint(); } };
+    mail.onblur = function () { if (fbMailBad() && !fbMailSaid) { fbMailSaid = true; fbPaint(); } };
+    var keys = function (e, el) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); fbSend(); }
+      else if (e.metaKey && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); e.stopPropagation(); post({ type: 'feedbackAttach' }); }   /* the app takes Command+O first */
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setGo(''); }
+      /* Left is Back here too, once there is nothing in the field for it to move through */
+      else if (e.key === 'ArrowLeft' && !el.value && !(el === ta && fbFiles.length)) { e.preventDefault(); e.stopPropagation(); setGo(''); }
+      else if (e.key === 'Backspace' && el === ta && fbFiles.length && !ta.selectionStart && !ta.selectionEnd) { e.preventDefault(); fbFiles.pop(); fbAtt(); fbPaint(); }
+      else if (e.key === 'ArrowDown' && el === ta && ta.selectionStart === ta.value.length) { e.preventDefault(); mail.focus({ preventScroll: true }); }
+      else if (e.key === 'ArrowUp' && el === mail) { e.preventDefault(); ta.focus({ preventScroll: true }); }
+      else e.stopPropagation();   /* typing is the field's: the settings keys never see it */
+    };
+    ta.onkeydown = function (e) { keys(e, ta); }; mail.onkeydown = function (e) { keys(e, mail); };
+    box.querySelector('.fb-send').onclick = fbSend;
+    box.querySelector('.fb-back').onclick = function () { setGo(''); };
+    box.querySelector('.fb-attach').onclick = function () { post({ type: 'feedbackAttach' }); };
+    box.querySelector('.fb-mailit').onclick = fbMailIt;
+    var inf = box.querySelector('.fb-inf'), isw = inf.querySelector('.s-sw');
+    inf.onclick = function (e) { if (!e.target.closest('.s-sw')) isw.click(); };
+    isw.onclick = function (e) { e.stopPropagation(); fbInfo = !fbInfo; setSw(isw, fbInfo); };
+    /* focus without scrolling: the card is still growing, and a scroll to the field would shove the whole notch up */
+    setTimeout(function () { if (setPage === 'feedback' && document.activeElement !== mail) { ta.focus({ preventScroll: true }); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 40);
+  }
+  function fbGrow(ta) { var min = fbFiles.length ? 64 : 92; ta.style.minHeight = min + 'px'; ta.style.height = 'auto'; ta.style.height = Math.min(150, Math.max(min, ta.scrollHeight)) + 'px'; if (snap && lastSt === 'set') layout('set', snap); }
+  function fbAtt() {
+    var box = q('.set .fb-att'); if (!box) return;
+    attChips(box, fbFiles, function (i) { fbFiles.splice(i, 1); fbAtt(); fbPaint(); var ta = q('.set .fb-in'); if (ta) ta.focus({ preventScroll: true }); });
+    /* a file past the limit is orange and says its size */
+    var big = fbBig();
+    [].forEach.call(box.querySelectorAll('.att'), function (c, i) {
+      if (big.indexOf(i) < 0) return;
+      c.style.background = 'rgba(233,168,119,.16)'; c.style.color = COLORS.attention; c.title += ' (too big to send)';
+      c.querySelector('.truncate').insertAdjacentHTML('afterend', '<span class="flex-none pl-1 text-[11px] tabular-nums opacity-80">' + fbMB(fileSizes[fbFiles[i]]) + '</span>');
     });
+    if (big.length) { box.scrollLeft = box.scrollWidth; attEdges(box); }
+    var ta = q('.set .fb-in'); if (ta) fbGrow(ta);
   }
-  /* opens or closes the menu in place; a click anywhere else on the card closes it */
-  /* a Settings menu grows out of its button and fades in, and fades out a little quicker (transitions.dev menu dropdown) */
-  function dropMenu(m, open) {
-    clearTimeout(m._t);
-    if (open) { m.classList.remove('is-closing'); m.classList.add('is-open'); return; }
-    if (!m.classList.contains('is-open')) return;
-    m.classList.remove('is-open'); m.classList.add('is-closing');
-    m._t = setTimeout(function () { m.classList.remove('is-closing'); }, 150);
+  /* Perch sends 4 MB at most (a Vercel function takes 4.5): pictures go smaller first (the app sends their size after
+     that), and a file that would take it past the limit is marked, in the order you added them */
+  var FB_CAP = 4 * 1024 * 1024, fileSizes = {};
+  function fbBig() { var sum = 0, out = []; fbFiles.forEach(function (f, i) { var b = fileSizes[f] || 0; if (sum + b > FB_CAP) out.push(i); else sum += b; }); return out; }
+  function fbMB(b) { return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
+  var fbMailSaid = false;
+  function fbMailBad() { var m = fbMail.trim(); return !!m && !/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(m); }
+  /* Send: faint until there is something to send, while a file is too big, and while the email is wrong; Try again after a
+     failure (the words morph). The line above says what is wrong; Email it instead appears beside a file too big or a
+     failure, the two it gets round. */
+  function fbPaint(still) {
+    var b = q('.set .fb-send'); if (!b) return;
+    var go = fbState === 'sending', big = fbBig(), failed = fbState === 'failed', mailBad = fbMailSaid && fbMailBad();
+    b.classList.toggle('opacity-50', !fbHas() || go || big.length > 0 || mailBad);
+    morphText(b.querySelector('.fb-send-l'), go ? 'Sending' : failed && !big.length ? 'Try again' : 'Send', still);
+    var err = big.length ? 'Too big to send, 4 MB at most. Remove ' + (big.length === 1 ? 'it' : 'them') + ', or email it instead.'
+      : mailBad ? 'That email doesn\u2019t look right. Fix it, or leave it empty.'
+      : failed ? 'Couldn\u2019t send. Your words are kept.' : '';
+    var e = q('.set .fb-err'), had = !e.classList.contains('hidden');
+    e.textContent = err; e.classList.toggle('hidden', !err);
+    /* the field itself in orange too, so the eye goes to it */
+    q('.set .fb-mail').style.boxShadow = mailBad ? 'inset 0 0 0 1px rgba(233,168,119,.75)' : '';
+    q('.set .fb-mailit').classList.toggle('hidden', !(big.length || (failed && !mailBad)));
+    q('.set .fb-in').readOnly = q('.set .fb-mail').readOnly = go;
+    if (had !== !!err && snap && lastSt === 'set') layout('set', snap);
   }
-  function appsMenu(open) {
-    if (open && notOpen) notifyMenu(false);
-    if (open && showOpen) showMenu(false);
-    appsOpen = open; if (open) appsAt = 0;
-    var box = q('.set'), m = box && box.querySelector('.s-appmenu'), t = box && box.querySelector('.s-apptrig');
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    paintFocus();
+  /* Mail takes it from here: a new message with everything in it, and Perch steps aside (the words are Mail's now) */
+  function fbMailIt() {
+    post({ type: 'feedbackMail', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
+    fbText = ''; fbFiles = []; fbState = '';
   }
-  document.addEventListener('click', function (e) { if (appsOpen && !e.target.closest('.s-apps')) appsMenu(false); if (notOpen && !e.target.closest('.s-notify')) notifyMenu(false); if (showOpen && !e.target.closest('.s-show')) showMenu(false); });
-  /* Notify me about: the marks of the moments the notch announces and a chevron; it opens a menu with a check for each, as Apps does */
-  var notOpen = false, notAt = 0;
-  function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
-  function notifyHtml() {
-    var on = NOTIFY.filter(function (x) { return notifyOn(x[0]); });
-    var faces = on.length ? '<span class="flex gap-[3px]">' + on.map(function (x) { return nMark(x[0]); }).join('') + '</span>' : '<span class="text-xs text-muted-foreground">Nothing</span>';
-    var items = NOTIFY.map(function (x, i) {
-      var y = notifyOn(x[0]);
-      return '<button role="menuitemcheckbox" aria-checked="' + y + '" data-k="' + x[0] + '" data-i="' + i + '" class="s-nitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (y ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-none ' + (y ? '' : 'opacity-50') + '">' + nMark(x[0]) + '</span><span class="flex-1 truncate">' + x[1] + '</span>' +
-        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('');
-    return '<span class="s-notify"><button aria-haspopup="menu" aria-expanded="' + notOpen + '" aria-label="What the notch tells you about" class="s-notrig inline-flex h-6 cursor-pointer items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors hover:bg-white/[0.08]' + (notOpen ? ' bg-white/[0.08]' : '') + '">' + faces + svg('chev', 'size-3 text-muted-foreground') + '</button>' +
-      '<span role="menu" class="s-notmenu absolute right-2 top-[calc(100%+2px)] z-20 w-[216px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (notOpen ? ' is-open' : '') + '">' + items + '</span></span>';
+  function fbSend() {
+    if (fbState === 'sending') return;
+    var ta = q('.set .fb-in');
+    var shake = function (el) { if (el && el.animate && !STILL) el.animate([{ transform: 'none' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }], { duration: 280, easing: 'ease-out' }); };
+    if (!fbHas()) { if (ta) { ta.focus({ preventScroll: true }); shake(q('.set .fb-box')); } return; }
+    if (fbBig().length) { shake(q('.set .fb-err')); return; }
+    if (fbMailBad()) { var m = q('.set .fb-mail'); fbMailSaid = true; fbPaint(); if (m) { m.focus({ preventScroll: true }); shake(m); } return; }
+    fbState = 'sending';
+    post({ type: 'feedback', text: fbText.trim(), email: fbMail.trim(), files: fbFiles.slice(), info: fbInfo });
+    /* then the list again, coming in from the left, on the Send feedback row, which says Sending */
+    var t = fbFly(); fbFlying = !!t;
+    setTimeout(function () {
+      fbFlying = false; if (setPage !== 'feedback') return;
+      setGo('', true);
+      if (t) q('.set').animate([{ opacity: 0, transform: 'translateX(-8px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'blur(0)' }], { duration: 250, easing: SMOOTH });
+    }, t);
   }
-  function bindNotify(box) {
-    var trig = box.querySelector('.s-notrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); notifyMenu(!notOpen); };
-    box.querySelectorAll('.s-nitem').forEach(function (b) {
-      b.onclick = function (e) { e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-checked') !== 'true' }); };
-      b.onmouseenter = function () { if (ptrMoved()) { notAt = +b.dataset.i; paintFocus(); } };
+  /* Your words go off into the notch the way a reply to a terminal does: the page clears, the field first, and the words
+     rise as a bubble, stretching as they go; the notch swallows them with a green ripple, and the character watches and
+     hops. Returns when the list may come back (0 with reduced motion: at once). */
+  function fbFly() {
+    var pane = q('.p-set'), box = q('.set'), ta = box.querySelector('.fb-in'); if (STILL || !ta) return 0;
+    var pr = pane.getBoundingClientRect(), fr = ta.getBoundingClientRect();
+    var words = fbText.trim().split('\n')[0] || fbFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', ');
+    [box.querySelector('.fb-box'), box.querySelector('.fb p'), box.querySelector('.fb-mail'), box.querySelector('.fb-inf'), box.firstChild, box.lastChild].forEach(function (el, i) {
+      if (el) el.animate([{ opacity: 1, transform: 'none', filter: 'blur(0)' }, { opacity: 0, transform: 'translateY(-6px)', filter: 'blur(3px)' }], { duration: 200, delay: i * 25, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
     });
+    var b = document.createElement('div'); b.className = 'fly'; b.textContent = words; pane.appendChild(b);
+    ta.style.color = 'transparent';   /* the words are the bubble now: they are not left behind in the field as well */
+    var x0 = fr.left - pr.left + 8, y0 = fr.top - pr.top + 6;
+    b.style.left = x0 + 'px'; b.style.top = y0 + 'px';
+    var dx = CARD_W / 2 - (x0 + b.offsetWidth / 2), dy = 2 - (y0 + b.offsetHeight / 2);
+    b.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + (dx * .15) + 'px, 6px) scale(1.06, .9)', opacity: 1, offset: .25 },
+      { transform: 'translate(' + (dx * .85) + 'px,' + (dy * .8) + 'px) scale(.5, 1.25)', opacity: 1, offset: .8 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.1, .4)', opacity: 0 }],
+      { duration: 360, delay: 40, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'both' });
+    var ring = document.createElement('div'); ring.className = 'fly-ring'; ring.style.left = (CARD_W / 2 - 30) + 'px'; ring.style.top = '-28px'; ring.style.animationDelay = '370ms'; pane.appendChild(ring);
+    look(2.8, -1.6);
+    setTimeout(function () { var ci = cr.querySelector('.cr-in'); cr.dataset.m = 'happy'; ci.classList.remove('hop'); void ci.offsetWidth; ci.classList.add('hop'); look(0, 0); fbGlowNow('done'); }, 400);
+    setTimeout(function () { b.remove(); ring.remove(); }, 1000);
+    return 320;
   }
-  function notifyMenu(open) {
-    if (open && appsOpen) appsMenu(false);
-    if (open && showOpen) showMenu(false);
-    notOpen = open; if (open) notAt = 0;
-    var box = q('.set'), m = box && box.querySelector('.s-notmenu'), t = box && box.querySelector('.s-notrig');
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    paintFocus();
+  function fbGlowNow(k) {
+    fbGlow = { at: Date.now(), k: k };
+    var g = k === 'done' ? ['140,207,164', '196,234,210'] : ['233,168,119', '244,210,180'];
+    n.dataset.g = 'status'; n.style.setProperty('--glow', g[0]); n.style.setProperty('--glow-hi', g[1]);
+    clearTimeout(fbGlowNow._t); fbGlowNow._t = setTimeout(function () { if (snap) apply(snap); }, 2700);   /* then it settles back into the character's colour */
   }
-  /* Show Perch on: the screen it opens on now and a chevron; the menu has one check, the two ways of following you first,
-     then each display by name. It opens upward: the row sits low on the card. A display you chose that is not connected
-     stays listed, so the choice is still there to see; until it is back Perch follows the mouse. While a display without a
-     notch is connected, the menu ends with Hover opens on external displays: a display without a notch shows nothing at
-     rest, and this lets its top edge open Perch (the shortcut always does). It switches in place and the menu stays open. */
-  var showOpen = false, showAt = 0;
+  /* The Send feedback row says how your message is doing, changing in place: Sending with a spinner, then a green check
+     and thank you, or Couldn't send in orange (open it and everything is still there). Draft while words wait. */
+  function fbRow(still) {
+    var st = q('.set .fb-st'); if (!st) return;
+    var ic = st.firstChild, tx = st.lastChild;
+    var m = fbState === 'sending' ? [Spinner('size-3.5', glow(COLORS.running)), 'Sending', COLORS.running]
+      : fbState === 'sent' ? [Ring('done'), 'Sent. Thank you', COLORS.done]
+      : fbState === 'failed' ? [Ring('need'), 'Couldn\u2019t send', COLORS.attention]
+      : ['', fbHas() ? 'Draft' : '', ''];
+    ic.classList.toggle('has', !!m[0]);
+    iconSwap(ic, m[0], still);
+    tx.classList.toggle('text-muted-foreground', !m[2]);
+    swapText(tx, m[1], m[2], still);
+  }
+  /* the app says how it went */
+  function fbDone(ok) {
+    if (fbState !== 'sending') return;
+    fbState = ok ? 'sent' : 'failed';
+    if (ok) { fbText = ''; fbFiles = []; }
+    if (!fbFlying) {
+      /* opened again while it went: a failure shows there, a success takes you back to the list */
+      if (setPage === 'feedback') { if (ok) setGo(''); else fbPaint(); }
+      else fbRow(false);
+    }
+    setTimeout(function () { fbGlowNow(ok ? 'done' : 'attention'); }, fbFlying ? 500 : 0);
+  }
+  /* Esc on Send feedback with neither field focused (they handle it themselves); in the app nothing else would see it */
+  if (NATIVE) document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && lastSt === 'set' && setPage === 'feedback') { e.preventDefault(); setGo(''); } });
+  function fbPaths(list) {
+    if (setPage !== 'feedback') return;
+    var b = q('.set .fb-box'); if (b) b.classList.remove('drop', 'on');
+    fbFiles = addFiles(fbFiles, list); if (fbState === 'failed') fbState = '';
+    fbAtt(); fbPaint();
+    var ta = q('.set .fb-in'); if (ta) setTimeout(function () { ta.focus({ preventScroll: true }); }, 40);
+  }
+  /* a file over the card lights the field, more so right on it */
+  function fbDragOver(nf, x, y) {
+    var b = setPage === 'feedback' && q('.set .fb-box'); if (!b) return;
+    if (!nf) { b.classList.remove('drop', 'on'); return; }
+    var el = x == null ? null : document.elementFromPoint(x, y);
+    b.classList.add('drop'); b.classList.toggle('on', !!(el && el.closest && el.closest('.fb-box')));
+  }
   var DEV_DISPLAYS = [{ id: '1', name: 'Built-in Retina Display', connected: true }, { id: '2', name: 'LG UltraFine', connected: true }];
   var SHOW_WAYS = [['mouse', 'Screen with mouse'], ['window', 'Screen with active window']];
   function showChoices(o) {
     return SHOW_WAYS.map(function (w) { return { id: w[0], name: w[1], on: true }; })
       .concat((o.displays || []).map(function (x) { return { id: x.id, name: x.name, on: x.connected !== false, display: true }; }));
   }
-  function showHtml(o) {
-    var all = showChoices(o), cur = o.showOn || 'mouse', now = all.filter(function (x) { return x.id === cur; })[0] || all[0];
-    var items = all.map(function (x, i) {
-      var y = x.id === now.id;
-      return (x.display && !all[i - 1].display ? '<span class="mx-2 my-1 block h-px"></span>' : '') +
-        '<button role="menuitemradio" aria-checked="' + y + '" data-k="' + x.id + '" data-i="' + i + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] ' + (x.on ? 'text-foreground' : 'text-muted-foreground') + '">' +
-        '<span class="flex-1 truncate">' + x.name + '</span>' + (x.on ? '' : '<span class="text-xs text-muted-foreground">Not connected</span>') +
-        '<span class="flex size-3.5 flex-none items-center">' + (y ? svg('check', 'size-3.5') : '') + '</span></button>';
-    }).join('') + (o.hasExternal ? '<span class="mx-2 my-1 block h-px"></span>' +
-      '<button role="menuitemcheckbox" aria-checked="' + !!o.hoverExternal + '" data-k="hover" data-i="' + all.length + '" class="s-sitem flex h-7 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-[13px] text-foreground">' +
-      '<span class="flex-1 truncate">Hover opens on external displays</span><span class="s-hovsw sw" aria-checked="' + !!o.hoverExternal + '"><i></i></span></button>' : '');
-    return '<span class="s-show"><button aria-haspopup="menu" aria-expanded="' + showOpen + '" aria-label="Which screen Perch shows on" class="s-showtrig inline-flex h-6 max-w-[190px] cursor-pointer items-center gap-1.5 rounded-md pl-2 pr-1 text-xs text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground' + (showOpen ? ' bg-white/[0.08]' : '') + '"><span class="truncate">' + now.name + '</span>' + svg('chev', 'size-3 flex-none') + '</button>' +
-      '<span role="menu" class="s-showmenu absolute bottom-[calc(100%+2px)] right-2 z-20 w-[268px] flex-col gap-px rounded-lg bg-[#1c1c1f] p-1 shadow-[0_12px_32px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.08] t-drop flex' + (showOpen ? ' is-open' : '') + '" data-origin="bottom-right">' + items + '</span></span>';
-  }
-  /* what the menu shows, so it is drawn again only when that changes: not for opening or closing it (Swift sends
-     Settings every half second while sessions are written, and a redraw would drop it back under the notch) and not
-     for the hover switch, which slides in place */
-  function showKey(o) { return JSON.stringify([o.showOn || 'mouse', o.displays || [], !!o.hasExternal]); }
-  /* it opens upward but never under the notch: when it would, it slides down over its own row */
-  function showClamp(m) {
-    /* its own translate, so the grow from its corner (.t-drop, a transform) still runs; measured unscaled: it grows from its bottom edge */
-    if (!showOpen) return;   /* closing, it fades out where it is */
-    m.style.translate = '';
-    var pane = m.closest('.pane');
-    if (pane) { var over = pane.getBoundingClientRect().top + 38 - (m.getBoundingClientRect().bottom - m.offsetHeight); if (over > 0) m.style.translate = '0 ' + Math.ceil(over) + 'px'; }
-  }
-  function bindShow(box) {
-    var trig = box.querySelector('.s-showtrig');
-    if (trig) trig.onclick = function (e) { e.stopPropagation(); showMenu(!showOpen); };
-    box.querySelectorAll('.s-sitem').forEach(function (b) {
-      b.onclick = function (e) {
-        e.stopPropagation();
-        if (b.dataset.k === 'hover') {
-          var on = b.getAttribute('aria-checked') !== 'true';
-          b.setAttribute('aria-checked', String(on)); setSw(b.querySelector('.s-hovsw'), on);   /* slide now; the app confirms a moment later */
-          post({ type: 'setting', key: 'hoverExternal', value: on }); return;
-        }
-        showMenu(false); post({ type: 'setting', key: 'showOn', value: b.dataset.k });
-      };
-      b.onmouseenter = function () { if (ptrMoved()) { showAt = +b.dataset.i; paintFocus(); } };
-    });
-  }
-  function showMenu(open) {
-    if (open && appsOpen) appsMenu(false);
-    if (open && notOpen) notifyMenu(false);
-    showOpen = open;
-    var box = q('.set'), m = box && box.querySelector('.s-showmenu'), t = box && box.querySelector('.s-showtrig');
-    if (open && box) { var its = [].slice.call(box.querySelectorAll('.s-sitem[role=menuitemradio]')); showAt = Math.max(0, its.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
-    if (!m) return;
-    dropMenu(m, open);
-    t.setAttribute('aria-expanded', String(open)); t.classList.toggle('bg-white/[0.08]', open);
-    showClamp(m);
-    paintFocus();
-  }
-  /* the highlighted row, moved with the arrow keys or the pointer; with the Apps menu open, the app in it */
-  var setFocus = 0, appsAt = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
-  /* opened from a question's "Settings": Live status is the row chosen, and it lights up once so the eye lands on it */
+  function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
+  /* the highlighted row, moved with the arrow keys or the pointer */
+  var setFocus = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
+  /* opened from a question's "Settings": Agents opens on Live status, and it lights up once so the eye lands on it */
   function flashLive() {
-    var r = q('.set').querySelectorAll('.s-row')[3];
+    var b = q('.set .s-sw[data-k=live]'), r = b && b.closest('.s-row');
     if (r && r.animate && !STILL) r.animate([{ backgroundColor: 'rgba(255,255,255,.2)' }, { backgroundColor: 'rgba(255,255,255,0)' }], { duration: 1800, easing: 'ease-out' });
   }
   function paintFocus() {
-    var box = q('.set'), rows = box.querySelectorAll('.s-row');
+    var rows = q('.set').querySelectorAll('.s-row');
     setFocus = Math.max(0, Math.min(setFocus, rows.length - 1));
-    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot) && !appsOpen && !notOpen && !showOpen); });
-    var sitems = box.querySelectorAll('.s-sitem');
-    showAt = Math.max(0, Math.min(showAt, sitems.length - 1));
-    sitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', showOpen && i === showAt); });
-    var items = box.querySelectorAll('.s-app');
-    appsAt = Math.max(0, Math.min(appsAt, items.length - 1));
-    items.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', appsOpen && i === appsAt); });
-    var nitems = box.querySelectorAll('.s-nitem');
-    notAt = Math.max(0, Math.min(notAt, nitems.length - 1));
-    nitems.forEach(function (b, i) { b.classList.toggle('bg-white/[0.08]', notOpen && i === notAt); });
+    rows.forEach(function (r, i) { r.classList.toggle('bg-accent', i === setFocus && (setKb || i === setHot)); });
+    /* in the icon row, the icon the keys are on */
+    q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) {
+      var inMenu = !!b.closest('.nt-menu'), on = setKb && (inMenu ? +b.dataset.i === ntFocus : rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus);
+      if (inMenu) b.classList.toggle('bg-white/[0.09]', on); else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
+    });
   }
-  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard */
+  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
   function settingsKey(k) {
     keyPtr = ptrAt.slice(); setKb = true;
-    var box = q('.set'), rows = box.querySelectorAll('.s-row'), row = rows[setFocus];
-    /* with the Apps menu open, the keys are the menu's: arrows move, Return or Space switches, Esc or Left closes */
-    if (appsOpen) {
-      var items = box.querySelectorAll('.s-app');
-      if (k === 'down' || k === 'up') { appsAt = (appsAt + (k === 'down' ? 1 : -1) + items.length) % items.length; paintFocus(); }
-      else if (k === 'enter' && items[appsAt]) items[appsAt].click();
-      else if (k === 'esc' || k === 'left') appsMenu(false);
+    if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
+    var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
+    /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
+    if (notifyMenuOpen) {
+      var its = q('.set').querySelectorAll('.nt-menu .s-nt');
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
+      if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
+      if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
       return;
     }
-    if (notOpen) {
-      var ni = box.querySelectorAll('.s-nitem');
-      if (k === 'down' || k === 'up') { notAt = (notAt + (k === 'down' ? 1 : -1) + ni.length) % ni.length; paintFocus(); }
-      else if (k === 'enter' && ni[notAt]) ni[notAt].click();
-      else if (k === 'esc' || k === 'left') notifyMenu(false);
-      return;
-    }
-    if (showOpen) {
-      var si = box.querySelectorAll('.s-sitem');
-      if (k === 'down' || k === 'up') { showAt = (showAt + (k === 'down' ? 1 : -1) + si.length) % si.length; paintFocus(); }
-      else if (k === 'enter' && si[showAt]) si[showAt].click();
-      else if (k === 'esc' || k === 'left') showMenu(false);
-      return;
-    }
-    if (k === 'esc') { post({ type: 'back' }); return; }
-    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; paintFocus(); return; }
+    if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
+    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
-    var seg = row.querySelectorAll('.s-seg'), apps = row.querySelector('.s-apptrig');
-    if (apps && (k === 'right' || k === 'enter')) { appsMenu(true); return; }
-    var nt = row.querySelector('.s-notrig');
-    if (nt && (k === 'right' || k === 'enter')) { notifyMenu(true); return; }
-    if (row.querySelector('.s-showtrig') && (k === 'right' || k === 'enter')) { showMenu(true); return; }
-    if (k === 'left' || k === 'right') {
-      var d = k === 'right' ? 1 : -1;
-      /* on a row that has no sideways choice, Left goes back to where Settings came from */
-      if (!(seg.length && setLast)) { if (k === 'left') post({ type: 'back' }); return; }
-      if (seg.length && setLast) {
-        var vals = [].map.call(seg, function (b) { return +b.dataset.m; }), i = Math.max(0, vals.indexOf(setLast[seg[0].dataset.key]));
-        post({ type: 'setting', key: seg[0].dataset.key, value: vals[Math.max(0, Math.min(vals.length - 1, i + d))] });
-      }
-      return;
+    if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
+    /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
+    if (row.classList.contains('s-menu')) { if (k === 'enter') row.click(); return; }
+    var nts = row.querySelectorAll('.s-nt');
+    if (nts.length) {
+      if (k === 'right') { ntFocus = Math.min(ntFocus + 1, nts.length - 1); paintFocus(); return; }
+      var cur = nts[Math.min(ntFocus, nts.length - 1)]; if (cur) cur.click(); return;
     }
-    /* Return or Space: flip the switch, step the segment, or press the row's button */
-    if (seg.length && setLast) { var v = [].map.call(seg, function (b) { return +b.dataset.m; }), sk = seg[0].dataset.key; post({ type: 'setting', key: sk, value: v[(v.indexOf(setLast[sk]) + 1) % v.length] }); return; }
+    /* Pull requests: the same, over the choices that can be made (Checks needs the GitHub CLI) */
+    if (row.querySelector('.s-prm') && setLast) {
+      var pm = ['off', 'marks'].concat(setLast.prs === 'nogh' || setLast.prs === 'login' ? [] : ['checks']), pi = pm.indexOf(prsMode(setLast));
+      if (k === 'right' && pi >= pm.length - 1) return;
+      var to = pm[(pi + 1) % pm.length]; post({ type: 'setting', key: 'showPullRequests', value: to !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: to === 'checks' }); return;
+    }
+    /* a segment: Right moves the choice along and stops at the end; Return comes round again from the start */
+    var seg = row.querySelectorAll('.s-seg');
+    if (seg.length && setLast) {
+      var v = [].map.call(seg, function (b) { return +b.dataset.m; }), sk = seg[0].dataset.key, i = v.indexOf(setLast[sk]);
+      if (k === 'right' && i >= v.length - 1) return;
+      post({ type: 'setting', key: sk, value: v[(i + 1) % v.length] }); return;
+    }
+    if (k === 'right') return;
+    /* Return or Space: flip the switch, pick the screen, or press the row's button */
+    if (row.classList.contains('s-tap')) { row.click(); return; }
     var c = row.querySelector('.s-sw, button'); if (c) c.click();
   }
   function settingsApply(o) {
     if (!o) return;
-    var upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff]); if (sig === setSig) return;
-    /* the same rows with new values: change them in place, so switches and the segment animate */
-    var shape = JSON.stringify([o.shortcut, o.accessibility, !!o.hasExternal, o.sources.map(function (x) { return x.id; }), charNow, snap && snap.canUpdate]), box = q('.set');
+    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, fbState]); if (sig === setSig) return;
+    /* feedback is drawn once when it opens: Swift sends Settings every half second while sessions are written, and a
+       redraw would take your caret and selection */
+    if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
+    /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
+       place, so switches and the segment animate */
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
-      box.querySelectorAll('.s-sw').forEach(function (b) { setSw(b, b.dataset.k === 'login' ? !!o.login : o.live === 'on'); });
-      var ap = box.querySelector('.s-apps'); if (ap) { ap.outerHTML = appsHtml(o); bindApps(box); paintFocus(); }
-      var nf = box.querySelector('.s-notify'); if (nf) { nf.outerHTML = notifyHtml(); bindNotify(box); paintFocus(); }
-      var sw2 = box.querySelector('.s-show'), skey = showKey(o);
-      if (sw2 && sw2._k !== skey) { sw2.outerHTML = showHtml(o); sw2 = box.querySelector('.s-show'); sw2._k = skey; bindShow(box); showClamp(sw2.querySelector('.s-showmenu')); paintFocus(); }
-      else if (sw2) {
-        /* the same menu: only the hover switch may have moved, and it slides */
-        var hv = sw2.querySelector('.s-sitem[data-k=hover]');
-        if (hv && hv.getAttribute('aria-checked') !== String(!!o.hoverExternal)) { hv.setAttribute('aria-checked', String(!!o.hoverExternal)); setSw(hv.querySelector('.s-hovsw'), !!o.hoverExternal); }
-      }
+      box.querySelectorAll('.s-sw').forEach(function (b) {
+        var v = swVal(o, b.dataset.k), r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim'); setSw(b, v);
+        if (dm) { dm.classList.toggle('opacity-40', !v); dm.nextSibling.classList.toggle('text-muted-foreground', !v); }
+      });
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -3030,6 +3766,7 @@
         var sb = box.querySelector('.s-updsub'); if (sb) sb.textContent = ''; if (sb) sb.innerHTML = updSub(snap);
         var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
       }
+      fbRow(false);
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
@@ -3040,7 +3777,16 @@
     setSig = sig; settingsRender(o); box.dataset.shape = shape;
   }
 
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, actKey: actDo, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  /* A title that does not fit fades at its end (.fade, input.css); one that fits is left whole. Checked again whenever the notch's words change. */
+  var fadeRaf = 0;
+  function fadeSweep() {
+    fadeRaf = 0;
+    n.querySelectorAll('.fade').forEach(function (el) { el.classList.toggle('cut', el.scrollWidth - el.clientWidth > 1); });
+  }
+  new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
+  window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -3053,7 +3799,15 @@
   window.addEventListener('error', function (e) { if (NATIVE) window.webkit.messageHandlers.perch.postMessage({ type: 'log', text: String(e.message) + ' @' + e.lineno }); });
 
   /* ---- browser-only dev harness (never runs inside the app) ---- */
-  var devFrom = '', devSc = Object.assign({}, SC0);
+  var devFrom = '', devFbT = 0, devSc = Object.assign({}, SC0);
+  /* New session's shortcut, as Settings shows it; while the recorder records it, devSc is its state and Open Perch's waits in devScOpen */
+  var SCN0 = { keys: ['\u2325', '\u2318', 'N'], kind: 'combo', custom: false }, devScNew = Object.assign({}, SCN0), devScOpen = null;
+  /* back from the recorder: what it recorded goes to its own shortcut, and devSc is Open Perch's again */
+  function devScBack() {
+    if (devSc.which !== 'new') return;
+    devScNew = { keys: devSc.keys, kind: devSc.kind, custom: devSc.custom };
+    devSc = devScOpen || Object.assign({}, SC0); devScOpen = null;
+  }
   /* the recorder, as the app does it: Swift listens, decides and sends the result; here the browser's keys stand in */
   /* what Swift sends for "does it work": a tap hears nothing without Accessibility, a combo can be held by another app */
   function devScOut(ax) {
@@ -3084,7 +3838,7 @@
     if (m.type === 'shortcut') {
       if (m.action === 'record') devScSync({ recording: true, error: '', attempt: [], pending: [], saved: false, tried: false });
       else if (m.action === 'cancel') devScSync({ recording: false, error: '', pending: [] });
-      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, { saved: true }));
+      else if (m.action === 'reset') devScSync(Object.assign({}, SC0, devSc.which === 'new' ? SCN0 : {}, { which: devSc.which, saved: true }));
       else if (m.action === 'try' && !devSc.recording) devScSync({ tried: true, saved: false });
       return;
     }
@@ -3094,14 +3848,30 @@
     /* Esc while it waits for Accessibility: back to the card, and the wait is off */
     if (m.type === 'replyMenu' && !m.open && snap && snap.allowing) { var s0 = JSON.parse(JSON.stringify(snap)); s0.allowing = false; base.allowing = false; apply(s0); return; }
     if (m.type === 'newSession') { devNew(m); return; }
-    if (m.type === 'whatsnew') { window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    if (m.type === 'whatsnew') { base.access = null; window.perchDev.show('switcher', false, false); return; }   /* Got it: on to the list */
+    /* Allow: System Settings opens (here, a line says so), the switch is turned on a few seconds later */
+    if (m.type === 'access') {
+      var nowA = document.getElementById('now'), D2 = window.perchDev;
+      if (m.action === 'said') { base.access = null; return; }
+      if (m.action !== 'allow' || !snap) return;
+      var k2 = ++updTok, onCard = snap.phase === 'whatsnew', set = function (ph) {
+        if (k2 !== updTok) return;
+        if (onCard) { if (!snap || snap.phase !== 'whatsnew') return; var c = JSON.parse(JSON.stringify(snap)); c.whatsNew.access = ph; c.timerToken = Math.random(); apply(c); }
+        else { base.access = { phase: ph, afterUpdate: false, since: 1 }; D2.access(ph, { fresh: false }); }
+      };
+      set('asked'); if (nowA) nowA.textContent = 'System Settings opens on Accessibility, with a fresh switch for Perch';
+      setTimeout(function () { if (k2 !== updTok) return; set('granted'); if (nowA) nowA.textContent = 'You turn Perch on'; }, 3800);
+      if (!onCard) setTimeout(function () { if (k2 === updTok) base.access = null; }, 4000);
+      return;
+    }
     if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
-    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { replying(snap.projects[snap.selected].id); setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
     /* without Accessibility the card stays, waiting for it; the words stay in the field */
     if (m.type === 'reply' && snap.canSend === false) { s.allowing = true; s.timerToken++; apply(s); return; }
+    if (m.type === 'reply' && snap.projects[snap.selected]) replying(snap.projects[snap.selected].id);   /* the Claude app takes it in the background */
     if (m.type === 'confirm' || m.type === 'dismiss' || m.type === 'snooze' || m.type === 'reply' || m.type === 'choose' || m.type === 'answer') s.phase = 'idle';
     if (m.type === 'answer' && s.projects[s.selected]) {
       /* the agent goes on: the request is settled and it is working again */
@@ -3121,19 +3891,33 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
-    if (m.type === 'setting' && s.settings) { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    /* the real app opens the pull request in the browser; the design page does the same in a new tab */
+    if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
+    if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
+    if (m.type === 'setting' && m.key === 'showPullRequests') { s.showPRs = m.value; if (s.settings) s.settings.showPRs = m.value; }
+    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'showPullRequests') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only); return; }
+    if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }
     if (m.type === 'onb' && m.action === 'next' && s.onboarding && s.onboarding.only) { window.perchDev.settings(null, true); return; }
-    if (m.type === 'onb' && !s.onboarding) { if (m.action === 'accessibility' && s.settings) { s.settings.accessibility = true; } else return; }
+    /* Allow in Settings: System Settings opens, the row says turn on in System Settings, and the switch comes on a few seconds later */
+    if (m.type === 'onb' && !s.onboarding) {
+      if (m.action !== 'accessibility' || !s.settings) return;
+      var k3 = ++updTok; s.timerToken = Math.random(); apply(s);
+      setTimeout(function () { if (k3 !== updTok || !snap || snap.phase !== 'settings') return; var s3 = JSON.parse(JSON.stringify(snap)); s3.settings.accessibility = true; s3.settings.shortcut = devScOut(true); s3.timerToken = Math.random(); apply(s3); }, 3800);
+      return;
+    }
+    if (m.type === 'feedback') { clearTimeout(devFbT); if (!window.perchDev.fbHold) devFbT = setTimeout(function () { fbDone(!window.perchDev.fbFail); }, 1300); return; }
+    if (m.type === 'feedbackMail') { var nm = document.getElementById('now'); if (nm) nm.textContent = 'Mail opens a new message to the maker of Perch with your words' + (m.files.length ? ' and ' + m.files.length + ' file' + (m.files.length === 1 ? '' : 's') : ''); s.phase = 'idle'; }
+    if (m.type === 'feedbackAttach') { addPaths(['/Users/you/Desktop/Screenshot 2026-10-17 at 11.42.png']); return; }
     if (m.type === 'quit') { s.phase = 'idle'; }
     if (m.type === 'switcher') s.phase = 'switcher';
     /* answered from the notch: that session goes on, working again */
     if (m.type === 'activityAnswer') { s.projects = s.projects.map(function (x) { return x.id === m.id ? Object.assign({}, x, { ask: null, attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: x.app === 'codex' ? 'Codex is working' : 'Claude Code is working', app: x.app } }) : x; }); var nw = document.getElementById('now'); if (nw) nw.textContent = 'Sent from the notch: ' + (m.choice || Object.keys(m.answers).map(function (k) { return m.answers[k]; }).join(' / ')); }
     if (m.type === 'pick') { s.selected = m.index; if (typeof base !== 'undefined') base.selected = m.index; }
     if (m.type === 'details') { s.selected = m.index; s.phase = 'open'; s.autoCollapse = false; }
+    if (m.type === 'activityOpen') { var oi = s.projects.findIndex(function (x) { return x.id === m.id; }); if (oi >= 0) { s.selected = oi; s.phase = 'open'; } }
     if (m.type === 'back') s.phase = snap.phase === 'settings' && devFrom ? devFrom : snap.phase === 'newSession' ? (snap.newSession && snap.newSession.from === 'list' ? 'switcher' : 'idle') : 'open';
     if (s.phase === 'settings' && s.settings) s.settings.back = !!devFrom;
     s.timerToken++; s.autoCollapse = s.phase === 'open'; apply(s);
@@ -3150,7 +3934,7 @@
       { id: 'planner', name: 'room-planner-prototype', branch: 'main', away: '5h', at: '10:12 AM', headline: 'You were measuring the missing areas of the apartment.', context: 'The camera saw more than the model kept; the walls now come from the depth pass.', next: '', topic: 'Video to 3D world with measured walls and the missing areas filled in', app: 'claude', attention: false, fresh: false, line: '5h ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       { id: 'repo', name: 'Fetch and review the Perch repo, then list what to fix first', branch: '', away: '6h', at: '9:40 AM', headline: 'You were reviewing the Perch repo.', context: 'Read the README and the provider; three fixes are listed.', next: '', topic: '', app: 'codex', attention: false, fresh: false, line: '6h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'lukatz', name: 'lukatz_website', branch: 'main', away: '1d', at: 'Yesterday', headline: 'You were adding the team to the town map.', context: 'Each team member walks the map as a small character.', next: '', topic: '\u05d4\u05d5\u05e1\u05e3 \u05d3\u05de\u05d5\u05d9\u05d5\u05ea NPC \u05e9\u05dc \u05d4\u05e6\u05d5\u05d5\u05ea \u05dc\u05de\u05e4\u05d4 \u05e9\u05dc \u05d4\u05e2\u05d9\u05e8 \u05d5\u05e2\u05d5\u05d3 \u05db\u05de\u05d4 \u05d3\u05d1\u05e8\u05d9\u05dd', app: 'claude', attention: false, fresh: false, line: '1d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
-      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You asked: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
+      { id: 'api', name: 'api-server', branch: 'main', away: '1m', at: '12:01 PM', asked: 'Add a rate limiter to the public API, per key, with a burst allowance. Keep it simple, a token bucket is fine, and make sure the 429 tells clients when to retry.', said: 'The limiter is in: a token bucket per API key, 60 requests a minute with a burst of 20. Over the limit, the API answers `429` with a `Retry-After` header.\n\n```ts\napp.use(rateLimit({ perKey: 60, burst: 20 }))\n```\n\nI am running the test suite now.', headline: 'Rate limiter for the public API.', context: 'You said: \u201cadd a rate limiter to the public API, per key, with a burst allowance\u201d', now: 'Run the test suite', next: '', topic: 'Rate limiter for the public API', app: 'claude', via: 'ghostty', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' } },
       { id: 'fluid', name: 'FluidAgent', via: 'terminal', branch: 'main', away: '23h', at: 'Yesterday', headline: 'You were stopping a runaway tool loop.', context: 'The agent now stops after three identical calls.', next: '', topic: 'Stop it when the tool loop runs away', app: 'codex', attention: false, fresh: false, line: '23h ago', status: { kind: 'idle', text: 'Codex finished', app: 'codex' } },
       { id: 'gaps', name: 'spec-gap-finder', branch: 'main', away: '2d', at: 'Wed', headline: 'You were setting up the PDF gap finder.', context: 'It reads a spec and a supplier answer and lists what is missing.', next: '', topic: 'PDF gap analysis app and the supplier questionnaire', app: 'claude', attention: false, fresh: false, line: '2d ago', status: { kind: 'idle', text: 'Claude finished', app: 'claude' } },
       /* the other agents: OpenCode at work in Ghostty, and pi in a herdr pane (herdr shown in Ghostty) */
@@ -3160,8 +3944,22 @@
         said: 'Failed pages now retry three times, waiting 1, 4 and 16 seconds. Pages that still fail go to `failed.txt` with their status code.\n\nNext: run it against the full catalogue.' },
       /* a workspace in Conductor: Conductor's icon with the agent on its corner, and Open Conductor on the button */
       { id: 'phoenix', name: 'conductor-test', opens: 'conductor', branch: 'asafofer/ls-files', away: '6m', at: '1:30 PM', headline: 'Ls files.', context: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.', next: '', topic: 'Ls files', app: 'claude', attention: false, fresh: true, line: 'Finished 6m ago', status: { kind: 'done', text: 'Claude Code replied', app: 'claude' },
-        asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' }
+        asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' },
+      /* a chat in Cursor: Cursor's own icon, and Open Cursor on the button. Pick up opens the chat itself through Cursor's chat link. */
+      { id: 'cursorchat', name: 'api-server', branch: 'main', away: '8m', at: '11:58 AM', headline: 'You were adding retries to the sync job.', context: 'The sync job now retries three times with backoff and logs the pages that never loaded.', next: '', topic: 'Retry the sync job with backoff', app: 'cursor', attention: false, fresh: true, line: 'Finished 8m ago', status: { kind: 'done', text: 'Cursor replied', app: 'cursor' },
+        asked: 'Make the sync job retry three times with backoff, and log what never loads.', said: 'The sync job now retries three times with backoff (1, 4 and 16 seconds) and logs the pages that never loaded.' }
     ];
+    /* sample pull requests: one of each state */
+    var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, url: 'https://github.com/asafofer/perch/pull/452', title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
+      website: [{ number: 448, url: 'https://github.com/asafofer/perch/pull/448', title: 'Tighten the hero spacing at phone width', repo: PR0, state: 'open', checks: 'pass', review: 'approved' }],
+      docs: [{ number: 455, url: 'https://github.com/asafofer/perch/pull/455', title: 'Rewrite the install guide', repo: PR0, state: 'draft' }],
+      planner: [{ number: 431, url: 'https://github.com/asafofer/perch/pull/431', title: 'Video to 3D world with measured walls', repo: PR0, state: 'merged' }, { number: 436, url: 'https://github.com/asafofer/perch/pull/436', title: 'Fill the missing areas from the depth pass', repo: PR0, state: 'merged' }],
+      lukatz: [{ number: 12, url: 'https://github.com/asafofer/perch/pull/12', title: 'Add the team to the town map', repo: PR0, state: 'closed' }],
+      api: [{ number: 460, url: 'https://github.com/asafofer/perch/pull/460', title: 'Add a per-key rate limiter to the public API', repo: PR0, state: 'open', checks: 'fail' }, { number: 441, url: 'https://github.com/asafofer/perch/pull/441', title: 'Add a token bucket to the limiter', repo: PR0, state: 'merged' }],
+      fluid: [{ number: 87, url: 'https://github.com/asafofer/perch/pull/87', title: 'Stop a runaway tool loop', repo: PR0, state: 'open', checks: 'pass', review: 'changes' }],
+      gaps: [{ number: 23, url: 'https://github.com/asafofer/perch/pull/23', title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
+      tui: [{ number: 9, url: 'https://github.com/asafofer/perch/pull/9', title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, url: 'https://github.com/asafofer/perch/pull/7', title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
+    P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -3209,7 +4007,7 @@
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
-      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: m.prompt.length > 70 ? m.prompt.slice(0, 68) + '\u2026' : m.prompt, app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
+      var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: (m.title || m.prompt).length > 70 ? (m.title || m.prompt).slice(0, 68) + '\u2026' : (m.title || m.prompt), app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
       /* from the list it goes back to the list at once; from anywhere the card folds as the words go in (SEND_CLOSE, as a reply to a terminal does) */
       var close = (m.go || m.from === 'list' ? 0 : m.close) * 1000;
@@ -3222,6 +4020,20 @@
           D.show('switcher'); keep = P[base.selected]; P.unshift(pend); relist();
           if (nowEl) nowEl.textContent = 'Back in the list at once: the new session is already a row, Starting\u2026';
         });
+        /* the app asks you to confirm the folder: it has the keyboard now, so the list folds into the line that says so */
+        if (D.newConfirms) {
+          later(close + 1200, function () {
+            pend.pending = 'confirm'; relist(); nwStarted('confirm', agentShort(a.app));
+            apply(Object.assign({}, snap, { phase: 'idle', timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = agentShort(a.app) + ' asks you to trust the folder: the list folds into the line that says so';
+          });
+          later(close + 5200, function () {
+            P[P.indexOf(pend)] = row; nwStarted(true);
+            apply(Object.assign({}, snap, { projects: P, timerToken: Math.random() }));
+            if (nowEl) nowEl.textContent = 'Confirmed there: Perch sees the session, Started';
+          });
+          return;
+        }
         later(close + 1500, function () {
           pend.pending = fail ? 'failed' : 'started'; relist();
           if (fail) nwStarted(false); else nwStarted(true);
@@ -3243,6 +4055,13 @@
       });
     }
     window.perchDev = {
+      /* a pull request mark (or the mark of several) for a scenario's button on the design page */
+      prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
+      /* every pull request mark with its words and colour, for the design page's grid */
+      prLegend: function () {
+        return [['open', {}], ['open', { checks: 'running' }], ['open', { checks: 'pass', review: 'approved' }], ['open', { review: 'approved' }], ['open', { checks: 'fail' }], ['open', { review: 'changes' }], ['open', { conflict: true }], ['draft', {}], ['merged', {}], ['closed', {}]]
+          .map(function (x) { var pr = Object.assign({ number: 452, state: x[0] }, x[1]), w = prWord(pr), c = w.c === COLORS.attention ? COLORS.attention : PRC[pr.state]; return { icon: PRIcon(pr, 'size-5'), word: w.t, color: prColor(pr) }; }).concat([{ icon: PRMark([{ number: 107, state: 'merged' }, { number: 109, state: 'merged' }], 'size-5'), word: 'Several', color: PRC.merged }]);
+      },
       /* the list stays open while sessions change under it (the design page's Motion scenarios): `over` maps a session's
          index to what changes in it; the list sorts itself as the app's would. `sel` is the index of the row to choose. */
       listChange: function (over, sel) {
@@ -3273,20 +4092,29 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        if (!keep) devSc = Object.assign({}, SC0, o && o.shortcut || {});
+        devScBack();
+        if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
+        /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
+        if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
-          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false) }, o || {}) }));
+          settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', showPRs: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
+        if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
       },
       /* `scan`: the first scan is still running when the step opens; it comes in, then the app keeps sending the same
          snapshot every half second, as it does while sessions are written */
-      onboarding: function (step, accessibility, only, live, all, scan) {
-        devSc = only && step === 3 ? Object.assign({}, devSc, { recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
+      onboarding: function (step, accessibility, only, live, all, scan, which, gh) {
+        devScBack();
+        /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
+        if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
+        else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
-        if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }]);
+        if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
+        if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
+        var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
-          onboarding: { step: step, total: 7, shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, only: !!only, live: live || 'off' } });
+          onboarding: { step: step, total: gh ? 8 : 7, prs: gh === 'on' ? 'on' : 'off', shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
         apply(s0);
         if (!scan) return;
         var k = 0, again = function () {
@@ -3297,6 +4125,10 @@
         autoTimer = setTimeout(again, 1600);
       },
       variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      /* the list with one session changed, as variant does for the card */
+      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
+      /* the next refresh of the same card, a reply left open as it is */
+      refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
       /* the switching proposals: pick a style and watch it move through the list a few times */
       /* plays the character's part in moving between sessions: through the list, or into a card and back. Any other
@@ -3319,9 +4151,9 @@
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
         o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
-        if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) updNotes = false; }
+        if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) { updNotes = false; updOpen = false; } }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
-        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
+        base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, listOnly: !!o.listOnly, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
           bullets: o.long ? LONG_NOTES : ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts', 'A notch that fits the hardware, on every display'] } : null;
         if (o.view) { window.perchDev.show(o.view, false, o.view === 'open'); return; }
         /* in the list or on a card: the same snapshot with the update changed, the view stays */
@@ -3334,7 +4166,15 @@
         var LONG = ['Lists and code read better in a reply', 'Bullet and numbered lists draw with their markers, nested as written, even with no blank line before them', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch', 'Warp sessions are found by reading each tab', 'A reply to a Claude app session goes in without leaving what you were doing', 'A file dropped on the card goes in as its path'];
         var bullets = o.long ? LONG : o.plain ? [] : ['Bullet and numbered lists in a reply draw with their markers, nested as written', 'Code in a reply takes your character\u2019s colour', 'Paragraphs and lists in a reply have a clearer gap between them', 'Another app\u2019s shortcut that shares Perch\u2019s modifiers no longer opens Perch'];
         apply(Object.assign({}, base, { character: charNow, projects: P, phase: 'whatsnew', autoCollapse: false, timerToken: Math.random(), update: null,
-          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: bullets } }));
+          whatsNew: { version: '0.3.10', headline: 'Lists and code read better in a reply', bullets: o.access ? bullets.slice(0, 2) : bullets, access: o.access || null } }));
+      },
+      /* Accessibility Perch had, gone: `phase` is lost, asked (Allow was pressed, System Settings is open) or granted; null takes it away.
+         `o.afterUpdate`: an update brought it about (only when What's new did not say it already). */
+      access: function (phase, o) {
+        o = o || {}; d0(); if (o.fresh !== false) { window.perchDev.updStop(); actGone = {}; clearTimeout(actTimer); if (act.p && act.p.access) act.mode = ''; }   /* a fresh start runs its own clock */
+        base.access = phase ? { phase: phase, afterUpdate: !!o.afterUpdate, since: 1 } : null;
+        var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
+        apply(Object.assign({}, base, { character: charNow, projects: o.busy ? P : calm, phase: 'idle', timerToken: Math.random(), update: null, access: base.access }));
       },
       /* what Update (or Restart to update) does here: download, restart, come back on the new version. `ready`: it is downloaded already. */
       updRun: function (ready) {
@@ -3347,7 +4187,7 @@
       },
       /* the snapshot as it is, with one session changed: something happening elsewhere while a scenario plays */
       also: function (i, o) { if (snap) apply(Object.assign({}, snap, { projects: snap.projects.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), timerToken: Math.random() })); },
-      updStop: function () { updTok++; document.getElementById('scene').style.opacity = '1'; },
+      updStop: function () { updTok++; base.access = null; base.update = null; document.getElementById('scene').style.opacity = '1'; },
       /* how an answer from the notch says it went: 'answer' (one line, your answer and a check) or 'check' (the wings, the app and a check) */
       /* an answer that came too late (answered in the app already, or Perch had let the question go): the line says it did not send */
       sentFail: function (a) {
@@ -3389,7 +4229,19 @@
       play: function () { var d = window.perchDev; d.show('idle'); autoTimer = setTimeout(function () { d.show('open'); }, 1200); },
       project: function (i) { base.selected = i; },
       /* each scenario starts with no replies left typed */
-      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; devNewRun++; window.perchDev.newFails = false; for (var k = P.length - 1; k >= 0; k--) if (/^new-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      clearDrafts: function () { base.drafts = {}; if (snap) snap.drafts = base.drafts; nw.text = ''; nw.last = ''; nw.files = []; nw.lastFiles = []; nw.kept = null; repFiles = {}; devNewRun++; window.perchDev.newFails = false; window.perchDev.newConfirms = false; for (var k = P.length - 1; k >= 0; k--) if (/^(new|app)-/.test(P[k].id)) { P.splice(k, 1); base.selected = 0; } },
+      /* Claude tasks and chats join the sample sessions for one scenario (the next scenario takes them out); returns their places */
+      claudeApp: function () {
+        var at = P.length;
+        P.push({ id: 'app-cowork', name: 'Taxes', branch: '', away: '25m', at: '11:35 AM', headline: 'Sorting this year\u2019s receipts.', context: 'Filed 38 receipts by month into Taxes/2026. Three have no date and wait in Unsorted.', next: '', topic: 'Sort this year\u2019s receipts by month', app: 'cowork', attention: false, fresh: true, line: 'Finished 25m ago', status: { kind: 'done', text: 'Claude replied', app: 'cowork' },
+          asked: 'Sort the receipts in my Taxes folder by month and tell me which ones you could not place.', said: 'Filed 38 receipts by month into Taxes/2026.\n\nThree have no date on them, so they wait in **Unsorted**: two from Hetzner and a photo of a till slip.' },
+          { id: 'app-cowork2', name: 'Inbox', branch: '', away: '2h', at: '10:05 AM', headline: 'Not opened on this Mac yet', context: '', next: '', topic: 'Sort the inbox into folders', app: 'cowork', attention: false, fresh: true, line: 'Finished 2h ago', status: { kind: 'done', text: 'Claude replied', app: 'cowork' } },
+          { id: 'app-chat', name: '', branch: '', away: '1h', at: '11:02 AM', headline: '', context: 'Three quiet places near Marylebone with a table for two on Saturday: Trishna, Orrery and The Ninth.', next: '', topic: 'Anniversary dinner ideas', app: 'chat', attention: false, fresh: true, line: 'Replied 1h ago', status: { kind: 'done', text: 'Claude replied', app: 'chat' },
+            asked: 'somewhere quiet for an anniversary dinner on saturday, near marylebone, not too formal', said: 'Three quiet places near Marylebone with a table for two on Saturday:\n\n- **Trishna**: modern Indian, softly lit, about \u00a375 a head\n- **Orrery**: French, looks over the church garden, the most romantic of the three\n- **The Ninth**: small plates, relaxed, the least formal\n\nOrrery is the one I would book if you want it to feel like an occasion.' },
+          { id: 'app-chat2', name: 'financials', branch: '', away: '3h', at: '9:14 AM', headline: '', context: 'September is up to date. Rent and the two card payments are in; the business balance is \u20aa2,140 short of the bank.', next: '', topic: 'Planning an overdue update', app: 'chat', attention: false, fresh: false, line: '3h ago', status: { kind: 'idle', text: 'Claude replied', app: 'chat' },
+            asked: 'update the sheet with the september statements', said: 'September is up to date. Rent and the two card payments are in; the business balance is \u20aa2,140 short of the bank, which is the Deeto transfer that has not cleared yet.' });
+        return at;
+      },
       step: function (d) {
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
@@ -3409,7 +4261,7 @@
     /* what you press is only a choice; Return alone saves it, another try replaces it */
     var scDone = function (keys, kind) { devScSync({ pending: keys, pendKind: kind, error: '', attempt: [], picks: (devSc.picks || 0) + 1 }); };
     var scSave = function () {
-      var keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === SC0.keys.join('') && kind === 'tap';
+      var std = devSc.which === 'new' ? SCN0 : SC0, keys = devSc.pending, kind = devSc.pendKind, same = keys.join('') === std.keys.join('') && kind === std.kind;
       devScSync({ keys: keys, kind: kind, custom: !same, recording: false, error: '', attempt: [], pending: [], tried: false, saved: true });
     };
     window.perchDev.saveChoice = scSave;
@@ -3439,6 +4291,7 @@
       if (!only || !mods.length) return;
       if (devSc.recording) {
         e.preventDefault(); e.stopImmediatePropagation();
+        if (devSc.which === 'new') { devScSync({ error: 'New session needs a key too, like \u2325\u2318N.', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         if (mods.length < 2) { devScSync({ error: 'A tap needs two or more modifier keys', attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
         var tap = mods.join('');
         if (scTaken[tap]) { devScSync({ error: tap + ' is ' + scTaken[tap], attempt: mods, refusals: (devSc.refusals || 0) + 1 }); return; }
@@ -3463,7 +4316,7 @@
       if (ask && ask.answerable && fRep.style.display !== 'flex') {
         var k = e.key.toLowerCase();
         if (ask.kind === 'permission' && (k === 'a' || k === 'd')) { post({ type: 'answer', choice: k === 'a' ? 'allow' : 'deny' }); return; }
-        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'back', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
+        if (ask.kind === 'question') { var m2 = { Enter: 'enter', Backspace: 'back', ArrowLeft: 'left', ArrowRight: 'next' }[e.key] || (/^[1-9]$/.test(k) ? k : null); if (m2) { e.preventDefault(); askKey(m2); return; } }
       }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }

@@ -184,7 +184,7 @@ import Foundation
         ])
         #expect(d.step == nil); #expect(d.narration == nil)
         let p = Recap.project(digest: { var x = d; x.cwd = "/Users/a/site"; return x }(), git: nil, now: Date(), quietFor: 5)!
-        #expect(p.context == "You asked: “now the list please”")
+        #expect(p.context == "You said: “now the list please”")
     }
     @Test func stepsReadAsWhatItIsDoing() {
         #expect(Activity.step(tool: "Edit", input: ["file_path": "/a/b/app.js"]) == "Editing app.js")
@@ -228,6 +228,19 @@ import Foundation
         let list = [p("old", 20 * 3600), p("hour", 3600), p("asks", 6 * 3600, needs: true), p("now", 60)]
         #expect(ListFilter.ordered(list, "", now: now, calendar: cal) == [2, 3, 1, 0])
         #expect(list.map { ListFilter.section($0, now: now, calendar: cal) } == [.earlier, .today, .needsYou, .today])
+    }
+    @Test func sessionsAtWorkKeepTheirPlaces() {
+        let now = Date()
+        func p(_ id: String, _ ago: TimeInterval, began: TimeInterval, kind: AgentStatus.Kind) -> Project {
+            var x = Project(id: id, name: id, branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: "claude",
+                            agents: [AgentStatus(kind: kind, text: "", app: "claude")], steps: [])
+            x.lastActive = now.addingTimeInterval(-ago); x.startedAt = now.addingTimeInterval(-began); return x
+        }
+        // two at work, each writing a moment after the other, and one that finished a second ago
+        var list = [p("done", 1, began: 100, kind: .done), p("a", 5, began: 3600, kind: .running), p("b", 2, began: 600, kind: .running)]
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
+        list[1].lastActive = now
+        #expect(ListFilter.ordered(list, "", now: now) == [2, 1, 0])
     }
     @Test func awayFormatting() {
         let now = Date()
@@ -296,6 +309,33 @@ import Foundation
         let s = status([prompt, toolCall("Edit")], quiet: 90)
         #expect(s.kind == "attention"); #expect(s.text == "Claude is waiting for your OK")
     }
+    @Test func aTerminalSessionNoProcessRunsAsksNothing() throws {
+        // Killed while its Bash call waited for your OK, resumed and closed without a word: the transcript still ends on that call.
+        var p = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 900))
+        p.terminal = true
+        #expect(p.toolOpen)
+        p.pid = 4242
+        #expect(p.agentGone().status.kind == "attention")   // still running there: it waits for you
+        p.pid = nil
+        #expect(p.agentGone().status.kind == "idle"); #expect(p.agentGone().status.text == "Claude Code stopped mid-task")
+        // Killed a moment ago, its call still within its time: not at work either.
+        var fresh = try #require(Recap.project(digest: TranscriptParser.digest(lines: [prompt, toolCall("Bash", #"{"command":"npm run build"}"#)]), git: nil, now: Date(), quietFor: 5))
+        fresh.terminal = true
+        #expect(fresh.status.kind == "running"); #expect(fresh.agentGone().status.kind == "idle")
+        fresh.pid = 4242
+        #expect(fresh.agentGone().status.kind == "running")
+        // What its hook said goes too, so resuming it later does not bring the request back.
+        var live = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s2", kind: .asks({ var a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build"]); a.answerable = false; return a }())), to: nil)
+        #expect(live.agentGone() == nil)
+        let asked = p.applying(live)
+        #expect(asked.agentGone().status.kind == "idle"); #expect(asked.agentGone().ask == nil)
+        // A request held by its hook (OpenCode's) is settled by that hook, not by this.
+        live = LiveStatus.apply(HookEvent(agent: "opencode", sessionId: "s2", kind: .asks(Ask(id: "o", agent: "opencode", tool: "bash", input: ["command": "ls"]))), to: nil)
+        #expect(live.agentGone()?.asks.map(\.id) == ["o"])
+        // An app session is never a terminal one: nothing changes.
+        p.terminal = false
+        #expect(p.agentGone().status.kind == "attention")
+    }
     @Test func aLongCommandIsWorkingUntilItsOwnTimeout() {
         let build = toolCall("Bash", #"{"command":"swift build","timeout":600000}"#)
         #expect(status([prompt, build], quiet: 400).kind == "running")
@@ -337,6 +377,98 @@ import Foundation
         let s = status([prompt, toolCall("Bash"), stop], quiet: 600)
         #expect(s.kind == "idle"); #expect(s.text == "You stopped Claude")
     }
+
+    // MARK: work left running in the background (the shapes Claude Code 2.1 writes)
+    func launched(_ id: String = "t1", _ result: String) -> String {
+        #"{"type":"user","timestamp":"2026-10-07T09:00:06.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"\#(id)","content":"Async agent launched successfully."}]},"toolUseResult":\#(result)}"#
+    }
+    let turnOver = #"{"type":"assistant","timestamp":"2026-10-07T09:00:09.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"I started helpers for M4, M5 and M8. I'll pick up when they report."}]}}"#
+    func notification(_ taskId: String, call: String? = nil, status: String? = "completed") -> String {
+        let note = "<task-notification>\n<task-id>\(taskId)</task-id>\n" + (call.map { "<tool-use-id>\($0)</tool-use-id>\n" } ?? "")
+            + (status.map { "<status>\($0)</status>\n" } ?? "<event>first</event>\n") + "<summary>It ended</summary>\n</task-notification>"
+        return String(data: try! JSONSerialization.data(withJSONObject: ["type": "queue-operation", "operation": "enqueue", "content": note]), encoding: .utf8)!
+    }
+    func helper(_ id: String, _ about: String) -> [String] {
+        [toolCall("Agent", #"{"description":"\#(about)","prompt":"go","run_in_background":true}"#, id: id),
+         launched(id, #"{"isAsync":true,"status":"async_launched","agentId":"a-\#(id)","description":"\#(about)"}"#)]
+    }
+    /// The session `after` seconds past the launch, its transcript still for most of that.
+    func later(_ lines: [String], _ after: TimeInterval = 300) -> Project {
+        let launch = ISO8601DateFormatter().date(from: "2026-10-07T09:00:06Z")!
+        return Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: launch.addingTimeInterval(after), quietFor: after - 3)!
+    }
+
+    @Test func helpersLeftInTheBackgroundAreWorkUntilTheyReportBack() {
+        let three = [prompt] + helper("t1", "M4") + helper("t2", "M5") + helper("t3", "M8") + [turnOver]
+        let d = TranscriptParser.digest(lines: three)
+        #expect(!d.turnOpen); #expect(d.background.map(\.taskId) == ["a-t1", "a-t2", "a-t3"])
+        let p = later(three)
+        #expect(p.status.kind == "running"); #expect(p.waiting); #expect(p.now == "Waiting on 3 helpers")
+        #expect(p.context == "I started helpers for M4, M5 and M8.")   // what it said it is doing, not old news
+        // Two report back (by their tool call, or by their task id): one is still out.
+        let two = three + [notification("a-t1", call: "t1"), notification("a-t2")]
+        #expect(later(two).now == "Waiting on a helper: M8")
+        // The last one reports: the agent's turn goes on, and its end is the finish.
+        let all = two + [notification("a-t3", call: "t3"), #"{"type":"user","origin":{"kind":"task-notification"},"message":{"content":"<task-notification>\n<task-id>a-t3</task-id>\n<status>completed</status>\n</task-notification>"}}"#]
+        #expect(TranscriptParser.digest(lines: all).turnOpen)
+        let done = all + [#"{"type":"assistant","timestamp":"2026-10-07T09:20:00.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"All three milestones are in."}]}}"#]
+        let q = later(done, 1300)
+        #expect(q.status.kind == "done"); #expect(!q.waiting); #expect(q.now == nil)
+        // Gone without a word (the app quit with them out): half an hour on, with no sign of life, it is not at work.
+        #expect(later(three, 2000).status.kind == "done")
+        // A helper writing its own transcript is a sign of life (the scan reads it, `SessionScanner.heardFrom`).
+        var alive = TranscriptParser.digest(lines: three)
+        alive.background[0].at = ISO8601DateFormatter().date(from: "2026-10-07T09:30:00Z")
+        let launch = ISO8601DateFormatter().date(from: "2026-10-07T09:00:06Z")!
+        let still = Recap.project(digest: alive, git: nil, now: launch.addingTimeInterval(2000), quietFor: 1990)!
+        #expect(still.status.kind == "running"); #expect(still.now == "Waiting on a helper: M4")
+    }
+    @Test func aHelperWaitingOnItsOwnBackgroundWorkIsStillOut() {
+        // Claude Code 2.1: a helper that put its own command in the background stops, and says so; it reports again when
+        // that is over, with no tool call id the second time.
+        func queued(_ content: String) -> String {
+            String(data: try! JSONSerialization.data(withJSONObject: ["type": "queue-operation", "operation": "enqueue", "content": content]), encoding: .utf8)!
+        }
+        let interim = queued("<task-notification>\n<task-id>a-t1</task-id>\n<tool-use-id>t1</tool-use-id>\n<status>completed</status>\n<summary>Agent \"M4\" is waiting on its own background work</summary>\n<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>\n<result>The 90-second sleep is running in the background.</result>\n</task-notification>")
+        let final = queued("<task-notification>\n<task-id>a-t1</task-id>\n<status>completed</status>\n<summary>Agent \"M4\" finished</summary>\n<note>A task-notification fires each time this agent stops with no live background children of its own.</note>\n<result>done</result>\n</task-notification>")
+        let out = [prompt] + helper("t1", "M4") + [turnOver, interim]
+        #expect(later(out).status.kind == "running"); #expect(later(out).now == "Waiting on a helper: M4")
+        #expect(later(out + [final]).status.kind == "done")
+    }
+    @Test func aCommandLeftInTheBackgroundIsWorkButAServerIsNot() {
+        let ci = toolCall("Bash", #"{"command":"gh pr checks 12 --watch","description":"Wait for the PR checks","run_in_background":true}"#)
+        let started = launched("t1", #"{"stdout":"","stderr":"","interrupted":false,"backgroundTaskId":"b1"}"#)
+        let p = later([prompt, ci, started, turnOver])
+        #expect(p.status.kind == "running"); #expect(p.now == "Waiting for the PR checks")
+        #expect(later([prompt, ci, started, turnOver, notification("b1", call: "t1")]).status.kind == "done")
+        // Half an hour from its start it no longer counts, whatever came since: a session picked up again is not held by it.
+        #expect(later([prompt, ci, started, turnOver], 2000).status.kind == "done")
+        // A dev server runs until it is stopped: nothing waits on it, so the turn's end is the finish.
+        let server = toolCall("Bash", #"{"command":"cd ui && python3 -m http.server 8765","run_in_background":true}"#)
+        #expect(later([prompt, server, started, turnOver], 30).status.kind == "done")
+        for c in ["npm run dev", "pnpm --filter web dev", "yarn dev:web", "npx vite --port 3000", "next dev", "rails s", "tail -f log/dev.log", "docker compose up"] {
+            #expect(Background.neverEnds(c), "\(c)")
+        }
+        for c in ["gh pr checks 12 --watch", "gh run watch 123", "sleep 300 > /dev/null; gh pr checks 12", "npm run build", "npx vite build", "swift test", "docker compose up -d"] {
+            #expect(!Background.neverEnds(c), "\(c)")
+        }
+    }
+    @Test func aWatchGoesOnThroughItsEventsAndEndsWithItsStatusOrDeadline() {
+        let watch = toolCall("Monitor", #"{"command":"gh pr checks 12","description":"CI checks on PR 12","timeout_ms":600000}"#)
+        let started = launched("t1", #"{"taskId":"m1","timeoutMs":600000,"persistent":false}"#)
+        let lines = [prompt, watch, started, turnOver, notification("m1", status: nil)]
+        #expect(later(lines).now == "Watching CI checks on PR 12")
+        #expect(later(lines + [notification("m1", call: "t1")]).status.kind == "done")
+        #expect(later(lines, 700).status.kind == "done")   // past its own deadline
+    }
+    @Test func whatTheAgentStopsIsOver() {
+        let lines = [prompt] + helper("t1", "M4") + [turnOver]
+        #expect(later(lines).status.kind == "running")
+        #expect(later(lines + [toolCall("TaskStop", #"{"task_id":"a-t1"}"#, id: "t9"), result("t9"), turnOver]).status.kind == "done")
+        // A helper that ran in the foreground was waited on within the turn: its end is the turn's.
+        let foreground = [prompt, toolCall("Agent", #"{"description":"M4","prompt":"go"}"#), launched("t1", #"{"status":"completed","agentId":"a1"}"#), turnOver]
+        #expect(TranscriptParser.digest(lines: foreground).background.isEmpty)
+    }
     @Test func acknowledgementsAreNotWhatYouWereDoing() {
         let yes = #"{"type":"user","timestamp":"2026-10-07T09:10:00.000Z","message":{"content":"yes, push it please"}}"#
         let d = TranscriptParser.digest(lines: [prompt, yes])
@@ -377,7 +509,7 @@ import Foundation
     }
     @Test func withNoOutcomeTheCardFallsBackToYourAsk() {
         let p = Recap.project(digest: TranscriptParser.digest(lines: lines), git: nil, now: Date())!   // "Done. Want a table next?"
-        #expect(p.context == "You asked: “make the sign centred”")
+        #expect(p.context == "You said: “make the sign centred”")
     }
     @Test func theAgentNarratingItsOwnPlanIsNotYourNextStep() {
         var d = TranscriptParser.digest(lines: lines)

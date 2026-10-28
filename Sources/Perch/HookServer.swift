@@ -121,8 +121,8 @@ final class HookServer: @unchecked Sendable {
             // Answered already (with no decision): the card shows it, and Pick up takes you to where it is asked.
             if case .asks(var ask) = event.kind, ask.answerable {
                 ask.answerable = false
-                let pid = event.pid
-                event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at); event.pid = pid
+                let pid = event.pid, helper = event.helper
+                event = HookEvent(agent: event.agent, sessionId: event.sessionId, kind: .asks(ask), at: event.at); event.pid = pid; event.helper = helper
             }
         }
         let sent = event
@@ -194,18 +194,23 @@ enum HookInstaller {
     static let socket = dir.appendingPathComponent("perch.sock")
     static let claudeSettings = home.appendingPathComponent(".claude/settings.json")
     static let codexHooks = home.appendingPathComponent(".codex/hooks.json")
+    static let cursorHooks = home.appendingPathComponent(".cursor/hooks.json")
 
     /// A request Perch can answer waits up to an hour for you; everything else is told "go on" at once.
     static let scriptBody = """
     #!/bin/sh
-    # Perch: tells Perch what Claude Code or Codex is doing, so the notch knows the moment they need you.
+    # Perch: tells Perch what Claude Code, Codex or Cursor is doing, so the notch knows the moment they need you.
     # Exits quietly when Perch is not running. Remove it from Perch's Settings.
     sock="$HOME/.config/perch/perch.sock"
-    [ -S "$sock" ] || exit 0
+    # Cursor wants an answer from the hook that sees a prompt go out: go on, whatever Perch says.
+    go=
+    [ "$1" = cursor ] && [ "$2" = beforeSubmitPrompt ] && go='{"continue":true}'
+    [ -S "$sock" ] || { [ -n "$go" ] && printf '%s\\n' "$go"; exit 0; }
     wait=5
     [ "$1" = claude ] && { [ "$2" = PermissionRequest ] || [ "$2" = PreToolUse ]; } && wait=3600
-    out=$(/usr/bin/curl -s --max-time "$wait" --unix-socket "$sock" -H 'Expect:' -H 'Content-Type: application/json' -H "X-Perch-Pid: $PPID" --data-binary @- "http://perch/$1/$2" 2>/dev/null) || exit 0
-    [ -n "$out" ] && printf '%s\\n' "$out"
+    out=$(/usr/bin/curl -s --max-time "$wait" --unix-socket "$sock" -H 'Expect:' -H 'Content-Type: application/json' -H "X-Perch-Pid: $PPID" --data-binary @- "http://perch/$1/$2" 2>/dev/null)
+    [ -n "$out" ] && go=$out
+    [ -n "$go" ] && printf '%s\\n' "$go"
     exit 0
 
     """
@@ -228,9 +233,18 @@ enum HookInstaller {
         Hook(event: "Interrupt", matcher: nil, async: false, timeout: 3),
     ]
 
+    /// Cursor tells when a prompt went out, a tool ran and a turn stopped. Its hooks that can allow or deny (a command, a
+    /// file read) are left alone: with no answer they would hold or block the agent.
+    static let cursorHooks_ = [
+        Hook(event: "beforeSubmitPrompt", matcher: nil, async: false, timeout: 5),
+        Hook(event: "postToolUse", matcher: nil, async: false, timeout: 5),
+        Hook(event: "postToolUseFailure", matcher: nil, async: false, timeout: 5),
+        Hook(event: "stop", matcher: nil, async: false, timeout: 5),
+    ]
+
     /// The agents Perch can install a hook for.
-    static let agents = ["claude", "codex", "opencode", "pi"]
-    static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : claudeSettings }
+    static let agents = ["claude", "codex", "opencode", "pi", "cursor"]
+    static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : agent == "cursor" ? cursorHooks : claudeSettings }
     /// OpenCode and pi load every plugin in a folder: Perch adds its own file there and removes only that file.
     static let pluginFiles: [String: URL] = [
         "opencode": home.appendingPathComponent(".config/opencode/plugins/perch.js"),
@@ -238,7 +252,7 @@ enum HookInstaller {
     ]
     /// The first line of each plugin file, which says it is Perch's.
     static let pluginMark = "// Perch: "
-    static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : claudeHooks }
+    static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : agent == "cursor" ? cursorHooks_ : claudeHooks }
 
     static func isInstalled(_ agent: String) -> Bool {
         if let f = pluginFiles[agent] { return (try? String(contentsOf: f, encoding: .utf8))?.hasPrefix(pluginMark) == true }
@@ -263,6 +277,11 @@ enum HookInstaller {
         try edit(agent) { hooks in
             for h in Self.hooks(agent) {
                 let path = script.path.contains(" ") ? "\"\(script.path)\"" : script.path
+                if agent == "cursor" {
+                    // Cursor's file lists each event's commands directly, with no group around them.
+                    hooks[h.event] = (hooks[h.event] as? [[String: Any]] ?? []).filter { !isOurs($0) } + [["command": "\(path) \(agent) \(h.event)", "timeout": h.timeout]]
+                    continue
+                }
                 var handler: [String: Any] = ["type": "command", "command": "\(path) \(agent) \(h.event)", "timeout": h.timeout]
                 if h.async { handler["async"] = true }
                 var group: [String: Any] = ["hooks": [handler]]
@@ -273,12 +292,10 @@ enum HookInstaller {
     }
 
     /// Hooks installed by an earlier Perch lack the newest entries: add them, so Live status does not read off after an update.
-    /// A plugin file an earlier Perch wrote is written again when it differs (OpenCode 2 refused the one before 2.0's format).
+    /// Perch's own plugin files are written again when this Perch carries a newer one.
     static func upgrade() {
-        for agent in agents where isInstalled(agent) {
-            guard let f = pluginFiles[agent], let body = PerchPlugins.body[agent],
-                  (try? String(contentsOf: f, encoding: .utf8)) != body else { continue }
-            try? body.write(to: f, atomically: true, encoding: .utf8)
+        for (agent, f) in pluginFiles where isInstalled(agent) {
+            if let body = PerchPlugins.body[agent], (try? String(contentsOf: f, encoding: .utf8)) != body { try? install(agent) }
         }
         for agent in agents where pluginFiles[agent] == nil && !isInstalled(agent) {
             guard FileManager.default.isExecutableFile(atPath: script.path), let root = read(file(agent)),
@@ -303,7 +320,8 @@ enum HookInstaller {
     }
 
     private static func isOurs(_ group: [String: Any]) -> Bool {
-        (group["hooks"] as? [[String: Any]] ?? []).contains { ($0["command"] as? String)?.contains(script.path) == true }
+        if (group["command"] as? String)?.contains(script.path) == true { return true }   // Cursor's flat entry
+        return (group["hooks"] as? [[String: Any]] ?? []).contains { ($0["command"] as? String)?.contains(script.path) == true }
     }
 
     private static func read(_ url: URL) -> [String: Any]? {
@@ -326,6 +344,7 @@ enum HookInstaller {
         var hooks = root["hooks"] as? [String: Any] ?? [:]
         change(&hooks)
         root["hooks"] = hooks.isEmpty ? nil : hooks
+        if agent == "cursor", root["hooks"] != nil, root["version"] == nil { root["version"] = 1 }
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys])
         try data.write(to: url, options: .atomic)
     }

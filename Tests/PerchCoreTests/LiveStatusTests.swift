@@ -17,6 +17,18 @@ import Foundation
         #expect(event("Stop", "not json") == nil)
     }
 
+    @Test func readsCursorsHooksByTheirChatId() {
+        func cursor(_ name: String, _ json: String) -> HookEvent? { event(name, json, agent: "cursor") }
+        #expect(cursor("beforeSubmitPrompt", #"{"conversation_id":"c1","prompt":"go","hook_event_name":"beforeSubmitPrompt"}"#)?.kind == .started)
+        #expect(cursor("postToolUse", #"{"conversation_id":"c1","tool_name":"Shell"}"#)?.kind == .toolRan(tool: "Shell"))
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"completed","loop_count":0}"#)?.kind == .finished(message: nil))
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"aborted"}"#)?.kind == .interrupted)
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"error"}"#)?.kind == .failed)
+        #expect(cursor("stop", #"{"conversation_id":"c1"}"#)?.sessionId == "c1")
+        #expect(cursor("afterAgentThought", #"{"conversation_id":"c1"}"#) == nil)
+        #expect(cursor("stop", #"{"status":"completed"}"#) == nil)
+    }
+
     @Test func aCommandReadsAsWhatItRuns() {
         guard case .asks(let a)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"npm run build\nnpm test","description":"Build"}}"#)?.kind else { Issue.record("not an ask"); return }
         #expect(a.title == "Claude wants to run a command"); #expect(a.subject == "npm run build"); #expect(a.kind == .permission); #expect(a.answerable)
@@ -25,10 +37,35 @@ import Foundation
         guard case .asks(let a)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"shell","tool_input":{"command":["bash","-lc","rm -rf build"]}}"#, agent: "codex")?.kind else { Issue.record("not an ask"); return }
         #expect(a.title == "Codex wants to run a command"); #expect(a.subject == "rm -rf build"); #expect(!a.answerable)
     }
+    @Test func theRowSaysTheCommandWithoutItsOutputPlumbing() {
+        #expect(Ask.plainCommand("npm run build 2>&1 | tail -20") == "npm run build")
+        #expect(Ask.plainCommand(#"npm run build 2>&1 | tail -n 30; echo "EXIT: ${PIPESTATUS[0]}""#) == "npm run build")
+        #expect(Ask.plainCommand("swift test 2>/dev/null | head -n 40") == "swift test")
+        #expect(Ask.plainCommand("git log | grep fix") == "git log | grep fix")   // a pipe that does work stays
+        #expect(Ask.plainCommand("echo hi") == "echo hi")
+        let a = Ask(id: "r", agent: "claude", tool: "Bash", input: ["command": "npm run build 2>&1 | tail -20"])
+        #expect(a.subject == "npm run build 2>&1 | tail -20"); #expect(a.brief == "npm run build")   // the card keeps it all
+        #expect(Ask(id: "r", agent: "claude", tool: "Edit", input: ["file_path": "/a/x 2>&1"]).brief == "/a/x 2>&1")
+    }
     @Test func editsWebAndToolsReadPlainly() {
         #expect(Ask.describe(tool: "Edit", input: ["file_path": "/a/b/Settings.swift"]).0 == "edit Settings.swift")
         #expect(Ask.describe(tool: "WebFetch", input: ["url": "https://docs.swift.org/x"]).0 == "open docs.swift.org")
         #expect(Ask.describe(tool: "mcp__linear__save_issue", input: [:]) == ("use issue", "From linear"))
+    }
+
+    @Test func anOpenCodeRequestOutlivesAToolRunBesideIt() throws {
+        // OpenCode asked to run the build and, in the same step, ran a tool that needs no OK: that tool finishing settles nothing.
+        let ask = try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"bash","tool_input":{"command":"npm run build"}}"#, agent: "opencode"))
+        var s = LiveStatus.apply(ask, to: nil)
+        s = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"codegraph_codegraph_node"}"#, agent: "opencode")), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["r1"])
+        // Answered: its plugin lets the request go, and only then is it settled.
+        s.settle("r1", at: Date())
+        #expect(s.kind == .working); #expect(s.asks.isEmpty)
+        // A Claude tool run after a request still means it was answered.
+        let claude = LiveStatus.apply(try #require(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash"}"#)),
+                                      to: LiveStatus.apply(try #require(event("PermissionRequest", #"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#)), to: nil))
+        #expect(claude.kind == .working); #expect(claude.asks.isEmpty)
     }
 
     @Test func aSingleQuestionCanBeAnsweredFromTheNotch() throws {
@@ -92,6 +129,46 @@ import Foundation
         let done = p.applying(live)
         #expect(done.status.kind == "done"); #expect(done.context == "The hero now fits at phone width."); #expect(done.ask == nil)
         #expect(p.applying(LiveStatus(kind: .failed, at: Date())).status.text == "Claude stopped on an error")
+    }
+
+    /// The turn that started helpers in the background ends (Stop), and the helpers go on: Claude Code says so with no hook,
+    /// so what the transcript knows stands.
+    @Test func aStopWithWorkLeftInTheBackgroundIsNotDone() {
+        var p = Project(id: "s", name: "rizz", branch: nil, away: "1m", at: "", headline: "H.", context: "Started helpers for M4, M5 and M8.", next: "", topic: "", app: "claude",
+                        agents: [AgentStatus(kind: .running, text: "Claude Code is working")], steps: [])
+        p.waiting = true; p.now = "Waiting on 3 helpers"
+        var stop = LiveStatus(kind: .finished, at: Date()); stop.outcome = "Started helpers for M4, M5 and M8."
+        let still = p.applying(stop)
+        #expect(still.status.kind == "running"); #expect(still.now == "Waiting on 3 helpers"); #expect(still.context == "Started helpers for M4, M5 and M8.")
+        p.waiting = false
+        #expect(p.applying(stop).status.kind == "done")
+    }
+
+    /// Helpers send their hooks with the session's id. Their tool calls must not answer the question the session asks.
+    @Test func aHelperAtWorkDoesNotAnswerTheSessionsQuestion() {
+        let t = Date()
+        #expect(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash","agent_id":"a1","agent_type":"general-purpose"}"#)?.helper == "a1")
+        #expect(event("PostToolUse", #"{"session_id":"s","tool_name":"Bash"}"#)?.helper == nil)
+        guard case .asks(let own)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Ship it?","options":[{"label":"Yes"},{"label":"No"}]}]}}"#, id: "q")?.kind,
+              case .asks(let helpers)? = event("PermissionRequest", #"{"session_id":"s","agent_id":"a1","tool_name":"Bash","tool_input":{"command":"rm -rf dist"}}"#, id: "h")?.kind
+        else { Issue.record("no ask"); return }
+        #expect(own.helper == nil); #expect(helpers.helper == "a1")
+        func ran(_ helper: String?, _ at: Date) -> HookEvent { var e = HookEvent(agent: "claude", sessionId: "s", kind: .toolRan(tool: "Bash"), at: at); e.helper = helper; return e }
+        var s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .asks(own), at: t), to: nil)
+        s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .asks(helpers), at: t), to: s)
+        // Another helper's tool: nothing changes, not even when the session last spoke.
+        s = LiveStatus.apply(ran("a2", t.addingTimeInterval(5)), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["q", "h"]); #expect(s.at == t)
+        // The helper that asked goes on: its request was answered, the session's own question is still open.
+        s = LiveStatus.apply(ran("a1", t.addingTimeInterval(6)), to: s)
+        #expect(s.kind == .asking); #expect(s.asks.map(\.id) == ["q"])
+        // The session itself goes on: its question was answered.
+        s = LiveStatus.apply(ran(nil, t.addingTimeInterval(7)), to: s)
+        #expect(s.kind == .working); #expect(s.asks.isEmpty)
+        // After the turn's Stop, a helper still at work keeps the session at work.
+        s = LiveStatus.apply(HookEvent(agent: "claude", sessionId: "s", kind: .finished(message: "Started the helpers."), at: t.addingTimeInterval(8)), to: s)
+        s = LiveStatus.apply(ran("a1", t.addingTimeInterval(9)), to: s)
+        #expect(s.kind == .working)
     }
 
     /// Stop in the Claude app sends no hook: the last one said working. The transcript's interruption, after it, wins.

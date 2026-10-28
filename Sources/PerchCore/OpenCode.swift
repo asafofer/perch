@@ -109,6 +109,22 @@ public final class OpenCodeStore {
         return Message(data: d, parts: parts, created: created)
     }
 
+    /// The tool calls of a session that ran a command to open a pull request, as the JSON OpenCode stores them: the command and
+    /// its output are in the one record. OpenCode 2 keeps a step's calls inside its message, so each is given in OpenCode 1's
+    /// shape (its id as `callID`).
+    public func pullRequestRecords(session: String) -> [String] {
+        let like = "%" + PullRequestScan.create + "%"
+        let two = rows("SELECT data FROM session_message WHERE session_id = ? AND type = 'assistant' AND data LIKE ?", bind: [.text(session), .text(like)]) {
+            Self.json(Self.text($0, 0))["content"] as? [[String: Any]] ?? []
+        }.joined().filter { $0["type"] as? String == "tool" }.compactMap { c -> String? in
+            var call = c; call["callID"] = c["id"]; call["id"] = nil
+            guard let d = try? JSONSerialization.data(withJSONObject: call, options: .withoutEscapingSlashes) else { return nil }
+            let record = String(decoding: d, as: UTF8.self)
+            return record.contains(PullRequestScan.create) ? record : nil
+        }
+        return two + rows("SELECT data FROM part WHERE session_id = ? AND data LIKE ?", bind: [.text(session), .text(like)]) { Self.text($0, 0) }
+    }
+
     private enum Value { case int(Int64), text(String) }
     private func rows<T>(_ sql: String, bind: [Value], _ row: (OpaquePointer) -> T) -> [T] {
         var st: OpaquePointer?

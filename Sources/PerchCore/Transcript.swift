@@ -19,6 +19,9 @@ public struct SessionDigest: Equatable, Sendable {
     public var turnOpen = false
     /// The newest tool call that has no result yet, while the turn is open. A stale one usually means a permission prompt.
     public var pendingTool: PendingTool?
+    /// Work the agent left running in the background (helpers, a watch, a command) that has not reported back. Its turn can
+    /// end while it waits: Claude Code tells it when each one is over, and it carries on.
+    public var background: [Background] = []
     /// You stopped the agent (Esc, or Codex's turn was aborted) and have not written since.
     public var interrupted = false
     /// When you stopped it, while `interrupted`.
@@ -69,7 +72,7 @@ public struct Work: Equatable, Sendable {
         let name = path.map { ($0 as NSString).lastPathComponent }
         let add = { (f: String, list: inout [String]) in if !f.isEmpty, !list.contains(f) { list.append(f) } }
         switch tool {
-        case "Edit", "MultiEdit", "edit", "multiedit", "Write", "write", "NotebookEdit":
+        case "Edit", "MultiEdit", "edit", "multiedit", "Write", "write", "NotebookEdit", "StrReplace", "EditNotebook":
             if let name { add(name, &edited) }
         case "apply_patch", "patch":
             // Codex's patch names its files in its own lines: "*** Update File: path".
@@ -77,7 +80,7 @@ public struct Work: Equatable, Sendable {
             for f in Self.patched(patch) { add(f, &edited) }
         case "Read", "read":
             if let name { add(name, &read) }
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+        case "Bash", "bash", "shell", "Shell", "exec_command", "local_shell", "container.exec", "shell_command":
             let c = Activity.command(input)
             if let m = Self.commitMessage(c) { commits.append(m); return }
             guard !Self.onlyLooks(c) else { return }
@@ -154,6 +157,90 @@ public struct PendingTool: Equatable, Sendable {
     }
 }
 
+/// Something Claude Code runs in the background for the agent: a helper (the Agent tool, run in the background), a watch
+/// (Monitor) or a command (Bash, run in the background, or moved there when it ran long). It reports back with a task
+/// notification when it ends, and the agent's turn goes on from there.
+public struct Background: Equatable, Sendable {
+    public enum Kind: String, Sendable { case helper, watch, command }
+    public let kind: Kind
+    /// The tool call that started it, and Claude Code's id for it (a helper's agentId, a command's or a watch's task id).
+    public let callId: String
+    public let taskId: String
+    /// What the agent waits on, for the Now row: "Waiting on a helper: Fix the login", "Watching CI on PR 12".
+    public let step: String
+    /// Its last sign of life: when it started, or when a helper last wrote its own transcript (`SessionScanner.heardFrom`).
+    public var at: Date?
+    /// A watch ends by its own deadline.
+    let deadline: TimeInterval?
+
+    /// What a tool's result says it left running. `name` and `input` are the call's; `result` is the record's `toolUseResult`.
+    init?(callId: String, name: String, input: [String: Any], result: [String: Any], at: Date?) {
+        let about = (input["description"] as? String).flatMap { $0.isEmpty ? nil : Recap.clip($0, 60) }
+        deadline = (result["timeoutMs"] as? Double).map { $0 / 1000 }
+        switch name {
+        case "Agent", "Task":
+            guard result["isAsync"] as? Bool == true || result["status"] as? String == "async_launched", let id = result["agentId"] as? String else { return nil }
+            kind = .helper; taskId = id; step = about.map { "Waiting on a helper: \($0)" } ?? "Waiting on a helper"
+        case "Monitor":
+            guard let id = result["taskId"] as? String else { return nil }
+            kind = .watch; taskId = id; step = about.map { "Watching \($0)" } ?? "Watching for events"
+        case "Bash":
+            let command = Activity.command(input)
+            guard let id = result["backgroundTaskId"] as? String, !Self.neverEnds(command) else { return nil }
+            kind = .command; taskId = id
+            let first = command.split(whereSeparator: \.isNewline).first.map(String.init) ?? command
+            step = about.map(Activity.ongoing) ?? "Waiting on `\(Recap.clip(first, 48))`"
+        default: return nil
+        }
+        self.callId = callId; self.at = at
+    }
+
+    /// Work left in the background counts until it reports back, unless it has gone without a word (the app quit, the
+    /// session ended): no sign of life for this long. A watch goes by its own deadline.
+    public static let window: TimeInterval = 1800
+
+    /// Still out at `now`: a helper while it writes its own transcript, a command for half an hour from its start, a watch
+    /// until its deadline.
+    public func out(at now: Date) -> Bool {
+        guard let at else { return false }
+        return now.timeIntervalSince(at) < (kind == .watch ? min(deadline ?? Self.window, Self.window) + 60 : Self.window)
+    }
+
+    /// The Now row while the agent waits on several: "Waiting on 3 helpers".
+    public static func step(_ work: [Background]) -> String? {
+        guard let first = work.first else { return nil }
+        if work.count == 1 { return first.step }
+        return work.allSatisfy { $0.kind == .helper } ? "Waiting on \(work.count) helpers" : "Waiting on \(work.count) tasks in the background"
+    }
+
+    /// The ids a task notification says are over: its tool call's and its task's. Nil for anything else, for a watch's
+    /// events, which carry no status (the watch goes on), and for a helper that stopped with work of its own still out
+    /// ("is waiting on its own background work"): its report is interim, and the same task id reports again at the end.
+    static func ended(_ note: String) -> Set<String>? {
+        let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("<task-notification>"), t.contains("<status>") else { return nil }
+        func tag(_ name: String) -> String? {
+            guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
+            return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if tag("summary")?.hasSuffix("waiting on its own background work") == true || tag("note")?.contains("background work of its own still running") == true { return nil }
+        return Set([tag("tool-use-id"), tag("task-id")].compactMap { $0 })
+    }
+
+    /// A command that runs until it is stopped (a dev server, a file server, a log it follows): nothing waits for it to end,
+    /// so the agent is not at work while it runs.
+    static func neverEnds(_ command: String) -> Bool {
+        servers.contains { command.range(of: $0, options: .regularExpression) != nil }
+    }
+    private static let servers = [
+        #"\b(npm|pnpm|yarn|bun)\b[^;&|\n]*\s(dev|start|serve|preview|storybook)\b"#,   // npm run dev, pnpm start, yarn dev:web
+        #"\bvite\b(?!\s+build)|\b(next|nuxt|astro)\s+(dev|start)\b"#,
+        #"\bhttp\.server\b|\b(serve|http-server|live-server|json-server|webpack-dev-server|nodemon|uvicorn|gunicorn|runserver)\b"#,
+        #"\b(rails|hugo|jekyll)\s+(s|server|serve)\b|\bflask\s+run\b|\bphp\s+-S\b|\bdocker[- ]compose\s+up\b(?![^;&|\n]*\s-d\b)"#,
+        #"\btail\s+-[a-zA-Z]*[fF]"#,
+    ]
+}
+
 public enum TranscriptParser {
     /// Reads JSONL lines in file order and keeps the latest of each fact. Unknown or broken lines are skipped.
     public static func digest(lines: [String]) -> SessionDigest {
@@ -161,6 +248,8 @@ public enum TranscriptParser {
         let iso = ISO8601DateFormatter(); iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let isoPlain = ISO8601DateFormatter()
         var open: [(id: String, tool: PendingTool)] = []
+        // Every tool call read so far, by id: what a background launch's result belongs to.
+        var calls: [String: (name: String, input: [String: Any])] = [:]
         for line in lines {
             guard let data = line.data(using: .utf8),
                   let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { continue }
@@ -168,6 +257,12 @@ public enum TranscriptParser {
             if type == "custom-title", let t = o["customTitle"] as? String, !t.isEmpty { d.title = t }
             else if type == "ai-title", let t = o["aiTitle"] as? String, !t.isEmpty, d.title == nil { d.title = t }
             if o["isSidechain"] as? Bool == true { continue }
+            // Something left running in the background reported back: Claude Code queues a task notification for the agent,
+            // and hands it over as a prompt when the agent is between turns.
+            let note = type == "queue-operation" ? o["content"] : type == "user" ? (o["message"] as? [String: Any])?["content"] : nil
+            if let note = note as? String, let over = Background.ended(note) {
+                d.background.removeAll { over.contains($0.callId) || over.contains($0.taskId) }
+            }
             if let s = o["sessionId"] as? String { d.sessionId = s }
             if let c = o["cwd"] as? String { d.cwd = c }
             if let b = o["gitBranch"] as? String, !b.isEmpty, b != "HEAD" { d.branch = b }
@@ -181,9 +276,15 @@ public enum TranscriptParser {
                 for b in blocks where b["type"] as? String == "tool_use" {
                     var tool = PendingTool(block: b)
                     tool.at = (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }
+                    let name = b["name"] as? String ?? "", input = b["input"] as? [String: Any] ?? [:]
                     open.append((b["id"] as? String ?? "", tool)); d.didWork = true
-                    if let step = Activity.step(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:]) { d.step = step }
-                    d.work.note(tool: b["name"] as? String ?? "", input: b["input"] as? [String: Any] ?? [:])
+                    calls[b["id"] as? String ?? ""] = (name, input)
+                    if let step = Activity.step(tool: name, input: input) { d.step = step }
+                    d.work.note(tool: name, input: input)
+                    // The agent stopped something it left running.
+                    if ["TaskStop", "KillShell"].contains(name), let id = (input["task_id"] ?? input["shell_id"]) as? String {
+                        d.background.removeAll { $0.taskId == id }
+                    }
                 }
             } else if isInterrupt(message?["content"]) {
                 d.turnOpen = false; d.interrupted = true; open = []
@@ -192,6 +293,12 @@ public enum TranscriptParser {
                 d.turnOpen = true
                 let answered = Set(blocks.compactMap { $0["type"] as? String == "tool_result" ? $0["tool_use_id"] as? String : nil })
                 open.removeAll { answered.contains($0.id) }
+                // A result that says the call left something running: a helper, a watch, a command sent to the background.
+                if let r = o["toolUseResult"] as? [String: Any], answered.count == 1, let id = answered.first, let call = calls[id],
+                   let started = Background(callId: id, name: call.name, input: call.input, result: r,
+                                            at: (o["timestamp"] as? String).flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }) {
+                    d.background.append(started)
+                }
             }
             if !d.turnOpen { open = [] }
             guard let text = text(from: message?["content"]), !text.isEmpty else { continue }
@@ -287,9 +394,19 @@ public struct GitInfo: Equatable, Sendable {
 }
 
 public enum Recap {
+    /// Your own last message, quoted: "You asked" only when it asks something (a sentence ending in a question mark),
+    /// otherwise "You said".
+    public static func youSaid(_ text: String) -> String {
+        let asks = text.range(of: #"\?+(\s|$|["”’')\]])"#, options: .regularExpression) != nil
+        return "\(asks ? "You asked" : "You said"): “\(clip(text, 120))”"
+    }
+
     /// A plain, honest recap built from the transcript and git alone. No model call.
-    public static func project(digest d: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil) -> Project? {
+    public static func project(digest: SessionDigest, git: GitInfo?, now: Date, calendar: Calendar = .current, desktopSessionId: String? = nil, agent: Agent = .claude, quietFor: TimeInterval? = nil, conductor: String? = nil, inApp: Bool = false) -> Project? {
+        var d = digest
         guard let cwd = d.cwd, let last = d.lastTimestamp else { return nil }
+        // Only what is still out: work gone without a word for half an hour (the app quit) is not waited on.
+        d.background = d.background.filter { $0.out(at: now) }
         // A chat started without a project lives in a made-up folder ("scratch-2026-10-09-ab78ac"), so its title names it.
         let title = d.title.flatMap { $0.isEmpty ? nil : $0 }, titled = isFolderless(cwd) && title != nil
         let name = titled ? title! : projectName(cwd: cwd, repo: d.repoName)
@@ -298,18 +415,18 @@ public enum Recap {
         // With no sentence worth showing: what it did if it changed something, the answer as written if it only answered.
         let reply = outcome(d.lastAssistantFull ?? d.lastAssistantText)
         let fallback = d.work.changedSomething ? did(d.work) ?? answer(d.lastAssistantText) : answer(d.lastAssistantText) ?? did(d.work)
-        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? "Your last session is ready to resume."
+        let settled = d.failed.map { clip($0, 150) } ?? reply ?? fallback ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? "Your last session is ready to resume."
         let (status, next) = statusAndNext(d, git, agent: agent, quietFor: quietFor)
         let agents = [AgentStatus(kind: status.kind, text: status.text, app: agent.id)]
         // While it works, the last turn's outcome is old news: say what it is doing now, in its words, or what you asked.
         let working = status.kind == .running
-        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map { "You asked: “\(clip($0, 120))”" } ?? settled
+        let context = !working ? settled : outcome(d.narration) ?? (d.lastAsk ?? d.lastUserText).map(youSaid) ?? settled
         var p = Project(id: d.sessionId ?? cwd, name: name, branch: d.branch, away: RelativeTime.away(from: last, to: now),
                        at: RelativeTime.clock(last, now: now, calendar: calendar), headline: headline, context: context, next: next,
                        topic: titled ? "" : clip(d.title ?? d.lastAsk ?? d.lastUserText ?? name, 90), app: agent.id, agents: agents,
                        steps: conductor != nil
                            ? [RestoreStep(icon: "win", text: "Opened Conductor"), RestoreStep(icon: "term", text: "Went back to your workspace")]
-                           : desktopSessionId != nil
+                           : desktopSessionId != nil || inApp
                            ? [RestoreStep(icon: "win", text: "Opened the \(agent.short) app"), RestoreStep(icon: "term", text: "Went back to your session")]
                            : [RestoreStep(icon: "term", text: "Opened Terminal in \(name)"), RestoreStep(icon: "term", text: "Resumed your \(agent.name) session")],
                        sessionId: d.sessionId, cwd: cwd, desktopSessionId: desktopSessionId)
@@ -318,9 +435,68 @@ public enum Recap {
         // A question the transcript shows still open: the card shows it and its choices even when no hook said so.
         if d.turnOpen, let t = d.pendingTool, var q = Ask(pending: t, agent: agent.id) { q.transcriptAt = t.at ?? last; p.ask = q }
         p.stoppedAt = d.interrupted ? d.stoppedAt : nil
-        p.now = working ? d.step : nil
+        p.toolOpen = d.turnOpen && d.pendingTool != nil
+        // At work with its turn over: it waits on what it left in the background.
+        p.waiting = working && !d.turnOpen
+        p.now = working ? (p.waiting ? Background.step(d.background) : d.step) : nil
         p.said = Recap.said(d.lastAssistantFull ?? d.lastAssistantText)
         p.asked = Recap.asked(d.lastUserFull ?? d.lastUserText)
+        p.askedLast = d.lastRole == "user"
+        return p
+    }
+
+    /// A chat in the Claude app: its title, and Claude's last reply where this Mac has it (`ClaudeWords`), else the title alone.
+    /// A chat is never news: its reply comes while you watch, so the notch never speaks up about one.
+    public static func chat(_ c: ClaudeCache.Chat, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
+        var p = Project(id: "chat:" + c.id, name: c.project ?? "", branch: nil, away: RelativeTime.away(from: c.updated, to: now),
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar), headline: "", context: words.flatMap(said(from:)) ?? "", next: "",
+                        topic: clip(c.title, 90), app: Agent.chat.id,
+                        agents: [AgentStatus(kind: .idle, text: words?.lastAssistantText != nil ? "Claude replied" : "Chat in Claude", app: Agent.chat.id)],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your chat")],
+                        sessionId: c.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = c.updated
+        p.startedAt = c.created
+        p.focusedAt = c.updated
+        p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText)
+        p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)
+        return p
+    }
+
+    /// The card's line from what was said: Claude's outcome, else what you asked.
+    static func said(from d: SessionDigest) -> String? {
+        outcome(d.lastAssistantFull ?? d.lastAssistantText) ?? answer(d.lastAssistantText) ?? (d.lastAsk ?? d.lastUserText).map(youSaid)
+    }
+
+    /// A task in the Claude app (what was Cowork): its title, its folder, and the app's own word on it: at work, waiting for
+    /// your OK, or done. One you have already looked at in the app is not news (`focusedAt`), so Perch keeps quiet about it.
+    /// What it said comes from `ClaudeWords` when this Mac has it; without it, a quiet line says so.
+    public static func task(_ t: ClaudeCache.Task, words: SessionDigest? = nil, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.cowork.id
+        let status: AgentStatus = switch t.state {
+        case .running: AgentStatus(kind: .running, text: "Claude is working", app: a)
+        case .awaiting: AgentStatus(kind: .needsYou, text: "Claude is waiting for your OK", app: a)
+        case .idle: AgentStatus(kind: .done, text: "Claude finished", app: a)
+        }
+        let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
+        var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
+                        at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
+                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle ? "Not opened on this Mac yet" : "",
+                        context: words.flatMap(said(from:)) ?? "", next: "",
+                        topic: clip(t.title, 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
+                        sessionId: t.id, cwd: t.folders.first, desktopSessionId: t.id)
+        p.lastActive = t.lastActivity
+        p.startedAt = t.created
+        p.appSays = true
+        if !t.unread { p.focusedAt = t.lastActivity }
+        if let w = words {
+            p.said = Recap.said(w.lastAssistantFull ?? w.lastAssistantText)
+            p.asked = Recap.asked(w.lastUserFull ?? w.lastUserText)
+            p.askedLast = w.lastRole == "user"
+            if t.state == .running { p.now = w.step }
+            // What it waits on, to read on the card (Perch cannot answer it: Cowork's hooks are not Perch's).
+            if t.state == .awaiting, w.turnOpen, let pending = w.pendingTool, var q = Ask(pending: pending, agent: a) { q.transcriptAt = pending.at ?? t.lastActivity; p.ask = q }
+        }
         return p
     }
 
@@ -343,7 +519,7 @@ public enum Recap {
 
     /// The Claude app's scratch workspaces and Codex's dated chat folders: sessions started without picking a project.
     public static func isFolderless(_ cwd: String) -> Bool {
-        cwd.contains("/Claude/scratch-workspaces/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
+        cwd.contains("/Claude/scratch-workspaces/") || cwd.hasSuffix("/.cursor/projects/\(CursorApp.noFolder)") || cwd.contains("/Claude/local-agent-mode-sessions/") || cwd.range(of: #"/Codex/\d{4}-\d{2}-\d{2}/[^/]+/?$"#, options: .regularExpression) != nil
     }
 
     /// The agent's outcome in a sentence or two, picked from its last message as written. A Summary, TL;DR or Result section
@@ -466,7 +642,8 @@ public enum Recap {
 
     /// `quietFor` is how long ago the session file last changed; nil when unknown.
     static func statusAndNext(_ d: SessionDigest, _ git: GitInfo?, agent a: Agent = .claude, quietFor: TimeInterval? = nil) -> ((kind: AgentStatus.Kind, text: String), String) {
-        let short = a.short, agent = a.name, quiet = quietFor ?? .infinity
+        // A task in the Claude app is just Claude's: "Claude replied", not "Claude tasks replied".
+        let short = a.short, agent = a.id == Agent.cowork.id ? a.short : a.name, quiet = quietFor ?? .infinity
         let working = ((AgentStatus.Kind.running, "\(agent) is working"), "")
         if d.turnOpen, let t = d.pendingTool {
             // Tools that wait on you by design.
@@ -474,7 +651,7 @@ public enum Recap {
             if t.isQuestion { return ((.needsYou, "\(short) asked you something"), "") }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
-            let expected: TimeInterval = ["Bash", "bash", "shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task", "subagent"].contains(t.name) ? 1800 : 30)
+            let expected: TimeInterval = ["Bash", "bash", "Shell", "shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task", "subagent"].contains(t.name) ? 1800 : 30)
             if quiet < expected { return working }
             if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
             return ((.idle, "\(agent) stopped mid-task"), "")
@@ -482,6 +659,8 @@ public enum Recap {
         if d.turnOpen && quiet < runningWindow { return working }
         if d.interrupted { return ((.idle, "You stopped \(short)"), "") }
         if d.failed != nil { return ((.needsYou, "\(short) stopped on an error"), "") }
+        // Its turn ended, but what it left running in the background has not reported back: it carries on when that does.
+        if !d.background.isEmpty { return working }
         if d.lastRole == "user" { return ((.idle, "\(agent) stopped before replying"), "") }
         if let a = d.lastAssistantText, a.trimmingCharacters(in: .whitespaces).hasSuffix("?") {
             return ((.needsYou, "\(short) asked you something"), "Answer: “\(clip(lastSentence(a), 100))”")
@@ -585,7 +764,7 @@ extension Project {
     /// The same project with a "needs you" from before `since` read as history. A request the hooks reported still open (`ask`)
     /// always counts; a question only the transcript shows grows old like any guess.
     public func settled(since: Date) -> Project {
-        guard needsAttention, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
+        guard needsAttention, !appSays, !prNeeds, ask == nil || ask?.transcriptAt != nil, let t = ask?.transcriptAt ?? lastActive, t < since else { return self }
         var p = self
         p.agents = agents.map { $0.kind == .needsYou ? AgentStatus(kind: .idle, text: $0.text, app: $0.app) : $0 }
         p.ask = nil
@@ -608,7 +787,7 @@ extension Project {
 
     public static func movedOn(_ list: [Project], seen: [String: Double]) -> [Project] {
         list.map { p in
-            guard p.needsAttention, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
+            guard p.needsAttention, !p.appSays, !p.prNeeds, let t = p.lastActive?.timeIntervalSince1970, (seen[p.id] ?? 0) + 0.5 >= t,
                   list.contains(where: { $0.id != p.id && (seen[$0.id] ?? 0) > t + 1 }) else { return p }
             return p.settled(since: .distantFuture)
         }
@@ -703,16 +882,16 @@ public enum Activity {
         let file = { (_: String) in path.map { ($0 as NSString).lastPathComponent } ?? "a file" }
         let quoted = { (k: String) in "“\(Recap.clip(input[k] as? String ?? "", 40))”" }
         switch tool {
-        case "Bash", "bash", "shell", "exec_command", "local_shell", "container.exec", "shell_command":
+        case "Bash", "bash", "shell", "Shell", "exec_command", "local_shell", "container.exec", "shell_command":
             // Claude Code describes each command in words ("Run the test suite"); that reads better than the command.
             // It is written as an order ("Check the tests"); the Now row says what is happening ("Checking the tests").
             if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(ongoing(about), 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
         case "Read", "read", "view_image": return "Reading \(file(""))"
-        case "Edit", "MultiEdit", "edit", "multiedit": return "Editing \(file(""))"
+        case "Edit", "MultiEdit", "edit", "multiedit", "StrReplace": return "Editing \(file(""))"
         case "Write", "write": return "Writing \(file(""))"
-        case "NotebookEdit": return "Editing \(file(""))"
+        case "NotebookEdit", "EditNotebook": return "Editing \(file(""))"
         case "apply_patch", "patch": return "Changing files"
         case "Grep", "grep": return "Searching for \(quoted("pattern"))"
         case "Glob", "glob", "find": return "Looking for \(quoted("pattern"))"

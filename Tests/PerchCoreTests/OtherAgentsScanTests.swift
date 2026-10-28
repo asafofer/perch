@@ -205,6 +205,14 @@ enum OpenCode2Steps {
         #expect(by["ask"]?.status.text == "OpenCode asked you something")
     }
 
+    /// OpenCode 2 keeps a step's tool calls inside its message: the pull request a command opened is found there too.
+    @Test func aPullRequestOpenCode2OpenedIsFound() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        let call = #"{"type":"tool","id":"call_pr","name":"shell","state":{"status":"completed","input":{"command":"\#(PullRequestScan.create) --fill"},"content":[{"type":"text","text":"https://github.com/acme/scraper/pull/42\n"}]}}"#
+        h.opencode2("ses_a", cwd: site, steps: [("assistant", #"{"time":{"created":1,"completed":2},"finish":"tool-calls","content":[\#(call)]}"#)] + OpenCode2Steps.finished)
+        #expect(h.scanner.opencode(limit: 15, now: h.now).first?.project.prs.map(\.url) == ["https://github.com/acme/scraper/pull/42"])
+    }
+
     /// OpenCode 2 copies OpenCode 1's sessions into its own tables when it first runs; one written by OpenCode 1 since is still read.
     @Test func aDatabaseBothVersionsWroteListsEachSessionOnce() {
         let h = AgentHome(), site = h.folder("code/scraper")
@@ -273,6 +281,8 @@ enum OpenCode2Steps {
                                                                            Self.assistant(Self.toolCall, stop: "toolUse", h.ts(-25)), Self.result])
         // opened and closed without a word
         h.pi("empty", cwd: site, ago: 10, entries: [])
-        #expect(h.scanner.pi(limit: 15, now: h.now).isEmpty)
+        // Only the small talk is found, marked: the app lists it only while pi still runs it.
+        let found = h.scanner.pi(limit: 15, now: h.now).map(\.project)
+        #expect(found.map(\.sessionId) == ["hi"]); #expect(found.first?.smallTalk == true)
     }
 }

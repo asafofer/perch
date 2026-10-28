@@ -13,7 +13,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
-            for agent in HookInstaller.agents {
+            // Names after the flag limit it to those agents (`--install-hooks cursor`).
+            let given = args.drop(while: { $0 != flag }).dropFirst().filter { !$0.hasPrefix("-") }
+            // A name that is no agent is a typo: nothing is changed (no names at all means every agent).
+            if let bad = given.first(where: { !HookInstaller.agents.contains($0) }) { print("unknown agent \(bad); known: \(HookInstaller.agents.joined(separator: ", "))"); exit(1) }
+            let named = given
+            for agent in HookInstaller.agents where named.isEmpty || named.contains(agent) {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }
             }
@@ -22,30 +27,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The design page draws stand-in icons; this writes this Mac's real ones next to it (git ignores the file).
         if let i = args.firstIndex(of: "--design-icons") {
             let out = URL(fileURLWithPath: i + 1 < args.count ? args[i + 1] : "ui/icons.local.json")
-            do { try JSONSerialization.data(withJSONObject: AppIcons.all(), options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
+            let icons = AppIcons.all().merging(AppIcons.designFiles(wallpaper: out.deletingLastPathComponent().appendingPathComponent("wallpapers/blue-distortion-1.webp"))) { a, _ in a }
+            do { try JSONSerialization.data(withJSONObject: icons, options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
             catch { print("could not write \(out.path): \(error)") }
             exit(0)
         }
         if args.contains("--dump") {
             for s in NSScreen.screens { print("screen: \(s.localizedName) | \(s.displayID) | notch: \(s.notchSize != nil ? "yes" : "no")") }
             print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
-            for p in RealSessionProvider().parkedProjects() {
+            // Pull requests: ask whether the GitHub CLI works, and with Checks on let GitHub answer once before the list is printed.
+            let pulls = PullRequestState.shared
+            pulls.refreshAvailability(force: true); Thread.sleep(forTimeInterval: 2)
+            let provider = RealSessionProvider(); if let n = ProcessInfo.processInfo.environment["PERCH_DUMP_MAX"].flatMap(Int.init) { provider.maxProjects = n }
+            if pulls.mode == .checks { _ = provider.parkedProjects(); Thread.sleep(forTimeInterval: 10) }
+            print("pull requests: \(pulls.mode.rawValue) (GitHub CLI: \(pulls.availability.map { "\($0)" } ?? "not asked"))")
+            for p in provider.parkedProjects() {
                 let opens = p.conductor != nil ? "Conductor, workspace \(p.conductor ?? "?")" : p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
-                    : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : "claude://code/continue?session=\(p.desktopSessionId ?? "?")"
+                    : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
+                if !p.prs.isEmpty { print("   pull requests: " + p.prs.map { "#\($0.number) \($0.state.rawValue)\($0.needsYou ? " (needs you)" : "")" }.joined(separator: ", ")) }
             }
             let (hits, viewers) = LiveSessions.scan()
             for hit in hits {
                 let place: String
                 switch hit.place {
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
+                case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
+                case .agterm(_, let s, let pane): place = "agterm session \(s.prefix(8)) pane \(pane.prefix(8))"
                 case .tab: place = "a tab"
                 }
                 print("running: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(place), in \(hit.app ?? "no app")")
             }
-            for v in viewers { print("herdr client: session \(v.session) on \(v.tty) in \(v.app ?? "no app")") }
+            for v in viewers { print("\(v.tmux == nil ? "herdr" : "tmux") client: session \(v.session) on \(v.tty) in \(v.app ?? "no app")") }
             print("speak up on its own now: \(Quiet.reason().map { "no, \($0)" } ?? "yes")")
             exit(0)
         }
@@ -83,13 +98,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         c.newComboWorks = { newWorks }
         // While the notch says an answer or a request arrived, its buttons answer to Command+Option and a key. Only then.
         let activityCodes: [String: Int] = ["pick": kVK_Return, "open": kVK_Return, "reply": kVK_ANSI_R, "gone": kVK_ANSI_Period,
-                                            "allow": kVK_ANSI_A, "deny": kVK_ANSI_X, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3]
+                                            "allow": kVK_ANSI_A, "deny": kVK_ANSI_X, "pick1": kVK_ANSI_1, "pick2": kVK_ANSI_2, "pick3": kVK_ANSI_3, "app": kVK_ANSI_O]
         let activityIds = Dictionary(uniqueKeysWithValues: activityCodes.keys.sorted().enumerated().map { ($1, UInt32(20 + $0)) })
         c.onActivityKeys = { [hotkeys] keys in
             for (name, id) in activityIds where !keys.contains(name) { hotkeys.unregister(id: id) }
             // Reply is Command+R, the rest Command+Option and a key.
-            for name in keys { if let code = activityCodes[name], let id = activityIds[name] { hotkeys.register(keyCode: code, modifiers: name == "reply" ? cmdKey : cmdKey | optionKey, id: id) { c.activityKey(name) } } }
+            // A key Perch's own shortcuts already use, or that another app holds, is left alone: its button shows no key.
+            let mine = [Prefs.openShortcut, Prefs.newShortcut].compactMap { s in s.kind == .combo && s.mods == [.command, .option] ? s.keyCode : nil }
+            var missed: [String] = []
+            for name in keys { if let code = activityCodes[name], let id = activityIds[name] {
+                let mods = name == "reply" ? cmdKey : cmdKey | optionKey
+                if mods == cmdKey | optionKey && mine.contains(code) { hotkeys.unregister(id: id); missed.append(name); continue }
+                if !hotkeys.register(keyCode: code, modifiers: mods, id: id, action: { c.activityKey(name) }) { missed.append(name) }
+            } }
+            c.activityKeysMissed(missed)
         }
+        c.onReplyKey = { [hotkeys] on in if on { hotkeys.register(keyCode: kVK_ANSI_R, modifiers: 0, id: 40) { c.replyKey() } } else { hotkeys.unregister(id: 40) } }
         hotkeys.onChordTap = { c.chordTap() }
         hotkeys.apply(Prefs.openShortcut)
         c.openComboWorks = { [hotkeys] in hotkeys.openCombo }
@@ -104,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
             c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
             c.onMenuIcon = { [weak self] image in self?.statusItem?.button?.image = image }
-            monitor.onReturn = { since in c.comeBack(proactive: true, awaySince: since) }
+            monitor.onReturn = { [updater] since in c.comeBack(proactive: true, awaySince: since); updater.checkSoon() }
             activity = monitor
             installStatusItem()
             // First run (or a restart in the middle of setup): the guided onboarding.
