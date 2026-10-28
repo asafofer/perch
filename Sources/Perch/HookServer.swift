@@ -273,7 +273,13 @@ enum HookInstaller {
     }
 
     /// Hooks installed by an earlier Perch lack the newest entries: add them, so Live status does not read off after an update.
+    /// A plugin file an earlier Perch wrote is written again when it differs (OpenCode 2 refused the one before 2.0's format).
     static func upgrade() {
+        for agent in agents where isInstalled(agent) {
+            guard let f = pluginFiles[agent], let body = PerchPlugins.body[agent],
+                  (try? String(contentsOf: f, encoding: .utf8)) != body else { continue }
+            try? body.write(to: f, atomically: true, encoding: .utf8)
+        }
         for agent in agents where pluginFiles[agent] == nil && !isInstalled(agent) {
             guard FileManager.default.isExecutableFile(atPath: script.path), let root = read(file(agent)),
                   let hooks = root["hooks"] as? [String: Any],
