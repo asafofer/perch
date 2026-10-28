@@ -3,6 +3,8 @@ import SQLite3
 
 /// OpenCode keeps every session in one SQLite database (~/.local/share/opencode/opencode.db), shared by its terminal app
 /// and its desktop app. Perch opens it read-only for each scan and closes it again, so it never holds OpenCode up.
+/// OpenCode 1 writes `session`, `message` and `part`; OpenCode 2 writes `session_v2` and `session_message`, and copies
+/// OpenCode 1's sessions there the first time it runs. Both are read, OpenCode 2's winning for a session in each.
 public final class OpenCodeStore {
     public struct Session: Equatable, Sendable {
         public let id: String
@@ -26,20 +28,32 @@ public final class OpenCodeStore {
 
     /// Sessions you started (not a subagent's), not archived, changed since `after`, newest first.
     public func sessions(after: Date, limit: Int) -> [Session] {
-        let sql = """
-            SELECT s.id, s.directory, s.title, max(s.time_updated, coalesce((SELECT max(m.time_updated) FROM message m WHERE m.session_id = s.id), 0)) AS t, s.time_created
-            FROM session s WHERE s.parent_id IS NULL AND s.time_archived IS NULL AND s.time_updated > ?
-            ORDER BY t DESC LIMIT ?
-            """
-        return rows(sql, bind: [.int(Int64(after.timeIntervalSince1970 * 1000)), .int(Int64(limit))]) { st in
-            Session(id: Self.text(st, 0), directory: Self.text(st, 1), title: Self.text(st, 2),
-                    updated: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 3)) / 1000),
-                    created: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 4)) / 1000))
+        func read(_ sessions: String, _ messages: String) -> [Session] {
+            let sql = """
+                SELECT s.id, s.directory, coalesce(s.title, ''), max(s.time_updated, coalesce((SELECT max(m.time_updated) FROM \(messages) m WHERE m.session_id = s.id), 0)) AS t, s.time_created
+                FROM \(sessions) s WHERE s.parent_id IS NULL AND s.time_archived IS NULL AND s.time_updated > ?
+                ORDER BY t DESC LIMIT ?
+                """
+            return rows(sql, bind: [.int(Int64(after.timeIntervalSince1970 * 1000)), .int(Int64(limit))]) { st in
+                Session(id: Self.text(st, 0), directory: Self.text(st, 1), title: Self.text(st, 2),
+                        updated: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 3)) / 1000),
+                        created: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 4)) / 1000))
+            }
         }
+        let two = read("session_v2", "session_message"), ids = Set(two.map(\.id))
+        let one = read("session", "message").filter { !ids.contains($0.id) }
+        return Array((two + one).sorted { $0.updated > $1.updated }.prefix(limit))
     }
 
     /// The session's last `last` messages with their parts, oldest first.
     public func messages(session: String, last: Int = 40) -> [Message] {
+        let two = rows("""
+            SELECT type, data, time_created FROM session_message WHERE session_id = ? AND type IN ('user', 'assistant', 'idle')
+            ORDER BY seq DESC LIMIT ?
+            """, bind: [.text(session), .int(Int64(last))]) { st in
+            Self.message(type: Self.text(st, 0), data: Self.json(Self.text(st, 1)), created: Date(timeIntervalSince1970: Double(sqlite3_column_int64(st, 2)) / 1000))
+        }
+        if !two.isEmpty { return two.reversed() }
         let sql = """
             SELECT m.id, m.data, m.time_created, p.data FROM
               (SELECT id, data, time_created FROM message WHERE session_id = ? ORDER BY time_created DESC, id DESC LIMIT ?) m
@@ -59,6 +73,40 @@ public final class OpenCodeStore {
         }
         flush()
         return out
+    }
+
+    /// One of OpenCode 2's messages in OpenCode 1's shape, which the digest reads. A message keeps its parts inside it
+    /// (`content`), a tool part names its tool `name`, an error is `{type, message}`, and the turn ends in an `idle`
+    /// message whose outcome says how (succeeded, interrupted, failed).
+    static func message(type: String, data: [String: Any], created: Date) -> Message {
+        var d: [String: Any] = ["role": type == "user" ? "user" : "assistant", "time": data["time"] ?? [:]]
+        var parts: [[String: Any]] = []
+        func error(_ e: [String: Any]?) -> [String: Any] {
+            e?["type"] as? String == "aborted" ? ["name": "MessageAbortedError"] : ["name": e?["type"] ?? "error", "data": ["message": e?["message"] ?? ""]]
+        }
+        switch type {
+        case "user":
+            if let text = data["text"] as? String { parts.append(["type": "text", "text": text]) }
+        case "idle":
+            let at = created.timeIntervalSince1970 * 1000
+            d["time"] = ["created": at, "completed": at]
+            switch data["outcome"] as? String {
+            case "interrupted": d["error"] = ["name": "MessageAbortedError"]
+            case "failed": d["error"] = error(data["error"] as? [String: Any])
+            default: d["finish"] = "stop"
+            }
+        default:
+            d["finish"] = data["finish"]
+            if let e = data["error"] as? [String: Any] { d["error"] = error(e) }
+            for c in data["content"] as? [[String: Any]] ?? [] {
+                switch c["type"] as? String {
+                case "text": parts.append(["type": "text", "text": c["text"] ?? ""])
+                case "tool": parts.append(["type": "tool", "tool": c["name"] ?? "tool", "callID": c["id"] ?? "", "state": c["state"] ?? [:]])
+                default: break
+                }
+            }
+        }
+        return Message(data: d, parts: parts, created: created)
     }
 
     private enum Value { case int(Int64), text(String) }

@@ -474,7 +474,7 @@ public enum Recap {
             if t.isQuestion { return ((.needsYou, "\(short) asked you something"), "") }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
-            let expected: TimeInterval = ["Bash", "bash"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
+            let expected: TimeInterval = ["Bash", "bash", "shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task", "subagent"].contains(t.name) ? 1800 : 30)
             if quiet < expected { return working }
             if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
             return ((.idle, "\(agent) stopped mid-task"), "")
@@ -719,7 +719,7 @@ public enum Activity {
         case "ls", "list": return path.map { "Looking in \(($0 as NSString).lastPathComponent)" } ?? "Looking around"
         case "WebSearch", "web_search", "websearch": return "Searching the web for \(quoted("query"))"
         case "WebFetch", "webfetch": return "Reading \((input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page")"
-        case "Task", "Agent", "task": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
+        case "Task", "Agent", "task", "subagent": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
         case "Skill", "skill": return ((input["skill"] ?? input["name"]) as? String).map { "Using \($0)" }
         case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode",
              "todowrite", "todoread", "question", "": return nil

@@ -4,6 +4,7 @@ import SQLite3
 @testable import PerchCore
 
 /// A home folder with an OpenCode database and pi session files in it, in the formats those agents write.
+/// OpenCode 1 and 2 share the database: 1 writes session, message and part; 2 writes session_v2 and session_message.
 private final class AgentHome {
     let url: URL
     let now = Date()
@@ -38,6 +39,9 @@ private final class AgentHome {
                   time_created INTEGER, time_updated INTEGER, time_archived INTEGER);
                 CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT);
                 CREATE TABLE part (id TEXT PRIMARY KEY, message_id TEXT, session_id TEXT, time_created INTEGER, time_updated INTEGER, data TEXT);
+                CREATE TABLE session_v2 (id TEXT PRIMARY KEY, project_id TEXT, parent_id TEXT, slug TEXT, directory TEXT, title TEXT, version TEXT,
+                  time_created INTEGER, time_updated INTEGER, time_archived INTEGER);
+                CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, time_updated INTEGER, data TEXT);
                 """)
         }
         var err: UnsafeMutablePointer<CChar>?
@@ -61,6 +65,18 @@ private final class AgentHome {
         guard let prompt else { return }
         message(#"{"role":"user","time":{"created":\#(t - 4000)}}"#, [#"{"type":"text","text":"\#(prompt)"}"#], at: t - 4000)
         for (k, s) in steps.enumerated() { message(s.0, s.1, at: t - 3000 + Int64(k)) }
+    }
+
+    /// An OpenCode 2 session: your prompt, then its messages. `steps` are (type, message JSON); a turn ends in an idle message.
+    func opencode2(_ id: String, cwd: String, title: String? = "Retry failed pages", ago: TimeInterval = 60, parent: String? = nil,
+                   archived: Bool = false, prompt: String = "make failed pages retry three times with backoff",
+                   steps: [(String, String)] = OpenCode2Steps.finished) {
+        let t = Int64((now.timeIntervalSince1970 - ago) * 1000)
+        sql("INSERT INTO session_v2 VALUES (\(q(id)), 'p', \(parent.map(q) ?? "NULL"), 'slug', \(q(cwd)), \(title.map(q) ?? "NULL"), '2.0.32', \(t - 5000), \(t), \(archived ? String(t) : "NULL"));")
+        for (k, m) in ([("user", #"{"time":{"created":\#(t - 4000)},"text":"\#(prompt)"}"#)] + steps).enumerated() {
+            n += 1; let at = t - 4000 + Int64(k)
+            sql("INSERT INTO session_message VALUES (\(q("msg_\(n)")), \(q(id)), \(q(m.0)), \(k), \(at), \(at), \(q(m.1)));")
+        }
     }
 
     // MARK: pi
@@ -94,6 +110,20 @@ enum OpenCodeSteps {
     static let failed = [(#"{"role":"assistant","time":{"created":3,"completed":4},"error":{"name":"APIError","data":{"message":"Rate limit reached for this model"}}}"#, [String]())]
     static let asking = [(#"{"role":"assistant","time":{"created":3}}"#,
          [#"{"type":"tool","tool":"question","callID":"q1","state":{"status":"running","input":{"questions":[{"question":"Retry forever or give up after three?","header":"Retries","options":[{"label":"Three"},{"label":"Forever"}]}]}}}"#])]
+}
+
+/// OpenCode 2's messages: a message keeps its parts in `content`, a tool is `name`d, and the turn ends in an idle message.
+enum OpenCode2Steps {
+    static let toolStep = ("assistant", #"{"time":{"created":1,"completed":2},"finish":"tool-calls","content":[{"type":"tool","id":"c1","name":"shell","state":{"status":"completed","input":{"command":"bun test"}}}]}"#)
+    static let finished = [toolStep,
+        ("assistant", #"{"time":{"created":3,"completed":4},"finish":"stop","content":[{"type":"reasoning","text":"Done."},{"type":"text","text":"Failed pages now retry three times with backoff, and the log lists the ones that never loaded."}]}"#),
+        ("idle", #"{"time":{"created":5},"outcome":"succeeded"}"#)]
+    static let working = [toolStep,
+        ("assistant", #"{"time":{"created":3},"content":[{"type":"text","text":"Running the tests before I touch the scheduler."},{"type":"tool","id":"c2","name":"shell","state":{"status":"running","input":{"command":"bun test --watch=false"}}}]}"#)]
+    static let interrupted = [toolStep, ("idle", #"{"time":{"created":5},"outcome":"interrupted"}"#)]
+    static let failed = [("assistant", #"{"time":{"created":3,"completed":4},"content":[],"error":{"type":"provider.error","message":"Rate limit reached for this model"}}"#),
+        ("idle", #"{"time":{"created":5},"outcome":"failed","error":{"type":"provider.error","message":"Rate limit reached for this model"}}"#)]
+    static let asking = [("assistant", #"{"time":{"created":3},"content":[{"type":"tool","id":"q1","name":"question","state":{"status":"running","input":{"questions":[{"question":"Retry forever or give up after three?","header":"Retries","options":[{"label":"Three"},{"label":"Forever"}]}]}}}]}"#)]
 }
 
 @Suite struct OtherAgentsScanTests {
@@ -138,6 +168,52 @@ enum OpenCodeSteps {
         #expect(by["stop"]?.status.text == "You stopped OpenCode"); #expect(by["stop"]?.stoppedAt != nil)
         #expect(by["fail"]?.status.text == "OpenCode stopped on an error"); #expect(by["fail"]?.context == "Rate limit reached for this model")
         #expect(by["ask"]?.status.text == "OpenCode asked you something")
+    }
+
+    @Test func openCode2SessionsAreListedByTitle() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode2("ses_a", cwd: site, title: "Retry failed pages", ago: 60)
+        let found = h.scanner.opencode(limit: 15, now: h.now)
+        #expect(found.map(\.project.sessionId) == ["ses_a"])
+        let p = found.first?.project
+        #expect(p?.app == "opencode"); #expect(p?.terminal == true); #expect(p?.topic == "Retry failed pages")
+        #expect(p?.status.text == "OpenCode replied")
+        #expect(p?.context == "Failed pages now retry three times with backoff, and the log lists the ones that never loaded.")
+    }
+
+    @Test func openCode2SessionsThatAreNotYoursAreLeftOutAndAnUntitledOneTakesYourPrompt() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode2("ses_a", cwd: site, title: nil, ago: 60)
+        h.opencode2("ses_sub", cwd: site, ago: 30, parent: "ses_a")
+        h.opencode2("ses_old", cwd: site, ago: 20, archived: true)
+        let found = h.scanner.opencode(limit: 15, now: h.now)
+        #expect(found.map(\.project.sessionId) == ["ses_a"])
+        #expect(found.first?.project.topic == "make failed pages retry three times with backoff")
+    }
+
+    @Test func openCode2StatusFollowsItsMessages() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode2("work", cwd: site, ago: 2, steps: OpenCode2Steps.working)
+        h.opencode2("stop", cwd: site, ago: 60, steps: OpenCode2Steps.interrupted)
+        h.opencode2("fail", cwd: site, ago: 120, steps: OpenCode2Steps.failed)
+        h.opencode2("ask", cwd: site, ago: 180, steps: OpenCode2Steps.asking)
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.opencode(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["work"]?.status.kind == "running"); #expect(by["work"]?.now == "Running `bun test --watch=false`")
+        #expect(by["work"]?.context == "Running the tests before I touch the scheduler.")
+        #expect(by["stop"]?.status.text == "You stopped OpenCode"); #expect(by["stop"]?.stoppedAt != nil)
+        #expect(by["fail"]?.status.text == "OpenCode stopped on an error"); #expect(by["fail"]?.context == "Rate limit reached for this model")
+        #expect(by["ask"]?.status.text == "OpenCode asked you something")
+    }
+
+    /// OpenCode 2 copies OpenCode 1's sessions into its own tables when it first runs; one written by OpenCode 1 since is still read.
+    @Test func aDatabaseBothVersionsWroteListsEachSessionOnce() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode("ses_copied", cwd: site, title: "Before the update", ago: 300)
+        h.opencode2("ses_copied", cwd: site, title: "After the update", ago: 30)
+        h.opencode("ses_one", cwd: site, title: "Only in OpenCode 1", ago: 60)
+        let found = h.scanner.opencode(limit: 15, now: h.now)
+        #expect(found.map(\.project.sessionId) == ["ses_copied", "ses_one"])
+        #expect(found.map(\.project.topic) == ["After the update", "Only in OpenCode 1"])
     }
 
     @Test func noOpenCodeDatabaseMeansNoOpenCodeSessions() {
