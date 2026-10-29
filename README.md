@@ -140,7 +140,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket. |
 | `ui/` | The interface: plain JavaScript and Tailwind, Inter bundled. |
 | `scripts/` | Run, package, install, signing certificate, app icon and the README GIF. |
-| `feedback/` | The small Vercel function Send feedback posts to; it emails the message on. |
+| `feedback/` | The small Vercel function behind Send feedback: it receives what Perch posts and emails it to the inbox set in `FEEDBACK_TO`. |
 
 <details>
 <summary><strong>Troubleshooting</strong></summary>
@@ -169,7 +169,6 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-- More sources: Cursor
 - An optional sound and haptics
 
 ## Credits
