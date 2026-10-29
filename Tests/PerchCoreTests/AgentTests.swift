@@ -148,6 +148,23 @@ import Foundation
         #expect(Running.match([Running.Process(agent: "pi", cwd: "/a", argv: ["pi"])], to: list).isEmpty)
     }
 
+    @Test func claudesOwnFileNamesTheSessionWhateverFolderItWorksIn() {
+        let file = Data(#"{"pid":68560,"sessionId":"skills","cwd":"/Users/you","kind":"interactive"}"#.utf8)
+        #expect(ClaudeProcessFile.session(file, pid: 68560) == "skills")
+        // Started in ~, then working in a project: the folders differ, and the named session still matches.
+        let list = [p("skills", "claude", "/Users/you/Documents/hiring-skills", 3600)]
+        let proc = Running.Process(agent: "claude", cwd: "/Users/you", argv: ["claude"], session: ClaudeProcessFile.session(file, pid: 68560))
+        #expect(Running.match([proc], to: list) == [0: 0])
+    }
+
+    @Test func claudesFileAboutAnotherProcessOrWithoutASessionNamesNothing() {
+        // A pid used again by a new process, with the old one's file still there.
+        #expect(ClaudeProcessFile.session(Data(#"{"pid":7022,"sessionId":"s"}"#.utf8), pid: 68560) == nil)
+        #expect(ClaudeProcessFile.session(Data(#"{"pid":1}"#.utf8), pid: 1) == nil)
+        #expect(ClaudeProcessFile.session(Data(#"{"pid":1,"sessionId":""}"#.utf8), pid: 1) == nil)
+        #expect(ClaudeProcessFile.session(Data("not json".utf8), pid: 1) == nil)
+    }
+
     @Test func agentsSideBySideEachKeepTheSessionTheyBegan() {
         let t0 = Date().addingTimeInterval(-900)
         func s(_ id: String, begun: TimeInterval, active: TimeInterval) -> Project {

@@ -123,6 +123,17 @@ public struct ProcessArgs: Equatable, Sendable {
     }
 }
 
+/// `~/.claude/sessions/<pid>.json`: Claude Code's record of the session each of its processes is on. It exists from the
+/// process's start, so it names a session quiet since before Perch started, or one working in another folder than it began in.
+public enum ClaudeProcessFile {
+    /// The session id in that file, when the file is about this process.
+    public static func session(_ data: Data, pid: Int32) -> String? {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], (o["pid"] as? NSNumber)?.int32Value == pid,
+              let id = o["sessionId"] as? String, !id.isEmpty else { return nil }
+        return id
+    }
+}
+
 /// Which session each running agent is.
 public enum Running {
     public struct Process: Equatable, Sendable {
