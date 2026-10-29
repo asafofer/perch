@@ -178,7 +178,8 @@ enum Restorer {
             return
         }
         if let url = link(p) {
-            NSWorkspace.shared.open(url); done(.app(claudeApp, exact: true))
+            // A web page (a cloud Code session) opens in the browser, so a reply is never pasted as if the Claude app showed this session.
+            NSWorkspace.shared.open(url); done(.app(claudeApp, exact: url.scheme != "https"))
             return
         }
         done(.none)   // sample data does nothing

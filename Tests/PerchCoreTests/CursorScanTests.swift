@@ -307,9 +307,24 @@ private enum CursorLines {
     @Test func cloudAgentsThatAreGoneOrNotYoursAreLeftOut() {
         let h = CursorHome()
         h.cloud([["bcId": "archived", "isArchived": true], ["bcId": "killed", "isKilled": true], ["bcId": "theirs", "isOwnedByDifferentTeamMember": true],
-                 ["bcId": "expired", "workflowStatus": 5, "status": 5], ["bcId": "never", "workflowStatus": 3, "status": 3, "hasStartedVm": false],
+                 ["bcId": "expired", "workflowStatus": 5, "status": 5], ["bcId": "never", "workflowStatus": 3, "status": 3, "hasStartedVm": false], ["bcId": "queued", "workflowStatus": 6, "status": 4, "hasStartedVm": false],
                  ["bcId": "stale", "ago": 90 * 86_400], ["bcId": "keep"]])
         #expect(h.scanner.cursor(limit: 15, now: h.now).map(\.project.sessionId) == ["keep"])
+    }
+
+    @Test func aStartedAgentStillQueuedForBackgroundWorkReadsAsRunning() {
+        let h = CursorHome()
+        h.cloud([["bcId": "bg", "workflowStatus": 6, "status": 1, "hasStartedVm": true]])
+        #expect(h.scanner.cursor(limit: 15, now: h.now).first?.project.status.kind == "running")
+    }
+
+    @Test func cloudAgentsShareTheLimitWithLocalChats() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("c1", slug: "code-scraper", ago: 10, workspace: "w1")
+        h.cloud([["bcId": "bc-1", "ago": 20], ["bcId": "bc-2", "ago": 30], ["bcId": "bc-3", "ago": 40]])
+        #expect(h.scanner.cursor(limit: 2, now: h.now).count == 2)
+        #expect(h.scanner.cursor(limit: 1, now: h.now).map(\.project.sessionId) == ["c1"])
     }
 
     @Test func cloudAgentsAreListedBesideLocalChatsAndWithoutAnyTranscript() {

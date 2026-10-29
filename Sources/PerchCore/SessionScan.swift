@@ -443,7 +443,7 @@ public final class SessionScanner: @unchecked Sendable {
             }
         }
         // Agents that run in Cursor's cloud have no transcript here, only the list Cursor last fetched.
-        for c in (store?.cloudAgents() ?? []).filter({ $0.updated > cutoff }).prefix(limit) {
+        for c in (store?.cloudAgents() ?? []).filter({ $0.updated > cutoff }).prefix(max(0, limit - out.count)) {
             var d = SessionDigest()
             d.sessionId = c.id; d.title = c.name; d.lastTimestamp = c.updated
             out.append((Recap.cloudAgent(c, now: now), d, nil, c.updated))

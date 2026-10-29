@@ -272,6 +272,17 @@ private final class Home {
         #expect(p.agents.first?.kind == .needsYou && p.headline == "Answer it in Claude")
     }
 
+    /// A finished cloud session has no words on this Mac, and says nothing about that (unlike a task not yet opened).
+    @Test func anIdleCloudSessionHasNoNotOpenedYetHeadline() {
+        let now = Date()
+        func task(cloud: Bool) -> ClaudeCache.Task {
+            ClaudeCache.Task(id: "session_x", title: "Greeting", folders: ["https://github.com/asafofer/perch"], created: now, lastActivity: now,
+                             state: .idle, unread: true, archived: false, cloud: cloud)
+        }
+        #expect(Recap.task(task(cloud: true), now: now).headline == "")
+        #expect(Recap.task(task(cloud: false), now: now).headline == "Not opened on this Mac yet")
+    }
+
     @Test func chatsStartSwitchedOffAndTasksOn() {
         #expect(Agent.chat.onByDefault == false)
         #expect(Agent.cowork.onByDefault)

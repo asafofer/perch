@@ -118,7 +118,7 @@ public final class CursorStore {
     }
 
     /// The cloud agents of the signed-in account, newest first. Only the fields wanted leave SQLite. Archived, killed and
-    /// expired ones, other team members', and ones that failed before they started are left out.
+    /// expired ones, other team members', and ones that never started (failed first, or still queued) are left out.
     public func cloudAgents() -> [CloudAgent] {
         var out: [CloudAgent] = []
         var st: OpaquePointer?
@@ -148,7 +148,8 @@ public final class CursorStore {
             case 2: state = .done
             default: state = status == 1 || status == 4 ? .running : status == 3 ? .failed : .done
             }
-            if state == .failed && !started { continue }
+            // Never started: failed before it began, or still queued (workflow 6) with no machine behind it.
+            if !started && (state == .failed || workflow == 6) { continue }
             if sqlite3_column_int(st, 7) != 0 { state = .awaiting }
             let ms = sqlite3_column_double(st, 11)
             guard ms > 0 else { continue }
