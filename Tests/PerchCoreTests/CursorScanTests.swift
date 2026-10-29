@@ -64,6 +64,23 @@ private final class CursorHome {
     /// The chat Cursor's Agents window shows, as Cursor saves it.
     func selected(_ id: String) { sql("INSERT INTO ItemTable VALUES ('cursor/glass.selectedAgent', \(q(id)));") }
 
+    /// The cloud agents Cursor last fetched, as it keeps them: one JSON list under the account's key. Each row is a real-shaped
+    /// one with the given fields over it (times are seconds ago).
+    func cloud(_ rows: [[String: Any]]) {
+        let list: [[String: Any]] = rows.map { r in
+            var o: [String: Any] = ["name": "Fix the footer", "repoUrl": "github.com/acme/site", "branchName": "cursor/fix-footer-b1f6",
+                                    "status": 2, "workflowStatus": 2, "isUnread": true, "hasPendingInteraction": false, "isArchived": false,
+                                    "isKilled": false, "hasStartedVm": true, "isOwnedByDifferentTeamMember": false, "modelDetails": ["modelName": "do-not-read"]]
+            for (k, v) in r where k != "ago" { o[k] = v }
+            let ago = (r["ago"] as? Double) ?? (r["ago"] as? Int).map(Double.init) ?? 120
+            let ms = Int64((now.timeIntervalSince1970 - ago) * 1000)
+            o["createdAt"] = ms - 600_000; o["updatedAt"] = ms; o["lastMessageActivityAtMs"] = ms
+            return o
+        }
+        let json = String(data: (try? JSONSerialization.data(withJSONObject: list)) ?? Data(), encoding: .utf8) ?? "[]"
+        sql("INSERT INTO ItemTable VALUES ('cloudAgentRepository.agents.google-oauth2%7Cuser_x', \(q(json)));")
+    }
+
     /// A window of Cursor on `folder`: its id and the workspace.json that names the folder.
     func workspace(_ id: String, folder: String) {
         let dir = user.appendingPathComponent("workspaceStorage/\(id)")
@@ -261,6 +278,46 @@ private enum CursorLines {
         let h = CursorHome()
         h.chat("a", slug: "empty-window")
         #expect(try #require(CursorStore(user: h.user)).selectedChat() == nil)
+    }
+
+    @Test func cloudAgentsComeFromTheListCursorLastFetched() {
+        let h = CursorHome()
+        h.cloud([["bcId": "bc-done", "prUrl": "https://github.com/acme/site/pull/7"]])
+        let found = h.scanner.cursor(limit: 15, now: h.now)
+        #expect(found.map(\.project.sessionId) == ["bc-done"])
+        let p = found.first?.project
+        #expect(p?.app == "cursor"); #expect(p?.name == "site"); #expect(p?.topic == "Fix the footer"); #expect(p?.branch == "cursor/fix-footer-b1f6")
+        #expect(p?.cwd == nil); #expect(p?.terminal == false); #expect(p?.status.text == "Cursor finished")
+        #expect(p?.focusedAt == nil)   // unread: news
+    }
+
+    @Test func cloudAgentsShowCursorsOwnState() {
+        let h = CursorHome()
+        h.cloud([["bcId": "run", "workflowStatus": 1, "status": 1, "ago": 10], ["bcId": "ask", "hasPendingInteraction": true, "ago": 20],
+                 ["bcId": "seen", "isUnread": false, "ago": 30], ["bcId": "old", "workflowStatus": 0, "status": 4, "ago": 40],
+                 ["bcId": "boom", "workflowStatus": 3, "status": 3, "ago": 50]])
+        let by = Dictionary(uniqueKeysWithValues: h.scanner.cursor(limit: 15, now: h.now).map { ($0.project.sessionId ?? "", $0.project) })
+        #expect(by["run"]?.status.kind == "running"); #expect(by["run"]?.status.text == "Cursor is working")
+        #expect(by["ask"]?.status.kind == "attention"); #expect(by["ask"]?.headline == "Answer it in Cursor")
+        #expect(by["seen"]?.status.kind == "done"); #expect(by["seen"]?.focusedAt != nil)
+        #expect(by["old"]?.status.kind == "running")   // the older status field alone: creating
+        #expect(by["boom"]?.status.text == "Cursor stopped on an error")
+    }
+
+    @Test func cloudAgentsThatAreGoneOrNotYoursAreLeftOut() {
+        let h = CursorHome()
+        h.cloud([["bcId": "archived", "isArchived": true], ["bcId": "killed", "isKilled": true], ["bcId": "theirs", "isOwnedByDifferentTeamMember": true],
+                 ["bcId": "expired", "workflowStatus": 5, "status": 5], ["bcId": "never", "workflowStatus": 3, "status": 3, "hasStartedVm": false],
+                 ["bcId": "stale", "ago": 90 * 86_400], ["bcId": "keep"]])
+        #expect(h.scanner.cursor(limit: 15, now: h.now).map(\.project.sessionId) == ["keep"])
+    }
+
+    @Test func cloudAgentsAreListedBesideLocalChatsAndWithoutAnyTranscript() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("c1", slug: "code-scraper", workspace: "w1")
+        h.cloud([["bcId": "bc-1"]])
+        #expect(Set(h.scanner.cursor(limit: 15, now: h.now).compactMap(\.project.sessionId)) == ["c1", "bc-1"])
     }
 
     @Test func noCursorFilesMeanNoCursorChats() {

@@ -500,6 +500,30 @@ public enum Recap {
         return p
     }
 
+    /// An agent that runs in Cursor's cloud: its title, its repository, and Cursor's own word on it. Only the list is on this
+    /// Mac, so there is no recap and no folder; Cursor's Agents window is where to read it.
+    public static func cloudAgent(_ c: CursorStore.CloudAgent, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.cursor.id
+        let status: AgentStatus = switch c.state {
+        case .running: AgentStatus(kind: .running, text: "Cursor is working", app: a)
+        case .awaiting: AgentStatus(kind: .needsYou, text: "Cursor is waiting for you", app: a)
+        case .done: AgentStatus(kind: .done, text: "Cursor finished", app: a)
+        case .failed: AgentStatus(kind: .idle, text: "Cursor stopped on an error", app: a)
+        }
+        let repo = c.repo.map { String($0.split(separator: "/").last ?? "") } ?? ""
+        var p = Project(id: "cursor-cloud:" + c.id, name: repo, branch: c.branch, away: RelativeTime.away(from: c.updated, to: now),
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar),
+                        headline: c.state == .awaiting ? "Answer it in Cursor" : "", context: "", next: "",
+                        topic: clip(c.name ?? "Untitled agent", 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened Cursor"), RestoreStep(icon: "term", text: "Went back to your agent")],
+                        sessionId: c.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = c.updated
+        p.startedAt = c.created
+        p.appSays = true
+        if !c.unread { p.focusedAt = c.updated }
+        return p
+    }
+
     /// The project's name: its folder's, or for a worktree, the project it belongs to. A worktree's own name ("wizardly-
     /// williams-42a0c0") says nothing, so with no project to show the name is empty.
     public static func projectName(cwd: String, repo: String?) -> String {

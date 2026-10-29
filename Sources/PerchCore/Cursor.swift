@@ -101,6 +101,66 @@ public final class CursorStore {
         return out
     }
 
+    /// An agent that runs in Cursor's cloud, as the list Cursor last fetched has it (`cloudAgentRepository.agents.<user>` in
+    /// `ItemTable`). What it said is not kept on this Mac: only the title, repository, times and state.
+    public struct CloudAgent: Equatable, Sendable {
+        public enum State: Sendable { case running, awaiting, done, failed }
+        public let id: String
+        public let name: String?
+        /// `github.com/owner/repo`, as Cursor writes it.
+        public let repo: String?
+        public let branch: String?
+        public let state: State
+        public let unread: Bool
+        public let created: Date?
+        public let updated: Date
+        public let prUrl: String?
+    }
+
+    /// The cloud agents of the signed-in account, newest first. Only the fields wanted leave SQLite. Archived, killed and
+    /// expired ones, other team members', and ones that failed before they started are left out.
+    public func cloudAgents() -> [CloudAgent] {
+        var out: [CloudAgent] = []
+        var st: OpaquePointer?
+        let sql = """
+            SELECT json_extract(j.value, '$.bcId'), json_extract(j.value, '$.name'), json_extract(j.value, '$.repoUrl'),
+                   json_extract(j.value, '$.branchName'), json_extract(j.value, '$.status'), json_extract(j.value, '$.workflowStatus'),
+                   json_extract(j.value, '$.isUnread'), json_extract(j.value, '$.hasPendingInteraction'),
+                   json_extract(j.value, '$.isArchived') OR json_extract(j.value, '$.isKilled') OR json_extract(j.value, '$.isOwnedByDifferentTeamMember'),
+                   json_extract(j.value, '$.hasStartedVm'), json_extract(j.value, '$.createdAt'),
+                   max(COALESCE(json_extract(j.value, '$.updatedAt'), 0), COALESCE(json_extract(j.value, '$.lastMessageActivityAtMs'), 0)),
+                   json_extract(j.value, '$.prUrl')
+            FROM ItemTable t, json_each(CAST(t.value AS TEXT)) j WHERE t.key LIKE 'cloudAgentRepository.agents.%' AND json_valid(CAST(t.value AS TEXT))
+            """
+        guard sqlite3_prepare_v2(db, sql, -1, &st, nil) == SQLITE_OK, let st else { return [] }
+        defer { sqlite3_finalize(st) }
+        while sqlite3_step(st) == SQLITE_ROW {
+            guard let id = Self.text(st, 0), sqlite3_column_int(st, 8) == 0 else { continue }
+            let status = Int(sqlite3_column_int(st, 4)), workflow = Int(sqlite3_column_int(st, 5))
+            // CloudAgentWorkflowStatus: 1 running, 2 idle, 3 error, 4 archived, 5 expired, 6 not yet started, 7 waiting for background
+            // work. BackgroundComposerStatus (older): 1 running, 2 finished, 3 error, 4 creating, 5 expired.
+            if workflow == 4 || workflow == 5 || workflow == 0 && status == 5 { continue }
+            let started = sqlite3_column_int(st, 9) != 0
+            var state: CloudAgent.State
+            switch workflow {
+            case 1, 6, 7: state = .running
+            case 3: state = .failed
+            case 2: state = .done
+            default: state = status == 1 || status == 4 ? .running : status == 3 ? .failed : .done
+            }
+            if state == .failed && !started { continue }
+            if sqlite3_column_int(st, 7) != 0 { state = .awaiting }
+            let ms = sqlite3_column_double(st, 11)
+            guard ms > 0 else { continue }
+            let created = sqlite3_column_double(st, 10)
+            let name = Self.text(st, 1)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            out.append(CloudAgent(id: id, name: name?.isEmpty == false ? name : nil, repo: Self.text(st, 2), branch: Self.text(st, 3), state: state,
+                                  unread: sqlite3_column_int(st, 6) != 0, created: created > 0 ? Date(timeIntervalSince1970: created / 1000) : nil,
+                                  updated: Date(timeIntervalSince1970: ms / 1000), prUrl: Self.text(st, 12)))
+        }
+        return out.sorted { $0.updated > $1.updated }
+    }
+
     /// The folder a window of Cursor had open: workspaceStorage/<id>/workspace.json holds `{"folder": "file:///…"}`.
     /// Nil for a window with no folder ("empty-window") or a multi-root workspace file.
     public func folder(workspace id: String) -> String? {
