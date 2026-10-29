@@ -168,7 +168,8 @@ public struct Background: Equatable, Sendable {
     public let taskId: String
     /// What the agent waits on, for the Now row: "Waiting on a helper: Fix the login", "Watching CI on PR 12".
     public let step: String
-    /// Its last sign of life: when it started, or when a helper last wrote its own transcript (`SessionScanner.heardFrom`).
+    /// Its last sign of life: when it started, when a helper last wrote its own transcript (`SessionScanner.heardFrom`), or
+    /// a persistent watch's last event.
     public var at: Date?
     /// A watch ends by its own deadline.
     let deadline: TimeInterval?
@@ -176,7 +177,8 @@ public struct Background: Equatable, Sendable {
     /// What a tool's result says it left running. `name` and `input` are the call's; `result` is the record's `toolUseResult`.
     init?(callId: String, name: String, input: [String: Any], result: [String: Any], at: Date?) {
         let about = (input["description"] as? String).flatMap { $0.isEmpty ? nil : Recap.clip($0, 60) }
-        deadline = (result["timeoutMs"] as? Double).map { $0 / 1000 }
+        // A persistent watch reports `timeoutMs: 0`: no deadline of its own.
+        deadline = result["persistent"] as? Bool == true ? nil : (result["timeoutMs"] as? Double).flatMap { $0 > 0 ? $0 / 1000 : nil }
         switch name {
         case "Agent", "Task":
             guard result["isAsync"] as? Bool == true || result["status"] as? String == "async_launched", let id = result["agentId"] as? String else { return nil }
@@ -200,10 +202,10 @@ public struct Background: Equatable, Sendable {
     public static let window: TimeInterval = 1800
 
     /// Still out at `now`: a helper while it writes its own transcript, a command for half an hour from its start, a watch
-    /// until its deadline.
+    /// until its deadline, however long (a persistent one, with none, like a command).
     public func out(at now: Date) -> Bool {
         guard let at else { return false }
-        return now.timeIntervalSince(at) < (kind == .watch ? min(deadline ?? Self.window, Self.window) + 60 : Self.window)
+        return now.timeIntervalSince(at) < (kind == .watch ? deadline.map { $0 + 60 } ?? Self.window : Self.window)
     }
 
     /// The Now row while the agent waits on several: "Waiting on 3 helpers".
@@ -219,12 +221,21 @@ public struct Background: Equatable, Sendable {
     static func ended(_ note: String) -> Set<String>? {
         let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.hasPrefix("<task-notification>"), t.contains("<status>") else { return nil }
-        func tag(_ name: String) -> String? {
-            guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
-            return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+        func tag(_ name: String) -> String? { Self.tag(name, in: t) }
         if tag("summary")?.hasSuffix("waiting on its own background work") == true || tag("note")?.contains("background work of its own still running") == true { return nil }
         return Set([tag("tool-use-id"), tag("task-id")].compactMap { $0 })
+    }
+
+    /// The task id of a watch's event: a task notification with no status, a sign of life (the watch goes on).
+    static func event(_ note: String) -> String? {
+        let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("<task-notification>"), !t.contains("<status>") else { return nil }
+        return tag("task-id", in: t)
+    }
+
+    private static func tag(_ name: String, in t: String) -> String? {
+        guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
+        return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// A command that runs until it is stopped (a dev server, a file server, a log it follows): nothing waits for it to end,
@@ -262,6 +273,12 @@ public enum TranscriptParser {
             let note = type == "queue-operation" ? o["content"] : type == "user" ? (o["message"] as? [String: Any])?["content"] : nil
             if let note = note as? String, let over = Background.ended(note) {
                 d.background.removeAll { over.contains($0.callId) || over.contains($0.taskId) }
+            } else if let note = note as? String, let id = Background.event(note),
+                      let at = (o["timestamp"] as? String).flatMap({ iso.date(from: $0) ?? isoPlain.date(from: $0) }) {
+                // A persistent watch has no deadline: each event it sends is a sign of life. A timed one keeps its deadline.
+                for i in d.background.indices where d.background[i].taskId == id && d.background[i].kind == .watch && d.background[i].deadline == nil {
+                    d.background[i].at = at
+                }
             }
             if let s = o["sessionId"] as? String { d.sessionId = s }
             if let c = o["cwd"] as? String { d.cwd = c }
@@ -651,7 +668,7 @@ public enum Recap {
             if t.isQuestion { return ((.needsYou, "\(short) asked you something"), "") }
             if t.name == "ExitPlanMode" { return ((.needsYou, "\(short) has a plan for you"), "Review the plan") }
             // Any other call with no result: running for as long as it plausibly could, then it is waiting for your OK.
-            let expected: TimeInterval = ["Bash", "bash", "Shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task"].contains(t.name) ? 1800 : 30)
+            let expected: TimeInterval = ["Bash", "bash", "Shell", "shell"].contains(t.name) ? (t.timeout ?? 120) + 15 : (["Task", "Agent", "task", "subagent"].contains(t.name) ? 1800 : 30)
             if quiet < expected { return working }
             if quiet < 4 * 3600 { return ((.needsYou, "\(short) is waiting for your OK"), "") }
             return ((.idle, "\(agent) stopped mid-task"), "")
@@ -898,7 +915,7 @@ public enum Activity {
         case "ls", "list": return path.map { "Looking in \(($0 as NSString).lastPathComponent)" } ?? "Looking around"
         case "WebSearch", "web_search", "websearch": return "Searching the web for \(quoted("query"))"
         case "WebFetch", "webfetch": return "Reading \((input["url"] as? String).flatMap { URL(string: $0)?.host } ?? "a page")"
-        case "Task", "Agent", "task": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
+        case "Task", "Agent", "task", "subagent": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
         case "Skill", "skill": return ((input["skill"] ?? input["name"]) as? String).map { "Using \($0)" }
         case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode",
              "todowrite", "todoread", "question", "": return nil

@@ -5,6 +5,9 @@ OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [session
 ## OpenCode
 
 - Every session, its desktop app's too, is in `~/.local/share/opencode/opencode.db` (SQLite, WAL, opened read-only per scan).
+- OpenCode 1 writes `session`, `message` and `part`. OpenCode 2 writes `session_v2` and `session_message`, and copies 1's sessions there when it first runs. Both are read; for a session in each, 2's row wins.
+- An OpenCode 2 message keeps its parts in `content`, and a turn ends in an `idle` message whose outcome says how (succeeded, interrupted, failed). `OpenCodeStore.message` puts 2's messages in 1's shape for `OpenCodeTranscript.digest`, and `pullRequestRecords` gives 2's tool calls in 1's shape (`callID`).
+- OpenCode 2 renamed tools: `bash` is `shell`, `task` is `subagent`, and files are `path`.
 - Subagent sessions (`parent_id`), archived ones and ones nobody wrote in are skipped. A placeholder title ("New session - …") gives way to your first prompt.
 - Resume with `opencode -s <id>`.
 

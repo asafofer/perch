@@ -100,7 +100,7 @@ Perch reads the session files your agents already keep on your Mac, and your ses
 
 The card's words are your agents' own: the session's title, what the agent said it did, and a next step only when the agent stated one.
 
-**Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for Cursor four entries in `~/.cursor/hooks.json`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
+**Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for Cursor four entries in `~/.cursor/hooks.json`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, for OpenCode 1.4 and later and OpenCode 2, and `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
 
 | Permission | Used for | Without it |
 |---|---|---|
@@ -140,7 +140,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket. |
 | `ui/` | The interface: plain JavaScript and Tailwind, Inter bundled. |
 | `scripts/` | Run, package, install, signing certificate, app icon and the README GIF. |
-| `feedback/` | The small Vercel function Send feedback posts to; it emails the message on. |
+| `feedback/` | The small Vercel function behind Send feedback: it receives what Perch posts and emails it to the inbox set in `FEEDBACK_TO`. |
 
 <details>
 <summary><strong>Troubleshooting</strong></summary>
@@ -169,7 +169,6 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-- More sources: Cursor
 - An optional sound and haptics
 
 ## Credits

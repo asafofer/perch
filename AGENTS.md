@@ -21,7 +21,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   NotchGeometry       Panel and tab sizes, hover rects. Takes ScreenInfo so it is testable. ScreenPicker: which display the cursor is on.
   Agent               Each agent's names, resume command, whether Perch answers it from the notch, how to spot its process.
   Project, Transcript Session model, JSONL parsing (Claude Code and Codex), recap text, git parsing.
-  OpenCode, Pi        OpenCode's SQLite database (read-only) and pi's session files, into the same SessionDigest.
+  OpenCode, Pi        OpenCode's SQLite database (read-only, OpenCode 1's tables and 2's) and pi's session files, into the same SessionDigest.
   Conductor           ConductorSessions: Conductor's SQLite database (read-only) maps a Claude Code session id or Codex thread id to its workspace.
   LiveStatus          Hook events (HookEvent), what an agent asks (Ask: words for the card, the reply JSON), live status per session.
   SessionScan         SessionScanner: which sessions get a row (Claude app list, Codex threads, OpenCode, pi), tail reading, caches.

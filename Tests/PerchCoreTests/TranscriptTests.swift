@@ -383,10 +383,12 @@ import Foundation
         #"{"type":"user","timestamp":"2026-10-07T09:00:06.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"\#(id)","content":"Async agent launched successfully."}]},"toolUseResult":\#(result)}"#
     }
     let turnOver = #"{"type":"assistant","timestamp":"2026-10-07T09:00:09.000Z","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"I started helpers for M4, M5 and M8. I'll pick up when they report."}]}}"#
-    func notification(_ taskId: String, call: String? = nil, status: String? = "completed") -> String {
+    func notification(_ taskId: String, call: String? = nil, status: String? = "completed", at: String? = nil) -> String {
         let note = "<task-notification>\n<task-id>\(taskId)</task-id>\n" + (call.map { "<tool-use-id>\($0)</tool-use-id>\n" } ?? "")
             + (status.map { "<status>\($0)</status>\n" } ?? "<event>first</event>\n") + "<summary>It ended</summary>\n</task-notification>"
-        return String(data: try! JSONSerialization.data(withJSONObject: ["type": "queue-operation", "operation": "enqueue", "content": note]), encoding: .utf8)!
+        var record: [String: Any] = ["type": "queue-operation", "operation": "enqueue", "content": note]
+        record["timestamp"] = at
+        return String(data: try! JSONSerialization.data(withJSONObject: record), encoding: .utf8)!
     }
     func helper(_ id: String, _ about: String) -> [String] {
         [toolCall("Agent", #"{"description":"\#(about)","prompt":"go","run_in_background":true}"#, id: id),
@@ -460,6 +462,22 @@ import Foundation
         #expect(later(lines).now == "Watching CI checks on PR 12")
         #expect(later(lines + [notification("m1", call: "t1")]).status.kind == "done")
         #expect(later(lines, 700).status.kind == "done")   // past its own deadline
+    }
+    @Test func aPersistentWatchAndALongOneLastBeyondAMinute() {
+        let persistent = [prompt, toolCall("Monitor", #"{"command":"tail -f log","description":"the log","persistent":true}"#),
+                          launched("t1", #"{"taskId":"m1","timeoutMs":0,"persistent":true}"#), turnOver]
+        #expect(later(persistent, 600).now == "Watching the log")
+        #expect(later(persistent, 1900).status.kind == "done")   // no sign of life for half an hour
+        // Each event is a sign of life: half an hour from the last one.
+        let heard = persistent + [notification("m1", status: nil, at: "2026-10-07T09:30:06.000Z")]
+        #expect(later(heard, 1900).now == "Watching the log")
+        #expect(later(heard, 3700).status.kind == "done")
+        let long = [prompt, toolCall("Monitor", #"{"command":"gh run watch 9","description":"the deploy","timeout_ms":3600000}"#),
+                    launched("t1", #"{"taskId":"m1","timeoutMs":3600000,"persistent":false}"#), turnOver]
+        #expect(later(long, 2400).now == "Watching the deploy")
+        #expect(later(long, 3700).status.kind == "done")
+        // A timed watch keeps its own deadline, events or not.
+        #expect(later(long + [notification("m1", status: nil, at: "2026-10-07T09:50:06.000Z")], 3700).status.kind == "done")
     }
     @Test func whatTheAgentStopsIsOver() {
         let lines = [prompt] + helper("t1", "M4") + [turnOver]
