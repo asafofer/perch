@@ -31,8 +31,9 @@ public final class OpenCodeStore {
         func read(_ sessions: String, _ messages: String) -> [Session] {
             let sql = """
                 SELECT s.id, s.directory, coalesce(s.title, ''), max(s.time_updated, coalesce((SELECT max(m.time_updated) FROM \(messages) m WHERE m.session_id = s.id), 0)) AS t, s.time_created
-                FROM \(sessions) s WHERE s.parent_id IS NULL AND s.time_archived IS NULL AND s.time_updated > ?
-                ORDER BY t DESC LIMIT ?
+                FROM \(sessions) s WHERE s.parent_id IS NULL AND s.time_archived IS NULL
+                  AND (s.time_updated > ?1 OR EXISTS (SELECT 1 FROM \(messages) m WHERE m.session_id = s.id AND m.time_updated > ?1))
+                ORDER BY t DESC LIMIT ?2
                 """
             return rows(sql, bind: [.int(Int64(after.timeIntervalSince1970 * 1000)), .int(Int64(limit))]) { st in
                 Session(id: Self.text(st, 0), directory: Self.text(st, 1), title: Self.text(st, 2),
@@ -109,20 +110,24 @@ public final class OpenCodeStore {
         return Message(data: d, parts: parts, created: created)
     }
 
-    /// The tool calls of a session that ran a command to open a pull request, as the JSON OpenCode stores them: the command and
-    /// its output are in the one record. OpenCode 2 keeps a step's calls inside its message, so each is given in OpenCode 1's
-    /// shape (its id as `callID`).
+    /// The tool calls of a session whose command opened a pull request, as the JSON OpenCode stores them: the command and its
+    /// output are in the one record. Only a shell command counts, so a file read that shows the command and an address is not
+    /// taken. OpenCode 2 keeps a step's calls inside its message, so each is given in OpenCode 1's shape (its id as `callID`).
     public func pullRequestRecords(session: String) -> [String] {
         let like = "%" + PullRequestScan.create + "%"
+        func opens(_ call: [String: Any], tool: String) -> Bool {
+            ["bash", "shell"].contains(call[tool] as? String ?? "")
+                && (((call["state"] as? [String: Any])?["input"] as? [String: Any])?["command"] as? String)?.contains(PullRequestScan.create) == true
+        }
         let two = rows("SELECT data FROM session_message WHERE session_id = ? AND type = 'assistant' AND data LIKE ?", bind: [.text(session), .text(like)]) {
             Self.json(Self.text($0, 0))["content"] as? [[String: Any]] ?? []
-        }.joined().filter { $0["type"] as? String == "tool" }.compactMap { c -> String? in
+        }.joined().filter { $0["type"] as? String == "tool" && opens($0, tool: "name") }.compactMap { c -> String? in
             var call = c; call["callID"] = c["id"]; call["id"] = nil
             guard let d = try? JSONSerialization.data(withJSONObject: call, options: .withoutEscapingSlashes) else { return nil }
-            let record = String(decoding: d, as: UTF8.self)
-            return record.contains(PullRequestScan.create) ? record : nil
+            return String(decoding: d, as: UTF8.self)
         }
         return two + rows("SELECT data FROM part WHERE session_id = ? AND data LIKE ?", bind: [.text(session), .text(like)]) { Self.text($0, 0) }
+            .filter { opens(Self.json($0), tool: "tool") }
     }
 
     private enum Value { case int(Int64), text(String) }

@@ -29,7 +29,7 @@ private final class AgentHome {
     }
 
     // MARK: OpenCode
-    private func sql(_ s: String) {
+    func sql(_ s: String) {
         if db == nil {
             let dir = url.appendingPathComponent(".local/share/opencode")
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -211,6 +211,30 @@ enum OpenCode2Steps {
         let call = #"{"type":"tool","id":"call_pr","name":"shell","state":{"status":"completed","input":{"command":"\#(PullRequestScan.create) --fill"},"content":[{"type":"text","text":"https://github.com/acme/scraper/pull/42\n"}]}}"#
         h.opencode2("ses_a", cwd: site, steps: [("assistant", #"{"time":{"created":1,"completed":2},"finish":"tool-calls","content":[\#(call)]}"#)] + OpenCode2Steps.finished)
         #expect(h.scanner.opencode(limit: 15, now: h.now).first?.project.prs.map(\.url) == ["https://github.com/acme/scraper/pull/42"])
+    }
+
+    /// A file read whose output shows the command and an address is not a pull request the session opened.
+    @Test func aPullRequestOpenCodeOnlyReadAboutIsNotFound() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        let shown = PullRequestScan.create + " --fill\\nhttps://github.com/acme/scraper/pull/42\\n"
+        let read2 = #"{"type":"tool","id":"call_read","name":"read","state":{"status":"completed","input":{"path":"notes.md"},"content":[{"type":"text","text":"\#(shown)"}]}}"#
+        h.opencode2("ses_a", cwd: site, steps: [("assistant", #"{"time":{"created":1,"completed":2},"finish":"tool-calls","content":[\#(read2)]}"#)] + OpenCode2Steps.finished)
+        let read1 = #"{"type":"tool","tool":"read","callID":"c_read","state":{"status":"completed","input":{"filePath":"notes.md"},"output":"\#(shown)"}}"#
+        h.opencode("ses_b", cwd: site, steps: [(#"{"role":"assistant","time":{"created":1,"completed":2},"finish":"tool-calls"}"#, [read1])] + OpenCodeSteps.finished)
+        #expect(h.scanner.opencode(limit: 15, now: h.now).allSatisfy { $0.project.prs.isEmpty })
+    }
+
+    /// A session counts as changed when any of its messages did, even if its own row is older.
+    @Test func anOpenCodeSessionWithANewerMessageThanItsRowIsListed() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.opencode2("ses_old_row", cwd: site, ago: 3 * 86_400)
+        h.opencode("ses_old_row_1", cwd: site, ago: 3 * 86_400)
+        let recent = Int64((h.now.timeIntervalSince1970 - 60) * 1000)
+        h.sql("UPDATE session_message SET time_updated = \(recent) WHERE session_id = 'ses_old_row'; UPDATE message SET time_updated = \(recent) WHERE session_id = 'ses_old_row_1';")
+        let store = OpenCodeStore(url: h.url.appendingPathComponent(".local/share/opencode/opencode.db"))
+        let found = store?.sessions(after: h.now.addingTimeInterval(-86_400), limit: 15) ?? []
+        #expect(Set(found.map(\.id)) == ["ses_old_row", "ses_old_row_1"])
+        #expect(found.allSatisfy { abs($0.updated.timeIntervalSince(h.now.addingTimeInterval(-60))) < 1 })
     }
 
     /// OpenCode 2 copies OpenCode 1's sessions into its own tables when it first runs; one written by OpenCode 1 since is still read.
