@@ -327,6 +327,14 @@ private enum CursorLines {
         #expect(h.scanner.cursor(limit: 1, now: h.now).map(\.project.sessionId) == ["c1"])
     }
 
+    @Test func aNewerCloudAgentIsNotCrowdedOutByOlderLocalChats() {
+        let h = CursorHome(), site = h.folder("code/scraper")
+        h.workspace("w1", folder: site)
+        h.chat("old1", slug: "code-scraper", ago: 3600, workspace: "w1"); h.chat("old2", slug: "code-scraper", ago: 7200, workspace: "w1")
+        h.cloud([["bcId": "bc-new", "ago": 30]])
+        #expect(h.scanner.cursor(limit: 2, now: h.now).compactMap(\.project.sessionId).sorted() == ["bc-new", "old1"])
+    }
+
     @Test func cloudAgentsAreListedBesideLocalChatsAndWithoutAnyTranscript() {
         let h = CursorHome(), site = h.folder("code/scraper")
         h.workspace("w1", folder: site)
