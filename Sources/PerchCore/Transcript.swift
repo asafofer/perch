@@ -168,7 +168,8 @@ public struct Background: Equatable, Sendable {
     public let taskId: String
     /// What the agent waits on, for the Now row: "Waiting on a helper: Fix the login", "Watching CI on PR 12".
     public let step: String
-    /// Its last sign of life: when it started, or when a helper last wrote its own transcript (`SessionScanner.heardFrom`).
+    /// Its last sign of life: when it started, when a helper last wrote its own transcript (`SessionScanner.heardFrom`), or
+    /// a persistent watch's last event.
     public var at: Date?
     /// A watch ends by its own deadline.
     let deadline: TimeInterval?
@@ -220,12 +221,21 @@ public struct Background: Equatable, Sendable {
     static func ended(_ note: String) -> Set<String>? {
         let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.hasPrefix("<task-notification>"), t.contains("<status>") else { return nil }
-        func tag(_ name: String) -> String? {
-            guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
-            return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+        func tag(_ name: String) -> String? { Self.tag(name, in: t) }
         if tag("summary")?.hasSuffix("waiting on its own background work") == true || tag("note")?.contains("background work of its own still running") == true { return nil }
         return Set([tag("tool-use-id"), tag("task-id")].compactMap { $0 })
+    }
+
+    /// The task id of a watch's event: a task notification with no status, a sign of life (the watch goes on).
+    static func event(_ note: String) -> String? {
+        let t = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("<task-notification>"), !t.contains("<status>") else { return nil }
+        return tag("task-id", in: t)
+    }
+
+    private static func tag(_ name: String, in t: String) -> String? {
+        guard let a = t.range(of: "<\(name)>"), let b = t.range(of: "</\(name)>", range: a.upperBound..<t.endIndex) else { return nil }
+        return String(t[a.upperBound..<b.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// A command that runs until it is stopped (a dev server, a file server, a log it follows): nothing waits for it to end,
@@ -263,6 +273,12 @@ public enum TranscriptParser {
             let note = type == "queue-operation" ? o["content"] : type == "user" ? (o["message"] as? [String: Any])?["content"] : nil
             if let note = note as? String, let over = Background.ended(note) {
                 d.background.removeAll { over.contains($0.callId) || over.contains($0.taskId) }
+            } else if let note = note as? String, let id = Background.event(note),
+                      let at = (o["timestamp"] as? String).flatMap({ iso.date(from: $0) ?? isoPlain.date(from: $0) }) {
+                // A persistent watch has no deadline: each event it sends is a sign of life. A timed one keeps its deadline.
+                for i in d.background.indices where d.background[i].taskId == id && d.background[i].kind == .watch && d.background[i].deadline == nil {
+                    d.background[i].at = at
+                }
             }
             if let s = o["sessionId"] as? String { d.sessionId = s }
             if let c = o["cwd"] as? String { d.cwd = c }
