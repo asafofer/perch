@@ -266,7 +266,7 @@
     el.onmouseenter = function () {
       var list = el._prs; if (!list || !list.length) return;
       prKeep(); prShown = list; prAnchor = el;
-      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected) { prNow(); } }, 300);
+      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected || !prAnchor.getClientRects().length) { prNow(); } }, 300);
       prTip.innerHTML = list.map(function (pr, i) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
@@ -2397,6 +2397,7 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    if (st !== was) prNow();   /* the notch closed or changed under a pointer resting on a PR mark: no leave comes, so its label would float on alone */
     if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); ptrFresh = true; markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
