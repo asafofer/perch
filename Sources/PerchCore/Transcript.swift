@@ -176,7 +176,8 @@ public struct Background: Equatable, Sendable {
     /// What a tool's result says it left running. `name` and `input` are the call's; `result` is the record's `toolUseResult`.
     init?(callId: String, name: String, input: [String: Any], result: [String: Any], at: Date?) {
         let about = (input["description"] as? String).flatMap { $0.isEmpty ? nil : Recap.clip($0, 60) }
-        deadline = (result["timeoutMs"] as? Double).map { $0 / 1000 }
+        // A persistent watch reports `timeoutMs: 0`: no deadline of its own.
+        deadline = result["persistent"] as? Bool == true ? nil : (result["timeoutMs"] as? Double).flatMap { $0 > 0 ? $0 / 1000 : nil }
         switch name {
         case "Agent", "Task":
             guard result["isAsync"] as? Bool == true || result["status"] as? String == "async_launched", let id = result["agentId"] as? String else { return nil }
@@ -200,10 +201,10 @@ public struct Background: Equatable, Sendable {
     public static let window: TimeInterval = 1800
 
     /// Still out at `now`: a helper while it writes its own transcript, a command for half an hour from its start, a watch
-    /// until its deadline.
+    /// until its deadline, however long (a persistent one, with none, like a command).
     public func out(at now: Date) -> Bool {
         guard let at else { return false }
-        return now.timeIntervalSince(at) < (kind == .watch ? min(deadline ?? Self.window, Self.window) + 60 : Self.window)
+        return now.timeIntervalSince(at) < (kind == .watch ? deadline.map { $0 + 60 } ?? Self.window : Self.window)
     }
 
     /// The Now row while the agent waits on several: "Waiting on 3 helpers".

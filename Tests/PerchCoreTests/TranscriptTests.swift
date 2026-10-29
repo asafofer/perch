@@ -461,6 +461,16 @@ import Foundation
         #expect(later(lines + [notification("m1", call: "t1")]).status.kind == "done")
         #expect(later(lines, 700).status.kind == "done")   // past its own deadline
     }
+    @Test func aPersistentWatchAndALongOneLastBeyondAMinute() {
+        let persistent = [prompt, toolCall("Monitor", #"{"command":"tail -f log","description":"the log","persistent":true}"#),
+                          launched("t1", #"{"taskId":"m1","timeoutMs":0,"persistent":true}"#), turnOver]
+        #expect(later(persistent, 600).now == "Watching the log")
+        #expect(later(persistent, 1900).status.kind == "done")   // no sign of life for half an hour
+        let long = [prompt, toolCall("Monitor", #"{"command":"gh run watch 9","description":"the deploy","timeout_ms":3600000}"#),
+                    launched("t1", #"{"taskId":"m1","timeoutMs":3600000,"persistent":false}"#), turnOver]
+        #expect(later(long, 2400).now == "Watching the deploy")
+        #expect(later(long, 3700).status.kind == "done")
+    }
     @Test func whatTheAgentStopsIsOver() {
         let lines = [prompt] + helper("t1", "M4") + [turnOver]
         #expect(later(lines).status.kind == "running")
