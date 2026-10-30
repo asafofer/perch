@@ -251,11 +251,13 @@
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
   /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
      pull request in it lights on hover and opens that pull request on a click. */
-  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0, prCard = null;
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0, prCard = null, prSig = '';
   /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
-  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
+  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; prSig = ''; }
   function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
   function prKeep() { clearTimeout(prHideT); }
+  /* a refresh gave the mark under the label a different list of pull requests: the label (and a click on it) would still be the old one */
+  function prStale(el) { if (el === prAnchor && JSON.stringify(el._prs) !== prSig) prNow(); }
   prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
   prTip.onclick = function (e) {
     var it = e.target.closest('.pi'), pr = it && prShown && prShown[+it.dataset.i];
@@ -265,7 +267,7 @@
     if (el.dataset.b) return; el.dataset.b = '1';
     el.onmouseenter = function () {
       var list = el._prs; if (!list || !list.length) return;
-      prKeep(); prShown = list; prAnchor = el;
+      prKeep(); prShown = list; prAnchor = el; prSig = JSON.stringify(list);
       clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected || !prAnchor.getClientRects().length) { prNow(); } }, 300);
       prTip.innerHTML = list.map(function (pr, i) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
@@ -979,7 +981,7 @@
     /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
     var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre);
+    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre); prStale(pre);
     /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
     if (repOn) showSaid(true);
     if (a && a.kind === 'question' && a.answerable && a.questions && a.questions.length) { questionCard(p, a); return; }
@@ -1219,7 +1221,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); }
+      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); prStale(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
