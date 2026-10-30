@@ -251,7 +251,7 @@
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
   /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
      pull request in it lights on hover and opens that pull request on a click. */
-  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0;
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0, prCard = null;
   /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
   function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
   function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
@@ -2397,7 +2397,10 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
-    if (st !== was) prNow();   /* the notch closed or changed under a pointer resting on a PR mark: no leave comes, so its label would float on alone */
+    /* the notch closed, or another session's card took its place, under a pointer resting on a PR mark: no leave comes, so its label would float on alone */
+    var cardId = s.projects && s.projects[s.selected] ? s.projects[s.selected].id : null;
+    if (st !== was || (st === 'open' && cardId !== prCard)) prNow();
+    prCard = cardId;
     if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); ptrFresh = true; markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the

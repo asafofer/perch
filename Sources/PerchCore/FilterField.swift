@@ -18,9 +18,11 @@ public struct FilterField: Equatable {
     public var hasSelection: Bool { caret != anchor }
     public var selected: String { String(chars[range]) }
 
+    /// The text is cut into characters again afterwards: a combining accent typed after a letter joins it.
     public mutating func insert(_ s: String) {
-        chars.replaceSubrange(range, with: Array(s))
-        caret = range.lowerBound + s.count; anchor = caret
+        let r = range, head = String(chars[..<r.lowerBound]) + s
+        chars = Array(head + String(chars[r.upperBound...]))
+        caret = min(head.count, chars.count); anchor = caret
     }
     /// Backspace: the selection, else the character before the caret. Option takes the word before it.
     public mutating func deleteBackward(word: Bool = false) {

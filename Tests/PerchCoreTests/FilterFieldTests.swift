@@ -69,4 +69,12 @@ import Testing
         f.move(-1); f.text = ""
         #expect(f.isEmpty && f.caret == 0)
     }
+
+    @Test func aCombiningAccentJoinsTheLetterBeforeIt() {
+        var f = field("e")
+        f.insert("\u{0301}")
+        #expect(f.chars.count == 1 && f.caret == 1)
+        f.deleteBackward()
+        #expect(f.isEmpty)
+    }
 }
