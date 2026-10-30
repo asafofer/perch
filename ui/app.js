@@ -61,7 +61,7 @@
   function Kbd(t, onPrimary) { return '<kbd class="pointer-events-none inline-flex h-4 ' + (/^</.test(t) ? 'min-w-[28px] justify-end' : 'min-w-4 justify-center') + ' items-center rounded-sm px-1 font-sans text-[10.5px] font-medium select-none ' + (onPrimary ? 'bg-primary-foreground/15 text-primary-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]' : 'bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]') + '">' + (/^</.test(t) ? '\u200b' : '') + t + '</kbd>'; }
   var icons = {};
   /* each agent's name, and the short one sentences and buttons use */
-  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cursor: ['Cursor', 'Cursor'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
+  var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cursor: ['Cursor', 'Cursor'], muse: ['Muse', 'Muse'], dots: ['Dots', 'Dots'], grokbot: ['Grok Bot', 'Grok Bot'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
@@ -80,6 +80,10 @@
     var g = {
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
       cursor: ['#14120B', '<path d="M12 4.5l6.5 3.75v7.5L12 19.5l-6.5-3.75v-7.5z" fill="#EDECEC"/><path d="M12 4.5l6.5 3.75L12 12z" fill="#B8B6B0"/><path d="M12 12l6.5-3.75v7.5z" fill="#8A8883"/>'],
+      /* Muse, Dots and Grok Bot: stand-ins until the app sends each one's real icon (`icons`) */
+      muse: ['#0F172A', '<path d="M6.5 16.5v-6a2.75 2.75 0 0 1 5.5 0v6m0-6a2.75 2.75 0 0 1 5.5 0v6" fill="none" stroke="#E2E8F0" stroke-width="2" stroke-linecap="round"/>'],
+      dots: ['#18181B', '<circle cx="6.75" cy="12" r="2" fill="#fff"/><circle cx="12" cy="12" r="2" fill="#fff" fill-opacity=".62"/><circle cx="17.25" cy="12" r="2" fill="#fff" fill-opacity=".32"/>'],
+      grokbot: ['#000', '<circle cx="11" cy="13" r="4.6" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M9.1 15.1L17.6 6.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
@@ -2431,7 +2435,7 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
-      if (liveNext) { setPage = 'agents'; setSig = ''; }
+      if (liveNext) { setPage = 'status'; setSig = ''; }
       settingsApply(s.settings);
       if (liveNext) { liveNext = false; var lr = q('.set .s-sw[data-k=live]'); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), lr && lr.closest('.s-row')); setKb = true; paintFocus(); setTimeout(flashLive, 300); }
     } else {
@@ -3157,14 +3161,16 @@
       var kinds = o.sources.filter(function (x) { return KINDS[x.id]; }), others = o.sources.filter(function (x) { return !KINDS[x.id]; });
       var srcTick = function (x, cls) { return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + x.name + '" data-id="' + x.id + '" class="o-sw ' + cls + '">' + (cls === 'ck' ? '' : KINDS[x.id]) + svg('check', cls === 'ck' ? 'size-4' : 'size-3') + '</button>'; };
       var tile = function (id, icon, name, line, on, right, wide) {
-        return '<div class="o-tile flex h-11 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (wide ? ' col-span-full' : '') + '" data-id="' + id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + icon + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' + right + '</div>';
+        return '<div class="o-tile flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (wide ? ' col-span-full' : '') + '" data-id="' + id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + icon + '</span><span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' + right + '</div>';
       };
       var code = kinds.filter(function (x) { return x.id === 'claude'; })[0];
       var rows = (kinds.length ? tile('claude-group', App('claude', 'size-5'), 'Claude', code ? srcLine(o, code) : '', kinds.some(function (x) { return x.enabled; }),
         '<span class="flex flex-none gap-1">' + kinds.map(function (x) { return srcTick(x, 'o-chip'); }).join('') + '</span>', true) : '') +
         others.map(function (x) { return tile(x.id, App(x.id, 'size-5'), x.name, srcLine(o, x), x.enabled, srcTick(x, 'ck')); }).join('');
       var cols = 'grid-cols-2';   /* three to a row leaves an agent's name no room */
-      var places = (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+      /* five rows of tiles (every agent at once) leave no room for the places: they are only named when there is */
+      var roomForPlaces = (kinds.length ? 1 : 0) + Math.ceil(others.length / 2) <= 4;
+      var places = !roomForPlaces ? '' : (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
       h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +
         oi(3, '<div class="mt-3 grid ' + cols + ' gap-1.5 px-4">' + rows + '</div>') +
         oi(4, (places ? '<p class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + places + '</p>' : '') +
@@ -3340,8 +3346,8 @@
      on the list itself goes back to where Settings came from. A category shows its settings inline, with no menus to drop
      down, so a page is only as tall as it needs. Character opens its picker; Send feedback is the last row. */
   var setLast = null, setSig = '', setPage = '', setSlide = 0, setRootAt = 0;
-  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
-  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', notify: 'Notifications', general: 'General' };
+  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['status', 'Status', 'pulse'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
+  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', status: 'Status', notify: 'Notifications', general: 'General' };
   /* a switch changes in place so it slides, with a double settle (.sw.is-init); redrawing it would just snap to the new state */
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
@@ -3443,7 +3449,8 @@
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
           shortcuts: scKeysHtml(sc, sc.works ? '' : COLORS.attention),
-          agents: (o.live === 'on' ? '' : small('Live status off')) + (on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None')),
+          agents: on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None'),
+          status: small(o.live === 'on' ? 'Live, ' + { off: 'no PR marks', marks: 'PR marks', checks: 'PR checks' }[prsMode(o)] : 'Live status off'),
           notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
           character: small(esc(sh[1]) + ', ' + colorName),
           general: small(esc(showNow(o).name))
@@ -3551,8 +3558,11 @@
       return srcs.map(function (x) {
         var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
         return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)));
-      }).join('') + gap +
-        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
+      }).join('');
+    }
+    if (setPage === 'status') {
+      /* these were under the agents until the list outgrew the panel (ten agents is as many as it holds) */
+      return stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
         gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
     }
     if (setPage === 'notify') {
@@ -3872,7 +3882,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -4068,7 +4078,15 @@
         asked: 'Run `ls` with bash and tell me what files are here.', said: 'The only tracked file in the workspace is `README.md`, which is 7 bytes.' },
       /* a chat in Cursor: Cursor's own icon, and Open Cursor on the button. Pick up opens the chat itself through Cursor's chat link. */
       { id: 'cursorchat', name: 'api-server', branch: 'main', away: '8m', at: '11:58 AM', headline: 'You were adding retries to the sync job.', context: 'The sync job now retries three times with backoff and logs the pages that never loaded.', next: '', topic: 'Retry the sync job with backoff', app: 'cursor', attention: false, fresh: true, line: 'Finished 8m ago', status: { kind: 'done', text: 'Cursor replied', app: 'cursor' },
-        asked: 'Make the sync job retry three times with backoff, and log what never loads.', said: 'The sync job now retries three times with backoff (1, 4 and 16 seconds) and logs the pages that never loaded.' }
+        asked: 'Make the sync job retry three times with backoff, and log what never loads.', said: 'The sync job now retries three times with backoff (1, 4 and 16 seconds) and logs the pages that never loaded.' },
+      /* Muse Code in a terminal, like OpenCode and pi: Ghostty's icon with Muse's mark on its corner */
+      { id: 'musecode', name: 'ledger-api', via: 'ghostty', branch: 'main', away: '5m', at: '12:00 PM', headline: 'You were splitting the ledger export.', context: 'The export now writes one file per account, and the tests cover the empty ones.', next: 'Run the export against the full ledger', topic: 'Split the ledger export by account', app: 'muse', attention: false, fresh: true, line: 'Finished 5m ago', status: { kind: 'done', text: 'Muse finished', app: 'muse' },
+        asked: 'Split the ledger export into one file per account, and skip the empty ones.', said: 'The export now writes `ledger-<account>.csv` for each account that has entries. Empty accounts are skipped, and the tests cover them.\n\nNext: run it against the full ledger.' },
+      /* Dots and Grok Bot work in the cloud, on a computer of their own: the session wears the agent's own icon, and Open Dots goes to it */
+      { id: 'dotsbrief', name: 'Analytics', branch: '', away: '14m', at: '11:46 AM', headline: 'You asked for the weekly metrics brief.', context: 'It pulled the numbers from the dashboard and wrote the brief; two figures need your eye.', next: 'Check the churn figure before it goes out', topic: 'Weekly metrics brief for Monday', app: 'dots', attention: false, fresh: true, line: 'Finished 14m ago', status: { kind: 'done', text: 'Dots finished', app: 'dots' },
+        asked: 'Every Monday, pull last week\u2019s numbers and write the metrics brief.', said: 'The brief is ready, and I put it in your drafts. Two figures look off: churn is up 2.1 points and the trial count dropped by a third.\n\nNext: check the churn figure before it goes out.' },
+      { id: 'grokfix', name: 'checkout-service', branch: '', away: '3m', at: '12:02 PM', headline: 'Chasing a flaky checkout test.', context: 'It reproduced the failure one run in five and is bisecting the last ten commits.', now: 'Bisecting the last ten commits', next: '', topic: 'Fix the flaky checkout test', app: 'grokbot', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Grok Bot is working', app: 'grokbot' },
+        asked: 'The checkout test fails one run in five. Find out why and fix it.', said: 'I can reproduce it: one run in five, always on the card step. I am bisecting the last ten commits now.' }
     ];
     /* sample pull requests: one of each state */
     var PR0 = 'asafofer/perch', DEMO_PR = { onboarding: [{ number: 452, url: 'https://github.com/asafofer/perch/pull/452', title: 'Per-chat audience override', repo: PR0, url: 'https://github.com/asafofer/perch/pull/452', state: 'open', checks: 'running' }],
@@ -4232,6 +4250,9 @@
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
+        /* every agent Perch knows, to see the choice with the most it can hold; 'new' is only the three added last */
+        if (all === 'full' || all === 'new') sources = sources.concat([{ id: 'muse', name: 'Muse', count: 1, names: ['ledger-api'], enabled: true }, { id: 'dots', name: 'Dots', count: 2, names: ['Weekly metrics brief', 'Inbox triage'], enabled: true }, { id: 'grokbot', name: 'Grok Bot', count: 1, names: ['Fix the flaky checkout test'], enabled: true }]);
+        if (all === 'full') all = 'app';
         if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
         var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
