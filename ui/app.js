@@ -22,8 +22,6 @@
     restart: '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5v4h-4"/>',
     pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
-    appwin: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M7 6h.01"/>',
-    bot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
     /* Settings rows (Lucide, lucide.dev, ISC) */
     keyboard: '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
@@ -66,25 +64,19 @@
   var AGENTS = { claude: ['Claude Code', 'Claude'], codex: ['Codex', 'Codex'], opencode: ['OpenCode', 'OpenCode'], pi: ['pi', 'pi'], cursor: ['Cursor', 'Cursor'], muse: ['Muse', 'Muse'], dots: ['Dots', 'Dots'], grokbot: ['Grok Bot', 'Grok Bot'], cowork: ['Claude tasks', 'Claude'], chat: ['Claude chats', 'Claude'] };
   function agentName(k) { return (AGENTS[k] || AGENTS.claude)[0]; }
   function agentShort(k) { return (AGENTS[k] || AGENTS.claude)[1]; }
-  /* The agents by how you use them, so a long list is three choices first (onboarding's apps step and Settings, Agents): in
-     a terminal, in a coding app, or as a personal agent. `places` are what Perch also works in for that group. */
-  var GROUPS = [
-    { id: 'term', name: 'Terminal agents', short: 'Terminal', ic: 'term', ids: ['claude', 'codex', 'opencode', 'pi', 'muse'], places: ['herdr', 'tmux', 'cmux', 'agterm'] },
-    { id: 'code', name: 'Coding apps', short: 'Coding apps', ic: 'appwin', ids: ['cursor'], places: ['conductor'] },
-    { id: 'personal', name: 'Personal agents', short: 'Personal', ic: 'bot', ids: ['cowork', 'chat', 'dots', 'grokbot'], places: [] }
-  ];
-  /* found: Perch has seen a session of it on this Mac (a count above nothing); the rest are Others */
+  /* Agents and the apps they run in are all listed alike, in alphabetical order (onboarding's apps step, Settings, Agents).
+     Found: Perch has seen a session of it on this Mac (a count above nothing). The rest are Others, a popover list. */
   function isFound(x) { return x.count > 0; }
+  function byName(list) { return list.slice().sort(function (a, b) { var x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; }); }
   /* a tile's second line: what it found, by name or, for chats (which are many), how many */
   function srcLine(x) { return x.id === 'chat' ? x.count + ' recent' : x.names && x.names.length ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : x.count + (x.count === 1 ? ' session' : ' sessions'); }
-  function groupsOf(sources, places) {
-    var known = function (id) { return GROUPS.some(function (g) { return g.ids.indexOf(id) >= 0; }); };
-    return GROUPS.map(function (g) {
-      var list = sources.filter(function (x) { return g.ids.indexOf(x.id) >= 0 || (g.id === 'term' && !known(x.id)); });
-      list.sort(function (a, b) { return g.ids.indexOf(a.id) - g.ids.indexOf(b.id); });
-      return { g: g, list: list, places: (places || []).filter(function (x) { return g.places.indexOf(x.id) >= 0; }) };
-    }).filter(function (x) { return x.list.length; });
+  /* A popover list of agents, one to a line with its mark and a check, in the look of Settings' Notify me about menu. */
+  function popItem(x, i, cls, attrs) {
+    return '<div class="' + cls + ' nt-it flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors hover:bg-white/[0.07]" data-i="' + i + '" ' + attrs + ' aria-pressed="' + x.enabled + '">' +
+      '<span class="grid flex-none transition-opacity ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="min-w-0 flex-1 truncate ' + (x.enabled ? '' : 'text-muted-foreground') + '">' + esc(x.name) + '</span>' +
+      '<span class="px-chk grid size-4 flex-none place-items-center text-foreground/80">' + (x.enabled ? svg('check', 'size-4') : '') + '</span></div>';
   }
+  var POP = 'absolute z-30 w-[250px] overflow-y-auto rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]';
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
   /* Claude's own icon too, the one Claude.app ships, so no page ever draws a stand-in for it */
@@ -101,6 +93,10 @@
     var g = {
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
       cursor: ['#14120B', '<path d="M12 4.5l6.5 3.75v7.5L12 19.5l-6.5-3.75v-7.5z" fill="#EDECEC"/><path d="M12 4.5l6.5 3.75L12 12z" fill="#B8B6B0"/><path d="M12 12l6.5-3.75v7.5z" fill="#8A8883"/>'],
+      /* the apps agents run in, until the app sends each one's real icon */
+      cmux: ['#0B2A3B', '<path d="M7.5 8.5l3.5 3.5-3.5 3.5M12.5 16h4.5" stroke="#7DD3FC" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
+      agterm: ['#2B1B3A', '<path d="M7.5 8.5l3.5 3.5-3.5 3.5M12.5 16h4.5" stroke="#D8B4FE" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
+      conductor: ['#2A2118', '<path d="M7 8h10M7 12h7M7 16h4" stroke="#FCD34D" stroke-width="1.9" fill="none" stroke-linecap="round"/>'],
       /* Muse, Dots and Grok Bot: stand-ins until the app sends each one's real icon (`icons`) */
       muse: ['#0F172A', '<path d="M6.5 16.5v-6a2.75 2.75 0 0 1 5.5 0v6m0-6a2.75 2.75 0 0 1 5.5 0v6" fill="none" stroke="#E2E8F0" stroke-width="2" stroke-linecap="round"/>'],
       dots: ['#18181B', '<circle cx="6.75" cy="12" r="2" fill="#fff"/><circle cx="12" cy="12" r="2" fill="#fff" fill-opacity=".62"/><circle cx="17.25" cy="12" r="2" fill="#fff" fill-opacity=".32"/>'],
@@ -3177,37 +3173,28 @@
     } else if (st === 3) {
       h = shortcutStep(o);
     } else if (st === 4) {
-      /* Perch has already looked: what it found is on top, each with a check (on, unless it is chats), and you keep or clear
-         them. The agents it supports but did not find are Others, folded away, off until you tick one, and open to them by
-         how they are used (GROUPS). With nothing found Others is open. While the scan runs, one quiet line says so. */
-      var fnd = o.sources.filter(isFound), rest = o.sources.filter(function (x) { return !isFound(x); }), scan = !!o.scanning;
-      var dense = fnd.length > 8;   /* nine or ten found: slim tiles with no second line, so Others still has room */
+      /* Perch has already looked: what it found is on top, in alphabetical order, each with a check (on, unless it is
+         chats), and you keep or clear them. Every agent and app it supports that it did not find is under Others, one
+         line, which opens a popover list of them, one to a line, off until you tick one. While the scan runs, one quiet
+         line says so. */
+      var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); })), scan = !!o.scanning;
+      var dense = fnd.length > 6;   /* four rows of tiles leave no room for a popover: slim tiles, no second line */
       var tile = function (x) {
         var on = x.enabled;
         return '<div class="o-tile cursor-pointer flex ' + (dense ? 'h-8' : 'h-10') + ' items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (pop ? ' o-pop' : '') + '" data-id="' + x.id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + App(x.id, dense ? 'size-4' : 'size-5') + '</span>' +
           '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + esc(x.name) + '</span>' + (dense ? '' : '<span class="o-line block truncate text-xs leading-4 text-muted-foreground">' + esc(srcLine(x)) + '</span>') + '</span>' +
           '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
       };
-      var openO = onbOthers === null ? !fnd.length && !scan : onbOthers;
       var onN = rest.filter(function (x) { return x.enabled; }).length;
-      var chips = groupsOf(rest).map(function (gr) {
-        return '<div class="flex items-start gap-2"><span class="w-[78px] flex-none pt-[3px] text-[11.5px] leading-4 text-muted-foreground">' + gr.g.short + '</span><div class="flex flex-wrap gap-1.5">' + gr.list.map(function (x) {
-          return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw og-chip">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span>' + svg('check', 'og-tk size-3') + '</button>';
-        }).join('') + '</div></div>';
-      }).join('');
       var head = scan ? 'Looking for your sessions' : fnd.length ? 'Here is what Perch found' : 'Choose your apps';
       var sub = scan ? 'Perch only reads the ones you tick.' : fnd.length ? 'Keep the ones you want Perch to follow. You can change this later from the menu bar.' : 'No sessions yet. Tick the apps you use and Perch looks as you start.';
       var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' :
-        fnd.length ? '<div class="grid grid-cols-2 gap-1.5">' + fnd.map(tile).join('') + '</div>' : '';
-      /* with nothing found there is no "other": the agents are simply listed, with no line to open */
-      var bare = !fnd.length;
-      var othersHtml = !rest.length || scan ? '' : '<div class="oth' + (openO ? ' open' : '') + ' ' + (bare ? '' : 'mt-1.5') + '">' + (bare ? '' : '<button class="oth-h flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-expanded="' + openO + '"><span>Others</span><span class="oth-n text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span><span class="flex-1"></span>' + svg('chevD', 'og-chev size-3 flex-none') + '</button>') +
-        '<div class="oth-b' + (openO ? '' : ' hidden') + ' flex flex-col gap-1.5 rounded-lg bg-white/[0.04] px-3 py-2">' + chips + '</div></div>';
-      var placesOk = !scan && !openO && fnd.length <= 4 && (o.places || []).length;
-      var places = !placesOk ? '' : (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+        fnd.length ? '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:146px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent)"' : '') + '>' + fnd.map(tile).join('') + '</div>' : '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Nothing found yet</div>';
+      var othersHtml = !rest.length || scan ? '' : '<div class="ox relative mt-1.5"><button class="ox-h flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-expanded="false"><span>Others</span><span class="ox-n text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span><span class="flex-1"></span>' + svg('chevD', 'ox-chev size-3 flex-none') + '</button>' +
+        '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] top-[30px] hidden w-auto" role="menu">' + rest.map(function (x, i) { return popItem(x, i, 'ox-it', 'data-id="' + x.id + '"'); }).join('') + '</div></div>';
       h = otitle(o, head, sub) +
         oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
-        oi(4, (places ? '<p class="o-places mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + places + '</p>' : '') + '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
@@ -3243,10 +3230,12 @@
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    /* a click on a tile ticks it; Others opens and folds; its small checks tick one each */
+    /* a click on a tile ticks it; Others opens its popover, a click anywhere else closes it; its lines tick one each */
     box.querySelectorAll('.o-tile').forEach(function (t) { t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
-    box.querySelectorAll('.oth-h').forEach(function (h) { h.onclick = function () { othOpen(!h.parentNode.classList.contains('open')); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); othNote(box); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.ox-h').forEach(function (h) { h.onclick = function (e) { e.stopPropagation(); oxOpen(!oxIsOpen()); }; });
+    box.querySelectorAll('.ox-it').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var on = b.getAttribute('aria-pressed') !== 'true'; oxSet(b, on); oxFocus = +b.dataset.i; oxPaint(); oxNote(); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    box.onclick = function (e) { if (oxIsOpen() && !e.target.closest('.ox-pop')) oxOpen(false); };
     box.querySelectorAll('.o-prsw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'setting', key: 'pullRequests', value: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
@@ -3327,24 +3316,44 @@
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
   /* a mark dims once its agent is cleared */
   function tileDim(t) { var ic = t.querySelector('.o-ic'); if (ic) ic.classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
-  /* Others: how many of them are on, said on its folded line */
-  function othNote(box) {
-    var on = [].filter.call(box.querySelectorAll('.oth .og-chip'), function (b) { return b.getAttribute('aria-checked') === 'true'; }).length, n = box.querySelectorAll('.oth .og-chip').length, el = box.querySelector('.oth-n');
-    if (el) el.textContent = on ? on + ' on' : n + ' more';
+  /* Others: how many of them are on, said on its line */
+  function oxNote() {
+    var box = q('.onb'), its = box.querySelectorAll('.ox-it'), on = [].filter.call(its, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).length, el = box.querySelector('.ox-n');
+    if (el) el.textContent = on ? on + ' on' : its.length + (box.querySelector('.o-found') ? ' more' : ' to choose from');
   }
-  /* Others opens under its line, and the card grows to hold it */
-  function othOpen(open) {
-    var box = q('.onb'), o = box.querySelector('.oth'), b = o.querySelector('.oth-b');
-    onbOthers = open; o.classList.toggle('open', open); b.classList.toggle('hidden', !open); o.querySelector('.oth-h').setAttribute('aria-expanded', String(open));
-    if (open && !STILL) b.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
-    var pl = box.querySelector('.o-places'); if (pl) pl.classList.toggle('hidden', open);
+  /* one item of the popover, switched in place */
+  function oxSet(it, on) {
+    it.setAttribute('aria-pressed', String(on));
+    it.firstChild.classList.toggle('opacity-50', !on); it.firstChild.nextSibling.classList.toggle('text-muted-foreground', !on);
+    it.querySelector('.px-chk').innerHTML = on ? svg('check', 'size-4') : '';
+  }
+  /* The popover opens under Others, over the rows below; the card grows to hold it, up to the panel's height, and the list
+     scrolls past that. Up and Down choose, Return switches one, Left and Esc close it. */
+  var oxFocus = 0;
+  function oxIsOpen() { var p = q('.onb .ox-pop'); return !!p && !p.classList.contains('hidden'); }
+  function oxOpen(open) {
+    var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop');
+    if (!pop) return;
+    var rv = x.closest('.o-i'); if (rv) { rv.style.position = 'relative'; rv.style.zIndex = open ? '20' : ''; }   /* above the note and the buttons it covers */
+    pop.classList.toggle('hidden', !open); x.querySelector('.ox-h').setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
+    box.style.minHeight = '';
+    if (open) {
+      var inner = q('.p-onb .inner'), top = inner.getBoundingClientRect().top, bottom = x.getBoundingClientRect().bottom - top;
+      pop.style.maxHeight = Math.max(96, Math.min(232, 420 - bottom - 4)) + 'px';
+      var need = pop.getBoundingClientRect().bottom - box.getBoundingClientRect().top + 8;
+      if (need > box.getBoundingClientRect().height) box.style.minHeight = need + 'px';
+      oxFocus = 0; oxPaint();
+      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
+    }
     if (snap && lastSt === 'onb') layout('onb', snap);
   }
+  function oxPaint() { q('.onb').querySelectorAll('.ox-it').forEach(function (b) { var on = +b.dataset.i === oxFocus; b.classList.toggle('bg-white/[0.09]', on); if (on) b.scrollIntoView({ block: 'nearest' }); }); }
   /* the apps step, in place: a check slides, a tile's line fades to what the scan found (a new find redraws the step) */
   function onbSources(o) {
     var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
     q('.onb').querySelectorAll('.o-sw').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); var t = b.closest('.o-tile'); if (t) tileDim(t); } });
-    othNote(q('.onb'));
+    q('.onb').querySelectorAll('.ox-it').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-pressed') !== String(x.enabled)) oxSet(b, x.enabled); });
+    oxNote();
     q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
       var x = src(t.dataset.id), sub = t.querySelector('.o-line'), line;
       if (!x || !sub) return;
@@ -3370,6 +3379,13 @@
   }
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
+    if (onbStep === 4 && oxIsOpen()) {
+      var its = q('.onb').querySelectorAll('.ox-it');
+      if (k === 'esc' || k === 'left') { oxOpen(false); return; }
+      if (k === 'down' || k === 'up') { oxFocus = (oxFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; oxPaint(); return; }
+      if (k === 'enter' && its[oxFocus]) its[oxFocus].click();
+      return;
+    }
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
     /* S skips a step that can be skipped; Left goes back, except on the character page where it changes the shape */
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
@@ -3493,12 +3509,12 @@
       var rows, foot;
       if (!setPage) {
         var sh = shapeOf(charNow.shape), colorName = ''; PALETTE.forEach(function (c) { if (c[1] === charNow.color) colorName = c[0].toLowerCase(); });
-        var on = o.sources.filter(function (x) { return x.enabled; }), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); });
+        var on = byName(o.sources.filter(function (x) { return x.enabled; })), marks = notifyList(o).filter(function (x) { return notifyOn(x[0]) && !(x[0] === 'ci' && ciOff(o)); });
         var faces = function (l) { return '<span class="flex flex-none gap-[3px]">' + l.join('') + '</span>'; };
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
           shortcuts: scKeysHtml(sc, sc.works ? '' : COLORS.attention),
-          agents: on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None'),
+          agents: on.length ? faces(on.slice(0, 6).map(function (x) { return App(x.id, 'size-4'); })) + (on.length > 6 ? small('+' + (on.length - 6)) : '') : small('None'),
           status: small(o.live === 'on' ? 'Live, ' + { off: 'no PR marks', marks: 'PR marks', checks: 'PR checks' }[prsMode(o)] : 'Live status off'),
           notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
           character: small(esc(sh[1]) + ', ' + colorName),
@@ -3522,7 +3538,7 @@
         foot = '<span class="flex flex-1 justify-center">' + setHints([['\u2191\u2193', 'Choose'], [ENTER, 'Change'], ['\u2190', 'Back']]) + '</span>';
       }
       /* the keys, like the list's: every setting can be changed without the mouse */
-      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-end gap-1 px-2.5">' + foot + '</div>';
+      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-end gap-1 px-2.5' + (othersMenuOpen ? ' invisible' : '') + '">' + foot + '</div>';
     }
     /* inside a category, Settings steps back and is a way back */
     var title = setPage ? '<button class="s-crumb cursor-pointer rounded text-muted-foreground transition-colors hover:text-foreground" title="Back (\u2190)">Settings</button>' : 'Settings';
@@ -3532,6 +3548,13 @@
     box.innerHTML = html; q('.s-title').innerHTML = title;
     /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
     box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
+    /* the agents popover is as tall as there is room for under its row (7 lines at most), and the card grows to hold it */
+    var oxp = box.querySelector('.s-ox-pop');
+    if (oxp) {
+      var orow = box.querySelector('.s-ox'), under = orow.getBoundingClientRect().bottom - box.getBoundingClientRect().top;
+      oxp.style.maxHeight = Math.max(96, Math.min(232, 352 - under)) + 'px';
+      box.style.minHeight = Math.ceil(under + 4 + Math.min(oxp.scrollHeight, parseFloat(oxp.style.maxHeight)) + 8 + 36) + 'px';
+    }
     slid.forEach(function (x) {
       if (!x.g) return;
       var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
@@ -3545,7 +3568,6 @@
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-go').forEach(function (r) { r.onclick = function () { setGo(r.dataset.go); }; });
-    box.querySelectorAll('.s-grp').forEach(function (r) { r.onclick = function () { setGroup = r.getAttribute('aria-expanded') === 'true' ? 'closed' : r.dataset.g; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
     box.querySelectorAll('.s-tap').forEach(function (r) { r.onclick = function (e) {
       if (e.target.closest('.s-sw')) return;
       if (r.dataset.show) { post({ type: 'setting', key: 'showOn', value: r.dataset.show }); return; }
@@ -3570,12 +3592,12 @@
     if (row) { row.onmouseenter = function () { if (cr.dataset.m === 'awake') { cr.dataset.m = 'happy'; look(-1.2, 1.6); } }; row.onmouseleave = function () { if (cr.dataset.m === 'happy') cr.dataset.m = 'awake'; }; }
     box.querySelectorAll('.s-seg').forEach(function (b) { b.onclick = function () { post({ type: 'setting', key: b.dataset.key, value: +b.dataset.m }); }; });
     box.querySelectorAll('.s-nt').forEach(function (b) {
-      b.onclick = function (e) { if (e) e.stopPropagation(); post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
+      b.onclick = function (e) { if (e) e.stopPropagation(); if (b.dataset.src) post({ type: 'source', id: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); else post({ type: 'notify', kind: b.dataset.k, enabled: b.getAttribute('aria-pressed') !== 'true' }); };
       var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
       if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
     });
-    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; notifyMenuOpen = !notifyMenuOpen; ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
-    box.onclick = function (e) { if (notifyMenuOpen && !e.target.closest('.s-menu')) { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; if (r.classList.contains('s-ox')) { othersMenuOpen = !othersMenuOpen; notifyMenuOpen = false; } else { notifyMenuOpen = !notifyMenuOpen; othersMenuOpen = false; } ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.onclick = function (e) { if ((notifyMenuOpen || othersMenuOpen) && !e.target.closest('.s-menu')) { notifyMenuOpen = othersMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3601,21 +3623,22 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      /* what Perch found, each with a check and how many sessions; then Others, the agents it supports that it has not found
-         (off until you switch one on), folded away, and open to them by how they are used (GROUPS) */
-      var fnd = o.sources.filter(isFound), rest = o.sources.filter(function (x) { return !isFound(x); });
-      var cell = function (x, cnt) { return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)).replace('s-row mx-2', 's-row')); };
+      /* what Perch found, in alphabetical order, each a line with a check and how many sessions (two to a line once there are
+         many); then Others, one row that opens a popover list of the agents and apps it supports that it has not seen: one to
+         a line, off until you switch one on. With nothing found, only Others. */
+      var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); }));
+      var cnt = function (x) { return '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>'; };
+      var many = fnd.length > 6;
       var foundRows = fnd.map(function (x) {
-        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>'), ckHtml(x.enabled, 'src:' + x.id, x.name)));
+        var r = stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, many ? '' : cnt(x)), ckHtml(x.enabled, 'src:' + x.id, x.name)));
+        return many ? r.replace('s-row mx-2', 's-row') : r;
       }).join('');
-      var openO = setGroup === 'others' || (!fnd.length && setGroup !== 'closed');
       var onN = rest.filter(function (x) { return x.enabled; }).length;
-      var othersRow = rest.length && fnd.length ? '<div class="s-row s-grp mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-g="others" aria-expanded="' + openO + '">' + slabel('Others', '', 'plus') +
-        '<span class="flex flex-none items-center gap-2 text-xs text-muted-foreground">' + (onN ? onN + ' on' : rest.length + ' more') + svg(openO ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground/60') + '</span></div>' : '';
-      var othersBody = openO ? groupsOf(rest).map(function (gr) {
-        return '<div class="mx-2 mt-0.5 grid grid-cols-2" role="group" aria-label="' + gr.g.name + '">' + gr.list.map(function (x) { return cell(x, ''); }).join('') + '</div>';
-      }).join('') : '';
-      return (fnd.length ? foundRows : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">No sessions found yet. Switch on the ones you use.</div>') + othersRow + othersBody;
+      var oitems = rest.map(function (x, i) { return popItem(x, i, 's-nt', 'data-k="' + x.id + '" data-src="1"'); }).join('');
+      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP + ' right-0 top-[34px]" style="max-height:232px">' + oitems + '</div>' : '';
+      var othersRow = rest.length ? '<div class="s-row s-menu s-ox relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" aria-expanded="' + othersMenuOpen + '">' + slabel('Others', '', 'plus') +
+        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5 text-xs text-muted-foreground">' + '<span class="s-ox-n">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>' + svg(othersMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none') + '</span>' + omenu + '</div>' : '';
+      return (fnd.length ? (many ? '<div class="mx-2 grid grid-cols-2">' + foundRows + '</div>' : foundRows) : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">Nothing found yet. Switch on the ones you use.</div>') + othersRow;
     }
     if (setPage === 'status') {
       /* these sat under the agents until the list outgrew the panel */
@@ -3659,7 +3682,7 @@
     if (id === setPage) return;
     var was = setPage;
     setSlide = still ? 0 : id ? 1 : -1;
-    setPage = id; setGroup = ''; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
+    setPage = id; othersMenuOpen = false; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
     /* the app gives Send feedback's fields the keys while it is open, and takes files dropped on the card */
     if (id === 'feedback' || was === 'feedback') post({ type: 'feedbackOpen', open: id === 'feedback' });
     if (id === 'feedback' && fbState === 'sent') fbState = '';
@@ -3873,7 +3896,7 @@
   }
   function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
   /* the highlighted row, moved with the arrow keys or the pointer */
-  var setGroup = '';   /* the group open on Settings, Agents */
+  var othersMenuOpen = false;   /* Settings, Agents: the popover of agents Perch has not found */
   var setFocus = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
   /* opened from a question's "Settings": Agents opens on Live status, and it lights up once so the eye lands on it */
   function flashLive() {
@@ -3887,7 +3910,7 @@
     /* in the icon row, the icon the keys are on */
     q('.set').querySelectorAll('.s-nt[data-i]').forEach(function (b) {
       var inMenu = !!b.closest('.nt-menu'), on = setKb && (inMenu ? +b.dataset.i === ntFocus : rows[setFocus] && rows[setFocus].contains(b) && +b.dataset.i === ntFocus);
-      if (inMenu) b.classList.toggle('bg-white/[0.09]', on); else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
+      if (inMenu) { b.classList.toggle('bg-white/[0.09]', on); if (on && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); } else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
     });
   }
   /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
@@ -3896,21 +3919,17 @@
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
     var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
-    if (notifyMenuOpen) {
+    if (notifyMenuOpen || othersMenuOpen) {
       var its = q('.set').querySelectorAll('.nt-menu .s-nt');
-      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = othersMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
       if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
       if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
       return;
     }
-    /* inside an open group Left folds it back to its row; on the row itself it is Back, as everywhere here */
-    var gopen = q('.set .s-grp[aria-expanded=true]');
-    if (k === 'left' && gopen && row && !row.classList.contains('s-grp')) { var gid = gopen.dataset.g; setGroup = 'closed'; setSig = ''; settingsApply(setLast); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), q('.set .s-grp[data-g=' + gid + ']')); paintFocus(); ntRelayout(); return; }
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
-    if (row.classList.contains('s-grp')) { if (k === 'right' || k === 'enter') row.click(); return; }
     /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
     if (row.classList.contains('s-menu')) { if (k === 'enter') row.click(); return; }
     var nts = row.querySelectorAll('.s-nt');
@@ -3938,19 +3957,28 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, setGroup, fbState]); if (sig === setSig) return;
+    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, othersMenuOpen, fbState]); if (sig === setSig) return;
     /* feedback is drawn once when it opens: Swift sends Settings every half second while sessions are written, and a
        redraw would take your caret and selection */
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, setGroup, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, othersMenuOpen, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
         var v = swVal(o, b.dataset.k), r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim'); setSw(b, v);
         if (dm) { dm.classList.toggle('opacity-40', !v); dm.nextSibling.classList.toggle('text-muted-foreground', !v); }
       });
+      /* the popover of agents Perch has not found, and what its row says, follow in place so it stays open while you tick */
+      var onx = 0, nx = 0;
+      box.querySelectorAll('.s-ox-pop .s-nt').forEach(function (b) {
+        var x = o.sources.filter(function (y) { return y.id === b.dataset.k; })[0]; if (!x) return;
+        b.setAttribute('aria-pressed', String(x.enabled)); b.firstChild.classList.toggle('opacity-50', !x.enabled); b.firstChild.nextSibling.classList.toggle('text-muted-foreground', !x.enabled);
+        b.querySelector('.px-chk').innerHTML = x.enabled ? svg('check', 'size-4') : '';
+      });
+      var oxn = box.querySelector('.s-ox-n');
+      if (oxn) { var rs = o.sources.filter(function (y) { return !isFound(y); }); onx = rs.filter(function (y) { return y.enabled; }).length; oxn.textContent = onx ? onx + ' on' : rs.length + (o.sources.some(isFound) ? ' more' : ' to choose from'); }
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -4284,7 +4312,7 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       /* open a group on the apps step or on Settings, Agents */
-      openOthers: function () { var el = q('.onb .oth-h') || q('.set .s-grp[data-g=others]'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
+      openOthers: function () { var el = q('.onb .ox-h') || q('.set .s-ox'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
       show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
@@ -4295,7 +4323,7 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        devScBack(); setGroup = o && o.group || '';
+        devScBack(); othersMenuOpen = false;
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }

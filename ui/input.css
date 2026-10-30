@@ -593,17 +593,11 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
 .fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }
 
-/* ---- the apps step: what Perch found, then Others ---- */
-.og-chev { transition: rotate .22s cubic-bezier(.4,0,.2,1); }
-.oth.open .og-chev { rotate: 180deg; }
-.og-chip { display: flex; height: 22px; align-items: center; gap: 5px; border-radius: 6px; padding: 0 6px 0 5px; font-size: 11.5px; cursor: pointer; background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); transition: color .18s, background-color .18s; }
-.og-chip > :first-child { transition: opacity .18s; }
-.og-chip[aria-checked="false"] { color: rgba(255,255,255,.55); background: rgba(255,255,255,.05); }
-.og-chip[aria-checked="false"] > :first-child { opacity: .55; }
-.og-chip:hover, .og-chip.hv { background: rgba(255,255,255,.11); }
-.og-chip .og-tk { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
-.og-chip[aria-checked="true"] .og-tk { opacity: 1; scale: 1; }
+/* ---- the apps step: what Perch found, then Others (a popover list) ---- */
+.ox-chev { transition: rotate .22s cubic-bezier(.4,0,.2,1); }
+.ox.open .ox-chev { rotate: 180deg; }
 .o-pop { animation: o-pop .42s cubic-bezier(.2,.8,.3,1) both; }
 .o-pop:nth-child(2) { animation-delay: .05s; } .o-pop:nth-child(3) { animation-delay: .1s; } .o-pop:nth-child(4) { animation-delay: .15s; } .o-pop:nth-child(n+5) { animation-delay: .2s; }
 @keyframes o-pop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .og-chev, .og-chip .og-tk { transition: none; } .o-pop { animation: none; } }
+.ox-pop::-webkit-scrollbar, .s-ox-pop::-webkit-scrollbar { width: 0; }
+@media (prefers-reduced-motion: reduce) { .ox-chev { transition: none; } .o-pop { animation: none; } }
