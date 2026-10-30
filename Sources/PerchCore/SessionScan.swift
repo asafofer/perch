@@ -395,11 +395,10 @@ public final class SessionScanner: @unchecked Sendable {
                 if let m = Self.mtime(file), m > cutoff { candidates.append((file, id, dir.lastPathComponent, m)) }
             }
         }
-        guard !candidates.isEmpty else { return [] }
-        candidates.sort { $0.mtime > $1.mtime }
         let user = home.appendingPathComponent("Library/Application Support/Cursor/User")
         let store = CursorStore(user: user)
         var out: [Found] = []
+        candidates.sort { $0.mtime > $1.mtime }
         for item in candidates {
             guard out.count < limit else { break }
             let header = store?.header(item.id)
@@ -443,7 +442,14 @@ public final class SessionScanner: @unchecked Sendable {
                 out.append((p, digest, cg.info, moved))
             }
         }
-        return out
+        // Agents that run in Cursor's cloud have no transcript here, only the list Cursor last fetched.
+        for c in (store?.cloudAgents() ?? []).filter({ $0.updated > cutoff }).prefix(limit) {
+            var d = SessionDigest()
+            d.sessionId = c.id; d.title = c.name; d.lastTimestamp = c.updated
+            out.append((Recap.cloudAgent(c, now: now), d, nil, c.updated))
+        }
+        // Both kinds compete for the limit by when they last moved.
+        return Array(out.sorted { $0.last > $1.last }.prefix(limit))
     }
     private var cursorMeta: [String: (mtime: Date, name: String?, folder: String?)] = [:]
 

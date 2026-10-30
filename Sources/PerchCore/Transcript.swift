@@ -497,7 +497,7 @@ public enum Recap {
         let folder = t.folders.first.map { Recap.folderName($0) } ?? ""
         var p = Project(id: "task:" + t.id, name: folder, branch: nil, away: RelativeTime.away(from: t.lastActivity, to: now),
                         at: RelativeTime.clock(t.lastActivity, now: now, calendar: calendar),
-                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle ? "Not opened on this Mac yet" : "",
+                        headline: t.state == .awaiting ? "Answer it in Claude" : words == nil && t.state == .idle && !t.cloud ? "Not opened on this Mac yet" : "",
                         context: words.flatMap(said(from:)) ?? "", next: "",
                         topic: clip(t.title, 90), app: a, agents: [status],
                         steps: [RestoreStep(icon: "win", text: "Opened the Claude app"), RestoreStep(icon: "term", text: "Went back to your task")],
@@ -514,6 +514,30 @@ public enum Recap {
             // What it waits on, to read on the card (Perch cannot answer it: Cowork's hooks are not Perch's).
             if t.state == .awaiting, w.turnOpen, let pending = w.pendingTool, var q = Ask(pending: pending, agent: a) { q.transcriptAt = pending.at ?? t.lastActivity; p.ask = q }
         }
+        return p
+    }
+
+    /// An agent that runs in Cursor's cloud: its title, its repository, and Cursor's own word on it. Only the list is on this
+    /// Mac, so there is no recap and no folder; Cursor's Agents window is where to read it.
+    public static func cloudAgent(_ c: CursorStore.CloudAgent, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.cursor.id
+        let status: AgentStatus = switch c.state {
+        case .running: AgentStatus(kind: .running, text: "Cursor is working", app: a)
+        case .awaiting: AgentStatus(kind: .needsYou, text: "Cursor is waiting for you", app: a)
+        case .done: AgentStatus(kind: .done, text: "Cursor finished", app: a)
+        case .failed: AgentStatus(kind: .idle, text: "Cursor stopped on an error", app: a)
+        }
+        let repo = c.repo.map { String($0.split(separator: "/").last ?? "") } ?? ""
+        var p = Project(id: "cursor-cloud:" + c.id, name: repo, branch: c.branch, away: RelativeTime.away(from: c.updated, to: now),
+                        at: RelativeTime.clock(c.updated, now: now, calendar: calendar),
+                        headline: c.state == .awaiting ? "Answer it in Cursor" : "", context: "", next: "",
+                        topic: clip(c.name ?? "Untitled agent", 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened Cursor"), RestoreStep(icon: "term", text: "Went back to your agent")],
+                        sessionId: c.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = c.updated
+        p.startedAt = c.created
+        p.appSays = true
+        if !c.unread { p.focusedAt = c.updated }
         return p
     }
 
