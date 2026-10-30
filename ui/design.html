@@ -259,6 +259,19 @@ i.sci svg{width:16px;height:16px}
   }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
+  /* a click on the small character beside the card: the reaction (`name`), on a loop; another scenario stops it */
+  function mascotTap(name, every) {
+    var me = ++charRun;
+    d.project(0); d.show('open');
+    (function again(ms) {
+      setTimeout(function () {
+        if (me !== charRun) return;
+        var c = document.querySelector('#scene .cr');
+        if (name) d.mascot(name); else c.click();
+        again(every || 3200);
+      }, ms);
+    })(1100);
+  }
   /* a Motion scenario's timeline: at(ms, caption, f) runs f after ms, unless another scenario started since */
   function motionAt() { var me = charRun; return function (ms, label, f) { setTimeout(function () { if (me !== charRun) return; if (label) now.textContent = label; f(); }, ms); }; }
   /* types `text` into the card's field a letter at a time, from `delay` ms, then runs `then` */
@@ -794,6 +807,13 @@ i.sci svg{width:16px;height:16px}
       ['All clear', 'The last thing waiting on you was answered: the wings fold away. The character stays in.', function () { d.clear(); }]
     ]],
     ['Character', [
+      ['Click: giggle', 'The small character beside the card, clicked: a wobble that dies away, its eyes squeezed into a smile. Each click is a different reaction, never the same twice in a row; this one plays on a loop to look at.', function () { mascotTap('giggle'); }],
+      ['Click: hops', 'Two quick hops, each with a squash on landing, kept low so they stay under the screen edge.', function () { mascotTap('hops', 2600); }],
+      ['Click: run into the notch', 'It winds up and dashes right along the top, shrinking out of sight under the notch\u2019s edge. A moment later it pops out there, looks about, and trots home.', function () { mascotTap('dash', 3800); }],
+      ['Click: wink', 'It tips its head, one eye smiles shut and a small sparkle pops by it.', function () { mascotTap('wink', 2800); }],
+      ['Click: startle', 'Wide-eyed, it shies back and shivers, then relaxes.', function () { mascotTap('startle', 2800); }],
+      ['Click: nap', 'Its eyes close, it breathes and two small z drift up; then it wakes with a hop.', function () { mascotTap('nap', 3800); }],
+      ['Click: every reaction in turn', 'Six clicks, a different reaction each, in a random order; it never repeats the one before. Clicks while one plays are ignored.', function () { mascotTap(undefined, 3200); }],
       ['The jump', 'One of the tricks the preview plays while you choose, here every few seconds: it crouches with its eyes down, pushes off stretched, rises and slows at the top, falls faster, lands in a squash and settles. The flip is gone.', function () { d.trick('jump'); }],
       ['Switching shapes', 'Right three times at an easy pace, then four quick presses, then Up and Down through the colours. The whole character squashes and pops, eyes and all; the new shape and its face arrive together at the low point; a quick press carries on from where it is.', function () {
         d.onboarding(1); var me = ++charRun, keys = [['right', 900], ['right', 1700], ['right', 2500], ['right', 3600], ['right', 3800], ['right', 4000], ['right', 4200], ['up', 5400], ['up', 6100], ['down', 6800]];

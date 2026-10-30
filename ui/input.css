@@ -343,6 +343,67 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes flyring { 0% { opacity: .9; transform: scale(.1); } 100% { opacity: 0; transform: scale(1.4); } }
 .gulp { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; pointer-events: none; opacity: 0;
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--cr) 85%, transparent), 0 0 14px color-mix(in srgb, var(--cr) 45%, transparent); animation: flyring .6s cubic-bezier(.2,.8,.3,1) both; }
+/* a click on the small character beside the card (app.js crClick): a bigger target, and a reaction each time, never the same twice in a row */
+.cr { cursor: pointer; }
+.cr::before { content: ""; position: absolute; inset: -4px; }
+.cr-in.hops { animation: hops .9s both; transform-origin: 50% 100%; }
+@keyframes hops {
+  0% { translate: 0 0; scale: 1 1; animation-timing-function: cubic-bezier(.3,0,.3,1); }
+  10% { translate: 0 0; scale: 1.14 .84; animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+  26% { translate: 0 -4px; scale: .94 1.08; animation-timing-function: cubic-bezier(.55,0,.85,.4); }
+  42% { translate: 0 0; scale: 1.14 .86; animation-timing-function: cubic-bezier(.3,.6,.4,1); }
+  52% { translate: 0 -2.5px; scale: .96 1.05; animation-timing-function: cubic-bezier(.55,0,.85,.4); }
+  66% { translate: 0 0; scale: 1.1 .9; animation-timing-function: ease-in-out; }
+  82% { translate: 0 0; scale: .98 1.02; }
+  100% { translate: 0 0; scale: 1 1; } }
+/* a run into the notch: it winds up and dashes right along the top, shrinking out of sight under the notch's edge; later it pops out
+   there and trots home. Two puffs of dust where it took off. */
+.cr-in.dash { animation: dash 1s both; transform-origin: 50% 100%; }
+@keyframes dash {
+  0% { transform: none; opacity: 1; animation-timing-function: cubic-bezier(.3,0,.4,1); }
+  22% { transform: translateX(-3px) scale(1.12, .86) rotate(-9deg); animation-timing-function: cubic-bezier(.3,0,.4,1); }
+  34% { transform: translateX(-5px) scale(1.16, .82) rotate(-12deg); animation-timing-function: cubic-bezier(.6,0,.9,.4); }
+  46% { transform: translateX(calc(var(--run) * .22)) translateY(-1.5px) scale(1.28, .8) rotate(7deg); animation-timing-function: linear; }
+  60% { transform: translateX(calc(var(--run) * .66)) translateY(0) scale(1.22, .84) rotate(6deg); opacity: 1; animation-timing-function: linear; }
+  70% { transform: translateX(var(--run)) translateY(0) scale(.5, .5) rotate(5deg); opacity: 0; }
+  100% { transform: translateX(var(--run)) scale(.5, .5); opacity: 0; } }
+.cr-in.dashback { animation: dashback 1s both; transform-origin: 50% 100%; }
+@keyframes dashback {
+  0% { transform: translateX(var(--run)) scale(.4); opacity: 0; animation-timing-function: cubic-bezier(.2,1.5,.4,1); }
+  20% { transform: translateX(var(--run)) translateY(-2px) scale(1.08, 1.12); opacity: 1; animation-timing-function: ease-in-out; }
+  42% { transform: translateX(var(--run)) scale(1); opacity: 1; animation-timing-function: cubic-bezier(.3,0,.3,1); }
+  54% { transform: translateX(calc(var(--run) * .92)) scale(1.06, .94) rotate(-3deg); animation-timing-function: cubic-bezier(.3,.8,.5,1); }
+  84% { transform: translateX(-1.5px) translateY(0) scale(1.1, .9) rotate(-2deg); animation-timing-function: ease-out; }
+  100% { transform: none; opacity: 1; } }
+.cr.dashing .puff { animation: puff .55s .3s ease-out both; }
+/* a wink: it tips its head, one eye smiles shut, and a sparkle pops */
+.cr-in.tilt { animation: tilt 1.2s both; transform-origin: 50% 100%; }
+@keyframes tilt {
+  0% { rotate: 0deg; animation-timing-function: cubic-bezier(.3,1.4,.5,1); }
+  18%, 70% { rotate: -9deg; animation-timing-function: cubic-bezier(.3,0,.4,1); }
+  100% { rotate: 0deg; } }
+.cr.wink .ey.r { width: calc(var(--ew, 14%) + 3%); height: 26%; top: calc(var(--et) + 1%); --bite: 78%; }
+.cr .fx { position: absolute; pointer-events: none; color: color-mix(in srgb, var(--cr) 45%, #fff); }
+.cr .fx.star { right: -5px; top: -4px; width: 8px; height: 8px; opacity: 0; animation: fxstar .8s cubic-bezier(.2,1.4,.4,1) both; }
+.cr .fx.star svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+@keyframes fxstar { 0% { opacity: 0; scale: .1; rotate: -40deg; } 35% { opacity: 1; scale: 1.25; rotate: 0deg; } 70% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .5; rotate: 30deg; } }
+/* a fright: it shies back, shivers, then relaxes */
+.cr-in.startle { animation: startle 1s both; transform-origin: 50% 100%; }
+@keyframes startle {
+  0% { translate: 0 0; scale: 1 1; rotate: 0deg; animation-timing-function: cubic-bezier(.2,.8,.3,1); }
+  8% { translate: 1.5px -1px; scale: .9 1.12; rotate: 7deg; }
+  16% { translate: 1px -1px; rotate: 5deg; animation-timing-function: linear; }
+  22% { translate: 2px -1px; rotate: 8deg; }
+  28% { translate: .8px -1px; rotate: 4deg; }
+  34% { translate: 1.8px -1px; rotate: 7deg; }
+  40% { translate: 1px -1px; rotate: 5deg; animation-timing-function: cubic-bezier(.3,1.3,.5,1); }
+  72% { translate: 0 0; scale: 1.03 .97; rotate: 0deg; }
+  100% { translate: 0 0; scale: 1 1; rotate: 0deg; } }
+/* a nap: its eyes close, it breathes, little z's drift up */
+.cr .fx.z { right: -4px; top: -3px; font: 700 8px/1 Inter, sans-serif; opacity: 0; animation: fxz 1.2s ease-out both; }
+.cr .fx.z2 { right: -9px; top: -9px; font-size: 6px; }
+@keyframes fxz { 0% { opacity: 0; translate: -2px 3px; scale: .6; } 25% { opacity: .95; } 100% { opacity: 0; translate: 4px -6px; scale: 1.1; } }
+@media (prefers-reduced-motion: reduce) { .cr-in.hops, .cr-in.dash, .cr-in.dashback, .cr-in.tilt, .cr-in.startle, .cr .fx { animation: none; } }
 /* the big preview while you choose: click it and it is tickled (app.js tickle) */
 .cr-pv { cursor: pointer; pointer-events: auto; transform-origin: 50% 100%; }
 .cr-in.giggle { animation: giggle 1.35s both; transform-origin: 50% 100%; }

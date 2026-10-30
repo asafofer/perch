@@ -29,6 +29,12 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - A reply sent from the notch ends the same way, after its words have flown up into the notch (details in [replies.md](replies.md#sending)).
 - If the answer reached nothing (the request was settled or let go a moment before, `HookServer.answer` reports it), the line says Didn't send in orange (`notSent`).
 
+## Clicking the character
+
+- The small character at the top left of an open card, the switcher, Settings and the other cards reacts to a click (app.js `crClick`, styles in input.css next to `.cr-in.hops`). Its click target reaches 4 px past the drawing. At rest it is hidden behind the notch and the panel ignores the mouse, so there is nothing to click.
+- Six reactions, each a different one from the last (never the same twice in a row): giggle (the wobble the onboarding preview has), hops (two low hops, kept under the screen edge), dash (it runs right along the top and shrinks out of sight at the notch's edge, pops out there a moment later and trots home; the distance comes from the notch's width), wink (a head tip, one eye smiles shut, a sparkle), startle (wide-eyed, it shies back and shivers) and nap (eyes shut, two z's, a hop awake).
+- A click while one plays is ignored. A snapshot that arrives meanwhile leaves its face alone (`crPlay`); the face comes back from the snapshot when the reaction ends. With reduced motion it only smiles for a moment. The design page's Character category plays each (`Click: ...`; `perchDev.mascot(name)`).
+
 ## The welcome card
 
 - It speaks up only on return from a break, and only if a session changed since you last saw it (finished, asked, stopped) and since your last break or within the last day (`WhileAway.newsSince`).
