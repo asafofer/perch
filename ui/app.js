@@ -251,11 +251,13 @@
   var prTip = document.createElement('div'); prTip.className = 'pr-tip'; document.body.appendChild(prTip);
   /* The label stays while the pointer is on it: leaving the icon waits a moment, so the pointer can cross to the label, and each
      pull request in it lights on hover and opens that pull request on a click. */
-  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0;
+  var prHideT = 0, prShown = null, prAnchor = null, prWatch = 0, prCard = null, prSig = '';
   /* gone at once: its icon was drawn again (the list redrew, the card changed) and no leave came */
-  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; }
+  function prNow() { clearTimeout(prHideT); clearInterval(prWatch); prTip.classList.remove('on'); prShown = null; prAnchor = null; prSig = ''; }
   function prHide() { clearTimeout(prHideT); prHideT = setTimeout(prNow, 160); }
   function prKeep() { clearTimeout(prHideT); }
+  /* a refresh gave the mark under the label a different list of pull requests: the label (and a click on it) would still be the old one */
+  function prStale(el) { if (el === prAnchor && JSON.stringify(el._prs) !== prSig) prNow(); }
   prTip.onmouseenter = prKeep; prTip.onmouseleave = prHide;
   prTip.onclick = function (e) {
     var it = e.target.closest('.pi'), pr = it && prShown && prShown[+it.dataset.i];
@@ -265,8 +267,8 @@
     if (el.dataset.b) return; el.dataset.b = '1';
     el.onmouseenter = function () {
       var list = el._prs; if (!list || !list.length) return;
-      prKeep(); prShown = list; prAnchor = el;
-      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected) { prNow(); } }, 300);
+      prKeep(); prShown = list; prAnchor = el; prSig = JSON.stringify(list);
+      clearInterval(prWatch); prWatch = setInterval(function () { if (!prAnchor || !prAnchor.isConnected || !prAnchor.getClientRects().length) { prNow(); } }, 300);
       prTip.innerHTML = list.map(function (pr, i) {
         var w = prWord(pr), col = prColor(pr), repo = pr.repo ? esc(pr.repo) + ' ' : '';
         /* with its title: the title, then the status and where it lives; without one (it comes with PR checks), one row */
@@ -1035,7 +1037,7 @@
     /* no project name (a worktree of nothing, a Claude task without a folder): the grey line starts with what it was doing */
     var sub = q('.o-sub'), proj = p.topic && p.name ? '<span class="text-foreground/70">' + esc(p.name) + '</span>' : '';
     setWords(sub, proj); sub.title = p.topic ? p.name : ''; sub.style.display = proj ? '' : 'none';
-    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre);
+    var pre = q('.o-pr'), pl = prsOf(p), pc = pl ? PRMark(pl, 'size-4') : ''; if (pre.dataset.h !== pc) { pre.innerHTML = pc; pre.dataset.h = pc; } pre._prs = pl; prHover(pre); prStale(pre);
     /* an open reply follows the snapshot (its answer arriving, your message moving up), a question card or not */
     if (repOn) showSaid(true);
     /* Preview too, read from where you were rather than from its end */
@@ -1184,6 +1186,13 @@
     el.classList.add('on');
   }
   selPill.el = document.createElement('div'); selPill.el.className = 'sel-pill'; selPill.el.setAttribute('aria-hidden', 'true');
+  /* the typed words are a field: a caret anywhere in them, or a selection (Swift counts in characters) */
+  function typedHtml(typed, caret, anchor) {
+    var cs = window.Intl && Intl.Segmenter ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(typed), function (g) { return g.segment; }) : Array.from(typed);
+    caret = caret == null ? cs.length : Math.min(caret, cs.length); anchor = anchor == null ? caret : Math.min(anchor, cs.length);
+    var a = Math.min(caret, anchor), b = Math.max(caret, anchor), part = function (x, y, c) { var t = cs.slice(x, y).join(''); return t ? '<span dir="auto"' + (c ? ' class="s-sel"' : '') + '>' + esc(t) + '</span>' : ''; };
+    return part(0, a) + (a === b ? '<i class="s-caret' + (b < cs.length ? ' mid' : '') + '"></i>' : part(a, b, true)) + part(b, cs.length);
+  }
   function list(s) {
     var empty = !s.projects.length, typed = s.query || '', rows = s.shown || s.projects.map(function (p, k) { return k; });
     /* opening: from the top, and no pointer pick from the last time it was open (it would keep its row from being scrolled to) */
@@ -1191,13 +1200,13 @@
     if (opening) { ptrPick = -1; pend = -1; sl.scrollTop = 0; }
     q('.s-ft').style.display = empty ? 'none' : '';
     /* what you typed replaces the title, with a caret; the right side counts what is left */
-    q('.s-h').innerHTML = typed ? '<span dir="auto">' + esc(typed) + '</span><i class="s-caret"></i>' : 'Jump back in';
+    q('.s-h').innerHTML = typed ? typedHtml(typed, s.queryCaret, s.queryAnchor) : 'Jump back in';
     var reading = switchFx === 'watch' && typed !== fxTyped && !!typed; fxTyped = typed;
     if (reading) { var caret = q('.s-h .s-caret'); if (caret) setTimeout(function () { lookAt(caret, 0); }, 0); }
     q('.s-n').textContent = typed ? rows.length + ' of ' + s.projects.length : (s.projects.length > 1 ? 'Type to filter' : '');
     if (!empty && !rows.length) {
       listSig = ''; marquee(null);
-      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match<span class="flex-1"></span><span class="flex items-baseline gap-1.5 text-xs">' + Kbd('\u2325\u2318N') + 'New session</span></div>';
+      sl.innerHTML = '<div class="flex items-baseline gap-2 px-2.5 pb-3 pt-1 text-[13px] leading-[18px] text-muted-foreground">No sessions match</div>';
       edges(); return;
     }
     if (empty) {
@@ -1270,7 +1279,7 @@
       var p = s.projects[+r.dataset.i], tm = r.querySelector('.tm'), rk = r.querySelector('.rk'), t = p.status.kind === 'running' ? '' : String(p.away || '').split(' ')[0], m = rowMark(p);
       if (p.pending) t = '';
       if (tm.textContent !== t) tm.textContent = t;
-      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); }
+      var pe = r.querySelector('.pr'); if (pe) { var pl = prsOf(p), pm = pl ? PRMark(pl, 'size-3.5 block') : ''; if (pe.dataset.m !== pm) { pe.innerHTML = pm; pe.dataset.m = pm; } pe._prs = pl; prHover(pe); prStale(pe); }
       /* compared with what it was given, not innerHTML: its copy never reads back the same, and a redrawn spinner restarts its
          turn. On an open list the old mark shrinks away as the new one grows in (transitions.dev icon swap). */
       if (rk && rk.dataset.m !== m) { iconSwap(rk, m, !live || rk.dataset.m == null); rk.dataset.m = m; }
@@ -2463,6 +2472,10 @@
     var was = lastSt;
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
+    /* the notch closed, or another session's card took its place, under a pointer resting on a PR mark: no leave comes, so its label would float on alone */
+    var cardId = s.projects && s.projects[s.selected] ? s.projects[s.selected].id : null;
+    if (st !== was || (st === 'open' && cardId !== prCard)) prNow();
+    prCard = cardId;
     if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); ptrFresh = true; markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
@@ -4045,7 +4058,7 @@
     function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
     var base = { canUpdate: true, selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
-    var autoTimer, devQuery = '';
+    var autoTimer, devQuery = '', devCaret = 0, devAnchor = 0;
     function devShown() {
       var words = devQuery.toLowerCase().split(/\s+/).filter(Boolean);
       var mins = function (p) { var m = /^(\d+)([mhd])/.exec(p.away || ''); return m ? +m[1] * { m: 1, h: 60, d: 1440 }[m[2]] : 1e9; };
@@ -4156,7 +4169,7 @@
       },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
-      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
       tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
@@ -4320,12 +4333,29 @@
         var shown = devShown(), at = shown.indexOf(base.selected);
         if (!shown.length) return;
         base.selected = at < 0 ? shown[0] : shown[(at + d + shown.length) % shown.length];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown, timerToken: Math.random() }));
       },
       /* the same narrowing as ListFilter in Swift: every word must appear in the name or the title */
       type: function (t) {
-        devQuery = t; var shown = devShown(); if (shown.length) base.selected = shown[0];
-        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, shown: shown, timerToken: Math.random() }));
+        devQuery = t; devCaret = devAnchor = t.length; var shown = devShown(); if (shown.length) base.selected = shown[0];
+        apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown, timerToken: Math.random() }));
+      },
+      /* the typed words as a field: caret anywhere, a selection, edits at the caret (Perch's FilterField) */
+      edit: function (e) {
+        var lo = Math.min(devCaret, devAnchor), hi = Math.max(devCaret, devAnchor), k = e.key;
+        var word = function (i, d) { var j = i; if (d < 0) { while (j > 0 && /\s/.test(devQuery[j - 1])) j--; while (j > 0 && !/\s/.test(devQuery[j - 1])) j--; } else { while (j < devQuery.length && /\s/.test(devQuery[j])) j++; while (j < devQuery.length && !/\s/.test(devQuery[j])) j++; } return j; };
+        var set = function (t, c) { devQuery = t; devCaret = devAnchor = c; var shown = devShown(); if (shown.length) base.selected = shown[0]; draw(shown); }, draw = function (shown) { apply(Object.assign({}, base, { phase: 'switcher', autoCollapse: false, query: devQuery, queryCaret: devCaret, queryAnchor: devAnchor, shown: shown || devShown(), timerToken: Math.random() })); };
+        if (k === 'ArrowLeft' || k === 'ArrowRight') {
+          var d = k === 'ArrowLeft' ? -1 : 1, to = e.metaKey ? (d < 0 ? 0 : devQuery.length) : e.altKey ? word(devCaret, d) : lo !== hi && !e.shiftKey ? (d < 0 ? lo : hi) : Math.min(Math.max(devCaret + d, 0), devQuery.length);
+          devCaret = to; if (!e.shiftKey) devAnchor = to; draw(); return;
+        }
+        if (e.metaKey && k.toLowerCase() === 'a') { devAnchor = 0; devCaret = devQuery.length; draw(); return; }
+        if (e.metaKey && k.toLowerCase() === 'c') { if (lo !== hi && navigator.clipboard) navigator.clipboard.writeText(devQuery.slice(lo, hi)); return; }
+        if (k === 'Backspace' || k === 'Delete') {
+          if (lo === hi) { if (k === 'Backspace') { if (!lo) return; lo = e.altKey ? word(lo, -1) : lo - 1; } else { if (hi >= devQuery.length) return; hi++; } }
+          set(devQuery.slice(0, lo) + devQuery.slice(hi), lo); return;
+        }
+        set(devQuery.slice(0, lo) + k + devQuery.slice(hi), lo + k.length);
       }
     };
     /* recording and trying the shortcut with the browser's own keys (capture phase, before anything else sees them) */
@@ -4408,10 +4438,11 @@
       else if (e.key === 'Tab' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open'); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'switcher') { e.preventDefault(); window.perchDev.step(e.key === 'ArrowDown' ? 1 : -1); }
       else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && ph === 'open') { e.preventDefault(); dev({ type: 'flip', dir: e.key === 'ArrowDown' ? 1 : -1 }); }
+      else if (ph === 'switcher' && devQuery && (e.key === 'ArrowLeft' || (e.key === 'ArrowRight' && (devCaret < devQuery.length || devCaret !== devAnchor || e.shiftKey)) || (e.metaKey && /^[ac]$/i.test(e.key)))) { e.preventDefault(); window.perchDev.edit(e); }
       else if (e.key === 'ArrowRight' && ph === 'switcher') { e.preventDefault(); window.perchDev.show('open', false, true); }
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
-      else if (ph === 'switcher' && (e.key === 'Backspace' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.type(e.key === 'Backspace' ? devQuery.slice(0, -1) : devQuery + e.key); }
+      else if (ph === 'switcher' && (e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.edit(e); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 
