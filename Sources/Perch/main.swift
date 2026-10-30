@@ -13,7 +13,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
         if let flag = args.first(where: { $0 == "--install-hooks" || $0 == "--uninstall-hooks" }) {
-            for agent in HookInstaller.agents {
+            // Names after the flag limit it to those agents (`--install-hooks cursor`).
+            let given = args.drop(while: { $0 != flag }).dropFirst().filter { !$0.hasPrefix("-") }
+            // A name that is no agent is a typo: nothing is changed (no names at all means every agent).
+            if let bad = given.first(where: { !HookInstaller.agents.contains($0) }) { print("unknown agent \(bad); known: \(HookInstaller.agents.joined(separator: ", "))"); exit(1) }
+            let named = given
+            for agent in HookInstaller.agents where named.isEmpty || named.contains(agent) {
                 do { if flag == "--install-hooks" { try HookInstaller.install(agent) } else { try HookInstaller.uninstall(agent) } ; print("\(agent): \(HookInstaller.isInstalled(agent) ? "on" : "off")") }
                 catch { print("\(agent): \(error.localizedDescription)") }
             }
@@ -30,11 +35,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if args.contains("--dump") {
             for s in NSScreen.screens { print("screen: \(s.localizedName) | \(s.displayID) | notch: \(s.notchSize != nil ? "yes" : "no")") }
             print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
-            for p in RealSessionProvider().parkedProjects() {
+            // Pull requests: ask whether the GitHub CLI works, and with Checks on let GitHub answer once before the list is printed.
+            let pulls = PullRequestState.shared
+            pulls.refreshAvailability(force: true); Thread.sleep(forTimeInterval: 2)
+            let provider = RealSessionProvider(); if let n = ProcessInfo.processInfo.environment["PERCH_DUMP_MAX"].flatMap(Int.init) { provider.maxProjects = n }
+            if pulls.mode == .checks { _ = provider.parkedProjects(); Thread.sleep(forTimeInterval: 10) }
+            print("pull requests: \(pulls.mode.rawValue) (GitHub CLI: \(pulls.availability.map { "\($0)" } ?? "not asked"))")
+            for p in provider.parkedProjects() {
                 let opens = p.conductor != nil ? "Conductor, workspace \(p.conductor ?? "?")" : p.terminal ? "\(p.via ?? Terminals.preferred)\(p.host.map { " (\($0))" } ?? ""): \(p.pid.map { "running, pid \($0)" } ?? Agent.of(p.app).resume(p.sessionId ?? "?"))"
                     : p.app == "codex" ? "codex://threads/\(p.sessionId ?? "?")" : Restorer.link(p)?.absoluteString ?? "?"
                 print("\(p.name) | \(p.branch ?? "-") | left \(p.at) (\(p.away) ago) | \(p.status.kind): \(p.status.text)")
                 print("   headline: \(p.headline)\n   context:  \(p.context)\n   next:     \(p.next)\n   opens:    \(opens)")
+                if !p.prs.isEmpty { print("   pull requests: " + p.prs.map { "#\($0.number) \($0.state.rawValue)\($0.needsYou ? " (needs you)" : "")" }.joined(separator: ", ")) }
             }
             let (hits, viewers) = LiveSessions.scan()
             for hit in hits {
@@ -43,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
                 case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
+                case .agterm(_, let s, let pane): place = "agterm session \(s.prefix(8)) pane \(pane.prefix(8))"
                 case .tab: place = "a tab"
                 }
                 print("running: \(hit.agent) pid \(hit.pid) in \(hit.cwd) on \(hit.tty), \(place), in \(hit.app ?? "no app")")

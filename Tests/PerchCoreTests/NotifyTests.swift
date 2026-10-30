@@ -23,6 +23,6 @@ import Testing
     }
 
     @Test func theNamesAreTheOnesThePageUses() {
-        #expect(NotifyKind.allCases.map(\.rawValue) == ["done", "run", "ask", "plan", "error"])
+        #expect(NotifyKind.allCases.map(\.rawValue) == ["done", "run", "ask", "plan", "error", "ci"])
     }
 }

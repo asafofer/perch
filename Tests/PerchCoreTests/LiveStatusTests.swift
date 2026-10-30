@@ -17,6 +17,18 @@ import Foundation
         #expect(event("Stop", "not json") == nil)
     }
 
+    @Test func readsCursorsHooksByTheirChatId() {
+        func cursor(_ name: String, _ json: String) -> HookEvent? { event(name, json, agent: "cursor") }
+        #expect(cursor("beforeSubmitPrompt", #"{"conversation_id":"c1","prompt":"go","hook_event_name":"beforeSubmitPrompt"}"#)?.kind == .started)
+        #expect(cursor("postToolUse", #"{"conversation_id":"c1","tool_name":"Shell"}"#)?.kind == .toolRan(tool: "Shell"))
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"completed","loop_count":0}"#)?.kind == .finished(message: nil))
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"aborted"}"#)?.kind == .interrupted)
+        #expect(cursor("stop", #"{"conversation_id":"c1","status":"error"}"#)?.kind == .failed)
+        #expect(cursor("stop", #"{"conversation_id":"c1"}"#)?.sessionId == "c1")
+        #expect(cursor("afterAgentThought", #"{"conversation_id":"c1"}"#) == nil)
+        #expect(cursor("stop", #"{"status":"completed"}"#) == nil)
+    }
+
     @Test func aCommandReadsAsWhatItRuns() {
         guard case .asks(let a)? = event("PermissionRequest", #"{"session_id":"s","tool_name":"Bash","tool_input":{"command":"npm run build\nnpm test","description":"Build"}}"#)?.kind else { Issue.record("not an ask"); return }
         #expect(a.title == "Claude wants to run a command"); #expect(a.subject == "npm run build"); #expect(a.kind == .permission); #expect(a.answerable)

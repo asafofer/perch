@@ -24,10 +24,15 @@ Version row's update states in [updates.md](updates.md).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
   - Agents: a check for each agent Perch reads, with how many sessions it has (Claude Code, Claude tasks and Claude chats
-    first), and Live status; under them "Also works in" with the places on this Mac (Conductor, herdr, tmux, cmux) and
-    their marks, nothing to choose. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats, which starts off.
-    Onboarding's apps step shows Claude as one tile with Code, Tasks and Chats as small checks, and the same places line.
-  - Notifications: a switch for each moment the notch announces (`NotifyKind`); Welcome back after; Questions stay for.
+    first), Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)). The places
+    Perch follows a session into (Conductor, herdr, tmux, cmux) are named only in onboarding's apps step, which has room for
+    them. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats, which starts off. Onboarding's apps step shows
+    Claude as one tile with Code, Tasks and Chats as small checks. With all seven agents the page is 428 pt: it has no room for
+    another line.
+  - Notifications: one row, Notify me about, with the lit moments (`NotifyKind`) as small coloured icons and a chevron; it opens
+    a menu over the rows below, a check for each moment, and the card grows to hold it (Return opens it, Up and Down choose,
+    Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
+    Then Welcome back after and Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.
 - Return or Space flips a switch, picks a screen or presses a row's button. Left is always Back: a segmented choice moves
   with Right (to its end) or Return (round again from the start).

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The fastest way back to your agents.</strong><br>
-  See when Claude Code, Codex, OpenCode or pi finish or need you, answer them from your Mac’s notch, and jump back to the exact session.
+  See when Claude Code, Codex, OpenCode, pi or Cursor finish or need you, answer them from your Mac’s notch, and jump back to the exact session.
 </p>
 
 <p align="center">
@@ -42,23 +42,23 @@ Agents work while you are away, and they finish, stall or wait for an answer on 
 
 - **Where was I.** After a break, a card drops from the notch with the session, what the agent did and the next step, if there is one.
 - **While you work.** When a session you are not in finishes or asks for something, the notch grows with what happened and a row of buttons. A finish folds away on its own; a request waits as small wings until you answer.
-- **What needs you.** With live status on, Claude Code, Codex, OpenCode and pi tell Perch the moment they finish or need your OK. Sessions that need you come first.
+- **What needs you.** With live status on, Claude Code, Codex, OpenCode, pi and Cursor tell Perch the moment they finish or need your OK. Sessions that need you come first.
 - **Answer from the notch.** Allow or deny a command, or pick an answer to Claude's or OpenCode's question, without leaving what you are doing.
-- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr or tmux pane or cmux split. A session that has ended opens again where it last ran.
+- **Jump back in.** One key opens the exact session: in the Claude app, in Codex, in the terminal tab it runs in, or the exact herdr or tmux pane, cmux split or agterm pane. A session that has ended opens again where it last ran.
 - **Reply.** See the agent's last message and answer it, into a terminal session or into the Claude or Codex app.
 - **All sessions.** Every recent session in one list, grouped into what needs you, today and earlier, with its status at a glance. Type to filter.
 - **Yours.** Pick a character and its colour. It lives behind the notch and only comes out when there is something to say.
 
 Perch never takes the keyboard unless you ask for it, and it stays quiet about the session you are already in.
 
-**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [herdr](https://herdr.dev) and tmux.
+**Works with** the Claude app (Code), the Codex app, [Conductor](https://conductor.build) (its Claude Code and Codex workspaces), [Cursor](https://cursor.com) (its agent chats, beta: tried with Cursor 3.23 and its Agents window), and Claude Code, Codex, [OpenCode](https://opencode.ai) or [pi](https://pi.dev) in any terminal, with exact tab switching in Terminal, iTerm2, Ghostty and Warp, and the exact split or pane in cmux, [agterm](https://github.com/umputun/agterm), [herdr](https://herdr.dev) and tmux.
 
 ## Install
 
 | Requirement | |
 |---|---|
 | macOS | 15 (Sequoia) or later, on Apple silicon. A notch is optional: other displays get a small tab at the top centre. |
-| Agents | The Claude app, the Codex app, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux and cmux included). |
+| Agents | The Claude app, the Codex app, Cursor, Conductor, or Claude Code, Codex, OpenCode and pi in a terminal (herdr, tmux, cmux and agterm included). |
 | To build | Xcode 26 or later and Node 20 or later. |
 
 **Download.** Get `Perch.dmg` from the [latest release](https://github.com/asafofer/perch-releases/releases/latest), open it and drag Perch onto Applications. It's signed and notarized by Apple, so it opens like any app. Perch checks for updates every hour and shows a quick peek in the notch when one is ready; press Update and it installs when nothing is on screen.
@@ -100,7 +100,7 @@ Perch reads the session files your agents already keep on your Mac, and your ses
 
 The card's words are your agents' own: the session's title, what the agent said it did, and a next step only when the agent stated one.
 
-**Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
+**Live status** is optional. It adds one hook entry to `~/.claude/settings.json` and `~/.codex/hooks.json` that runs `~/.config/perch/hook`, and for Cursor four entries in `~/.cursor/hooks.json`, and for OpenCode and pi a plugin file of Perch's own (`~/.config/opencode/plugins/perch.js`, for OpenCode 1.4 and later and OpenCode 2, and `~/.pi/agent/extensions/perch.ts`). They talk to Perch over a local socket only you can use and do nothing when Perch is not running. Your config files are backed up the first time as `*.before-perch`, and turning live status off removes the entries and files. Codex asks you once to trust a new hook.
 
 | Permission | Used for | Without it |
 |---|---|---|
@@ -112,7 +112,7 @@ The card's words are your agents' own: the session's title, what the agent said 
 
 ```mermaid
 flowchart LR
-  A["Session files<br>~/.claude, ~/.codex, OpenCode, pi"] --> C["PerchCore<br>scan, parse, state"]
+  A["Session files<br>~/.claude, ~/.codex, OpenCode, pi, Cursor"] --> C["PerchCore<br>scan, parse, state"]
   B["Hooks (optional)<br>local socket"] --> C
   C --> D["Snapshot (JSON)"]
   D --> E["Web view in the notch<br>ui/app.js"]
@@ -140,7 +140,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 | `Sources/Perch` | The AppKit shell: panel, web view, hotkeys, hook socket. |
 | `ui/` | The interface: plain JavaScript and Tailwind, Inter bundled. |
 | `scripts/` | Run, package, install, signing certificate, app icon and the README GIF. |
-| `feedback/` | The small Vercel function Send feedback posts to; it emails the message on. |
+| `feedback/` | The small Vercel function behind Send feedback: it receives what Perch posts and emails it to the inbox set in `FEEDBACK_TO`. |
 
 <details>
 <summary><strong>Troubleshooting</strong></summary>
@@ -149,7 +149,7 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 - **macOS asks for permissions after every build.** Run `./scripts/make-dev-cert.sh` once so builds are signed with a stable identity.
 - **Perch asks for Accessibility again after an update.** 0.4.0 is the first release signed by Apple, and macOS ties Accessibility to the signature, so it asks once more. Press Allow on the What's new card (or in Settings) and turn Perch on in System Settings.
 - **Accessibility is on but Perch still waits.** Remove Perch from the list with the minus button, add it again and restart Perch. Setup has a Restart button for this.
-- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database and `~/.pi/agent/sessions`, and which agents are running, in which terminal, herdr or tmux pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
+- **The list is empty.** `.build/debug/Perch --dump` prints what Perch finds in `~/.claude/projects`, `~/.codex/sessions`, OpenCode's database, `~/.pi/agent/sessions` and `~/.cursor/projects`, and which agents are running, in which terminal, herdr or tmux pane or cmux split. Headless runs (`claude -p`, `codex exec`) are not listed; `pi -p` and `opencode run` save sessions like any other, so they are.
 - **Status lags or guesses.** Turn on live status in Settings. Without it Perch reads the transcripts, which can only guess when an agent is waiting for you.
 - **Something else is wrong, or you have an idea.** Settings, Send feedback: your words and any screenshots go straight to the maker of Perch, with your email if you'd like an answer.
 
@@ -169,7 +169,6 @@ cd ui && python3 -m http.server 8765    # then open http://localhost:8765/design
 
 ## Roadmap
 
-- More sources: Cursor
 - An optional sound and haptics
 
 ## Credits

@@ -5,16 +5,18 @@ import Foundation
 /// every live session in that app counts as "maybe" and stays quiet.
 public enum Spot {
     /// Where a running agent lives, as a key to compare with what is in front: its herdr or tmux pane (on that server), its
-    /// cmux surface, or its terminal's tty.
+    /// cmux surface, its agterm pane, or its terminal's tty.
     public static func key(_ place: Place, tty: String) -> String {
         switch place {
         case .herdr(let pane, let socket, _): return herdr(socket: socket, pane: pane)
         case .tmux(let pane, let socket): return tmux(socket: socket, pane: pane)
         case .cmux(_, let surface): return cmux(surface: surface)
+        case .agterm(_, _, let pane): return agterm(pane: pane)
         case .tab: return Self.tty(tty)
         }
     }
     public static func cmux(surface: String) -> String { "cmux:" + surface.lowercased() }
+    public static func agterm(pane: String) -> String { "agterm:" + pane.lowercased() }
     public static func tty(_ tty: String) -> String { "tty:" + tty }
     public static func herdr(socket: String, pane: String) -> String { herdrPrefix(socket) + pane }
     static func herdrPrefix(_ socket: String) -> String { "herdr:\(socket)|" }

@@ -227,9 +227,14 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 @keyframes sw-on { 0% { translate: 0 0; } 55% { translate: 11px 0; } 100% { translate: 10px 0; } }
 @keyframes sw-off { 0% { translate: 10px 0; } 55% { translate: -1px 0; } 100% { translate: 0 0; } }
 .mq-on.mq-rtl { -webkit-mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); mask-image: linear-gradient(270deg, transparent, #000 var(--mql), #000 calc(100% - 14px), transparent); }
-/* the caret after what you typed in the list */
-.s-caret { display: inline-block; width: 1.5px; height: 15px; margin-left: 1px; vertical-align: -2px; background: currentColor; border-radius: 1px; animation: caret 1.1s steps(1) infinite; }
+/* the caret in what you typed in the list: it draws itself without taking any room, so the line does not move when it goes (a selection has none) */
+.s-caret { display: inline-block; position: relative; width: 0; height: 0; margin-left: 1.75px; vertical-align: baseline; }
+.s-caret::before { content: ""; position: absolute; left: -.75px; bottom: -3px; width: 1.5px; height: 15px; background: currentColor; border-radius: 1px; animation: caret 1.1s steps(1) infinite; }
 @keyframes caret { 50% { opacity: 0; } }
+/* inside the words it takes no room, so the text does not shift as it blinks */
+.s-caret.mid { margin: 0; }
+/* words selected with Command+A in what you typed */
+.s-sel { background: hsl(var(--foreground) / .18); border-radius: 2px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
 /* the list's scrollbar: hidden until you scroll or reach for it (app.js bar), thin, a little wider under the pointer */
 .s-bar { position: absolute; top: 3px; bottom: 7px; right: 0; width: 10px; opacity: 0; transition: opacity .35s; cursor: default; }
@@ -258,7 +263,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-body.fail { top: calc(var(--ah) + 5px); }   /* a failed update's line sits a little lower, clear of the row above */
 .act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
 .act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; cursor: pointer; transition: color .15s; }
-.act-q.pt { color: #fff; }   /* clicked, the question opens on the card, all of it */
+.act-q.pt { color: #fff; }
+.act-pv { cursor: pointer; transition: color .15s; } .act-pv.pt { color: #fff; }   /* a finish's title: clicked, the whole message on the card */   /* clicked, the question opens on the card, all of it */
 .act-b.act-o { background: rgba(255,255,255,.08); margin-left: 4px; }   /* to the app: a button of its own, set apart from the choices */
 .act-b.act-o.pt { background: rgba(255,255,255,.14); }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
@@ -324,7 +330,7 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .shimmer { position: relative; color: hsl(var(--muted-foreground) / .75) !important; }
 /* the passing light: a white copy of the same words, the same markup (so a command in code lines up), seen through a moving band */
 .shimmer code, .shimmer strong { color: inherit; }
-.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+.shimmer > .shine { position: absolute; inset: 0; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none;
   -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%); mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
   -webkit-mask-size: 250% 100%; mask-size: 250% 100%; -webkit-mask-repeat: repeat-x; mask-repeat: repeat-x;
   animation: shimmer 2.4s cubic-bezier(.4,0,.6,1) infinite; }
@@ -505,3 +511,23 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .nw .nrow.dz { background-color: rgba(255, 255, 255, .15); }
 .nw .nrow.dz .nw-rt { display: none; }
 .nw .nrow.dz .nw-dz { display: inline-flex; }
+
+/* the label over a pull request icon (app.js prTip): a small raised surface, a row for each pull request */
+.pr-tip { position: fixed; z-index: 60; left: 0; top: 0; display: flex; flex-direction: column; gap: 4px; padding: 7px 11px 7px 9px; border-radius: 10px; background: #1d1d20; color: #e4e4e7;
+  font: 500 12px/18px Inter, sans-serif; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(-3px); transition: opacity .14s ease, transform .14s ease;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 10px 28px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.4); }
+.pr-tip.on { opacity: 1; transform: none; pointer-events: auto; }
+.pr-tip .r { display: flex; align-items: center; gap: 7px; height: 18px; }
+.pr-tip { width: max-content; max-width: 340px; padding: 5px; gap: 2px; pointer-events: none; }
+.pr-tip .pi { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background-color .12s; }
+.pr-tip .pi:hover, .pr-tip .pi.hv { background: rgba(255,255,255,.08); }
+
+.pr-tip .p2 .t { max-width: 100%; font-size: 13px; color: #fafafa; }
+.pr-tip .p2 .r { font-size: 12px; }
+.pr-tip .m { color: #85858d; }
+@media (prefers-reduced-motion: reduce) { .pr-tip { transform: none; transition: none; } }
+
+/* a title or line that does not fit fades out at its end, as Claude's own list does, instead of ending in an ellipsis */
+.fade { overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+.fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }
