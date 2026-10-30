@@ -983,7 +983,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func frontForReply(_ on: Bool, quiet: Bool = false) {
         if on {
             guard !NSApp.isActive else { return }
-            replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now()
+            replyFrontFrom = NSWorkspace.shared.frontmostApplication; replyBack = WhereYouWere.now(); replyActivated = false
             if quiet && ProcessInfo.processInfo.environment["PERCH_REPLY_ACTIVATE"] == nil {
                 panel.makeKey()
                 // A panel that is not key by now has not taken the keyboard: then, and only then, come forward.
@@ -1007,13 +1007,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func activateForReply() {
         replyActivated = true
+        let from = replyFrontFrom
         // macOS lets an app come forward by itself only right after its own shortcut; a key in the panel is not that.
         // Asked through Launch Services, as opening it from Finder would, it does come forward (Perch shows nothing
         // when opened again).
         NSApp.activate(ignoringOtherApps: true)
         let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
-            DispatchQueue.main.async { MainActor.assumeIsolated { if self.replyOpen || self.feedbackOpen { self.panel.makeKey() } } }
+            DispatchQueue.main.async { MainActor.assumeIsolated {
+                if self.replyOpen || self.feedbackOpen { self.panel.makeKey() }
+                // The field closed while Launch Services was still bringing Perch forward: give the front back.
+                else if NSApp.isActive, let app = from, !app.isTerminated { app.activate() }
+            } }
         }
     }
     /// The app in front when a new session was opened, given the front back when it closes.
@@ -1225,7 +1230,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             FeedbackSender.mail(text: body["text"] as? String ?? "", paths: body["files"] as? [String] ?? [],
                                 version: info ? UISnapshot.appVersion : nil, macOS: info ? UISnapshot.macOSVersion : nil)
             // Mail is in front now with the message: the app you were in is not brought back over it
-            replyFrontFrom = nil; replyBack = nil; feedbackOpen = false; send(.dismiss)
+            replyFrontFrom = nil; replyBack = nil; replyActivated = false; feedbackOpen = false; send(.dismiss)
         case "feedbackAttach": chooseFiles()
         case "setting":
             if let key = body["key"] as? String {
