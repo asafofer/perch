@@ -160,6 +160,9 @@ struct UISnapshot: Encodable {
     var proactive = false
     /// What you typed in the list, and the rows that match it (all of them when nil).
     var query = ""
+    /// Where the caret is in it and the other end of the selection (equal when nothing is selected), in characters.
+    var queryCaret = 0
+    var queryAnchor = 0
     var shown: [Int]?
     /// On a call, on camera or presenting: the notch keeps what arrives to small wings.
     var quiet = false

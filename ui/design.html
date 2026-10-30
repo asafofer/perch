@@ -8,14 +8,15 @@
 :root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;color-scheme:dark}
 html,body{overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;background:var(--pg-bg)!important;color:var(--pg-fg);margin:0}
 body{font-family:Inter,-apple-system,system-ui,sans-serif}
-.wrap{max-width:880px;margin:0 auto;padding:28px 20px 64px;display:flex;flex-direction:column;gap:22px}
-h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
-.sub{margin:6px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:64ch}
+.wrap{max-width:880px;margin:0 auto;padding:12px 20px 64px;display:flex;flex-direction:column;gap:14px}
+h1{font:600 18px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
+.sub{margin:0;color:var(--pg-muted);font-size:13px;line-height:1.4}
+header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .note{font-size:12.5px;line-height:1.5;color:var(--pg-muted);margin:0}
 
 /* the desktop stays in view while you pick scenarios */
-.deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
+.deskwrap{position:sticky;top:0;z-index:20;padding:6px 0;background:var(--pg-bg)}
 /* a real desktop: Raycast wallpapers (raycast.com/wallpapers), seen from the top of the screen like the notch sees it */
 .desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:452px;
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
@@ -147,7 +148,7 @@ i.sci svg{width:16px;height:16px}
 <main class="wrap">
   <header>
     <h1>Perch</h1>
-    <p class="sub">The real interface, the same code that runs in the app, with sample projects. Pick a scenario to see it on the desktop below.</p>
+    <p class="sub">The real interface with sample projects. Pick a scenario below.</p>
   </header>
 
   <div class="deskwrap">
@@ -574,7 +575,7 @@ i.sci svg{width:16px;height:16px}
     ['Acting on it', [
       ['Sessions', 'A card you open yourself says that Up and Down flip to the next session\u2019s card, where the welcome card offers Not now (N snoozes either way). Hidden when there is only one session.', function () { d.project(1); d.show('open', false, true); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.snoozeMenu(true); }, 700); }],
-      ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
+      ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first. What you typed is a small field: Left and Right move a caret through it, Command+A selects it all, Command+C copies.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); setTimeout(function () { d.edit({ key: 'ArrowLeft' }); }, 1700); setTimeout(function () { d.edit({ key: 'a', metaKey: true }); }, 2900); }],
       ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
