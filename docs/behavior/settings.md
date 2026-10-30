@@ -5,8 +5,8 @@ Version row's update states in [updates.md](updates.md).
 
 ## The list
 
-- The gear on the card or the list, or Command+comma, opens a short list: Shortcuts, Agents, Status, Notifications,
-  Character, General, Version, Send feedback. Each row says what it is set to now (the shortcut's keys, the agents' icons, the moments
+- The gear on the card or the list, or Command+comma, opens a short list: Shortcuts, Agents, Notifications, Character,
+  General, Version, Send feedback. Each row says what it is set to now (the shortcut's keys, the agents' icons, the moments
   the notch announces, the character's name, the screen it shows on), so the list alone answers most questions.
 - Reply and shortcuts, needs access, is the first row while Accessibility is off, with Allow: the one thing to do there.
 - Version is the build ("0.4.3 (210)") and, on the right, where its update stands: Check for updates, what is out with
@@ -23,17 +23,15 @@ Version row's update states in [updates.md](updates.md).
   back from the left (transitions.dev page side by side).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
-  - Agents: a check for each agent Perch reads, with how many sessions it has (Claude Code, Claude tasks and Claude chats
-    first). The places Perch follows a session into (Conductor, herdr, tmux, cmux) are named only in onboarding's apps step,
-    which has room for them. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats, which starts off.
-    Onboarding's apps step shows Claude as one tile with Code, Tasks and Chats as small checks, and names the places only
-    while the tiles take four rows or fewer: with every agent (five rows) the places are left out. The page is a row of 30 pt
-    for each agent, 408 pt with ten of them (Claude's three kinds, Codex, OpenCode, pi, Cursor, Muse, Dots, Grok Bot); the
-    panel holds eleven.
-  - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)). They sat
-    under the agents until the list outgrew the panel. Its row on the list says "Live, PR marks" (or checks, or no PR marks),
-    or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page with Live status
-    chosen.
+  - Agents: the agents Perch reads come in three groups by how you use them (`GROUPS` in app.js): Terminal agents (Claude Code,
+    Codex, OpenCode, pi, Muse), Coding apps (Cursor) and Personal agents (Claude tasks, Claude chats, Dots, Grok Bot). A group
+    with no agent here is not listed. Each is a row with its agents' icons (off ones faded); Return or Right opens it to a check
+    for each agent, two to a row, with how many sessions it has, and Left folds it. One group is open at a time, so the page
+    stays under 400 pt with ten agents. Then Live status as a toggle, and Pull requests (Off, Marks, Checks:
+    [pull-requests.md](pull-requests.md)). The places Perch follows a session into (Conductor, herdr, tmux, cmux) are named
+    only in onboarding's apps step, inside the group they belong to. Kept as `sources.disabled`, and `sources.optedIn` for
+    Claude chats, which starts off. Onboarding's apps step is the same three groups as tiles: a tile's own check ticks or
+    clears all of its agents (a dash means some), and it opens to the agents as small checks.
   - Notifications: one row, Notify me about, with the lit moments (`NotifyKind`) as small coloured icons and a chevron; it opens
     a menu over the rows below, a check for each moment, and the card grows to hold it (Return opens it, Up and Down choose,
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
