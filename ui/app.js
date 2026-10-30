@@ -1753,7 +1753,7 @@
     cr.dataset.news = news ? '1' : '';
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
-    if (!celebrating && !hello && !dropping) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
+    if (!celebrating && !hello && !dropping && !crPlay) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : st === 'new' || (st === 'set' && fbGlow.k === 'done' && Date.now() - fbGlow.at < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     post({ type: 'size', width: w, height: h });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -2885,6 +2885,40 @@
       done();
     }, 1000);
   }
+
+  /* ---- a click on the small character beside the card: it reacts, a different way each time ---- */
+  var CLICKS = ['giggle', 'hops', 'dash', 'wink', 'startle', 'nap'], lastClick = '', crPlay = 0;
+  var STAR = '<svg viewBox="0 0 10 10"><path d="M5 0Q5.6 4.4 10 5Q5.6 5.6 5 10Q4.4 5.6 0 5Q4.4 4.4 5 0Z"/></svg>';
+  function crClick(only) {
+    if (crPlay || hello || celebrating || cr.style.opacity === '0') return;
+    var pick = only || CLICKS.filter(function (t) { return t !== lastClick; })[Math.floor(Math.random() * (CLICKS.length - 1))];
+    var ci = cr.querySelector('.cr-in'), ms = 1400, T = setTimeout, mood = function (m) { cr.dataset.m = m; };
+    var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var play = function (cls) { ci.classList.remove(cls); void ci.offsetWidth; ci.classList.add(cls); };
+    var fx = function (cls, html, delay) { T(function () { var e = document.createElement('i'); e.className = 'fx ' + cls; e.innerHTML = html; cr.appendChild(e); T(function () { e.remove(); }, 1300); }, delay || 0); };
+    lastClick = pick; crPlay = 1;
+    if (still) { mood('happy'); ms = 900; }
+    else if (pick === 'giggle') { mood('happy'); play('giggle'); T(function () { mood('awake'); }, 1050); ms = 1500; }
+    else if (pick === 'hops') { mood('happy'); play('hops'); look(0, .5); T(function () { look(0, 0); mood('awake'); }, 800); ms = 950; }
+    else if (pick === 'dash') {
+      /* it runs right along the top, under the notch's edge, and a moment later pops out there and trots home */
+      var nw = snap && snap.screen && snap.screen.hasNotch ? snap.screen.notchW : 148;
+      cr.style.setProperty('--run', Math.max(40, Math.round(CARD_W / 2 - 30 - nw / 2)) + 'px');
+      look(2.6, 0); cr.classList.add('dashing'); play('dash');
+      T(function () { cr.classList.remove('dashing'); ci.classList.remove('dash'); play('dashback'); look(-1.4, 0); mood('alert'); }, 1250);
+      T(function () { look(0, 0); mood('happy'); }, 1700);
+      T(function () { mood('awake'); }, 2200); ms = 2350;
+    }
+    else if (pick === 'wink') { play('tilt'); T(function () { cr.classList.add('wink'); }, 120); fx('star', STAR, 160); T(function () { cr.classList.remove('wink'); }, 1000); ms = 1250; }
+    else if (pick === 'startle') { mood('alert'); look(-1.2, -.4); play('startle'); T(function () { look(0, 0); mood('awake'); }, 800); ms = 1000; }
+    else { mood('sleep'); look(0, 0); fx('z', 'z', 250); fx('z z2', 'z', 750); T(function () { mood('awake'); play('hop'); }, 1900); ms = 2500; }
+    T(function () {
+      ['giggle', 'hops', 'dash', 'dashback', 'tilt', 'startle', 'hop'].forEach(function (c) { ci.classList.remove(c); });
+      cr.classList.remove('wink', 'dashing'); crPlay = 0; look(0, 0);
+      if (snap) layout(lastSt, snap);
+    }, ms);
+  }
+  scene.addEventListener('click', function (e) { if (e.target.closest('.cr') === cr) crClick(); });
 
   /* ---- the shortcut that opens and closes Perch: shown in Settings and in onboarding, recorded by the app ---- */
   var SC0 = { keys: ['\u2318', '\u2325'], kind: 'tap', custom: false, recording: false, error: '', tried: false, saved: false, works: true, why: '', attempt: [], refusals: 0, pending: [], picks: 0 };
@@ -4283,6 +4317,8 @@
         notSent(p.id);   /* as Swift says it: a moment after the press, before the row has folded */
         setTimeout(function () { actPressing = false; sentShow(p, 'Sent'); }, 170);
       },
+      /* a click on the small character beside the card: one reaction, or (no name) the next in turn */
+      mascot: function (name) { crPlay = 0; crClick(name); },
       /* the character step, the preview playing one trick again and again; another scenario stops it (fxStop) */
       trick: function (name) {
         window.perchDev.onboarding(1);
