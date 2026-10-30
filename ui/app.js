@@ -69,10 +69,14 @@
   /* The agents by how you use them, so a long list is three choices first (onboarding's apps step and Settings, Agents): in
      a terminal, in a coding app, or as a personal agent. `places` are what Perch also works in for that group. */
   var GROUPS = [
-    { id: 'term', name: 'Terminal agents', ic: 'term', ids: ['claude', 'codex', 'opencode', 'pi', 'muse'], places: ['herdr', 'tmux', 'cmux', 'agterm'] },
-    { id: 'code', name: 'Coding apps', ic: 'appwin', ids: ['cursor'], places: ['conductor'] },
-    { id: 'personal', name: 'Personal agents', ic: 'bot', ids: ['cowork', 'chat', 'dots', 'grokbot'], places: [] }
+    { id: 'term', name: 'Terminal agents', short: 'Terminal', ic: 'term', ids: ['claude', 'codex', 'opencode', 'pi', 'muse'], places: ['herdr', 'tmux', 'cmux', 'agterm'] },
+    { id: 'code', name: 'Coding apps', short: 'Coding apps', ic: 'appwin', ids: ['cursor'], places: ['conductor'] },
+    { id: 'personal', name: 'Personal agents', short: 'Personal', ic: 'bot', ids: ['cowork', 'chat', 'dots', 'grokbot'], places: [] }
   ];
+  /* found: Perch has seen a session of it on this Mac (a count above nothing); the rest are Others */
+  function isFound(x) { return x.count > 0; }
+  /* a tile's second line: what it found, by name or, for chats (which are many), how many */
+  function srcLine(x) { return x.id === 'chat' ? x.count + ' recent' : x.names && x.names.length ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : x.count + (x.count === 1 ? ' session' : ' sessions'); }
   function groupsOf(sources, places) {
     var known = function (id) { return GROUPS.some(function (g) { return g.ids.indexOf(id) >= 0; }); };
     return GROUPS.map(function (g) {
@@ -80,14 +84,6 @@
       list.sort(function (a, b) { return g.ids.indexOf(a.id) - g.ids.indexOf(b.id); });
       return { g: g, list: list, places: (places || []).filter(function (x) { return g.places.indexOf(x.id) >= 0; }) };
     }).filter(function (x) { return x.list.length; });
-  }
-  /* the group's agents as icons, the ones that are off faded; more than four show three and how many more. In Settings
-     they sit side by side (`flat`); on the apps step they overlap, their rim the tile's own colour. */
-  function faceStack(list, size, flat) {
-    var many = list.length > 4, shown = many ? list.slice(0, 3) : list;
-    return '<span class="og-fc flex flex-none items-center' + (flat ? ' gap-[3px]' : '') + '">' + shown.map(function (x, i) {
-      return '<span class="og-f' + (flat ? ' flat' : '') + (x.enabled ? '' : ' off') + '"' + (flat ? '' : ' style="margin-left:' + (i ? '-6px' : '0') + ';z-index:' + (9 - i) + '"') + '>' + App(x.id, size) + '</span>';
-    }).join('') + (many ? '<span class="og-more ml-1 text-xs tabular-nums text-muted-foreground">+' + (list.length - 3) + '</span>' : '') + '</span>';
   }
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
@@ -2460,7 +2456,7 @@
     if (st === 'onb') onb(s.onboarding); else { onbStep = -1; onbSig = ''; }
     if (st === 'new') whatsNew(s.whatsNew); else wnSig = '';
     if (st === 'set') {
-      if (liveNext) { setPage = 'agents'; setSig = ''; }
+      if (liveNext) { setPage = 'status'; setSig = ''; }
       settingsApply(s.settings);
       if (liveNext) { liveNext = false; var lr = q('.set .s-sw[data-k=live]'); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), lr && lr.closest('.s-row')); setKb = true; paintFocus(); setTimeout(flashLive, 300); }
     } else {
@@ -3037,7 +3033,8 @@
     scRef = sc.refusals || 0;
     scHeldApply();
   }
-  var onbStep = -1, onbSig = '', onbLast = null, onbOpenG = '';   /* onbOpenG: the group open on the apps step */
+  var onbStep = -1, onbSig = '', onbLast = null;
+  var onbOthers = null, onbScanWas = false;   /* the apps step: Others open (null: by itself, when nothing was found), and the scan was running at the last drawing */
   function oi(i, inner) { return '<div class="o-i" style="--i:' + i + '">' + inner + '</div>'; }
   function otitle(o, title, sub) {
     /* the hello is not a step of the setup: the count starts after it */
@@ -3150,6 +3147,8 @@
     setTimeout(previewLife, 1700 + Math.random() * 2400);
   })();
   function onbRender(o, animate) {
+    var pop = onbScanWas && !o.scanning && o.step === 4;   /* the scan just came in: what it found rises in */
+    onbScanWas = !!o.scanning && o.step === 4;
     onbLast = o;
     var box = q('.onb'), h = '', g = o.accessibility, st = o.step;
     if (st === 0) {
@@ -3178,28 +3177,37 @@
     } else if (st === 3) {
       h = shortcutStep(o);
     } else if (st === 4) {
-      /* Three tiles, one for each way agents are used (GROUPS), each with its agents in a row of small checks that opens
-         under it; a tile's own check ticks all of them. The places Perch follows a session into are named inside the
-         group they belong to: nothing to choose there, Perch finds them by itself. */
-      var grs = groupsOf(o.sources, o.places);
-      var tiles = grs.map(function (gr) {
-        var open = onbOpenG === gr.g.id, n = gr.list.length, on = gr.list.filter(function (x) { return x.enabled; }).length;
-        var names = gr.list.map(function (x) { return x.name; }), line = o.scanning ? 'Scanning\u2026' : names.slice(0, 3).join(', ') + (n > 3 ? ', +' + (n - 3) : '');
-        var chips = gr.list.map(function (x) {
+      /* Perch has already looked: what it found is on top, each with a check (on, unless it is chats), and you keep or clear
+         them. The agents it supports but did not find are Others, folded away, off until you tick one, and open to them by
+         how they are used (GROUPS). With nothing found Others is open. While the scan runs, one quiet line says so. */
+      var fnd = o.sources.filter(isFound), rest = o.sources.filter(function (x) { return !isFound(x); }), scan = !!o.scanning;
+      var dense = fnd.length > 8;   /* nine or ten found: slim tiles with no second line, so Others still has room */
+      var tile = function (x) {
+        var on = x.enabled;
+        return '<div class="o-tile cursor-pointer flex ' + (dense ? 'h-8' : 'h-10') + ' items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (pop ? ' o-pop' : '') + '" data-id="' + x.id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + App(x.id, dense ? 'size-4' : 'size-5') + '</span>' +
+          '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + esc(x.name) + '</span>' + (dense ? '' : '<span class="o-line block truncate text-xs leading-4 text-muted-foreground">' + esc(srcLine(x)) + '</span>') + '</span>' +
+          '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
+      };
+      var openO = onbOthers === null ? !fnd.length && !scan : onbOthers;
+      var onN = rest.filter(function (x) { return x.enabled; }).length;
+      var chips = groupsOf(rest).map(function (gr) {
+        return '<div class="flex items-start gap-2"><span class="w-[78px] flex-none pt-[3px] text-[11.5px] leading-4 text-muted-foreground">' + gr.g.short + '</span><div class="flex flex-wrap gap-1.5">' + gr.list.map(function (x) {
           return '<button role="switch" aria-checked="' + x.enabled + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw og-chip">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span>' + svg('check', 'og-tk size-3') + '</button>';
-        }).join('');
-        var pl = gr.places.map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
-        return '<div class="og rounded-lg bg-white/[0.06]' + (open ? ' open' : '') + '" data-g="' + gr.g.id + '">' +
-          '<div class="og-h flex h-11 cursor-pointer items-center gap-2.5 px-3" aria-expanded="' + open + '"><span class="og-gl grid size-7 flex-none place-items-center rounded-lg bg-white/[0.08] text-foreground/80 transition-opacity' + (on ? '' : ' opacity-50') + '">' + svg(gr.g.ic, 'size-3.5') + '</span>' +
-          '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + gr.g.name + '</span><span class="o-line block truncate text-xs leading-4 text-muted-foreground' + (o.scanning ? ' opacity-60' : '') + '">' + esc(line) + '</span></span>' +
-          '<button role="checkbox" aria-checked="' + (on === n ? 'true' : on ? 'mixed' : 'false') + '" aria-label="Include ' + gr.g.name + '" class="og-ck">' + svg('check', 'og-c size-3') + '<i></i></button>' +
-          svg('chevD', 'og-chev size-3 flex-none text-muted-foreground/70') + '</div>' +
-          '<div class="og-b' + (open ? '' : ' hidden') + ' px-3 pb-2.5 pt-0.5"><div class="flex flex-wrap gap-1.5">' + chips + '</div>' +
-          (pl ? '<p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + pl + '</p>' : '') + '</div></div>';
+        }).join('') + '</div></div>';
       }).join('');
-      h = otitle(o, 'Choose your apps', 'Perch only reads the ones you tick. You can change this later from the menu bar.') +
-        oi(3, '<div class="mt-3 flex flex-col gap-1.5 px-4">' + tiles + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+      var head = scan ? 'Looking for your sessions' : fnd.length ? 'Here is what Perch found' : 'Choose your apps';
+      var sub = scan ? 'Perch only reads the ones you tick.' : fnd.length ? 'Keep the ones you want Perch to follow. You can change this later from the menu bar.' : 'No sessions yet. Tick the apps you use and Perch looks as you start.';
+      var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' :
+        fnd.length ? '<div class="grid grid-cols-2 gap-1.5">' + fnd.map(tile).join('') + '</div>' : '';
+      /* with nothing found there is no "other": the agents are simply listed, with no line to open */
+      var bare = !fnd.length;
+      var othersHtml = !rest.length || scan ? '' : '<div class="oth' + (openO ? ' open' : '') + ' ' + (bare ? '' : 'mt-1.5') + '">' + (bare ? '' : '<button class="oth-h flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-expanded="' + openO + '"><span>Others</span><span class="oth-n text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span><span class="flex-1"></span>' + svg('chevD', 'og-chev size-3 flex-none') + '</button>') +
+        '<div class="oth-b' + (openO ? '' : ' hidden') + ' flex flex-col gap-1.5 rounded-lg bg-white/[0.04] px-3 py-2">' + chips + '</div></div>';
+      var placesOk = !scan && !openO && fnd.length <= 4 && (o.places || []).length;
+      var places = !placesOk ? '' : (o.places || []).map(function (x) { return '<span class="flex items-center gap-1.5">' + App(x.id, 'size-3.5') + '<span>' + esc(x.name) + '</span></span>'; }).join('');
+      h = otitle(o, head, sub) +
+        oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
+        oi(4, (places ? '<p class="o-places mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 text-xs leading-4 text-muted-foreground"><span>Also works in</span>' + places + '</p>' : '') + '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
@@ -3235,14 +3243,10 @@
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    /* a click on a group opens it; its own check ticks or clears all of it (a dash means some: it ticks the rest) */
-    box.querySelectorAll('.og-h').forEach(function (h) { h.onclick = function (e) { if (e.target.closest('.og-ck')) return; var og = h.parentNode; ogOpen(og, !og.classList.contains('open')); }; });
-    box.querySelectorAll('.og-ck').forEach(function (b) { b.onclick = function () {
-      var og = b.closest('.og'), on = b.getAttribute('aria-checked') !== 'true';
-      og.querySelectorAll('.og-chip').forEach(function (c) { if (c.getAttribute('aria-checked') !== String(on)) { setSw(c, on); post({ type: 'source', id: c.dataset.id, enabled: on }); } });
-      ogSync(og);
-    }; });
-    box.querySelectorAll('.og-chip').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); ogSync(b.closest('.og')); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
+    /* a click on a tile ticks it; Others opens and folds; its small checks tick one each */
+    box.querySelectorAll('.o-tile').forEach(function (t) { t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
+    box.querySelectorAll('.oth-h').forEach(function (h) { h.onclick = function () { othOpen(!h.parentNode.classList.contains('open')); }; });
+    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); othNote(box); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-prsw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'setting', key: 'pullRequests', value: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
     box.querySelectorAll('.o-shape').forEach(function (b) { b.onclick = function () { pickCharacter({ shape: b.dataset.k, color: charNow.color }); }; });
@@ -3307,7 +3311,7 @@
     /* What a step is drawn from; anything else changes in place. The scan (scanning, counts, names), the switches and live
        status arrive every half second or so: drawing the step again for them took the element under the pointer away
        mid-click and restarted the tiles. */
-    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id; }).join(',') + '|' + (o.places || []).map(function (x) { return x.id; }).join(',') + '|' + Object.keys(icons).length : ''].join('|');
+    var sig = [o.step, o.only, o.step === 2 || o.step === 3 ? o.accessibility : '', o.step === 3 ? JSON.stringify(o.shortcut) : '', o.step === 4 ? o.sources.map(function (x) { return x.id + (isFound(x) ? '+' : ''); }).join(',') + '|' + !!o.scanning + '|' + (o.places || []).map(function (x) { return x.id; }).join(',') + '|' + Object.keys(icons).length : ''].join('|');
     if (sig === onbSig) {
       var was = onbLast; onbLast = o;
       if (o.step === 4) onbSources(o);
@@ -3321,36 +3325,33 @@
     if (animate && o.step === o.total - 1) setTimeout(celebrate, 60);
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
-  /* a group's check and icons follow its small checks: all ticked, some (a dash), or none */
-  function ogSync(og) {
-    var cs = og.querySelectorAll('.og-chip'), on = [].filter.call(cs, function (b) { return b.getAttribute('aria-checked') === 'true'; }).length;
-    og.querySelector('.og-ck').setAttribute('aria-checked', on === cs.length ? 'true' : on ? 'mixed' : 'false');
-    og.querySelector('.og-gl').classList.toggle('opacity-50', !on);
-    [].forEach.call(og.querySelectorAll('.og-f'), function (f, i) { f.classList.toggle('off', cs[i].getAttribute('aria-checked') !== 'true'); });
+  /* a mark dims once its agent is cleared */
+  function tileDim(t) { var ic = t.querySelector('.o-ic'); if (ic) ic.classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
+  /* Others: how many of them are on, said on its folded line */
+  function othNote(box) {
+    var on = [].filter.call(box.querySelectorAll('.oth .og-chip'), function (b) { return b.getAttribute('aria-checked') === 'true'; }).length, n = box.querySelectorAll('.oth .og-chip').length, el = box.querySelector('.oth-n');
+    if (el) el.textContent = on ? on + ' on' : n + ' more';
   }
-  /* a group opens under its tile (one at a time) and the card grows to hold it */
-  function ogOpen(og, open) {
-    var box = q('.onb');
-    box.querySelectorAll('.og.open').forEach(function (x) { if (x !== og || !open) { x.classList.remove('open'); x.querySelector('.og-b').classList.add('hidden'); x.querySelector('.og-h').setAttribute('aria-expanded', 'false'); } });
-    var b = og.querySelector('.og-b');
-    og.classList.toggle('open', open); b.classList.toggle('hidden', !open); og.querySelector('.og-h').setAttribute('aria-expanded', String(open));
-    onbOpenG = open ? og.dataset.g : '';
+  /* Others opens under its line, and the card grows to hold it */
+  function othOpen(open) {
+    var box = q('.onb'), o = box.querySelector('.oth'), b = o.querySelector('.oth-b');
+    onbOthers = open; o.classList.toggle('open', open); b.classList.toggle('hidden', !open); o.querySelector('.oth-h').setAttribute('aria-expanded', String(open));
     if (open && !STILL) b.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+    var pl = box.querySelector('.o-places'); if (pl) pl.classList.toggle('hidden', open);
     if (snap && lastSt === 'onb') layout('onb', snap);
   }
-  /* the apps step, in place: a check slides, a tile's line fades to what the scan found */
+  /* the apps step, in place: a check slides, a tile's line fades to what the scan found (a new find redraws the step) */
   function onbSources(o) {
     var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
-    q('.onb').querySelectorAll('.og-chip').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) setSw(b, x.enabled); });
-    q('.onb').querySelectorAll('.og').forEach(function (og) {
-      ogSync(og);
-      var gr = groupsOf(o.sources, o.places).filter(function (y) { return y.g.id === og.dataset.g; })[0], sub = og.querySelector('.o-line'), line;
-      if (!gr) return;
-      var n = gr.list.length;
-      line = o.scanning ? 'Scanning\u2026' : gr.list.map(function (x) { return x.name; }).slice(0, 3).join(', ') + (n > 3 ? ', +' + (n - 3) : '');
+    q('.onb').querySelectorAll('.o-sw').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); var t = b.closest('.o-tile'); if (t) tileDim(t); } });
+    othNote(q('.onb'));
+    q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
+      var x = src(t.dataset.id), sub = t.querySelector('.o-line'), line;
+      if (!x || !sub) return;
+      line = srcLine(x);
       if (sub.textContent === line) return;
-      sub.textContent = line; sub.classList.toggle('opacity-60', !!o.scanning);
-      if (!STILL) sub.animate([{ opacity: 0 }, { opacity: o.scanning ? .6 : 1 }], { duration: 280, easing: 'ease-out' });
+      sub.textContent = line;
+      if (!STILL) sub.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'ease-out' });
     });
   }
   /* live status turned on or off: the switch slides, the note and the buttons follow */
@@ -3394,8 +3395,8 @@
      on the list itself goes back to where Settings came from. A category shows its settings inline, with no menus to drop
      down, so a page is only as tall as it needs. Character opens its picker; Send feedback is the last row. */
   var setLast = null, setSig = '', setPage = '', setSlide = 0, setRootAt = 0;
-  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
-  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', notify: 'Notifications', general: 'General' };
+  var SET_PAGES = [['shortcuts', 'Shortcuts', 'keyboard'], ['agents', 'Agents', 'grid'], ['status', 'Status', 'pulse'], ['notify', 'Notifications', 'bell'], ['character', 'Character', 'cat'], ['general', 'General', 'gear']];
+  var SET_TITLES = { shortcuts: 'Shortcuts', agents: 'Agents', status: 'Status', notify: 'Notifications', general: 'General' };
   /* a switch changes in place so it slides, with a double settle (.sw.is-init); redrawing it would just snap to the new state */
   function setSw(b, on) {
     if (b.getAttribute('aria-checked') !== String(on)) b.classList.add('is-init');
@@ -3497,7 +3498,8 @@
         /* each category says what it is set to now, so the list alone answers most questions */
         var sum = {
           shortcuts: scKeysHtml(sc, sc.works ? '' : COLORS.attention),
-          agents: (o.live === 'on' ? '' : small('Live status off')) + (on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None')),
+          agents: on.length ? faces(on.map(function (x) { return App(x.id, 'size-4'); })) : small('None'),
+          status: small(o.live === 'on' ? 'Live, ' + { off: 'no PR marks', marks: 'PR marks', checks: 'PR checks' }[prsMode(o)] : 'Live status off'),
           notify: marks.length ? faces(marks.map(function (x) { return nMark(x[0]); })) : small('Nothing'),
           character: small(esc(sh[1]) + ', ' + colorName),
           general: small(esc(showNow(o).name))
@@ -3543,7 +3545,7 @@
     box.querySelectorAll('.s-row').forEach(function (r, i) { r.addEventListener('mouseenter', function () { if (ptrMoved()) { setFocus = i; setHot = i; setKb = false; paintFocus(); } }); r.addEventListener('mouseleave', function () { if (setHot === i) { setHot = -1; paintFocus(); } }); });
     paintFocus();
     box.querySelectorAll('.s-go').forEach(function (r) { r.onclick = function () { setGo(r.dataset.go); }; });
-    box.querySelectorAll('.s-grp').forEach(function (r) { r.onclick = function () { setGroup = setGroup === r.dataset.g ? '' : r.dataset.g; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.querySelectorAll('.s-grp').forEach(function (r) { r.onclick = function () { setGroup = r.getAttribute('aria-expanded') === 'true' ? 'closed' : r.dataset.g; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
     box.querySelectorAll('.s-tap').forEach(function (r) { r.onclick = function (e) {
       if (e.target.closest('.s-sw')) return;
       if (r.dataset.show) { post({ type: 'setting', key: 'showOn', value: r.dataset.show }); return; }
@@ -3599,19 +3601,25 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      /* the agents by how you use them (GROUPS): three rows, one of which opens to show its agents, with a check for each.
-         Closed, a group's icons say which are on. */
-      return groupsOf(o.sources).map(function (gr) {
-        var open = setGroup === gr.g.id;
-        var head = '<div class="s-row s-grp mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-g="' + gr.g.id + '" aria-expanded="' + open + '">' + slabel(gr.g.name, '', gr.g.ic) +
-          '<span class="flex flex-none items-center gap-2">' + (open ? '' : faceStack(gr.list, 'size-4', true)) + svg(open ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground/60') + '</span></div>';
-        /* an open group's agents sit two to a row, so even five of them leave room for what is under them */
-        return head + (open ? '<div class="ml-7 mr-2 grid grid-cols-2">' + gr.list.map(function (x) {
-          var cnt = x.count ? '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + '</span>' : '';
-          return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)).replace('s-row mx-2', 's-row'));
-        }).join('') + '</div>' : '');
-      }).join('') + gap +
-        stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
+      /* what Perch found, each with a check and how many sessions; then Others, the agents it supports that it has not found
+         (off until you switch one on), folded away, and open to them by how they are used (GROUPS) */
+      var fnd = o.sources.filter(isFound), rest = o.sources.filter(function (x) { return !isFound(x); });
+      var cell = function (x, cnt) { return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, cnt), ckHtml(x.enabled, 'src:' + x.id, x.name)).replace('s-row mx-2', 's-row')); };
+      var foundRows = fnd.map(function (x) {
+        return stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>'), ckHtml(x.enabled, 'src:' + x.id, x.name)));
+      }).join('');
+      var openO = setGroup === 'others' || (!fnd.length && setGroup !== 'closed');
+      var onN = rest.filter(function (x) { return x.enabled; }).length;
+      var othersRow = rest.length && fnd.length ? '<div class="s-row s-grp mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-g="others" aria-expanded="' + openO + '">' + slabel('Others', '', 'plus') +
+        '<span class="flex flex-none items-center gap-2 text-xs text-muted-foreground">' + (onN ? onN + ' on' : rest.length + ' more') + svg(openO ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground/60') + '</span></div>' : '';
+      var othersBody = openO ? groupsOf(rest).map(function (gr) {
+        return '<div class="mx-2 mt-0.5 grid grid-cols-2" role="group" aria-label="' + gr.g.name + '">' + gr.list.map(function (x) { return cell(x, ''); }).join('') + '</div>';
+      }).join('') : '';
+      return (fnd.length ? foundRows : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">No sessions found yet. Switch on the ones you use.</div>') + othersRow + othersBody;
+    }
+    if (setPage === 'status') {
+      /* these sat under the agents until the list outgrew the panel */
+      return stap(drow(slabel('Live status', '', 'pulse'), 'A small hook in each agent tells Perch the moment it waits', swHtml(o.live === 'on', 'live', 'Live status'))) +
         gap + drow(slabel('Pull requests', '', 'pr'), prsDesc(o), prsSeg(o));
     }
     if (setPage === 'notify') {
@@ -3896,7 +3904,8 @@
       return;
     }
     /* inside an open group Left folds it back to its row; on the row itself it is Back, as everywhere here */
-    if (k === 'left' && setGroup && row && !row.classList.contains('s-grp')) { var gid = setGroup; setGroup = ''; setSig = ''; settingsApply(setLast); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), q('.set .s-grp[data-g=' + gid + ']')); paintFocus(); ntRelayout(); return; }
+    var gopen = q('.set .s-grp[aria-expanded=true]');
+    if (k === 'left' && gopen && row && !row.classList.contains('s-grp')) { var gid = gopen.dataset.g; setGroup = 'closed'; setSig = ''; settingsApply(setLast); setFocus = [].indexOf.call(q('.set').querySelectorAll('.s-row'), q('.set .s-grp[data-g=' + gid + ']')); paintFocus(); ntRelayout(); return; }
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
     if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
@@ -3935,7 +3944,7 @@
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, setGroup, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'agents' ? [o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, setGroup, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
@@ -4275,7 +4284,7 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       /* open a group on the apps step or on Settings, Agents */
-      openGroup: function (id) { var el = q('.onb .og[data-g=' + id + '] .og-h') || q('.set .s-grp[data-g=' + id + ']'); if (el) el.click(); },
+      openOthers: function () { var el = q('.onb .oth-h') || q('.set .s-grp[data-g=others]'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
       show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
@@ -4303,13 +4312,15 @@
         if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
         else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
         clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        var given = Array.isArray(all) ? all : null; if (given) all = 'given';
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
         /* every agent Perch knows, to see the choice with the most it can hold; 'new' is only the three added last */
         if (all === 'full' || all === 'new') sources = sources.concat([{ id: 'muse', name: 'Muse', count: 1, names: ['ledger-api'], enabled: true }, { id: 'dots', name: 'Dots', count: 2, names: ['Weekly metrics brief', 'Inbox triage'], enabled: true }, { id: 'grokbot', name: 'Grok Bot', count: 1, names: ['Fix the flaky checkout test'], enabled: true }]);
         if (all === 'full') all = 'app';
         if (all === 'app') sources = sources.slice(0, 1).concat([{ id: 'cowork', name: 'Claude tasks', count: 2, names: ['Taxes', 'Inbox'], enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, names: [], enabled: false }], sources.slice(1));
-        var places = all === 'app' ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
+        if (given) sources = given;
+        var places = all === 'app' || given ? [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }] : [];
         var s0 = Object.assign({}, base, { phase: 'onboarding', character: charNow, autoCollapse: false, timerToken: Math.random(),
           onboarding: { step: step, total: gh ? 8 : 7, prs: gh === 'on' ? 'on' : 'off', shortcut: devScOut(!!accessibility), accessibility: !!accessibility, scanning: !!scan, sources: sources, places: places, only: !!only, live: live || 'off' } });
         apply(s0);

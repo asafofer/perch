@@ -5,7 +5,7 @@ Version row's update states in [updates.md](updates.md).
 
 ## The list
 
-- The gear on the card or the list, or Command+comma, opens a short list: Shortcuts, Agents, Notifications, Character,
+- The gear on the card or the list, or Command+comma, opens a short list: Shortcuts, Agents, Status, Notifications, Character,
   General, Version, Send feedback. Each row says what it is set to now (the shortcut's keys, the agents' icons, the moments
   the notch announces, the character's name, the screen it shows on), so the list alone answers most questions.
 - Reply and shortcuts, needs access, is the first row while Accessibility is off, with Allow: the one thing to do there.
@@ -23,15 +23,21 @@ Version row's update states in [updates.md](updates.md).
   back from the left (transitions.dev page side by side).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
-  - Agents: the agents Perch reads come in three groups by how you use them (`GROUPS` in app.js): Terminal agents (Claude Code,
-    Codex, OpenCode, pi, Muse), Coding apps (Cursor) and Personal agents (Claude tasks, Claude chats, Dots, Grok Bot). A group
-    with no agent here is not listed. Each is a row with its agents' icons (off ones faded); Return or Right opens it to a check
-    for each agent, two to a row, with how many sessions it has, and Left folds it. One group is open at a time, so the page
-    stays under 400 pt with ten agents. Then Live status as a toggle, and Pull requests (Off, Marks, Checks:
-    [pull-requests.md](pull-requests.md)). The places Perch follows a session into (Conductor, herdr, tmux, cmux) are named
-    only in onboarding's apps step, inside the group they belong to. Kept as `sources.disabled`, and `sources.optedIn` for
-    Claude chats, which starts off. Onboarding's apps step is the same three groups as tiles: a tile's own check ticks or
-    clears all of its agents (a dash means some), and it opens to the agents as small checks.
+  - Agents: what Perch found comes first, one row for each agent it has seen a session of (`isFound`: a count above nothing)
+    with a check and how many sessions it has. Under them Others, folded: the agents Perch supports that it has not seen, off
+    until you switch one on, which opens to them by how they are used (`GROUPS`: Terminal agents, Coding apps, Personal
+    agents), two to a row. Folded, it says "7 more" or, once some are on, "2 on". With nothing found yet there is no Others
+    line: the agents are simply listed, off. Right or Return opens Others, Left folds it. With all ten found the page is
+    408 pt and the panel holds eleven. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for the agents in
+    Others, which start off.
+    Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line), then
+    what it found rises in as tiles, each ticked (chats and Others are not) with the names of its sessions, under "Here is
+    what Perch found". Nine or ten found make slim tiles with no second line. Others is one folded line under them, open to
+    small checks by how they are used; the places Perch also works in (herdr, tmux, cmux, agterm, Conductor) are named only
+    while Others is folded and four rows or fewer were found. With nothing found the step says so and lists the agents.
+  - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
+    under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
+    marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.
   - Notifications: one row, Notify me about, with the lit moments (`NotifyKind`) as small coloured icons and a chevron; it opens
     a menu over the rows below, a check for each moment, and the card grows to hold it (Return opens it, Up and Down choose,
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
