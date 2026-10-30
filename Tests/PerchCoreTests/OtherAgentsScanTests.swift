@@ -139,6 +139,13 @@ enum OpenCode2Steps {
         #expect(p?.context == "Failed pages now retry three times with backoff, and the log lists the ones that never loaded.")
     }
 
+    @Test func openCodePreviewHoldsEverythingSaidSinceYourLastMessage() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        let before = (#"{"role":"assistant","time":{"created":1,"completed":2},"finish":"tool-calls"}"#, [#"{"type":"text","text":"First I checked the retry code."}"#])
+        h.opencode("ses_a", cwd: site, ago: 60, steps: [before, OpenCodeSteps.finished[1]])
+        #expect(h.scanner.opencode(limit: 15, now: h.now).first?.project.said == "First I checked the retry code.\n\nFailed pages now retry three times with backoff, and the log lists the ones that never loaded.")
+    }
+
     @Test func openCodeSessionsThatAreNotYoursOrNotThereAreLeftOut() {
         let h = AgentHome(), site = h.folder("code/scraper")
         h.opencode("ses_a", cwd: site, ago: 60)
@@ -281,6 +288,17 @@ enum OpenCode2Steps {
         #expect(found.first?.startedAt.map { abs($0.timeIntervalSince(h.now.addingTimeInterval(-90))) < 1 } == true)   // the header's time
         #expect(found.first?.status.text == "pi replied")
         #expect(found.first?.said == "Failed pages now retry three times, waiting 1, 4 and 16 seconds.")
+    }
+
+    @Test func piPreviewHoldsEverythingSaidSinceYourLastMessage() {
+        let h = AgentHome(), site = h.folder("code/scraper")
+        h.pi("two", cwd: site, ago: 60, entries: [
+            Self.user("make failed pages retry", h.ts(-90)),
+            Self.assistant(Self.said("First I checked the retry code."), stop: "toolUse", h.ts(-80)),
+            Self.assistant(Self.said("Then I raised the limit to three."), stop: "stop", h.ts(-70)),
+        ])
+        let p = h.scanner.pi(limit: 15, now: h.now).map(\.project).first
+        #expect(p?.said == "First I checked the retry code.\n\nThen I raised the limit to three.")
     }
 
     @Test func piStatusFollowsTheLastStop() {

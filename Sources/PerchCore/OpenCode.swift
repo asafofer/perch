@@ -169,7 +169,7 @@ public enum OpenCodeTranscript {
             if role == "user" {
                 guard let line, !line.isEmpty else { continue }
                 d.turnOpen = true; d.interrupted = false; d.stoppedAt = nil; d.failed = nil; open = []
-                d.lastUserText = line; d.lastUserFull = TranscriptParser.text(from: full, keepLines: true); if !Recap.isAcknowledgement(line) { d.lastAsk = line }; d.narration = nil; d.step = nil; d.work = Work()
+                d.lastUserText = line; d.lastUserFull = TranscriptParser.text(from: full, keepLines: true); if !Recap.isAcknowledgement(line) { d.lastAsk = line }; d.narration = nil; d.step = nil; d.work = Work(); d.turnFull = nil
                 d.lastTimestamp = m.created; d.lastRole = "user"
                 d.recent.append(.init(role: "user", text: Recap.clip(line, 420)))
             } else if role == "assistant" {
@@ -192,7 +192,7 @@ public enum OpenCodeTranscript {
                     else { d.failed = ((e["data"] as? [String: Any])?["message"] as? String) ?? (e["name"] as? String) ?? "error" }
                 }
                 guard let line, !line.isEmpty else { continue }
-                d.lastAssistantText = line; d.lastAssistantFull = TranscriptParser.text(from: full, keepLines: true); d.narration = line
+                d.lastAssistantText = line; d.lastAssistantFull = TranscriptParser.text(from: full, keepLines: true); d.narration = line; d.turnFull = TranscriptParser.joined(d.turnFull, d.lastAssistantFull)
                 d.lastTimestamp = m.created; d.lastRole = "assistant"
                 d.recent.append(.init(role: "assistant", text: Recap.clip(line, 420)))
             }

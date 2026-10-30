@@ -155,7 +155,8 @@ private final class Home {
         let said = #"{"type":"assistant","sessionId":"a","cwd":"\#(site)","timestamp":"\#(ISO8601DateFormatter().string(from: h.now))","message":{"stop_reason":"end_turn","content":[{"type":"text","text":"Done.\n\n- one\n- two\n\nWant more?"}]}}"#
         h.write(path, Home.transcript("a", cwd: site, at: h.now.addingTimeInterval(-60)) + said + "\n")
         let p = h.scanner.claude(limit: 15, now: h.now).first?.project
-        #expect(p?.said == "Done.\n\n- one\n- two\n\nWant more?")
+        // what it said before this, in the same turn, comes first: Preview shows the whole turn
+        #expect(p?.said == "The hero now fits at phone width.\n\nDone.\n\n- one\n- two\n\nWant more?")
         #expect(p?.context.contains("\n") == false)   // summaries stay on one line
     }
 

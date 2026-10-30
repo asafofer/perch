@@ -210,7 +210,8 @@ struct UISnapshot: Encodable {
         self.timerToken = timerToken
         self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? NotchGeometry.idleSize(for: screen).height)
         let now = Date()
-        self.projects = projects.map { p in
+        let open = machine.selected
+        self.projects = projects.enumerated().map { i, p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
@@ -220,7 +221,7 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked, askedLast: p.askedLast,
+                      section: ListFilter.section(p, now: now).rawValue, said: i == open ? p.said : Recap.clipSaid(p.said), asked: p.asked, askedLast: p.askedLast,
                       prs: p.prs.map(UIPR.init), ci: p.prNeeds)
         }
     }

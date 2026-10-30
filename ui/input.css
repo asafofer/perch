@@ -263,7 +263,8 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act-body.fail { top: calc(var(--ah) + 5px); }   /* a failed update's line sits a little lower, clear of the row above */
 .act-body.askq { align-items: flex-start; padding-top: 2px; overflow-y: auto; scrollbar-width: none; }
 .act-q { min-width: 0; white-space: normal; line-height: 18px; color: #e4e4e7; cursor: pointer; transition: color .15s; }
-.act-q.pt { color: #fff; }   /* clicked, the question opens on the card, all of it */
+.act-q.pt { color: #fff; }
+.act-pv { cursor: pointer; transition: color .15s; } .act-pv.pt { color: #fff; }   /* a finish's title: clicked, the whole message on the card */   /* clicked, the question opens on the card, all of it */
 .act-b.act-o { background: rgba(255,255,255,.08); margin-left: 4px; }   /* to the app: a button of its own, set apart from the choices */
 .act-b.act-o.pt { background: rgba(255,255,255,.14); }
 .act-ex { left: 13px; right: 13px; overflow: hidden; font-size: 12px; line-height: 16px; color: #a1a1aa; white-space: normal; }
