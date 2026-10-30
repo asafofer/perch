@@ -36,10 +36,10 @@ public struct FilterField: Equatable {
     public mutating func selectAll() { anchor = 0; caret = chars.count }
 
     public enum Step { case char, word, edge }
-    /// Left (-1) or Right (+1). Shift grows the selection; without it a selection collapses to the end you are heading for.
+    /// Left (-1) or Right (+1). Shift grows the selection; without it a selection collapses to the end you are heading for (by a character or a word; to an edge it goes on to the edge).
     public mutating func move(_ d: Int, by step: Step = .char, extend: Bool = false) {
         var to: Int
-        if hasSelection && !extend && step == .char { to = d < 0 ? range.lowerBound : range.upperBound }
+        if hasSelection && !extend && step != .edge { to = d < 0 ? range.lowerBound : range.upperBound }
         else {
             switch step {
             case .edge: to = d < 0 ? 0 : chars.count

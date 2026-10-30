@@ -77,4 +77,12 @@ import Testing
         f.deleteBackward()
         #expect(f.isEmpty)
     }
+
+    @Test func aWordMoveCollapsesASelectionFirst() {
+        var f = field("one two three")
+        f.selectAll(); f.move(-1, by: .word)
+        #expect(f.caret == 0 && !f.hasSelection)
+        f.selectAll(); f.move(1, by: .word)
+        #expect(f.atEnd)
+    }
 }
