@@ -76,7 +76,7 @@
       '<span class="grid flex-none transition-opacity ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="min-w-0 flex-1 truncate ' + (x.enabled ? '' : 'text-muted-foreground') + '">' + esc(x.name) + '</span>' +
       '<span class="px-chk grid size-4 flex-none place-items-center text-foreground/80">' + (x.enabled ? svg('check', 'size-4') : '') + '</span></div>';
   }
-  var POP = 'absolute z-30 w-[250px] overflow-y-auto rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]';
+  var POP = 'absolute z-30 overflow-y-auto rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]';
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
      the design page. The app itself now wears ChatGPT's icon; Swift sends this same mark from inside it. */
   /* Claude's own icon too, the one Claude.app ships, so no page ever draws a stand-in for it */
@@ -3187,11 +3187,16 @@
       };
       var onN = rest.filter(function (x) { return x.enabled; }).length;
       var head = scan ? 'Looking for your sessions' : fnd.length ? 'Here is what Perch found' : 'Choose your apps';
-      var sub = scan ? 'Perch only reads the ones you tick.' : fnd.length ? 'Keep the ones you want Perch to follow. You can change this later from the menu bar.' : 'No sessions yet. Tick the apps you use and Perch looks as you start.';
-      var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' :
-        fnd.length ? '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:146px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent)"' : '') + '>' + fnd.map(tile).join('') + '</div>' : '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Nothing found yet</div>';
-      var othersHtml = !rest.length || scan ? '' : '<div class="ox relative mt-1.5"><button class="ox-h flex h-7 w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground transition-colors hover:text-foreground" aria-expanded="false"><span>Others</span><span class="ox-n text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span><span class="flex-1"></span>' + svg('chevD', 'ox-chev size-3 flex-none') + '</button>' +
-        '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] top-[30px] hidden w-auto" role="menu">' + rest.map(function (x, i) { return popItem(x, i, 'ox-it', 'data-id="' + x.id + '"'); }).join('') + '</div></div>';
+      var sub = scan ? 'Perch only reads the ones you tick.' : fnd.length ? 'Keep the ones you want Perch to follow.' : 'Nothing yet. Tick the ones you use.';
+      /* Others is the grid's last tile, quieter than the rest, so it fills the empty slot beside an odd one out; it opens a
+         popover list under it, five lines tall at most, which scrolls */
+      var oxTile = !rest.length ? '' : '<button class="ox-h o-oth flex ' + (dense ? 'h-8' : 'h-10') + ' cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (fnd.length ? '' : ' col-span-2') + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
+        '<span class="grid ' + (dense ? 'size-4' : 'size-5') + ' flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', dense ? 'size-2.5' : 'size-3') + '</span>' +
+        '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4 text-muted-foreground">Others</span>' + (dense ? '' : '<span class="ox-n block truncate text-xs leading-4 text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>') + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
+      var oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] hidden" role="menu">' + rest.map(function (x, i) { return popItem(x, i, 'ox-it', 'data-id="' + x.id + '"'); }).join('') + '</div>';
+      var grid = '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:146px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent)"' : '') + '>' + fnd.map(tile).join('') + oxTile + '</div>';
+      var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
+      var othersHtml = '';
       h = otitle(o, head, sub) +
         oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
         oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
@@ -3319,7 +3324,7 @@
   /* Others: how many of them are on, said on its line */
   function oxNote() {
     var box = q('.onb'), its = box.querySelectorAll('.ox-it'), on = [].filter.call(its, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).length, el = box.querySelector('.ox-n');
-    if (el) el.textContent = on ? on + ' on' : its.length + (box.querySelector('.o-found') ? ' more' : ' to choose from');
+    if (el) el.textContent = on ? on + ' on' : its.length + (box.querySelector('.o-tile') ? ' more' : ' to choose from');
   }
   /* one item of the popover, switched in place */
   function oxSet(it, on) {
@@ -3332,20 +3337,27 @@
   var oxFocus = 0;
   function oxIsOpen() { var p = q('.onb .ox-pop'); return !!p && !p.classList.contains('hidden'); }
   function oxOpen(open) {
-    var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop');
+    var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop'), h = x && x.querySelector('.ox-h');
     if (!pop) return;
     var rv = x.closest('.o-i'); if (rv) { rv.style.position = 'relative'; rv.style.zIndex = open ? '20' : ''; }   /* above the note and the buttons it covers */
-    pop.classList.toggle('hidden', !open); x.querySelector('.ox-h').setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
+    pop.classList.toggle('hidden', !open); h.setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
     box.style.minHeight = '';
     if (open) {
-      var inner = q('.p-onb .inner'), top = inner.getBoundingClientRect().top, bottom = x.getBoundingClientRect().bottom - top;
-      pop.style.maxHeight = Math.max(96, Math.min(232, 420 - bottom - 4)) + 'px';
+      pop.style.top = (h.offsetTop + h.offsetHeight + 4) + 'px';
+      pop.style.maxHeight = '168px';   /* five lines; more scroll */
+      /* the card grows only by what the list needs past its own bottom */
       var need = pop.getBoundingClientRect().bottom - box.getBoundingClientRect().top + 8;
       if (need > box.getBoundingClientRect().height) box.style.minHeight = need + 'px';
-      oxFocus = 0; oxPaint();
-      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 180, easing: 'ease-out' });
+      oxFocus = -1; oxPaint(); oxFade(pop); pop.onscroll = function () { oxFade(pop); };
+      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
     }
     if (snap && lastSt === 'onb') layout('onb', snap);
+  }
+  /* a list longer than five lines fades at the edge that has more past it */
+  function oxFade(el) {
+    var top = el.scrollTop > 1, bot = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    var m = top || bot ? 'linear-gradient(to bottom,' + (top ? 'transparent,#000 18px' : '#000') + ',' + (bot ? '#000 calc(100% - 18px),transparent' : '#000') + ')' : '';
+    el.style.webkitMaskImage = m; el.style.maskImage = m;
   }
   function oxPaint() { q('.onb').querySelectorAll('.ox-it').forEach(function (b) { var on = +b.dataset.i === oxFocus; b.classList.toggle('bg-white/[0.09]', on); if (on) b.scrollIntoView({ block: 'nearest' }); }); }
   /* the apps step, in place: a check slides, a tile's line fades to what the scan found (a new find redraws the step) */
@@ -3382,7 +3394,7 @@
     if (onbStep === 4 && oxIsOpen()) {
       var its = q('.onb').querySelectorAll('.ox-it');
       if (k === 'esc' || k === 'left') { oxOpen(false); return; }
-      if (k === 'down' || k === 'up') { oxFocus = (oxFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; oxPaint(); return; }
+      if (k === 'down' || k === 'up') { oxFocus = oxFocus < 0 ? (k === 'down' ? 0 : its.length - 1) : (oxFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; oxPaint(); return; }
       if (k === 'enter' && its[oxFocus]) its[oxFocus].click();
       return;
     }
@@ -3552,8 +3564,8 @@
     var oxp = box.querySelector('.s-ox-pop');
     if (oxp) {
       var orow = box.querySelector('.s-ox'), under = orow.getBoundingClientRect().bottom - box.getBoundingClientRect().top;
-      oxp.style.maxHeight = Math.max(96, Math.min(232, 352 - under)) + 'px';
-      box.style.minHeight = Math.ceil(under + 4 + Math.min(oxp.scrollHeight, parseFloat(oxp.style.maxHeight)) + 8 + 36) + 'px';
+      box.style.minHeight = Math.ceil(under + 4 + Math.min(oxp.scrollHeight, 168) + 8) + 'px';   /* only what the list needs past the rows */
+      oxFade(oxp); oxp.onscroll = function () { oxFade(oxp); };
     }
     slid.forEach(function (x) {
       if (!x.g) return;
@@ -3635,7 +3647,7 @@
       }).join('');
       var onN = rest.filter(function (x) { return x.enabled; }).length;
       var oitems = rest.map(function (x, i) { return popItem(x, i, 's-nt', 'data-k="' + x.id + '" data-src="1"'); }).join('');
-      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP + ' right-0 top-[34px]" style="max-height:232px">' + oitems + '</div>' : '';
+      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP + ' -left-1 -right-1 top-[34px]" style="max-height:168px">' + oitems + '</div>' : '';
       var othersRow = rest.length ? '<div class="s-row s-menu s-ox relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" aria-expanded="' + othersMenuOpen + '">' + slabel('Others', '', 'plus') +
         '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5 text-xs text-muted-foreground">' + '<span class="s-ox-n">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>' + svg(othersMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none') + '</span>' + omenu + '</div>' : '';
       return (fnd.length ? (many ? '<div class="mx-2 grid grid-cols-2">' + foundRows + '</div>' : foundRows) : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">Nothing found yet. Switch on the ones you use.</div>') + othersRow;

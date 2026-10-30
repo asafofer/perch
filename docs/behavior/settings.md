@@ -25,16 +25,17 @@ Version row's update states in [updates.md](updates.md).
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
   - Agents: what Perch found comes first, in alphabetical order, a line for each agent or app it has seen a session of
     (`isFound`: a count above nothing; herdr, tmux, cmux, agterm and Conductor are listed like the agents) with a check and
-    how many sessions it has. Past six they go two to a line. Under them Others, one row that opens a popover list, like
-    Notify me about: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one
-    on. Closed, it says "12 more" or, once some are on, "2 on". With nothing found yet there is a quiet line and Others
-    ("15 to choose from"). Up and Down choose in the popover, Return switches one, Left or Esc closes it; the card grows to
-    hold it, up to 440 pt, and the list scrolls past that. With all fifteen found the page is 348 pt. Kept as
-    `sources.disabled`, and `sources.optedIn` for Claude chats and for what is in Others, which start off.
+    how many sessions it has. Past six they go two to a line. Under them Others, one row that opens a popover list as wide as
+    the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
+    shows five lines and scrolls past that, fading at the edge that has more; the card grows only by what the list needs
+    past the rows. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet there is a quiet
+    line and Others ("15 to choose from"). Up and Down choose in the popover, Return switches one, Left or Esc closes it.
+    With all fifteen found the page is 348 pt. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for
+    what is in Others, which start off.
     Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line),
     then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Here is what Perch
-    found". Past six found the tiles are slim with no second line, and past ten the list scrolls. Others is one line under
-    them, opening the same popover over the note and buttons.
+    found". Others is the grid's last tile, quieter than the rest, so it fills the slot beside an odd one out; it opens the
+    same five-line popover under it. Past six found the tiles are slim with no second line, and past ten the list scrolls.
   - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
     under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
     marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.
