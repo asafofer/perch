@@ -93,14 +93,6 @@
     var g = {
       opencode: ['#131010', '<path d="M9 10.5h6v6H9z" fill="#5A5858"/><path fill-rule="evenodd" d="M18 19.5H6v-15h12zM15 7.5H9v9h6z" fill="#fff"/>'],
       cursor: ['#14120B', '<path d="M12 4.5l6.5 3.75v7.5L12 19.5l-6.5-3.75v-7.5z" fill="#EDECEC"/><path d="M12 4.5l6.5 3.75L12 12z" fill="#B8B6B0"/><path d="M12 12l6.5-3.75v7.5z" fill="#8A8883"/>'],
-      /* the apps agents run in, until the app sends each one's real icon */
-      cmux: ['#0B2A3B', '<path d="M7.5 8.5l3.5 3.5-3.5 3.5M12.5 16h4.5" stroke="#7DD3FC" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
-      agterm: ['#2B1B3A', '<path d="M7.5 8.5l3.5 3.5-3.5 3.5M12.5 16h4.5" stroke="#D8B4FE" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'],
-      conductor: ['#2A2118', '<path d="M7 8h10M7 12h7M7 16h4" stroke="#FCD34D" stroke-width="1.9" fill="none" stroke-linecap="round"/>'],
-      /* Muse, Dots and Grok Bot: stand-ins until the app sends each one's real icon (`icons`) */
-      muse: ['#0F172A', '<path d="M6.5 16.5v-6a2.75 2.75 0 0 1 5.5 0v6m0-6a2.75 2.75 0 0 1 5.5 0v6" fill="none" stroke="#E2E8F0" stroke-width="2" stroke-linecap="round"/>'],
-      dots: ['#18181B', '<circle cx="6.75" cy="12" r="2" fill="#fff"/><circle cx="12" cy="12" r="2" fill="#fff" fill-opacity=".62"/><circle cx="17.25" cy="12" r="2" fill="#fff" fill-opacity=".32"/>'],
-      grokbot: ['#000', '<circle cx="11" cy="13" r="4.6" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M9.1 15.1L17.6 6.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>'],
       pi: ['#18181B', '<g transform="translate(.07 .07) scale(.02982)"><path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/><path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/><path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/></g>']
     }[k] || ['#52525B', ''];
     return '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="' + g[0] + '"/>' + g[1] + '</svg>';
