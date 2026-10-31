@@ -87,14 +87,25 @@ public final class GrokBotStore: @unchecked Sendable {
     }
 
     /// What was said lately with a bot, from the app's copy of its chat (the latest entries only; no tool calls, no turn ends).
-    /// Nil for a bot not opened on this Mac.
+    /// Nil for a bot not opened on this Mac. Read again only when its file changed.
     public func words(bot id: String) -> SessionDigest? {
-        guard let entries = (accountSlice("transcript.replicas.\(id)") as? [String: Any])?["entries"] as? [[String: Any]] else { return nil }
-        return Self.digest(entries)
+        guard let account else { return nil }
+        let url = root.appendingPathComponent(Self.fileName("sand.client.slice.account.\(account).transcript.replicas.\(id)"))
+        guard let m = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate else { return nil }
+        lock.lock(); let hit = wordsCache[url.path]; lock.unlock()
+        if let hit, hit.mtime == m { return hit.digest }
+        guard let data = try? Data(contentsOf: url), let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let entries = (o["value"] as? [String: Any])?["entries"] as? [[String: Any]] else { return nil }
+        let d = Self.digest(entries)
+        lock.lock(); wordsCache[url.path] = (m, d); lock.unlock()
+        return d
     }
+    private var wordsCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
+    private let lock = NSLock()
 
     static func digest(_ entries: [[String: Any]]) -> SessionDigest {
         var d = SessionDigest()
+        var leavesOnMoveOn = false   // the open card goes away once the bot says something else (`dismissOnMoveOn`)
         for e in entries {
             let at = (e["timestampMs"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
             switch e["kind"] as? String {
@@ -109,6 +120,7 @@ public final class GrokBotStore: @unchecked Sendable {
                     guard let raw = m["content"] as? String, let t = TranscriptParser.text(from: raw), !t.isEmpty else { continue }
                     d.lastAssistantText = t; d.lastAssistantFull = TranscriptParser.text(from: raw, keepLines: true)
                     d.lastRole = "assistant"; d.lastTimestamp = at ?? d.lastTimestamp
+                    if leavesOnMoveOn { d.pendingTool = nil; leavesOnMoveOn = false }
                 case "widget":
                     // A question with choices, open until you pick one or skip it.
                     // The entry carries what became of it (`respondedValue`, `widgetSkipped`).
@@ -116,6 +128,7 @@ public final class GrokBotStore: @unchecked Sendable {
                     let options = (w["options"] as? [[String: Any]] ?? []).compactMap { $0["label"] as? String }.map { ["label": $0] }
                     let q: [String: Any] = ["questions": [["question": w["prompt"] as? String ?? "A question for you", "options": options]]]
                     d.pendingTool = PendingTool(block: ["name": "AskUserQuestion", "input": q])
+                    leavesOnMoveOn = w["dismissOnMoveOn"] as? Bool == true
                     d.lastTimestamp = at ?? d.lastTimestamp
                 default: continue
                 }

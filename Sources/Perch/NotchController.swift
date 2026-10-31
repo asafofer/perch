@@ -858,15 +858,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Icons go once per page load. An app missing from them (installed later, or mid-update at launch) is looked for again each minute.
+    private var avatarsTried = Set<String>()
     private func iconsToSend() -> [String: String]? {
-        // A Grok Bot bot's avatar is drawn once per shape and colour, and sent with the app icons.
+        // A Grok Bot bot's avatar is drawn once per shape and colour, and sent with the app icons. One that cannot be drawn
+        // (no Grok Bot) counts as sent, so it does not make every push look for the icons again.
         let avatars = Set(projects.compactMap(\.avatar).map { "avatar:" + $0 })
-        if let keys = iconKeys, avatars.isSubset(of: keys) {
+        if let keys = iconKeys, avatars.isSubset(of: keys.union(avatarsTried)) {
             guard projects.contains(where: { !keys.contains($0.app) && AppIcons.knows($0.app) }), Date().timeIntervalSince(iconsCheckedAt) > 60 else { return nil }
         }
         iconsCheckedAt = Date()
         var icons = AppIcons.all()
-        for key in avatars { if let url = GrokBotAvatars.dataURL(key.dropFirst("avatar:".count)) { icons[key] = url } }
+        for key in avatars { avatarsTried.insert(key); if let url = GrokBotAvatars.dataURL(key.dropFirst("avatar:".count)) { icons[key] = url } }
         if let keys = iconKeys, Set(icons.keys) == keys { return nil }
         iconKeys = Set(icons.keys)
         return icons

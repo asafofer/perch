@@ -14,18 +14,24 @@ enum GrokBotAvatars {
     }
 
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var drawn: [String: String] = [:]
+    /// Drawn once per look; nil remembered too (no Grok Bot, or no image for that shape), so it is not looked for again.
+    nonisolated(unsafe) private static var drawn: [String: String?] = [:]
 
     /// "tablet:yellow" as a PNG data URL, or nil when Grok Bot is not installed or has no image for that shape.
     static func dataURL<S: StringProtocol>(_ look: S) -> String? {
         let key = String(look)
         lock.lock(); let hit = drawn[key]; lock.unlock()
         if let hit { return hit }
+        let url = draw(key)
+        lock.lock(); drawn[key] = .some(url); lock.unlock()
+        return url
+    }
+
+    private static func draw(_ key: String) -> String? {
         let parts = key.split(separator: ":").map(String.init)
         guard parts.count == 2, let color = colors[parts[1]], let app = AppIcons.url("grokbot"),
               let png = Asar.file("dist/electron-main/menubar-tray/assets/bot-\(parts[0])@2x.png", in: app.appendingPathComponent("Contents/Resources/app.asar")),
               let url = tinted(png, color) else { return nil }
-        lock.lock(); drawn[key] = url; lock.unlock()
         return url
     }
 
@@ -50,14 +56,25 @@ enum GrokBotAvatars {
 /// Reads one file out of an Electron `.asar` archive: an 8-byte prefix, then a header (a pickled JSON index of every file,
 /// each with its `size` and `offset` from the end of the header), then the files' bytes.
 enum Asar {
+    private static let lock = NSLock()
+    /// The index of the archive read last, kept while the file is the same (path and modification date).
+    nonisolated(unsafe) private static var cached: (key: String, headerSize: Int, index: [String: Any])?
+
     static func file(_ path: String, in archive: URL) -> Data? {
         guard let h = try? FileHandle(forReadingFrom: archive) else { return nil }
         defer { try? h.close() }
-        func u32(_ d: Data, _ at: Int) -> Int { Int(d[d.startIndex + at]) | Int(d[d.startIndex + at + 1]) << 8 | Int(d[d.startIndex + at + 2]) << 16 | Int(d[d.startIndex + at + 3]) << 24 }
-        guard let prefix = try? h.read(upToCount: 16), prefix.count == 16 else { return nil }
-        let headerSize = u32(prefix, 4), jsonSize = u32(prefix, 12)
-        guard headerSize > 0, jsonSize > 0, jsonSize < 64 << 20, (try? h.seek(toOffset: 16)) != nil,
-              let json = try? h.read(upToCount: jsonSize), let index = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else { return nil }
+        let key = archive.path + "|" + String(describing: (try? archive.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate)
+        lock.lock(); var hit = cached?.key == key ? cached : nil; lock.unlock()
+        if hit == nil {
+            func u32(_ d: Data, _ at: Int) -> Int { Int(d[d.startIndex + at]) | Int(d[d.startIndex + at + 1]) << 8 | Int(d[d.startIndex + at + 2]) << 16 | Int(d[d.startIndex + at + 3]) << 24 }
+            guard let prefix = try? h.read(upToCount: 16), prefix.count == 16 else { return nil }
+            let headerSize = u32(prefix, 4), jsonSize = u32(prefix, 12)
+            guard headerSize > 0, jsonSize > 0, jsonSize < 64 << 20, (try? h.seek(toOffset: 16)) != nil,
+                  let json = try? h.read(upToCount: jsonSize), let index = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else { return nil }
+            hit = (key, headerSize, index)
+            lock.lock(); cached = hit; lock.unlock()
+        }
+        guard let (_, headerSize, index) = hit else { return nil }
         var node: [String: Any]? = index
         for part in path.split(separator: "/") { node = (node?["files"] as? [String: Any])?[String(part)] as? [String: Any] }
         guard let entry = node, entry["unpacked"] as? Bool != true, let size = entry["size"] as? Int,

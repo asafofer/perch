@@ -181,11 +181,13 @@ enum Restorer {
             return
         }
         if p.app == Agent.grokbot.id || p.app == Agent.dots.id, let url = link(p) {
-            // Their own app, by bundle: two copies of the ChatGPT app can claim `codex://`, and only the newer has Dots.
+            // Their own app, the newest copy: two copies of the ChatGPT app can claim `codex://`, and only the newer has Dots.
             let bundle = p.app == Agent.dots.id ? codexApp : grokBotApp
-            if let app = AppIcons.url(p.app) { NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) }
+            if let app = newest(bundle) { NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) }
             else { NSWorkspace.shared.open(url) }
-            done(.app(bundle, exact: true))
+            // A bot's link focuses its own reply box. Dots' opens its home, whose focused field may be a Codex prompt: a
+            // reply there would go to the wrong place, so it stays on the clipboard.
+            done(.app(bundle, exact: p.app == Agent.grokbot.id))
             return
         }
         if let url = link(p) {
@@ -194,6 +196,12 @@ enum Restorer {
             return
         }
         done(.none)   // sample data does nothing
+    }
+
+    /// The newest installed copy of an app, by its version: an older copy can share the bundle id.
+    nonisolated static func newest(_ bundle: String) -> URL? {
+        let version = { (u: URL) in Bundle(url: u)?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "" }
+        return NSWorkspace.shared.urlsForApplications(withBundleIdentifier: bundle).max { version($0).compare(version($1), options: .numeric) == .orderedAscending }
     }
 
     /// Where a session in the Claude app opens: a Code session, a task (what was Cowork), a chat. Nil for anything else.

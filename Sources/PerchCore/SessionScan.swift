@@ -67,6 +67,7 @@ public final class SessionScanner: @unchecked Sendable {
     let claudeCache: ClaudeCache
     let claudeWords: ClaudeWords
     let dotsStore: DotsStore
+    let grokStore: GrokBotStore
 
     /// The Claude app's tasks and chats are read from `home` unless given, so a test's home folder holds them too.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared,
@@ -76,6 +77,7 @@ public final class SessionScanner: @unchecked Sendable {
         self.claudeCache = claudeCache ?? ClaudeCache(root: idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob"))
         self.claudeWords = ClaudeWords(idb: idb)
         self.dotsStore = DotsStore(url: home.appendingPathComponent(".codex/.codex-global-state.json"))
+        self.grokStore = GrokBotStore(root: home.appendingPathComponent("Library/Application Support/Grok Bot/sand-client-persistence"))
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -248,11 +250,11 @@ public final class SessionScanner: @unchecked Sendable {
         }
     }
 
-    /// Grok Bot's bots and OpenAI's Dots, from their apps' saved state (`PersonalAgents.swift`). A bot's chat copy is read only
-    /// when its file changed.
+    /// Grok Bot's bots and OpenAI's Dots, from their apps' saved state (`PersonalAgents.swift`). A bot's chat copy is parsed
+    /// again only when its file changed.
     public func grokBots(limit: Int, now: Date = Date()) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let store = GrokBotStore(root: home.appendingPathComponent("Library/Application Support/Grok Bot/sand-client-persistence"))
+        let store = grokStore
         return store.bots().filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
             let words = store.words(bot: b.id)
             var d = words ?? SessionDigest()
@@ -397,7 +399,7 @@ public final class SessionScanner: @unchecked Sendable {
             guard digest.lastTimestamp != nil else { continue }
             let chat = Recap.isTrivial(digest)   // kept, marked: the app lists it only while it runs
             // Oh My Pi rewrites its title line in place: read it fresh. Unnamed, it goes by your first prompt, as pi's own list does.
-            if agent == .omp, let t = Self.head(of: item.url, lines: 1, parse: PiTranscript.digest)?.title { digest.title = t }
+            if agent == .omp, let t = Self.head(of: item.url, lines: 1, window: 4096, parse: PiTranscript.digest)?.title { digest.title = t }
             if digest.title == nil { digest.title = cachedFirstPrompt(item.url) }
             digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
@@ -565,10 +567,10 @@ public final class SessionScanner: @unchecked Sendable {
 
     /// The first line of a Codex or pi file holds the folder and id, far from the tail we read for messages.
     /// `lines`: how many lines the head is (Oh My Pi puts a title line before its header).
-    static func head(of url: URL, lines: Int = 1, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
+    static func head(of url: URL, lines: Int = 1, window: Int = 1_000_000, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: 1_000_000) else { return nil }
+        guard let data = try? handle.read(upToCount: window) else { return nil }
         // Cut at newlines before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
         var out: [String] = [], start = data.startIndex
         while out.count < lines, let end = data[start...].firstIndex(of: 0x0A), let line = String(data: data[start..<end], encoding: .utf8) {

@@ -87,6 +87,17 @@ private final class PersonalHome {
         #expect(p?.status.text == "Grok Bot is waiting for you")
     }
 
+    @Test func aGrokBotCardThatGoesAwayOnMoveOnIsNoLongerAsked() {
+        let h = PersonalHome()
+        h.bots([h.bot("m", "Scout", ago: 30, last: "Never mind, I booked the window.")])
+        h.accountSlice("transcript.replicas.m", ["entries": [
+            ["kind": "send-message", "message": ["type": "widget", "widget": ["prompt": "Which seat?", "dismissOnMoveOn": true, "options": [["label": "Window"], ["label": "Aisle"]]]], "timestampMs": h.ms(-60)],
+            ["kind": "send-message", "message": ["type": "text", "content": "Never mind, I booked the window."], "timestampMs": h.ms(-30)],
+        ]])
+        let p = h.scanner.grokBots(limit: 15, now: h.now).first?.project
+        #expect(p?.ask == nil); #expect(p?.status.text == "Grok Bot replied")
+    }
+
     @Test func aDotIsOneRowFromTheNewestCopyWithItsLastMessage() {
         let h = PersonalHome()
         let room: [String: Any] = ["message_preview": ["latest_item_timestamp": h.iso(-3600), "preview": "Here is your weekly metrics brief."], "last_read_at": h.iso(-7200)]
