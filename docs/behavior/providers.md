@@ -23,14 +23,14 @@ is the summary to check before promising a feature, and the row a new provider f
 | Muse | ✓ | ✓ | ✓ hooks | ~ shown, answered in its terminal (not driven) | ~ shown, answered in its terminal (not driven) | ✓ typed into its pane or tab | ✓ | ✓ (not driven) | ✓ from its log (not driven) |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
+| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ~ shown with its choices, answered in Grok Bot | ~ pasted (not driven) | ✓ link | ✗ | ✗ |
+| Dots | ~ the ChatGPT app's saved state, one row per dot (not driven) | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted (not driven) | ~ `codex://dots` (not driven) | ✗ | ✗ |
 
-Spiked, not built (the design page draws them; [the spikes](../spikes/) hold the evidence):
+Spiked, not built (the design page draws it; [the spike](../spikes/oh-my-pi.md) holds the evidence):
 
 | Provider | Listed | Words and recap | Live status | Approvals from the notch | Questions from the notch | Reply | Pick up | New session | Pull requests |
 |---|---|---|---|---|---|---|---|---|---|
 | [Oh My Pi](../spikes/oh-my-pi.md) | ✓ | ✓ | ✓ extension | ~ shown, answered in its terminal | ✓ extension takes its `ask` tool | ✓ typed into its pane or tab | ✓ `omp --resume` | ✓ | ✓ from its log |
-| [Grok Bot](../spikes/grok-bot.md) | ✓ the app's cache | ~ | ~ needs you and unread | ✗ read only | ✗ read only | ~ link, not driven | ~ link, not driven | ✗ | ✗ |
-| [Dots](../spikes/dots.md) | ~ the ChatGPT app's state | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted, not driven | ~ `codex://dots`, not driven | ✗ | ✗ |
 
 ## Hosts
 
@@ -59,7 +59,6 @@ Spiked, not built (the design page draws them; [the spikes](../spikes/) hold the
 - **Cloud agents** (Claude Code cloud, Cursor cloud) are a list only: no transcript on this Mac, no hooks.
 - **Running detection** (`Agent.recognise`) knows Claude Code, Codex, OpenCode and pi; one Perch does not recognise never counts as running, so Pick up starts a second copy.
 
-- **Grok Bot and Dots** are cloud agents with no transcript, hook or process on this Mac: a list from the app's saved
-  state, nothing answered from the notch. Neither is coding work, so like Claude chats they may start off.
+- **Grok Bot and Dots** are personal agents in the cloud, each one long chat, with no transcript, hook or process on this Mac: a row per bot or dot from its app's saved state, written only while the app runs, nothing answered from the notch. They start on, like every new source. Grok Bot was driven in the real app (a bot's question on the card, Pick up to that bot). Dots was not: on this Mac its page in ChatGPT never loaded, and its saved copy was 17 days old, past the list's 14 days. Muse's own app (a personal agent) is not available in Israel and is not built.
 - **Agent.answersFromNotch** is one flag for approvals and questions; Oh My Pi answers questions but not approvals, so it
   needs splitting.
