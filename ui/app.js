@@ -1731,7 +1731,7 @@
     if (st === 'idle' && atN.on) {
       /* at the notch: at the left of the row, before the app's icon, carried by the same spring as the notch's edge. It
          comes in once the notch has opened around it, with the row's words; going, it rides the closing edge as it fades. */
-      var ad = 16, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13, axf = 'translate(' + (-w / 2 + as) + 'px,' + ((idleH - ad) / 2) + 'px)';
+      var ad = 22, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13, axf = 'translate(' + (-w / 2 + as) + 'px,' + ((idleH - ad) / 2) + 'px)';
       if (atN.fresh) {
         atN.fresh = false; cr.style.transition = 'none'; cr.style.opacity = 0; cr.style.width = cr.style.height = ad + 'px'; cr.style.transform = axf;
         void cr.offsetWidth; cr.style.transition = 'transform .5s cubic-bezier(.32,1.15,.42,1), opacity .2s .24s';
@@ -2538,6 +2538,9 @@
      notch's inner edge. Answered, it gives one slow, satisfied blink and the notch closes. It never leaves the notch and
      never moves on its own: only its eyes act. ---- */
   var atN = { on: false, out: false, sent: false, fresh: false, t: [] };
+  /* its timing: when the acting starts, and after an answer when the satisfied blink comes and the notch closes (the clip's
+     scenario stretches them to its beats) */
+  var atNT = { fret: 1600, blink: 0, close: 820 };
   function atNClear() { atN.t.forEach(clearTimeout); atN.t = []; cr.dataset.fret = ''; n.dataset.fret = ''; }
   function atNLater(f, ms) { atN.t.push(setTimeout(f, ms)); }
   function atNWants(s, st) {
@@ -2554,7 +2557,7 @@
   function atNIn() {
     atNClear(); atN.on = atN.fresh = true; atN.out = atN.sent = false;
     cr.dataset.nb = n.dataset.nb = '1'; cr.dataset.m = 'alert'; look(0, .9);
-    atNLater(atNFret, 1600);
+    atNLater(atNFret, atNT.fret);
   }
   /* Waiting on you, acted with the face alone. A glance at the buttons and back; then bored: heavy lids, a slow look away,
      a long sighing blink; then impatient: lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and
@@ -2576,7 +2579,7 @@
     /* 0: a glance at what it wants you to press, and back */
     look(2, .7); T(function () { look(0, .9); atNBlink(1); }, 600);
     /* 0.9 s: bored */
-    T(function () { atNFace('bored'); look(-1.4, -.6); }, 900);
+    T(function () { atNFace('bored'); look(-1.4, -.6); cr.dataset.fret = n.dataset.fret = '1'; }, 900);
     T(function () { look(.4, .4); atNSigh(); }, 1500);
     /* 2.4 s: impatient */
     T(function () { atNFace('glare'); cr.dataset.fret = n.dataset.fret = '1'; look(2.2, .7); atNBlink(2); }, 2400);
@@ -2592,15 +2595,17 @@
   function atNAnswered(p, words) {
     var late = function () { return Date.now() - (sentLate[p.id] || 0) < 3000; };
     if (late()) { actPressing = false; sentShow(p, words); return; }
-    atNClear(); atN.sent = true; look(0, .5);
-    cr.classList.add('blink');
-    atNLater(function () { cr.classList.remove('blink'); cr.dataset.m = 'happy'; }, 160);
+    var fret = n.dataset.fret;
+    atNClear(); atN.sent = true; look(0, .5); n.dataset.fret = fret;
+    /* the glow lets go as it blinks */
+    atNLater(function () { n.style.setProperty('--nbg', '1.1s'); n.dataset.fret = ''; cr.classList.add('blink'); }, atNT.blink);
+    atNLater(function () { cr.classList.remove('blink'); cr.dataset.m = 'happy'; }, atNT.blink + 160);
     atNLater(function () {
       actPressing = false;
       if (late()) { sentShow(p, words); return; }
       if (sentBase) actKnown = sentBase;
       sentBase = null; setAct('', null, true); if (snap) { activity(snap, lastSt); layout(lastSt, snap); }
-    }, 820);
+    }, atNT.close);
   }
   /* it fades as the row's words do, carried by the closing edge on the notch's own curve */
   function atNOut() {
@@ -2610,7 +2615,7 @@
       atN.on = atN.out = atN.sent = false; cr.dataset.nb = ''; cr.classList.remove('blink'); look(0, 0);
       cr.style.transition = ''; if (snap) layout(lastSt, snap);
     }, 200);
-    atNLater(function () { n.dataset.nb = ''; }, 600);   /* the notch keeps its closing spring to the end */
+    atNLater(function () { n.dataset.nb = ''; n.style.removeProperty('--nbg'); }, 600);   /* the notch keeps its closing spring to the end */
   }
   /* ---- the character watches you move between sessions. In the list its eyes go to the row you are on, and when you stop there it blinks.
      Its face is that session's: wide-eyed if it needs you, with a start as you arrive, a happy squint if it finished.
@@ -4451,7 +4456,25 @@
          request stays unanswered; `face`: forced to that face once it is out (perch.notchChar) */
       /* the row folds to wings now instead of after its nine seconds */
       foldNow: function () { clearTimeout(actTimer); actSettle(); },
+      /* the X clip's beats, on one locked frame: closed, open at 0.4 s, waiting and fretting until Allow at 5.5 s, a satisfied
+         blink as the glow lets go, closed again by 8.2 s and held, so it loops */
+      notchClip: function () {
+        d0(); base.selected = 0; actGone = {}; actSeen = {};
+        atNT = { fret: 300, blink: 700, close: 1830 };
+        var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Settings' }) : x; });
+        var on = Object.assign({}, base, { character: charNow, charAtNotch: true, phase: 'idle' });
+        var calm = Q.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });
+        apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() }));
+        autoTimer = setTimeout(function () {
+          apply(Object.assign({}, on, { projects: Q, timerToken: Math.random() }));
+          autoTimer = setTimeout(function () {
+            actDo('allow');
+            autoTimer = setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 2900);
+          }, 5100);
+        }, 400);
+      },
       notchChar: function (hold, face) {
+        atNT = { fret: 1600, blink: 0, close: 820 };
         d0(); base.selected = 0; actGone = {}; actSeen = {};
         var on = Object.assign({}, base, { character: charNow, charAtNotch: true, phase: 'idle' });
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });

@@ -196,8 +196,9 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .n[data-s=idle][data-nb="1"][data-act=full], .n[data-s=idle][data-nb="1"][data-act=wings], .n[data-s=idle][data-nb="1"][data-act=sent] {
   transition: width .5s cubic-bezier(.32,1.15,.42,1), margin-left .5s cubic-bezier(.32,1.15,.42,1), height .5s cubic-bezier(.32,1.15,.42,1), border-radius .5s cubic-bezier(.32,1.15,.42,1),
   box-shadow var(--nbg) cubic-bezier(.3,0,.6,1), --gcol .7s; }
-.n[data-nb="1"][data-fret="1"] { --nbg: 4s; box-shadow: inset 0 0 0 1px rgba(233,168,119,.32), inset 0 -8px 16px -10px rgba(233,168,119,.45); }
-.act[data-nb="1"] > .act-l { padding-left: 22px; max-width: calc(var(--aw) + 44px); }
+.n[data-nb="1"][data-fret="1"] { --nbg: 3.5s; box-shadow: inset 0 0 0 1.5px rgba(233,168,119,.6), inset 0 -10px 18px -10px rgba(233,168,119,.6); }
+.act[data-nb="1"] > .act-l { padding-left: 28px; max-width: calc(var(--aw) + 50px); }
+.act[data-nb="1"] > .act-r { max-width: calc(var(--aw) + 44px); }   /* the room the character takes on the left is not taken from the right */
 /* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
    look itself is not transitioned; their faces still are */
 .cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
@@ -335,6 +336,10 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .act.chose .act-b:not(.on):not(.act-x) { opacity: .35; transition: opacity .12s; }
 .act-b.on, .act-b.on.pt { background: #fafafa; color: #0a0a0a; transition: background-color .08s, color .08s; }
 .act-b.on kbd { background: rgba(0,0,0,.08); color: #52525b; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+/* the shortcut that pressed it flashes in its keycap */
+.act[data-nb="1"] .act-b.on kbd { animation: kflash .6s cubic-bezier(.3,0,.3,1); }
+@keyframes kflash { 0% { transform: scale(1); } 25% { transform: scale(1.22); background: #0a0a0a; color: #fafafa; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .act[data-nb="1"] .act-b.on kbd { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .act > * { transition: opacity .15s; } }
 /* the list's section headers: what needs you, today, earlier */
 .s-sec { padding: 9px 10px 3px; font-size: 11.5px; line-height: 16px; font-weight: 500; color: hsl(var(--muted-foreground) / .8); letter-spacing: 0; }
