@@ -2554,22 +2554,39 @@
   function atNIn() {
     atNClear(); atN.on = atN.fresh = true; atN.out = atN.sent = false;
     cr.dataset.nb = n.dataset.nb = '1'; cr.dataset.m = 'alert'; look(0, .9);
-    atNLater(atNFret, 3000);
+    atNLater(atNFret, 1600);
   }
-  /* waiting on you: side-eye, a double blink now and then, and every other time a look back at you */
+  /* Waiting on you, acted with the face alone. A glance at the buttons and back; then bored: heavy lids, a slow look away,
+     a long sighing blink; then impatient: lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and
+     at you in turn. The orange glow comes in with the glare. */
+  function atNFace(m) { if (atN.on && !atN.out && !atN.sent) cr.dataset.m = m; }
+  function atNBlink(n2, gap) { for (var i = 0; i < (n2 || 1); i++) (function (i) { atNLater(function () { cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); }, 90); }, i * (gap || 210)); })(i); }
+  function atNSigh() { cr.classList.add('sigh'); atNLater(function () { cr.classList.remove('sigh'); }, 900); }
+  function atNRoll() {
+    if (STILL) return;
+    cr.querySelectorAll('.ey').forEach(function (e) {
+      e.animate([{ translate: '1.4px -.6px' }, { translate: '1px -2px', offset: .3 }, { translate: '-1px -2.1px', offset: .55 }, { translate: '-1.8px -.8px', offset: .8 }, { translate: '0px .9px' }],
+        { duration: 1100, easing: 'cubic-bezier(.45,0,.4,1)' });
+    });
+  }
   function atNFret() {
     if (!atN.on || atN.out || atN.sent) return;
-    cr.dataset.m = 'impatient'; cr.dataset.fret = n.dataset.fret = '1'; look(2.2, .7);
-    if (STILL) return;
+    var T = atNLater;
+    if (STILL) { atNFace('glare'); cr.dataset.fret = n.dataset.fret = '1'; look(2, .6); return; }
+    /* 0: a glance at what it wants you to press, and back */
+    look(2, .7); T(function () { look(0, .9); atNBlink(1); }, 600);
+    /* 0.9 s: bored */
+    T(function () { atNFace('bored'); look(-1.4, -.6); }, 900);
+    T(function () { look(.4, .4); atNSigh(); }, 1500);
+    /* 2.4 s: impatient */
+    T(function () { atNFace('glare'); cr.dataset.fret = n.dataset.fret = '1'; look(2.2, .7); atNBlink(2); }, 2400);
+    T(function () { look(0, 1); }, 3100);
+    T(function () { atNFace('bored'); atNRoll(); }, 3500);
+    T(function () { atNFace('glare'); look(2.2, .7); atNBlink(2); }, 4650);
+    /* and on, until you answer: at you, a roll, the buttons with a double blink, a sigh */
+    var beats = [function () { look(0, 1); }, function () { atNFace('bored'); atNRoll(); T(function () { atNFace('glare'); }, 1150); }, function () { look(2.2, .7); atNBlink(2); }, function () { atNSigh(); }];
     var k = 0;
-    (function again() {
-      atNLater(function () {
-        if (!atN.on || atN.out || atN.sent) return;
-        cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); atNLater(function () { cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); }, 90); }, 130); }, 90);
-        if (++k % 2 === 0) { atNLater(function () { look(0, 1); }, 450); atNLater(function () { if (cr.dataset.m === 'impatient') look(2.2, .7); }, 1250); }
-        again();
-      }, 1800);
-    })();
+    (function again(ms) { T(function () { if (!atN.on || atN.out || atN.sent) return; beats[k++ % beats.length](); again(1700); }, ms); })(6300);
   }
   /* answered from the notch: one slow blink that opens into a smile, then the notch closes (Didn't send still says so) */
   function atNAnswered(p, words) {
@@ -3981,8 +3998,15 @@
   window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
   window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
-    /* the character at the notch, forced to a face while it shows: alert, impatient, happy */
-    notchChar: function (m) { if (!atN.on) return; atNClear(); if (m === 'impatient') atNFret(); else if (m === 'happy') { cr.dataset.m = 'happy'; look(0, .5); } else { cr.dataset.m = 'alert'; look(0, .9); } },
+    /* the character at the notch, forced while it shows: a face (alert, bored, glare, happy), or 'act' for the whole wait from its start */
+    notchChar: function (m) {
+      if (!atN.on) return; atNClear();
+      if (m === 'act') atNFret();
+      else if (m === 'glare' || m === 'impatient') { cr.dataset.m = 'glare'; cr.dataset.fret = n.dataset.fret = '1'; look(2.2, .7); }
+      else if (m === 'bored') { cr.dataset.m = 'bored'; look(-1.4, -.6); }
+      else if (m === 'happy') { cr.dataset.m = 'happy'; look(0, .5); }
+      else { cr.dataset.m = 'alert'; look(0, .9); }
+    },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
@@ -4418,7 +4442,8 @@
         }, 1600);
       },
       /* the character at the notch (its setting on), the clip's four beats: Claude works and the notch is quiet; Claude asks
-         and the character drops in; left waiting it grows impatient; Command+Option+A, it smiles and ducks away. `hold`: the
+         and the notch opens with the character in it; left waiting it gets bored, then impatient; Command+Option+A, a satisfied
+         blink and the notch closes. `hold`: the
          request stays unanswered; `face`: forced to that face once it is out (perch.notchChar) */
       /* the row folds to wings now instead of after its nine seconds */
       foldNow: function () { clearTimeout(actTimer); actSettle(); },
