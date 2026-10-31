@@ -129,6 +129,7 @@ if a.only:
         cv2.imwrite(os.path.splitext(a.out)[0] + f'-{s}.png', np.clip(frame(i) * 255 + .5, 0, 255).astype(np.uint8))
     sys.exit(0)
 enc = subprocess.Popen(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'bgr24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
+                        '-vf', 'scale=out_color_matrix=bt709:out_range=tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
                         '-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', a.out],
                        stdin=subprocess.PIPE)
 for i in range(n):
