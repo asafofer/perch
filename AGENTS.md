@@ -69,6 +69,7 @@ Before changing an area, read its file in `docs/behavior/`:
 - [replies.md](docs/behavior/replies.md): the reply view, drafts, attached files and pasted pictures, sending into Claude or a terminal.
 - [new-session.md](docs/behavior/new-session.md): starting a session from the notch.
 - [agents.md](docs/behavior/agents.md): OpenCode, pi, Conductor, herdr, tmux, cmux, and which process is which session.
+- [providers.md](docs/behavior/providers.md): what each agent, app and terminal supports (approvals, questions, reply, pick up, new session, pull requests) and its limits. Adding one: the `add-provider` skill.
 - [status.md](docs/behavior/status.md): hooks against the transcript, answering permissions and questions, background work, testing the hook socket.
 - [speaking-up.md](docs/behavior/speaking-up.md): the session you are in, the live activity, Sent, the welcome card.
 - [keyboard.md](docs/behavior/keyboard.md): the shortcut that opens Perch, and when a card takes the keyboard.
