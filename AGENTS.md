@@ -1,6 +1,6 @@
 # Perch: guide for people and agents picking this up
 
-Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode, pi or Muse in any terminal, including inside the herdr and cmux multiplexers.
+Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode, pi, Oh My Pi or Muse in any terminal, including inside the herdr and cmux multiplexers.
 
 Read this file first. `README.md` has install and usage. How each feature behaves is in `docs/behavior/`, one file per area (see [Behaviour docs](#behaviour-docs)).
 

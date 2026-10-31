@@ -1,6 +1,6 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode, pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 
@@ -16,6 +16,13 @@ OpenCode, pi and Muse as sources (Cursor, an app like Claude and Codex, is in [s
 - pi writes `~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl`. The first line has the id and folder; entries form a tree but are always appended.
 - The title is the newest `session_info` name, else your first prompt.
 - Resume with `pi --session <id>`.
+
+## Oh My Pi
+
+- omp (github.com/can1357/oh-my-pi) is a fork of pi. It writes pi's files under `~/.omp/agent/sessions/<folder>/<time>_<id>.jsonl`, with one difference: the first line is a 256-byte title slot (`{"type":"title",…}`), rewritten in place on a rename, and the header comes second. So the head is two lines (`SessionScanner.head(lines:)`), the title is read fresh from that slot each scan, else the newest `title_change`, else your first prompt. Subagents' files sit a folder deeper and get no row.
+- Perch's extension is `~/.omp/agent/extensions/perch.ts` (`PerchPlugins.omp`): pi's, with Stop on `agent_end` (unless `willContinue`), main agent only, an approval posted from `tool_approval_requested` with the call's input from `tool_call`, and the `ask` tool registered in its place: it runs omp's own picker through `ctx.invokeTool` and holds the question at Perch, the first answer winning.
+- The process is `omp`. Resume with `omp --resume <id>` (with words after it, they are sent); a new session is `omp '<words>'`.
+- Spike: [oh-my-pi.md](../spikes/oh-my-pi.md).
 
 ## Muse
 

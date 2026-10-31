@@ -20,17 +20,13 @@ is the summary to check before promising a feature, and the row a new provider f
 | Codex, Codex app | ✓ | ✓ | ✓ hooks | ✗ | ✗ | ~ pasted | ✓ link | ✓ link | ✓ from its log |
 | OpenCode (1 and 2) | ✓ | ✓ | ✓ plugin | ✓ | ✓ | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
 | pi | ✓ | ✓ | ✓ extension | — no prompts | ✗ | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
+| Oh My Pi | ✓ | ✓ | ✓ extension | ~ shown, answered in its terminal | ✓ its extension stands in for `ask` | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
 | Muse | ✓ | ✓ | ✓ hooks | ~ shown, answered in its terminal (not driven) | ~ shown, answered in its terminal (not driven) | ✓ typed into its pane or tab | ✓ | ✓ (not driven) | ✓ from its log (not driven) |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
-| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ~ shown with its choices, answered in Grok Bot | ✓ pasted into its reply box | ✓ link | ✗ | ✗ |
+| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ✓ the choice sent as your next message | ✓ pasted into its reply box | ✓ link | ✗ | ✗ |
 | Dots | ~ the ChatGPT app's saved state, one row per dot (not driven) | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted (not driven) | ~ `codex://dots` (not driven) | ✗ | ✗ |
 
-Spiked, not built (the design page draws it; [the spike](../spikes/oh-my-pi.md) holds the evidence):
-
-| Provider | Listed | Words and recap | Live status | Approvals from the notch | Questions from the notch | Reply | Pick up | New session | Pull requests |
-|---|---|---|---|---|---|---|---|---|---|
-| [Oh My Pi](../spikes/oh-my-pi.md) | ✓ | ✓ | ✓ extension | ~ shown, answered in its terminal | ✓ extension takes its `ask` tool | ✓ typed into its pane or tab | ✓ `omp --resume` | ✓ | ✓ from its log |
 
 ## Hosts
 
@@ -60,5 +56,4 @@ Spiked, not built (the design page draws it; [the spike](../spikes/oh-my-pi.md) 
 - **Running detection** (`Agent.recognise`) knows Claude Code, Codex, OpenCode and pi; one Perch does not recognise never counts as running, so Pick up starts a second copy.
 
 - **Grok Bot and Dots** are personal agents in the cloud, each one long chat, with no transcript, hook or process on this Mac: a row per bot or dot from its app's saved state, written only while the app runs, nothing answered from the notch. They start on, like every new source. Grok Bot was driven in the real app against a throwaway bot: its avatar, its question on the card with its choices, Pick up to that bot with its reply box focused, the card following its answer within seconds, and a reply from the notch landing in its chat with you put back where you were. Dots was not: on this Mac its page in ChatGPT never loaded, and its saved copy was 17 days old, past the list's 14 days. Muse's own app (a personal agent) is not available in Israel and is not built.
-- **Agent.answersFromNotch** is one flag for approvals and questions; Oh My Pi answers questions but not approvals, so it
-  needs splitting.
+- **Oh My Pi** is pi with its own folder (`~/.omp`) and a title line before the header. Its approvals (only in an asking mode; the default never asks) are shown and answered in its terminal: no extension call can answer one. Its questions are held beside omp's own picker by Perch's extension, which stands in for omp's `ask` tool; whichever answers first wins. Driven against omp 18.14.1 with a local stand-in model (no omp login on this Mac): listing, status, a question answered from the notch, an approval shown, a reply, Pick up to its tmux pane.
