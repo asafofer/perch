@@ -4467,10 +4467,11 @@
         apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() }));
         autoTimer = setTimeout(function () {
           apply(Object.assign({}, on, { projects: Q, timerToken: Math.random() }));
+          /* 5.5 s: the peak, its hardest glare and the glow at its strongest, held half a second; then it gives up and the notch closes */
           autoTimer = setTimeout(function () {
-            actDo('allow');
-            autoTimer = setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 2900);
-          }, 5100);
+            atNClear(); cr.dataset.fret = n.dataset.fret = '1'; atNFace('glare'); look(2.4, .8); atNBlink(2, 180);
+            autoTimer = setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 600);
+          }, 4900);
         }, 400);
       },
       notchChar: function (hold, face) {
