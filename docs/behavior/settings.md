@@ -35,7 +35,9 @@ Version row's update states in [updates.md](updates.md).
     Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line),
     then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Here is what Perch
     found". Others is the grid's last tile, quieter than the rest, so it fills the slot beside an odd one out; it opens the
-    same five-line popover under it. Past six found the tiles are slim with no second line, and past ten the list scrolls.
+    same list under it, and the note and Back and Next move down below it so they stay in sight. The list is five lines at
+    most, fewer when the card would pass 430 pt; with a long found list it takes the note's place, two and a half lines
+    tall. Past six found the tiles are slim with no second line, and past ten the list scrolls, half a row showing faded.
   - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
     under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
     marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.

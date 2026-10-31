@@ -3190,12 +3190,12 @@
         '<span class="grid ' + (dense ? 'size-4' : 'size-5') + ' flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', dense ? 'size-2.5' : 'size-3') + '</span>' +
         '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4 text-muted-foreground">Others</span>' + (dense ? '' : '<span class="ox-n block truncate text-xs leading-4 text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>') + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
       var oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] hidden" role="menu">' + rest.map(function (x, i) { return popItem(x, i, 'ox-it', 'data-id="' + x.id + '"'); }).join('') + '</div>';
-      var grid = '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:146px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 16px),transparent)"' : '') + '>' + fnd.map(tile).join('') + oxTile + '</div>';
+      var grid = '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:172px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent)"' : '') + '>' + fnd.map(tile).join('') + oxTile + '</div>';
       var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
       var othersHtml = '';
       h = otitle(o, head, sub) +
         oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
-        oi(4, '<p class="mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
+        oi(4, '<p class="o-allow mt-2 px-4 text-xs leading-4 text-muted-foreground">macOS may ask to let Perch see a project folder. Choose Allow.</p>') +
         ofoot(5, true, '', 'Next', 'next');
     } else if (st === 5) {
       var live = o.live === 'on';
@@ -3335,15 +3335,28 @@
   function oxOpen(open) {
     var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop'), h = x && x.querySelector('.ox-h');
     if (!pop) return;
-    var rv = x.closest('.o-i'); if (rv) { rv.style.position = 'relative'; rv.style.zIndex = open ? '20' : ''; }   /* above the note and the buttons it covers */
     pop.classList.toggle('hidden', !open); h.setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
-    box.style.minHeight = '';
+    var rv = x.closest('.o-i'); if (rv) { rv.style.position = ''; rv.style.zIndex = ''; }
+    var note = box.querySelector('.o-allow'); if (note) note.style.visibility = '';
+    box.style.minHeight = ''; x.style.paddingBottom = '';
     if (open) {
       pop.style.top = (h.offsetTop + h.offsetHeight + 4) + 'px';
-      pop.style.maxHeight = '168px';   /* five lines; more scroll */
-      /* the card grows only by what the list needs past its own bottom */
-      var need = pop.getBoundingClientRect().bottom - box.getBoundingClientRect().top + 8;
-      if (need > box.getBoundingClientRect().height) box.style.minHeight = need + 'px';
+      /* The list opens under Others and the note and Back and Next move down below it, so they stay in sight. Five lines
+         at most, fewer when the card would outgrow the panel (430 pt with its top); more scroll. */
+      pop.style.maxHeight = '168px'; x.style.paddingBottom = (pop.offsetHeight + 8) + 'px';
+      var pane = box.closest('.inner') || box, over = pane.getBoundingClientRect().height - 430;
+      if (over > 0 && 168 - over >= 100) { pop.style.maxHeight = (168 - over) + 'px'; x.style.paddingBottom = (pop.offsetHeight + 8) + 'px'; }
+      else if (over > 0) {
+        /* a long found list leaves no room below it: the list takes the note's place, two and a half lines tall so it
+           shows it scrolls, and Back and Next move down only by what it still needs */
+        x.style.paddingBottom = '';
+        var fi = box.querySelector('.o-back'); fi = fi && fi.closest('.o-i');
+        if (rv) { rv.style.position = 'relative'; rv.style.zIndex = '20'; }
+        if (note) note.style.visibility = 'hidden';
+        pop.style.maxHeight = '88px';
+        var short = fi ? pop.getBoundingClientRect().bottom + 6 - fi.getBoundingClientRect().top : 0;
+        if (short > 0) x.style.paddingBottom = short + 'px';
+      }
       oxFocus = -1; oxPaint(); oxFade(pop); pop.onscroll = function () { oxFade(pop); };
       if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
     }
