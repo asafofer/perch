@@ -176,11 +176,19 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr.blink .ey { transform: scaleY(.1); }
 .cr .f { transition: translate .4s cubic-bezier(.3,1.35,.5,1); }
 .cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f, .cr[data-m=impatient] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
-/* the character at the notch, left waiting: its eyes slide to the corner under lowered lids, and an orange glow slowly grows */
+/* the character at the notch, left waiting: its eyes slide to the corner under lowered lids. At the notch it never leans
+   or bounces; only its eyes move, on one calm curve. */
 .cr[data-m=impatient] .ey { height: 15%; top: calc(var(--et) + 6%); border-radius: 30% 30% 50% 50% / 20% 20% 80% 80%; }
-.cr[data-nb="1"] .f { filter: drop-shadow(0 0 0 rgba(233,168,119,0)); transition: translate .4s cubic-bezier(.3,1.35,.5,1), filter .5s; }
-.cr[data-nb="1"][data-fret="1"] .f { filter: drop-shadow(0 0 4px rgba(233,168,119,.7)); transition: translate .4s cubic-bezier(.3,1.35,.5,1), filter 5s cubic-bezier(.3,0,.6,1); }
-/* the row makes room for it before the app's icon */
+.cr[data-nb="1"][data-m] .f { translate: none; animation: none; }
+.cr[data-nb="1"] .ey { transition: translate .5s cubic-bezier(.25,1,.35,1), width .4s cubic-bezier(.25,1,.35,1), height .4s cubic-bezier(.25,1,.35,1), top .4s cubic-bezier(.25,1,.35,1),
+  border-radius .4s, --bite .4s cubic-bezier(.25,1,.35,1), transform .11s cubic-bezier(.4,0,.2,1); }
+/* ... and the notch opens and closes in one spring, its width and height together, and an orange glow grows along its inner edge */
+.n[data-s=idle][data-nb="1"] { --nbg: .4s; transition: width .42s cubic-bezier(.4,0,.2,1), margin-left .42s cubic-bezier(.4,0,.2,1), height .42s cubic-bezier(.4,0,.2,1), border-radius .42s cubic-bezier(.4,0,.2,1),
+  box-shadow var(--nbg) cubic-bezier(.3,0,.6,1), --gcol .7s, background-color 0s .42s; }
+.n[data-s=idle][data-nb="1"][data-act=full], .n[data-s=idle][data-nb="1"][data-act=wings], .n[data-s=idle][data-nb="1"][data-act=sent] {
+  transition: width .5s cubic-bezier(.32,1.15,.42,1), margin-left .5s cubic-bezier(.32,1.15,.42,1), height .5s cubic-bezier(.32,1.15,.42,1), border-radius .5s cubic-bezier(.32,1.15,.42,1),
+  box-shadow var(--nbg) cubic-bezier(.3,0,.6,1), --gcol .7s; }
+.n[data-nb="1"][data-fret="1"] { --nbg: 5s; box-shadow: inset 0 0 0 1px rgba(233,168,119,.32), inset 0 -8px 16px -10px rgba(233,168,119,.45); }
 .act[data-nb="1"] > .act-l { padding-left: 22px; max-width: calc(var(--aw) + 44px); }
 /* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
    look itself is not transitioned; their faces still are */

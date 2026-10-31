@@ -1729,9 +1729,13 @@
     n.dataset.s = st;
     curH = h;
     if (st === 'idle' && atN.on) {
-      /* at the notch: at the left of the row, before the app's icon */
-      var ad = 16, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13; cr.style.width = cr.style.height = ad + 'px';
-      cr.style.transform = 'translate(' + (-w / 2 + as) + 'px,' + ((idleH - ad) / 2) + 'px)';
+      /* at the notch: at the left of the row, before the app's icon, carried by the same spring as the notch's edge. It
+         comes in once the notch has opened around it, with the row's words; going, it rides the closing edge as it fades. */
+      var ad = 16, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13, axf = 'translate(' + (-w / 2 + as) + 'px,' + ((idleH - ad) / 2) + 'px)';
+      if (atN.fresh) {
+        atN.fresh = false; cr.style.transition = 'none'; cr.style.opacity = 0; cr.style.width = cr.style.height = ad + 'px'; cr.style.transform = axf;
+        void cr.offsetWidth; cr.style.transition = 'transform .5s cubic-bezier(.32,1.15,.42,1), opacity .2s .24s';
+      } else cr.style.transform = axf;
     } else if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
       /* beside the notch, or beside the live activity when it has widened the notch */
@@ -1743,14 +1747,14 @@
       cr.style.transform = 'translate(' + (-CARD_W / 2 + 16) + 'px,' + ((idleH - 20) / 2) + 'px)';
     }
     /* idle: nothing beside the notch. What needs you is said by the notch itself (the live activity below). */
-    var news = atN.on;
+    var news = atN.on && !atN.out;
     /* on the character page the big preview is the character, so the small one steps out of its corner, and comes back after */
     var choosing = st === 'onb' && (onbStep === 0 || onbStep === 1) && !celebrating;
     if (choosing) cr.style.transform += ' translateY(-6px) scale(.3)';
     var crHide = (st === 'idle' && !news && !hello) || choosing;
     /* Put away with the card: it fades where it stands and only then takes its place beside the notch, unseen. Moving while
        it faded, it slid off sideways, half there. */
-    if (crHide && st === 'idle' && cr.style.opacity !== '0' && !STILL) {
+    if (atN.on) {} else if (crHide && st === 'idle' && cr.style.opacity !== '0' && !STILL) {
       cr.style.transition = 'transform 0s .26s, width 0s .26s, height 0s .26s, opacity .24s'; clearTimeout(crHideT);
       crHideT = setTimeout(function () { crHideT = 0; if (cr.style.transition !== 'none') cr.style.transition = ''; }, 320);
     } else if (!crHide && crHideT) { clearTimeout(crHideT); crHideT = 0; cr.style.transition = ''; }   /* back before it settled: it moves as always */
@@ -2197,6 +2201,7 @@
     act.keys = []; actPressing = !!b && !calm; delete sentLate[p.id]; sentBase = actKnown;
     if (actPressing) { actEl.classList.add('chose'); b.classList.add('on'); }
     post(m);
+    if (atN.on && !atN.out) { actPressing = true; setTimeout(function () { atNAnswered(p, sentWords(m)); }, calm ? 0 : 170); return; }
     setTimeout(function () { actPressing = false; sentShow(p, sentWords(m)); }, actPressing ? 170 : 0);
   }
   /* An answer given from Perch says it went. The row folds to one line, the session on the left and what you chose on the
@@ -2518,7 +2523,7 @@
   new MutationObserver(function () {
     var m = cr.dataset.m;
     /* it hops when it wakes up, not every time its face changes */
-    if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek')) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
+    if ((m === 'awake' || m === 'alert') && (wasMood === 'sleep' || wasMood === 'peek') && !atN.on) { inner.classList.remove('hop'); void inner.offsetWidth; inner.classList.add('hop'); look(0, 0); }
     /* turning happy, it gives a little bounce as the smile comes up */
     if (m === 'happy' && wasMood !== 'happy' && !celebrating && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
       var up = 'cubic-bezier(.2,.8,.4,1)'; inner.style.transformOrigin = '50% 100%';
@@ -2528,11 +2533,12 @@
     if (m !== 'peek') wasMood = m;
   }).observe(cr, { attributes: true, attributeFilter: ['data-m'] });
   /* ---- the character at the notch (Settings, Notifications: Character at the notch). A request in a session you are not
-     in: it drops in from behind the screen's edge at the left of the row, wide-eyed, looking at you. Left waiting, it grows
-     impatient: its eyes slide to the buttons under lowered lids, it blinks twice now and then, and an orange glow slowly
-     grows. Answered, it smiles, then ducks back up out of sight. Answered elsewhere, it just ducks away. ---- */
-  var atN = { on: false, out: false, sent: false, t: [], force: '' };
-  function atNClear() { atN.t.forEach(clearTimeout); atN.t = []; cr.dataset.fret = ''; }
+     in: the notch opens in one spring with your character inside it, at the left of the row, looking at you. Left waiting,
+     its eyes slide to the buttons under lowered lids, it blinks twice now and then, and an orange glow grows along the
+     notch's inner edge. Answered, it gives one slow, satisfied blink and the notch closes. It never leaves the notch and
+     never moves on its own: only its eyes act. ---- */
+  var atN = { on: false, out: false, sent: false, fresh: false, t: [] };
+  function atNClear() { atN.t.forEach(clearTimeout); atN.t = []; cr.dataset.fret = ''; n.dataset.fret = ''; }
   function atNLater(f, ms) { atN.t.push(setTimeout(f, ms)); }
   function atNWants(s, st) {
     if (!s.charAtNotch || st !== 'idle' || hello || celebrating) return false;
@@ -2540,53 +2546,54 @@
     return (act.mode === 'full' || act.mode === 'wings') && !!act.p && !act.p.update && !act.p.access && ['run', 'ask', 'plan', 'need'].indexOf(act.kind) >= 0;
   }
   function atNotch(s, st) {
+    if (st !== 'idle' && atN.on) { atNClear(); atN.on = atN.out = atN.sent = false; cr.dataset.nb = n.dataset.nb = ''; cr.style.transition = ''; return; }
     var want = atNWants(s, st);
-    if (st !== 'idle' && atN.on) { atNClear(); atN.on = atN.out = atN.sent = false; cr.dataset.nb = ''; cr.querySelector('.cr-in').getAnimations().forEach(function (a) { a.cancel(); }); return; }
     if (want && !atN.on) atNIn();
-    else if (atN.on && !atN.out && act.mode === 'sent' && !atN.sent) atNSent();
     else if (atN.on && !atN.out && !want) atNOut();
   }
   function atNIn() {
-    var ci = cr.querySelector('.cr-in');
-    atNClear(); atN.on = true; atN.out = atN.sent = false; cr.dataset.nb = '1';
-    cr.style.transition = 'none'; cr.style.opacity = 1; cr.dataset.m = 'alert'; look(0, .9);
-    requestAnimationFrame(function () { cr.style.transition = ''; });
-    if (!STILL) ci.animate([{ transform: 'translateY(-24px) scale(.8,1.15)', easing: 'cubic-bezier(.5,0,.8,.5)' }, { transform: 'translateY(1px) scale(1.14,.86)', offset: .5, easing: 'cubic-bezier(.2,.8,.4,1)' },
-      { transform: 'translateY(-2px) scale(.96,1.05)', offset: .75 }, { transform: 'none' }], { duration: 520 });
+    atNClear(); atN.on = atN.fresh = true; atN.out = atN.sent = false;
+    cr.dataset.nb = n.dataset.nb = '1'; cr.dataset.m = 'alert'; look(0, .9);
     atNLater(atNFret, 3000);
   }
-  /* waiting on you: side-eye, a double blink every so often, and now and then a look back at you */
+  /* waiting on you: side-eye, a double blink now and then, and every other time a look back at you */
   function atNFret() {
     if (!atN.on || atN.out || atN.sent) return;
-    cr.dataset.m = 'impatient'; cr.dataset.fret = '1'; look(2.4, .7);
+    cr.dataset.m = 'impatient'; cr.dataset.fret = n.dataset.fret = '1'; look(2.2, .7);
     if (STILL) return;
-    var n2 = 0;
+    var k = 0;
     (function again() {
       atNLater(function () {
         if (!atN.on || atN.out || atN.sent) return;
-        cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); setTimeout(function () { cr.classList.add('blink'); setTimeout(function () { cr.classList.remove('blink'); }, 90); }, 120); }, 90);
-        if (++n2 % 2 === 0) { look(0, 1); atNLater(function () { if (cr.dataset.m === 'impatient') look(2.4, .7); }, 550); }
+        cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); atNLater(function () { cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); }, 90); }, 130); }, 90);
+        if (++k % 2 === 0) { atNLater(function () { look(0, 1); }, 450); atNLater(function () { if (cr.dataset.m === 'impatient') look(2.2, .7); }, 1250); }
         again();
-      }, 1500 + Math.random() * 500);
+      }, 1800);
     })();
   }
-  function atNSent() {
-    atNClear(); atN.sent = true; cr.dataset.m = 'happy'; look(0, .4);
-    atNLater(atNOut, 900);
+  /* answered from the notch: one slow blink that opens into a smile, then the notch closes (Didn't send still says so) */
+  function atNAnswered(p, words) {
+    var late = function () { return Date.now() - (sentLate[p.id] || 0) < 3000; };
+    if (late()) { actPressing = false; sentShow(p, words); return; }
+    atNClear(); atN.sent = true; look(0, .5);
+    cr.classList.add('blink');
+    atNLater(function () { cr.classList.remove('blink'); cr.dataset.m = 'happy'; }, 160);
+    atNLater(function () {
+      actPressing = false;
+      if (late()) { sentShow(p, words); return; }
+      if (sentBase) actKnown = sentBase;
+      sentBase = null; setAct('', null, true); if (snap) { activity(snap, lastSt); layout(lastSt, snap); }
+    }, 820);
   }
+  /* it fades as the row's words do, carried by the closing edge on the notch's own curve */
   function atNOut() {
-    var ci = cr.querySelector('.cr-in');
     atNClear(); atN.out = true;
-    var gone = function () {
-      cr.style.transition = 'none'; cr.style.opacity = 0; look(0, 0);
-      atN.on = atN.out = atN.sent = false; cr.dataset.nb = '';
-      void cr.offsetWidth; cr.style.transition = '';
-      if (snap) layout(lastSt, snap);
-    };
-    if (STILL) { cr.style.opacity = 0; setTimeout(gone, 250); return; }
-    if (cr.dataset.m !== 'happy') cr.dataset.m = 'awake';
-    ci.animate([{ transform: 'none', easing: 'cubic-bezier(.3,0,.5,1)' }, { transform: 'translateY(1px) scale(1.15,.84)', offset: .3, easing: 'cubic-bezier(.6,0,.9,.4)' },
-      { transform: 'translateY(-26px) scale(.86,1.18)' }], { duration: 440, fill: 'forwards' }).onfinish = function (e) { gone(); e.target.cancel(); };
+    cr.style.transition = STILL ? 'opacity .15s' : 'transform .42s cubic-bezier(.4,0,.2,1), opacity .15s cubic-bezier(.4,0,1,1)'; cr.style.opacity = 0;
+    atNLater(function () {
+      atN.on = atN.out = atN.sent = false; cr.dataset.nb = ''; cr.classList.remove('blink'); look(0, 0);
+      cr.style.transition = ''; if (snap) layout(lastSt, snap);
+    }, 200);
+    atNLater(function () { n.dataset.nb = ''; }, 520);   /* the notch keeps its closing spring to the end */
   }
   /* ---- the character watches you move between sessions. In the list its eyes go to the row you are on, and when you stop there it blinks.
      Its face is that session's: wide-eyed if it needs you, with a start as you arrive, a happy squint if it finished.
@@ -3975,7 +3982,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
   window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* the character at the notch, forced to a face while it shows: alert, impatient, happy */
-    notchChar: function (m) { if (!atN.on) return; atNClear(); if (m === 'impatient') atNFret(); else if (m === 'happy') atNSent(); else { cr.dataset.m = 'alert'; look(0, .9); } },
+    notchChar: function (m) { if (!atN.on) return; atNClear(); if (m === 'impatient') atNFret(); else if (m === 'happy') { cr.dataset.m = 'happy'; look(0, .5); } else { cr.dataset.m = 'alert'; look(0, .9); } },
     /* Swift hid the panel to move it to another display: it shows it again once what goes there is on screen */
     painted: function (token) { requestAnimationFrame(function () { requestAnimationFrame(function () { post({ type: 'painted', token: token }); }); }); } };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (snap) layout({ idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[snap.phase], snap); });
