@@ -106,6 +106,10 @@ private final class MuseHome {
         #expect(by["work"]?.status.kind == "running"); #expect(by["work"]?.now == "Running `cargo test --all`")
         #expect(by["stop"]?.status.text == "You stopped Muse")
         #expect(by["fail"]?.status.text == "Muse stopped on an error"); #expect(by["fail"]?.context == "model unavailable")
+        // a turn end Muse adds later reads as a plain end, never an error
+        h.session("new", cwd: site, ago: 200, records: [h.prompt("new", -230, "run the whole test suite please"), h.shell("new", -225, "c1", "cargo test"),
+                                                        h.result("new", -222, "c1", "ok"), h.said("new", -221, "All green."), h.run("new", -220, #"{"kind":"terminal","terminal":"handed_off"}"#)])
+        #expect(h.scanner.muse(limit: 15, now: h.now).first { $0.project.sessionId == "new" }?.project.status.text == "Muse replied")
     }
 
     @Test func headlessRunsAndGoneFoldersGetNoRow() {

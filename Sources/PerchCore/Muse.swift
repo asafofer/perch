@@ -52,10 +52,12 @@ public enum MuseTranscript {
                 d.recent.append(.init(role: "assistant", text: Recap.clip(text, 420)))
             case "terminal":
                 d.turnOpen = false; open = []
+                // Muse's `TurnTerminal` (its schema, `muse schema generate-ts`): completed, failed or cancelled. The set is open:
+                // its spec reads an unknown one as a plain end, so only `failed` says it went wrong.
                 switch event["terminal"] as? String {
-                case "completed": break
-                case "cancelled", "interrupted", "aborted": d.interrupted = true; d.stoppedAt = at
-                default: d.failed = (event["reason"] as? String) ?? "error"
+                case "cancelled": d.interrupted = true; d.stoppedAt = at
+                case "failed": d.failed = (event["reason"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "error"
+                default: break
                 }
             default: continue
             }
