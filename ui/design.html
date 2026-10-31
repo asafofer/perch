@@ -132,7 +132,9 @@ i.sci svg{width:16px;height:16px}
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
-.film .desk #hw{box-shadow:none}.film .now,.film .ttl{display:none!important}
+.film .desk #hw{box-shadow:none}
+/* filmed close: WebKit draws the coat's filter at screen resolution whatever the zoom, so a film lights it with a gradient instead */
+.film .cr .f g.coat{filter:none!important}.film .cr .f path:not(.pl):not(.fd){fill:url(#coat-film)}.film .now,.film .ttl{display:none!important}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
@@ -1314,6 +1316,8 @@ i.sci svg{width:16px;height:16px}
   if (fm) {
     var want = decodeURIComponent(fm[1].replace(/\+/g, ' '));
     document.documentElement.classList.add('film');
+    document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><radialGradient id="coat-film" cx=".3" cy=".22" r=".95">' +
+      '<stop offset="0" stop-color="#FFF46E"/><stop offset=".45" stop-color="#F9C640"/><stop offset=".85" stop-color="#D88E22"/><stop offset="1" stop-color="#E9A030"/></radialGradient></svg>');
     var b = [].filter.call(document.querySelectorAll('button.sc'), function (x) { return x.querySelector('b').textContent === want; })[0];
     if (b) b.click(); else console.warn('design: no scenario named ' + want);
     return;
