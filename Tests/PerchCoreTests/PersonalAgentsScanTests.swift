@@ -83,7 +83,7 @@ private final class PersonalHome {
             ["kind": "send-message", "message": ["type": "widget", "widget": ["prompt": "Which seat?", "options": [["label": "Window"], ["label": "Aisle"]]]], "timestampMs": h.ms(-30)],
         ]])
         p = h.scanner.grokBots(limit: 15, now: h.now).first?.project
-        #expect(p?.ask?.kind == .question); #expect(p?.ask?.questions.first?.options == ["Window", "Aisle"]); #expect(p?.ask?.answerable == false)
+        #expect(p?.ask?.kind == .question); #expect(p?.ask?.questions.first?.options == ["Window", "Aisle"]); #expect(p?.ask?.answerable == true)
         #expect(p?.status.text == "Grok Bot is waiting for you")
     }
 

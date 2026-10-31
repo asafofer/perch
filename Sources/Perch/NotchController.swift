@@ -699,6 +699,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             return
         }
+        // A Grok Bot bot takes a question's answer as your next message: the choice's words go into its reply box and are sent.
+        if ask.agent == Agent.grokbot.id {
+            let text = answers.flatMap { $0.values.first } ?? choice
+            guard !text.isEmpty else { notSent(p.id); return }
+            markSeen(p)
+            let onCard = machine.phase != .idle
+            if onCard || putAway?.session == p.id { putAway = nil }
+            pasteReply(text, to: p.id)
+            send(.dismiss)
+            return
+        }
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice)) { [weak self] delivered in
             if !delivered { self?.notSent(p.id) }
         }

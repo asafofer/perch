@@ -548,7 +548,8 @@ public enum Recap {
         p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText ?? b.lastText)
         p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)
         p.askedLast = words?.lastRole == "user"
-        if var q = asks { q.transcriptAt = b.lastActivity; p.ask = q }
+        // Its question is answered by sending the choice as your next message, which Perch can do (`pasteReply`).
+        if var q = asks { q.transcriptAt = b.lastActivity; q.answerable = q.kind == .question && !q.questions.isEmpty && q.questions.allSatisfy { (1...9).contains($0.options.count) }; p.ask = q; if q.answerable { p.headline = "" } }
         return p
     }
 
