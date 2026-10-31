@@ -23,6 +23,8 @@
     pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     gear: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+    squareTerm: '<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>',
+    codeXml: '<path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/>',
     /* Settings rows (Lucide, lucide.dev, ISC) */
     keyboard: '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
     cat: '<path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/><path d="M8 14v.5"/><path d="M16 14v.5"/><path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/>',
@@ -70,8 +72,8 @@
   function byName(list) { return list.slice().sort(function (a, b) { var x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; }); }
   /* The apps step lists agents by how they are used, each kind under a small label, alphabetical inside it. An id no kind
      names joins the first. */
-  var KINDS = [['Terminal agents', ['claude', 'codex', 'muse', 'omp', 'opencode', 'pi'], 'term'], ['Coding apps', ['conductor', 'cursor'], 'win'],
-    ['Personal agents', ['chat', 'cowork', 'dots', 'grokbot'], 'chat'], ['Terminals', ['agterm', 'cmux', 'herdr', 'tmux'], 'grid']];
+  var KINDS = [['Terminal agents', ['claude', 'codex', 'muse', 'omp', 'opencode', 'pi'], 'term'], ['Coding apps', ['conductor', 'cursor'], 'codeXml'],
+    ['Personal agents', ['chat', 'cowork', 'dots', 'grokbot'], 'chat'], ['Terminals', ['agterm', 'cmux', 'herdr', 'tmux'], 'squareTerm']];
   function byKind(list) {
     var kindOf = function (id) { for (var k = 0; k < KINDS.length; k++) if (KINDS[k][1].indexOf(id) >= 0) return k; return 0; };
     return KINDS.map(function (k, n) { return { name: k[0], icon: k[2], items: list.filter(function (x) { return kindOf(x.id) === n; }) }; }).filter(function (g) { return g.items.length; });
