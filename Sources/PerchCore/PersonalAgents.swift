@@ -101,6 +101,14 @@ public final class GrokBotStore: @unchecked Sendable {
         return d
     }
     private var wordsCache: [String: (mtime: Date, digest: SessionDigest)] = [:]
+
+    /// Whether the bot's reply box holds words you have not sent: Grok Bot keeps each one as `composer-drafts.<bot id>`
+    /// (`draft.prompt`, its attachments), half a second after you type. A reply pasted there would go out with them.
+    public func hasDraft(bot id: String) -> Bool {
+        guard let d = (accountSlice("composer-drafts.\(id)") as? [String: Any])?["draft"] as? [String: Any] else { return false }
+        let words = (d["prompt"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return !words.isEmpty || !(d["attachments"] as? [Any] ?? []).isEmpty
+    }
     private let lock = NSLock()
 
     static func digest(_ entries: [[String: Any]]) -> SessionDigest {

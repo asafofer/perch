@@ -185,9 +185,9 @@ enum Restorer {
             let bundle = p.app == Agent.dots.id ? codexApp : grokBotApp
             if let app = newest(bundle) { NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) }
             else { NSWorkspace.shared.open(url) }
-            // A bot's link focuses its own reply box. Dots' opens its home, whose focused field may be a Codex prompt: a
-            // reply there would go to the wrong place, so it stays on the clipboard.
-            done(.app(bundle, exact: p.app == Agent.grokbot.id))
+            // A bot's link focuses its own reply box, unless you left words there (they would go out with the reply). Dots'
+            // opens its home, whose focused field may be a Codex prompt. Not exact: a reply stays on the clipboard.
+            done(.app(bundle, exact: p.app == Agent.grokbot.id && !GrokBotStore.shared.hasDraft(bot: p.sessionId ?? "")))
             return
         }
         if let url = link(p) {

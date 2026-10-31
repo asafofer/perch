@@ -87,6 +87,17 @@ private final class PersonalHome {
         #expect(p?.status.text == "Grok Bot is waiting for you")
     }
 
+    @Test func aGrokBotDraftIsSeen() {
+        let h = PersonalHome()
+        h.bots([h.bot("d", "Scout", ago: 30, last: "Hi")])
+        let store = GrokBotStore(root: h.url.appendingPathComponent("Library/Application Support/Grok Bot/sand-client-persistence"))
+        #expect(!store.hasDraft(bot: "d"))
+        h.accountSlice("composer-drafts.d", ["draft": ["prompt": "  ", "attachments": []], "draftId": "x"])
+        #expect(!store.hasDraft(bot: "d"))
+        h.accountSlice("composer-drafts.d", ["draft": ["prompt": "half a thought", "attachments": []], "draftId": "x"])
+        #expect(store.hasDraft(bot: "d"))
+    }
+
     @Test func aGrokBotCardThatGoesAwayOnMoveOnIsNoLongerAsked() {
         let h = PersonalHome()
         h.bots([h.bot("m", "Scout", ago: 30, last: "Never mind, I booked the window.")])
