@@ -317,6 +317,12 @@ enum HookInstaller {
                   hooks.values.contains(where: { ($0 as? [[String: Any]] ?? []).contains(where: isOurs) }) else { continue }
             try? install(agent)
         }
+        // Live status is on (some agent has Perch's hooks): an agent installed since, and switched on, gets them too, so
+        // Live status stays on and the new agent reports from its first turn.
+        guard agents.contains(where: isInstalled) else { return }
+        for agent in agents where !isInstalled(agent) && Prefs.enabledSources.contains(agent) && AgentPresence.installed(.of(agent)) {
+            try? install(agent)
+        }
     }
 
     static func uninstall(_ agent: String) throws {

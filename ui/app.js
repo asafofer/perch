@@ -3209,8 +3209,8 @@
           '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
       };
       var onN = rest.filter(function (x) { return x.enabled; }).length;
-      /* the title says what the scan found: every session it saw, across how many apps */
-      var nSes = fnd.reduce(function (n, x) { return n + (x.count || 0); }, 0), plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
+      /* the title says what the scan found: every session it saw (chats are not sessions), across how many apps */
+      var nSes = fnd.reduce(function (n, x) { return n + (x.id === 'chat' ? 0 : x.count || 0); }, 0), plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
       var head = scan ? 'Looking for your sessions' : !none ? 'Perch found ' + plural(nSes, 'session') + ' across ' + plural(fnd.length, 'app') : 'Choose your apps';
       var sub = scan ? 'Perch only reads the ones you tick.' : !none ? 'Keep the ones you want Perch to follow.' : 'Perch found none of them yet. Tick the ones you use.';
       /* Others is a quieter line under the kinds; it opens a popover list under it, five lines tall at most, which scrolls */
