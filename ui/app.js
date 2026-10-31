@@ -3491,6 +3491,7 @@
     if (k === 'login') return !!o.login;
     if (k === 'live') return o.live === 'on';
     if (k === 'hover') return !!o.hoverExternal;
+    if (k === 'atnotch') return !!o.charAtNotch;
     if (k === 'fbinfo') return fbInfo;
     if (/^src:/.test(k)) return o.sources.some(function (x) { return x.id === k.slice(4) && x.enabled; });
     if (/^ntf:/.test(k)) return notifyOn(k.slice(4));
@@ -3592,6 +3593,7 @@
       if (k === 'login') post({ type: 'setting', key: k, value: on });
       else if (k === 'live') post({ type: 'hooks', on: on });
       else if (k === 'hover') post({ type: 'setting', key: 'hoverExternal', value: on });
+      else if (k === 'atnotch') post({ type: 'setting', key: 'charAtNotch', value: on });
       else if (/^src:/.test(k)) post({ type: 'source', id: k.slice(4), enabled: on });
       else if (/^ntf:/.test(k)) post({ type: 'notify', kind: k.slice(4), enabled: on });
     }; });
@@ -3655,6 +3657,8 @@
       };
       /* which moments the notch announces (the list and the cards say all of them) */
       return notifyMoments(o) + gap +
+        /* the character in the notch when an agent needs you, acting out the wait until you answer */
+        stap(drow(slabel('Character at the notch', '', 'cat'), 'It waits in the notch with you when an agent asks', swHtml(!!o.charAtNotch, 'atnotch', 'Character at the notch'))) +
         /* the minutes are how long you are away, not a reminder after an agent replies */
         drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
@@ -4116,7 +4120,7 @@
     if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
     if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
     if (m.type === 'setting' && m.key === 'showPullRequests') { s.showPRs = m.value; if (s.settings) s.settings.showPRs = m.value; }
-    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'showPullRequests') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; }
+    if (m.type === 'setting' && s.settings && m.key !== 'pullRequests' && m.key !== 'showPullRequests') { s.settings[m.key] = m.value; if (m.key === 'questionSeconds') s.questionSeconds = m.value; if (m.key === 'charAtNotch') s.charAtNotch = m.value; }
     if (m.type === 'notify') { var off = (s.notifyOff || []).filter(function (k) { return k !== m.kind; }); if (!m.enabled) off.push(m.kind); s.notifyOff = off; }
     if (m.type === 'source' && s.settings) { s.settings.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
     if (m.type === 'onbOpen') { window.perchDev.onboarding(m.step || 0, true, m.only, null, false, false, m.which); return; }

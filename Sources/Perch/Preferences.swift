@@ -75,6 +75,8 @@ enum Prefs {
         get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
         set { d.set(newValue.sorted(), forKey: "notifyOff") }
     }
+    /// Whether the character shows in the notch when an agent needs you, acting out the wait (Settings, Notifications). Off by default.
+    static var charAtNotch: Bool { get { d.bool(forKey: "charAtNotch") } set { d.set(newValue, forKey: "charAtNotch") } }
     /// Whether sessions show their pull requests (the marks from the Claude app's own list). On by default.
     static var prShow: Bool { get { d.object(forKey: "pr.show") as? Bool ?? true } set { d.set(newValue, forKey: "pr.show") } }
     /// Whether Perch also asks GitHub, through the GitHub CLI's login, how each one stands (checks, reviews, conflicts). Off until switched on.
