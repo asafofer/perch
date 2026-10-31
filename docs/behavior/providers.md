@@ -20,6 +20,7 @@ is the summary to check before promising a feature, and the row a new provider f
 | Codex, Codex app | ✓ | ✓ | ✓ hooks | ✗ | ✗ | ~ pasted | ✓ link | ✓ link | ✓ from its log |
 | OpenCode (1 and 2) | ✓ | ✓ | ✓ plugin | ✓ | ✓ | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
 | pi | ✓ | ✓ | ✓ extension | — no prompts | ✗ | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
+| Muse | ✓ | ✓ | ✓ hooks | ~ shown, answered in its terminal | ~ shown, answered in its terminal | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
 
@@ -28,7 +29,6 @@ Spiked, not built (the design page draws them; [the spikes](../spikes/) hold the
 | Provider | Listed | Words and recap | Live status | Approvals from the notch | Questions from the notch | Reply | Pick up | New session | Pull requests |
 |---|---|---|---|---|---|---|---|---|---|
 | [Oh My Pi](../spikes/oh-my-pi.md) | ✓ | ✓ | ✓ extension | ~ shown, answered in its terminal | ✓ extension takes its `ask` tool | ✓ typed into its pane or tab | ✓ `omp --resume` | ✓ | ✓ from its log |
-| [Muse](../spikes/muse.md) | ✓ | ~ tool calls not driven | ✓ hooks | ~ not driven | ~ shown, no answer found | ✓ typed into its pane or tab | ✓ `muse resume` | ✓ | ~ not driven |
 | [Grok Bot](../spikes/grok-bot.md) | ✓ the app's cache | ~ | ~ needs you and unread | ✗ read only | ✗ read only | ~ link, not driven | ~ link, not driven | ✗ | ✗ |
 | [Dots](../spikes/dots.md) | ~ the ChatGPT app's state | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted, not driven | ~ `codex://dots`, not driven | ✗ | ✗ |
 
@@ -54,6 +54,7 @@ Spiked, not built (the design page draws them; [the spikes](../spikes/) hold the
 - **Codex** runs its hook before its own prompt, so Perch can only show that it asks. Codex skips a new hook until you trust it once.
 - **OpenCode** requests are held beside OpenCode's own prompt and never block it. OpenCode 2's questions are forms, answered through `opencode api`. OpenCode 1.3 and older are not reached by the plugin.
 - **pi** has no permission prompts; its extension prompts are answered in the terminal.
+- **Muse**'s PermissionRequest hook fires before Muse decides whether to ask you at all, so Perch does not hold it: its Notification hook (sent only once a request still waits on you) shows that it asks, answered in the terminal. Its resume takes no words, so a reply to a closed Muse session opens it and leaves the words on the clipboard. `muse exec` runs and subagents get no row.
 - **Cursor** approvals are read from its database (about 15 s late) and pressed in its window; a request older than four hours is dropped. Its hooks that can allow or deny are not installed, since they fire for every command. No questions, no new session (its `prompt` link cannot name a folder), and its transcripts hold no tool results, so no pull requests.
 - **Cloud agents** (Claude Code cloud, Cursor cloud) are a list only: no transcript on this Mac, no hooks.
 - **Running detection** (`Agent.recognise`) knows Claude Code, Codex, OpenCode and pi; one Perch does not recognise never counts as running, so Pick up starts a second copy.
