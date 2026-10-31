@@ -3147,6 +3147,21 @@
     scene.querySelectorAll('.cr-mini').forEach(function (m, i) { if (Math.random() < 0.55) setTimeout(function () { blinkEl(m); }, i * 130); });
     setTimeout(previewLife, 1700 + Math.random() * 2400);
   })();
+  /* While the first scan runs, its line names each place Perch looks in turn, the icon swapping (iconSwap) and a light
+     passing over the words (shimmer), so the wait reads as work. */
+  var scanTimer = 0;
+  function scanCycle(o) {
+    clearInterval(scanTimer); scanTimer = 0;
+    var slot = q('.onb .o-scan-ic'); if (!slot) return;
+    var list = byName(o.sources), i = 0;
+    var show = function () {
+      var x = list[i++ % list.length], w = 'Looking in ' + x.name + '\u2026';
+      iconSwap(slot, App(x.id, 'size-5'));
+      q('.onb .o-scan-w').textContent = w; q('.onb .o-scan-t .shine').textContent = w;
+    };
+    if (!list.length) return;
+    show(); scanTimer = setInterval(show, 1100);
+  }
   function onbRender(o, animate) {
     var pop = onbScanWas && !o.scanning && o.step === 4;   /* the scan just came in: what it found rises in */
     onbScanWas = !!o.scanning && o.step === 4;
@@ -3192,7 +3207,9 @@
           '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
       };
       var onN = rest.filter(function (x) { return x.enabled; }).length;
-      var head = scan ? 'Looking for your sessions' : !none ? 'Here is what Perch found' : 'Choose your apps';
+      /* the title says what the scan found: every session it saw, across how many apps */
+      var nSes = fnd.reduce(function (n, x) { return n + (x.count || 0); }, 0), plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
+      var head = scan ? 'Looking for your sessions' : !none ? 'Perch found ' + plural(nSes, 'session') + ' across ' + plural(fnd.length, 'app') : 'Choose your apps';
       var sub = scan ? 'Perch only reads the ones you tick.' : !none ? 'Keep the ones you want Perch to follow.' : 'Perch found none of them yet. Tick the ones you use.';
       /* Others is a quieter line under the kinds; it opens a popover list under it, five lines tall at most, which scrolls */
       var oxTile = !rest.length ? '' : '<button class="ox-h o-oth mt-1.5 flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
@@ -3206,10 +3223,11 @@
       /* what was found, by kind: a small label over each kind's tiles, two to a line; past what the card can hold it scrolls,
          the next row showing faded */
       var kinds = byKind(fnd), tileH = dense ? 38 : 46, est = kinds.reduce(function (h, g) { return h + 20 + Math.ceil(g.items.length / 2) * tileH; }, 0);
-      var tall = est > 200, fade = 'linear-gradient(to bottom,#000 calc(100% - 18px),transparent)';
-      var grid = '<div class="o-found' + (tall ? ' overflow-y-auto' : '') + '"' + (tall ? ' style="max-height:190px;-webkit-mask-image:' + fade + ';mask-image:' + fade + '"' : '') + '>' +
+      var tall = est > 200;   /* its fade follows the scroll (oxFade, bound in onbBind): only an edge with more past it fades */
+      var grid = '<div class="o-found' + (tall ? ' overflow-y-auto' : '') + '"' + (tall ? ' style="max-height:190px"' : '') + '>' +
         kinds.map(function (g, n) { return kindLabel(g.name, n ? 'pt-2' : '') + '<div class="grid grid-cols-2 gap-1.5">' + g.items.map(tile).join('') + '</div>'; }).join('') + '</div>' + oxTile;
-      var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
+      var foundHtml = scan ? '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.04] px-3 text-[13px]"><span class="o-scan-ic t-ic size-5 flex-none"></span>' +
+        '<span class="o-scan-t shimmer min-w-0 flex-1 truncate"><span class="o-scan-w">Looking in your agents\u2019 folders\u2026</span><span class="shine">Looking in your agents\u2019 folders\u2026</span></span></div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
       var othersHtml = '';
       h = otitle(o, head, sub) +
         oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
@@ -3239,6 +3257,7 @@
     introToken++; introGlow = '';
     if (st === 0) introduce(animate);
     onbBind(box);
+    if (st === 4 && o.scanning) scanCycle(o); else { clearInterval(scanTimer); scanTimer = 0; }
   }
   function onbBind(box) {
     box.querySelectorAll('.o-primary').forEach(function (b) { b.onclick = function () { onbDo(b.dataset.a); }; });
@@ -3251,6 +3270,7 @@
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     /* a click on a tile ticks it; Others opens its popover, a click anywhere else closes it; its lines tick one each */
     box.querySelectorAll('.o-tile').forEach(function (t) { t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
+    box.querySelectorAll('.o-found.overflow-y-auto').forEach(function (el) { oxFade(el); el.onscroll = function () { oxFade(el); }; });
     box.querySelectorAll('.ox-h').forEach(function (h) { h.onclick = function (e) { e.stopPropagation(); oxOpen(!oxIsOpen()); }; });
     box.querySelectorAll('.ox-it').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var on = b.getAttribute('aria-pressed') !== 'true'; oxSet(b, on); oxFocus = +b.dataset.i; oxPaint(); oxNote(); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
@@ -3347,7 +3367,7 @@
     it.querySelector('.px-chk').innerHTML = on ? svg('check', 'size-4') : '';
   }
   /* The popover opens up from Others, over the tiles above it, so the card keeps its size and Back and Next stay in sight.
-     It is as tall as its list, five lines or so at most, and reaches no higher than the line under the title, or the title when that leaves too little; more scroll. Up and Down
+     It is as tall as its list, five lines or so at most, and reaches no higher than the line under the title (with few tiles, Others moves down to make the room); more scroll. Up and Down
      choose, Return switches one, Left and Esc close it. */
   var oxFocus = 0;
   function oxIsOpen() { var p = q('.onb .ox-pop'); return !!p && !p.classList.contains('hidden'); }
@@ -3356,11 +3376,13 @@
     if (!pop) return;
     pop.classList.toggle('hidden', !open); h.setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
     var rv = x.closest('.o-i'); if (rv) { rv.style.position = open ? 'relative' : ''; rv.style.zIndex = open ? '20' : ''; }
+    h.style.marginTop = '';
     if (open) {
       pop.style.top = 'auto'; pop.style.bottom = (x.offsetHeight - h.offsetTop + 4) + 'px';
       var sub = (rv && rv.previousElementSibling) || box, head = sub.previousElementSibling || sub, top = h.getBoundingClientRect().top - 4;
-      var room = top - sub.getBoundingClientRect().bottom - 8;
-      if (room < 128) room = top - head.getBoundingClientRect().bottom - 2;   /* short of room: it covers the line under the title whole, never half */
+      var room = top - sub.getBoundingClientRect().bottom - 8, want = Math.min(168, pop.querySelector('.ox-sc').scrollHeight + 8);
+      /* few tiles above it: Others moves down to make the room (the card grows by that much), never over the title */
+      if (room < want) { h.style.marginTop = (6 + want - room) + 'px'; pop.style.bottom = (x.offsetHeight - h.offsetTop + 4) + 'px'; room = want; }
       /* the list scrolls inside the box, so its fade never lets the tiles under it show through */
       var sc = pop.querySelector('.ox-sc'); sc.style.maxHeight = (Math.min(200, room) - 8) + 'px';
       oxFocus = -1; oxPaint(); oxFade(sc); sc.onscroll = function () { oxFade(sc); };
@@ -3565,7 +3587,7 @@
         foot = '<span class="flex flex-1 justify-center">' + setHints([['\u2191\u2193', 'Choose'], [ENTER, 'Change'], ['\u2190', 'Back']]) + '</span>';
       }
       /* the keys, like the list's: every setting can be changed without the mouse */
-      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-end gap-1 px-2.5' + (othersMenuOpen ? ' invisible' : '') + '">' + foot + '</div>';
+      html = '<div>' + rows + '</div><div class="mt-1 flex h-9 items-end gap-1 px-2.5' + '">' + foot + '</div>';
     }
     /* inside a category, Settings steps back and is a way back */
     var title = setPage ? '<button class="s-crumb cursor-pointer rounded text-muted-foreground transition-colors hover:text-foreground" title="Back (\u2190)">Settings</button>' : 'Settings';
@@ -3575,12 +3597,17 @@
     box.innerHTML = html; q('.s-title').innerHTML = title;
     /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
     box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
-    /* the agents popover is as tall as there is room for under its row (7 lines at most), and the card grows to hold it */
+    /* the agents popover reaches up to the first agent, never over the page's header, five lines at most (Others moves down to
+       make that room when there are few agents); it scrolls inside its box, so its fade never shows the rows under it */
     var oxp = box.querySelector('.s-ox-pop');
     if (oxp) {
-      var orow = box.querySelector('.s-ox'), under = orow.getBoundingClientRect().bottom - box.getBoundingClientRect().top;
-      box.style.minHeight = Math.ceil(under + 4 + Math.min(oxp.scrollHeight, 168) + 8) + 'px';   /* only what the list needs past the rows */
-      oxFade(oxp); oxp.onscroll = function () { oxFade(oxp); };
+      var orow = box.querySelector('.s-ox'), sc = oxp.querySelector('.ox-sc'), top = orow.getBoundingClientRect().top - 4;
+      var first = box.querySelector('[data-k^="src:"]'), firstRow = first && first.closest('.s-row');
+      var room = top - (firstRow || box).getBoundingClientRect().top + 2, want = Math.min(168, sc.scrollHeight + 8);
+      /* few agents above it: Others moves down to make the room, and the card grows by that much */
+      if (room < want) { orow.style.marginTop = (want - room) + 'px'; room = want; }
+      sc.style.maxHeight = (Math.min(200, room) - 8) + 'px';
+      oxFade(sc); sc.onscroll = function () { oxFade(sc); };
     }
     slid.forEach(function (x) {
       if (!x.g) return;
@@ -3663,9 +3690,10 @@
       }).join('');
       var onN = rest.filter(function (x) { return x.enabled; }).length;
       var oitems = rest.map(function (x, i) { return popItem(x, i, 's-nt', 'data-k="' + x.id + '" data-src="1"'); }).join('');
-      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP + ' -left-1 -right-1 top-[34px]" style="max-height:168px">' + oitems + '</div>' : '';
+      /* it opens up from its row, over the agents above, so the card keeps its size and its keys stay in sight */
+      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' -left-1 -right-1 bottom-[34px]"><div class="ox-sc overflow-y-auto">' + oitems + '</div></div>' : '';
       var othersRow = rest.length ? '<div class="s-row s-menu s-ox relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" aria-expanded="' + othersMenuOpen + '">' + slabel('Others', '', 'plus') +
-        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5 text-xs text-muted-foreground">' + '<span class="s-ox-n">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>' + svg(othersMenuOpen ? 'chevU' : 'chevD', 'size-3 flex-none') + '</span>' + omenu + '</div>' : '';
+        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5 text-xs text-muted-foreground">' + '<span class="s-ox-n">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>' + svg(othersMenuOpen ? 'chevD' : 'chevU', 'size-3 flex-none') + '</span>' + omenu + '</div>' : '';
       return (fnd.length ? (many ? '<div class="mx-2 grid grid-cols-2">' + foundRows + '</div>' : foundRows) : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">Nothing found yet. Switch on the ones you use.</div>') + othersRow;
     }
     if (setPage === 'status') {

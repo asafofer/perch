@@ -27,15 +27,16 @@ Version row's update states in [updates.md](updates.md).
     (`isFound`: a count above nothing; herdr, tmux, cmux, agterm and Conductor are listed like the agents) with a check and
     how many sessions it has. Past six they go two to a line. Under them Others, one row that opens a popover list as wide as
     the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
-    shows five lines and scrolls past that, fading at the edge that has more; the card grows only by what the list needs
-    past the rows. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet every agent is
+    opens up from its row, over the agents above, never over the page's header, so the card keeps its size and its keys
+    stay in sight; five lines at most, scrolling past that with a fade at the edge that has more. With few agents above,
+    Others moves down to make that room. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet every agent is
     listed, each off, and there is no Others. Up and Down choose in the popover, Return switches one, Left or Esc closes it.
     A check that is off is a faint empty box, so a line reads as something to tick. With all sixteen found, or none, the
     page is 348 pt. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for
     what is in Others, which start off.
     Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line),
-    then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Here is what Perch
-    found". The tiles are grouped by kind, each under a small label: Terminal agents (Claude Code, Codex, Muse, Oh My Pi,
+    then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Perch found 12 sessions
+    across 3 apps" (every session it saw, across how many apps). The tiles are grouped by kind, each under a small label: Terminal agents (Claude Code, Codex, Muse, Oh My Pi,
     OpenCode, pi), Coding apps (Conductor, Cursor), Personal agents (Claude chats and tasks, Dots, Grok Bot) and Terminals
     (agterm, cmux, herdr, tmux); `KINDS` in `app.js`. Others is a slim line under them ("13 more", or "2 on") that opens the
     rest, grouped the same way, in a list that opens up from it over the tiles, so the card keeps its size and Back and Next

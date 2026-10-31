@@ -606,4 +606,7 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .o-pop:nth-child(2) { animation-delay: .05s; } .o-pop:nth-child(3) { animation-delay: .1s; } .o-pop:nth-child(4) { animation-delay: .15s; } .o-pop:nth-child(n+5) { animation-delay: .2s; }
 @keyframes o-pop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 .ox-pop::-webkit-scrollbar, .s-ox-pop::-webkit-scrollbar { width: 0; }
+/* the apps step's lists scroll without a bar; their fades say there is more */
+.o-found, .ox-sc { scrollbar-width: none; overscroll-behavior: contain; }
+.o-found::-webkit-scrollbar, .ox-sc::-webkit-scrollbar { display: none; }
 @media (prefers-reduced-motion: reduce) { .ox-chev { transition: none; } .o-pop { animation: none; } }
