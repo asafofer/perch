@@ -1731,7 +1731,7 @@
     if (st === 'idle' && atN.on) {
       /* at the notch: at the left of the row, before the app's icon, carried by the same spring as the notch's edge. It
          comes in once the notch has opened around it, with the row's words; going, it rides the closing edge as it fades. */
-      var ad = 22, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13, axf = 'translate(' + (-w / 2 + as) + 'px,' + ((idleH - ad) / 2) + 'px)';
+      var ad = 32, as = parseFloat(actEl.style.getPropertyValue('--as')) || 13, axf = 'translate(' + (-w / 2 + as - 2) + 'px,' + Math.max(0, (idleH - ad) / 2) + 'px)';
       if (atN.fresh) {
         atN.fresh = false; cr.style.transition = 'none'; cr.style.opacity = 0; cr.style.width = cr.style.height = ad + 'px'; cr.style.transform = axf;
         void cr.offsetWidth; cr.style.transition = 'transform .5s cubic-bezier(.32,1.15,.42,1), opacity .2s .24s';
