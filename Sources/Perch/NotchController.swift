@@ -15,6 +15,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var screen: NSScreen
     private var info: ScreenInfo
     private var contentSize = CGSize(width: NotchGeometry.cardWidth, height: 160)
+    /// An open Settings menu that hangs past the card's foot: its box from the card's top centre, as the page measured it.
+    private var menuBox: CGRect?
     private var timerToken = 0
     private var timer: Task<Void, Never>?
     private var keyMonitor: Any?
@@ -494,7 +496,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
         // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
-        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".cursor/projects"]
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".omp/agent/sessions", ".local/share/muse/sessions", ".cursor/projects"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
@@ -699,6 +701,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             return
         }
+        // A Grok Bot bot takes a question's answer as your next message: the choice's words go into its reply box and are sent.
+        if ask.agent == Agent.grokbot.id {
+            let text = answers.flatMap { $0.values.first } ?? choice
+            guard !text.isEmpty else { notSent(p.id); return }
+            markSeen(p)
+            let onCard = machine.phase != .idle
+            if onCard || putAway?.session == p.id { putAway = nil }
+            pasteReply(text, to: p.id)
+            send(.dismiss)
+            return
+        }
         hookServer.answer(ask.id, with: answers.map { ask.reply(answers: $0) } ?? ask.reply(choice)) { [weak self] delivered in
             if !delivered { self?.notSent(p.id) }
         }
@@ -847,12 +860,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// Icons go once per page load. An app missing from them (installed later, or mid-update at launch) is looked for again each minute.
+    private var avatarsTried = Set<String>()
     private func iconsToSend() -> [String: String]? {
-        if let keys = iconKeys {
+        // A Grok Bot bot's avatar is drawn once per shape and colour, and sent with the app icons. One that cannot be drawn
+        // (no Grok Bot) counts as sent, so it does not make every push look for the icons again.
+        let avatars = Set(projects.compactMap(\.avatar).map { "avatar:" + $0 })
+        if let keys = iconKeys, avatars.isSubset(of: keys.union(avatarsTried)) {
             guard projects.contains(where: { !keys.contains($0.app) && AppIcons.knows($0.app) }), Date().timeIntervalSince(iconsCheckedAt) > 60 else { return nil }
         }
         iconsCheckedAt = Date()
-        let icons = AppIcons.all()
+        var icons = AppIcons.all()
+        for key in avatars { avatarsTried.insert(key); if let url = GrokBotAvatars.dataURL(key.dropFirst("avatar:".count)) { icons[key] = url } }
         if let keys = iconKeys, Set(icons.keys) == keys { return nil }
         iconKeys = Set(icons.keys)
         return icons
@@ -960,7 +978,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private static let commands: Set<String> = {
         let home = NSHomeDirectory()
         let dirs = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.npm-global/bin", "\(home)/.bun/bin", "\(home)/.claude/local", "\(home)/.opencode/bin"]
-        return Set(["claude", "codex", "opencode", "pi"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
+        return Set(["claude", "codex", "opencode", "pi", "omp", "muse"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
     }()
     private func newChoices() -> [NewSession.Choice] {
         let ws = NSWorkspace.shared
@@ -1348,6 +1366,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "painted": if let t = body["token"] as? Int { reveal(t) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
+            let m = body["menu"] as? [Double] ?? []
+            menuBox = m.count == 4 ? CGRect(x: m[0], y: m[1], width: m[2], height: m[3]) : nil
         case "activity":
             let wasShowing = activityMode != ""
             activityMode = body["mode"] as? String ?? ""
@@ -1437,6 +1457,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 else if live.contains(where: { $0.agent == agent && $0.cwd == cwd && !claimed.contains($0.pid) }) {
                     // It may still run there under a name Perch could not tie to it: opening it again would start a second
                     // copy, and typing into that one could answer another session. Your words wait on the clipboard.
+                    unsure = true
+                } else if !Agent.of(agent).resumeTakesPrompt {
+                    // Not running, and its resume takes no words (Muse): it opens again, your words wait on the clipboard.
+                    _ = Restorer.reopen(agent: agent, session: id, cwd: cwd, command: Agent.of(agent).resume(id))
                     unsure = true
                 } else {
                     // Not running: it opens again where it last ran, with your words as its first message.
@@ -2296,6 +2320,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The drag pasteboard's count when the button went down: it moves on when a drag starts.
     private var dragBase = 0
     private var cardRect: CGRect { NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info) }
+    /// The card, or an open menu hanging past it: where the pointer is on Perch.
+    private func onCard(_ p: NSPoint) -> Bool {
+        if cardRect.contains(p) { return true }
+        guard let m = menuBox else { return false }
+        return CGRect(x: info.frame.midX + m.minX, y: info.frame.maxY - m.maxY, width: m.width, height: m.height).contains(p)
+    }
     private var draggedSincePress: Bool { NSPasteboard(name: .drag).changeCount != dragBase }
     /// The button is down and files are on their way somewhere, dragged since it went down.
     private var draggingFiles: Bool {
@@ -2304,13 +2334,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func pressedElsewhere() {
         dragBase = NSPasteboard(name: .drag).changeCount
-        pressedOutside = machine.phase != .idle && !cardRect.contains(NSEvent.mouseLocation)
+        pressedOutside = machine.phase != .idle && !onCard(NSEvent.mouseLocation)
     }
     private func releasedElsewhere() {
         guard pressedOutside else { return }
         pressedOutside = false
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !wnHoldsForAccess else { return }
-        if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
+        if draggedSincePress, onCard(NSEvent.mouseLocation) { return }   // dropped on the card
         send(.dismiss)
     }
 
@@ -2451,8 +2481,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             hoverIdle(); return
         }
-        let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
-        let inside = rect.contains(NSEvent.mouseLocation)
+        let inside = onCard(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
         // What's new opened by itself and left the keyboard alone; the pointer on it says you are reading it, so the arrows are its.
         if inside, !pointerOnCard, machine.phase == .whatsNew, !panel.isKeyWindow { startKeys(); panel.allowsKey = true; panel.makeKey() }
@@ -2462,7 +2491,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // click elsewhere or Esc.
         if openedByHover, !replyOpen, !previewOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
-            if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
+            if inside || cardRect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }
             else { leftCardAt = Date() }
         }

@@ -80,7 +80,8 @@ final class HookServer: @unchecked Sendable {
         // Only the Claude app runs this hook alongside its own prompt, and Perch's OpenCode plugin asks without blocking
         // OpenCode's. Anywhere else (a terminal, `claude -p`) the prompt waits for the hook, so holding it would freeze the
         // session: those are answered at once, with no decision.
-        var alongside = event.agent == "opencode" || DesktopSessions.shared.index()[event.sessionId] != nil
+        // Perch's Oh My Pi extension asks beside omp's own picker in the same way.
+        var alongside = event.agent == "opencode" || event.agent == "omp" || DesktopSessions.shared.index()[event.sessionId] != nil
         // The PreToolUse hook is not alongside the app's prompt: the prompt waits for it. So it is held only while you are
         // elsewhere, and only for as long as the notch keeps offering the question.
         if case .asks(let ask) = event.kind, ask.viaPreToolUse, alongside {
@@ -195,11 +196,12 @@ enum HookInstaller {
     static let claudeSettings = home.appendingPathComponent(".claude/settings.json")
     static let codexHooks = home.appendingPathComponent(".codex/hooks.json")
     static let cursorHooks = home.appendingPathComponent(".cursor/hooks.json")
+    static let museSettings = home.appendingPathComponent(".config/muse/settings.json")
 
     /// A request Perch can answer waits up to an hour for you; everything else is told "go on" at once.
     static let scriptBody = """
     #!/bin/sh
-    # Perch: tells Perch what Claude Code, Codex or Cursor is doing, so the notch knows the moment they need you.
+    # Perch: tells Perch what Claude Code, Codex, Cursor or Muse is doing, so the notch knows the moment they need you.
     # Exits quietly when Perch is not running. Remove it from Perch's Settings.
     sock="$HOME/.config/perch/perch.sock"
     # Cursor wants an answer from the hook that sees a prompt go out: go on, whatever Perch says.
@@ -242,17 +244,29 @@ enum HookInstaller {
         Hook(event: "stop", matcher: nil, async: false, timeout: 5),
     ]
 
+    /// Muse reads Claude Code's hook shape. Its PermissionRequest fires before Muse decides whether to ask you at all (and for
+    /// calls it settles itself), so holding it would stall turns that never needed you: Notification, sent only once a request
+    /// still waits on you, says it asks. Every entry runs apart from the turn (`async`), so Perch never slows Muse.
+    static let museHooks = [
+        Hook(event: "UserPromptSubmit", matcher: nil, async: true, timeout: 10),
+        Hook(event: "PostToolUse", matcher: "*", async: true, timeout: 10),
+        Hook(event: "Notification", matcher: nil, async: true, timeout: 10),
+        Hook(event: "Stop", matcher: nil, async: true, timeout: 10),
+        Hook(event: "StopFailure", matcher: nil, async: true, timeout: 10),
+    ]
+
     /// The agents Perch can install a hook for.
-    static let agents = ["claude", "codex", "opencode", "pi", "cursor"]
-    static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : agent == "cursor" ? cursorHooks : claudeSettings }
+    static let agents = ["claude", "codex", "opencode", "pi", "omp", "muse", "cursor"]
+    static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : agent == "cursor" ? cursorHooks : agent == "muse" ? museSettings : claudeSettings }
     /// OpenCode and pi load every plugin in a folder: Perch adds its own file there and removes only that file.
     static let pluginFiles: [String: URL] = [
         "opencode": home.appendingPathComponent(".config/opencode/plugins/perch.js"),
         "pi": home.appendingPathComponent(".pi/agent/extensions/perch.ts"),
+        "omp": home.appendingPathComponent(".omp/agent/extensions/perch.ts"),
     ]
     /// The first line of each plugin file, which says it is Perch's.
     static let pluginMark = "// Perch: "
-    static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : agent == "cursor" ? cursorHooks_ : claudeHooks }
+    static func hooks(_ agent: String) -> [Hook] { agent == "codex" ? codexHooks_ : agent == "cursor" ? cursorHooks_ : agent == "muse" ? museHooks : claudeHooks }
 
     static func isInstalled(_ agent: String) -> Bool {
         if let f = pluginFiles[agent] { return (try? String(contentsOf: f, encoding: .utf8))?.hasPrefix(pluginMark) == true }
@@ -303,6 +317,12 @@ enum HookInstaller {
                   hooks.values.contains(where: { ($0 as? [[String: Any]] ?? []).contains(where: isOurs) }) else { continue }
             try? install(agent)
         }
+        // Live status is on (some agent has Perch's hooks): an agent installed since, and switched on, gets them too, so
+        // Live status stays on and the new agent reports from its first turn.
+        guard agents.contains(where: isInstalled) else { return }
+        for agent in agents where !isInstalled(agent) && Prefs.enabledSources.contains(agent) && AgentPresence.installed(.of(agent)) {
+            try? install(agent)
+        }
     }
 
     static func uninstall(_ agent: String) throws {
@@ -345,6 +365,8 @@ enum HookInstaller {
         change(&hooks)
         root["hooks"] = hooks.isEmpty ? nil : hooks
         if agent == "cursor", root["hooks"] != nil, root["version"] == nil { root["version"] = 1 }
+        // Muse refuses a settings file without its schema version.
+        if agent == "muse", root["schema_version"] == nil { root["schema_version"] = 1 }
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys])
         try data.write(to: url, options: .atomic)
     }

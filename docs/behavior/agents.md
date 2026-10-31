@@ -1,6 +1,6 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 
@@ -16,6 +16,24 @@ OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [session
 - pi writes `~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl`. The first line has the id and folder; entries form a tree but are always appended.
 - The title is the newest `session_info` name, else your first prompt.
 - Resume with `pi --session <id>`.
+
+## Oh My Pi
+
+- omp (github.com/can1357/oh-my-pi) is a fork of pi. It writes pi's files under `~/.omp/agent/sessions/<folder>/<time>_<id>.jsonl`, with one difference: the first line is a 256-byte title slot (`{"type":"title",…}`), rewritten in place on a rename, and the header comes second. So the head is two lines (`SessionScanner.head(lines:)`), the title is read fresh from that slot each scan, else the newest `title_change`, else your first prompt. Subagents' files sit a folder deeper and get no row.
+- Perch's extension is `~/.omp/agent/extensions/perch.ts` (`PerchPlugins.omp`): pi's, with Stop on `agent_end` (unless `willContinue`), main agent only, an approval posted from `tool_approval_requested` with the call's input from `tool_call`, and the `ask` tool registered in its place: it runs omp's own picker through `ctx.invokeTool` and holds the question at Perch, the first answer winning.
+- Which process runs which session: each omp keeps its session's owner lock open (`~/.omp/run/session-owners/<id>.lock`), and `/new` or `/resume` moves it, so Perch reads it from the process's open files (`LiveSessions.ownedSession`): exact with several omp in one folder, hooks or not. Driven: two omp in one folder, each Pick up went to its own tmux pane, before and after Perch restarted, and after `/new` the new session went to the same pane.
+- The process is `omp`. Resume with `omp --resume <id>` (with words after it, they are sent); a new session is `omp '<words>'`.
+- Spike: [oh-my-pi.md](../spikes/oh-my-pi.md).
+
+## Muse
+
+- Muse Code (Meta) writes `~/.local/share/muse/sessions/YYYY/MM/DD/<id>/session.jsonl`, sharded by local date: one envelope a line (`stream.id` the session, `recorded_at` in microseconds). What was said is in `runtime.session` records whose `payload.kind` is `run`: `started` (your prompt), `assistant_message_committed`, `assistant_tool_calls_committed`, `tool_result_batch_committed` and `terminal` (`completed`, `cancelled`, else failed). Task and reminder records share the stream and are skipped (`MuseTranscript`).
+- The folder is `runtime.session.metadata`'s `workspace_root`, near the top. Only the terminal app writes `session.startup_phases.observed`, so `muse exec` runs get no row; subagents have their own logs under `subagent/`.
+- The title is the one Muse made in its index, `session-index.db` (`effective_long_title`, read-only, best effort), else your first prompt.
+- Its hooks are Claude Code's shape in `~/.config/muse/settings.json` (which needs `"schema_version": 1`), all async ([status.md](status.md)).
+- Which process runs which session: each Muse keeps `.session.lock` open in its session's folder, whose name is the session id, so Perch reads it from the process's open files (`LiveSessions.ownedSession`). Driven: two Muse sessions in one folder, each tied to its own process.
+- The process table shows the binary the `muse` launcher hands over to, `muse-bin-<version>`. Resume with `muse resume <id>`; a new session is `muse '<words>'`.
+- Spike: [muse.md](../spikes/muse.md).
 
 ## herdr, tmux, cmux and agterm
 

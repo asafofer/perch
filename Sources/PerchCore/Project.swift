@@ -75,6 +75,8 @@ public struct Project: Identifiable, Equatable, Sendable {
     /// Its own app says how it stands (a Claude task: the app's `running`, `awaiting`, `idle`), not a guess from a transcript:
     /// a wait it reports stands until the app says otherwise, however old.
     public var appSays = false
+    /// Its own avatar where the agent draws one per session ("shape:color", a Grok Bot bot): the row and card wear it.
+    public var avatar: String?
     /// The pull requests it worked on, as it shows them (`PullRequests.visible`, and what GitHub said when Checks is on).
     public var prs: [PullRequest] = []
     /// A pull request needs you, and that is why the session reads as needing you (so the notch can tell it from a question).
