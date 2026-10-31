@@ -175,7 +175,13 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .cr[data-m=sleep] .ey { height: max(1.2px, 5%); border-radius: 3px; top: calc(var(--et) + 13%); }
 .cr.blink .ey { transform: scaleY(.1); }
 .cr .f { transition: translate .4s cubic-bezier(.3,1.35,.5,1); }
-.cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
+.cr[data-m=awake] .f, .cr[data-m=happy] .f, .cr[data-m=alert] .f, .cr[data-m=impatient] .f { translate: calc(var(--lx, 0px) * .3) calc(var(--ly, 0px) * .25); }
+/* the character at the notch, left waiting: its eyes slide to the corner under lowered lids, and an orange glow slowly grows */
+.cr[data-m=impatient] .ey { height: 15%; top: calc(var(--et) + 6%); border-radius: 30% 30% 50% 50% / 20% 20% 80% 80%; }
+.cr[data-nb="1"] .f { filter: drop-shadow(0 0 0 rgba(233,168,119,0)); transition: translate .4s cubic-bezier(.3,1.35,.5,1), filter .5s; }
+.cr[data-nb="1"][data-fret="1"] .f { filter: drop-shadow(0 0 4px rgba(233,168,119,.7)); transition: translate .4s cubic-bezier(.3,1.35,.5,1), filter 5s cubic-bezier(.3,0,.6,1); }
+/* the row makes room for it before the app's icon */
+.act[data-nb="1"] > .act-l { padding-left: 22px; max-width: calc(var(--aw) + 44px); }
 /* the big ones (the hello, the preview while you choose) are moved where they look by a spring in app.js (eyesTo), so the
    look itself is not transitioned; their faces still are */
 .cr-pv .ey, .cr-hi .ey { transition: width .32s cubic-bezier(.3,1.4,.5,1), height .32s cubic-bezier(.3,1.4,.5,1), top .32s cubic-bezier(.3,1.4,.5,1),
