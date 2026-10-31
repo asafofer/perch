@@ -765,6 +765,24 @@ enum LiveSessions {
         return nil
     }
 
+    /// The Oh My Pi session a process runs, from the owner lock it keeps open (`~/.omp/run/session-owners/<id>.lock`).
+    /// Switching sessions inside omp moves the lock, so this follows it.
+    nonisolated static func ompSession(of pid: pid_t) -> String? {
+        let size = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
+        guard size > 0 else { return nil }
+        var fds = [proc_fdinfo](repeating: proc_fdinfo(), count: Int(size) / MemoryLayout<proc_fdinfo>.stride)
+        let got = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, &fds, size)
+        guard got > 0 else { return nil }
+        for fd in fds.prefix(Int(got) / MemoryLayout<proc_fdinfo>.stride) where fd.proc_fdtype == UInt32(PROX_FDTYPE_VNODE) {
+            var info = vnode_fdinfowithpath()
+            guard proc_pidfdinfo(pid, fd.proc_fd, PROC_PIDFDVNODEPATHINFO, &info, Int32(MemoryLayout<vnode_fdinfowithpath>.size)) > 0 else { continue }
+            let path = withUnsafeBytes(of: info.pvip.vip_path) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+            guard path.contains("/.omp/run/session-owners/"), path.hasSuffix(".lock") else { continue }
+            return String((path as NSString).lastPathComponent.dropLast(".lock".count))
+        }
+        return nil
+    }
+
     /// A process's parent, from the process table. Unlike proc_pidinfo it also works for processes owned by root,
     /// like the `login` that Terminal puts between itself and your shell.
     static func parent(of pid: pid_t) -> pid_t? {
