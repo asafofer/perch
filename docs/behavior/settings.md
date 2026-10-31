@@ -31,16 +31,11 @@ Version row's update states in [updates.md](updates.md).
     (228 pt), and Swift takes clicks on the list too (the page sends its box with the card's size, `menu`), so a click there
     is not a click outside. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for agents Perch has not
     seen, which start off.
-    Onboarding's apps step groups the same kinds, as tiles: it opens while the first scan runs ("Looking for your sessions", one quiet line),
-    then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Perch found 12 sessions
-    across 3 apps" (every session it saw, across how many apps). The tiles are grouped by kind, each under a small label: Terminal agents (Claude Code, Codex, Muse, Oh My Pi,
-    OpenCode, pi), Coding apps (Conductor, Cursor), Personal agents (Claude chats and tasks, Dots, Grok Bot) and Terminals
-    (agterm, cmux, herdr, tmux); `KINDS` in `app.js`. Others is a slim line under them ("13 more", or "2 on") that opens the
-    rest, grouped the same way, in a list that opens up from it over the tiles, so the card keeps its size and Back and Next
-    stay where they are. The list is as tall as it needs, up to the line under the title (the title, when that leaves too
-    little), and scrolls past that. With nothing found, every agent is a tile under "Choose your apps", each off, and
-    there is no Others. Past six the tiles are slim with no second line, and once the kinds are taller than the card can
-    hold they scroll, the next row showing faded.
+    Onboarding's apps step is the same rows: it opens while the first scan runs ("Looking for your sessions", one quiet
+    line), then the four kinds rise in under "Perch found 12 sessions across 3 apps" (every session it saw, across how
+    many apps), each showing the marks of what it found, ticked (chats are not). A row opens its list under it (upward when
+    the panel has no room below), which may hang past the card. Up and Down choose a row, Right or Return opens it; with
+    no row chosen Return is Next. With nothing found the title is "Choose your apps" and every kind says None.
   - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
     under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
     marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.

@@ -78,9 +78,6 @@
     var kindOf = function (id) { for (var k = 0; k < KINDS.length; k++) if (KINDS[k][1].indexOf(id) >= 0) return k; return 0; };
     return KINDS.map(function (k, n) { return { name: k[0], icon: k[2], items: list.filter(function (x) { return kindOf(x.id) === n; }) }; }).filter(function (g) { return g.items.length; });
   }
-  function kindLabel(name, cls) { return '<div class="' + (cls || '') + ' px-0.5 pb-1 text-[11px] font-medium leading-4 text-muted-foreground/70">' + esc(name) + '</div>'; }
-  /* a tile's second line: what it found, by name or, for chats (which are many), how many */
-  function srcLine(x) { return x.id === 'chat' ? x.count + ' recent' : x.names && x.names.length ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : x.count + (x.count === 1 ? ' session' : ' sessions'); }
   /* A popover list of agents, one to a line with its mark and a check, in the look of Settings' Notify me about menu. */
   function popItem(x, i, cls, attrs, note) {
     return '<div class="' + cls + ' nt-it flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors hover:bg-white/[0.07]" data-i="' + i + '" ' + attrs + ' aria-pressed="' + x.enabled + '">' +
@@ -3264,12 +3261,9 @@
     if (onbStep === 3) scAfter(onbLast);
     if (onbStep === 4) oxRows();
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
-    /* a click on a tile ticks it; Others opens its popover, a click anywhere else closes it; its lines tick one each */
-    box.querySelectorAll('.o-tile').forEach(function (t) { t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
-    box.querySelectorAll('.o-found.overflow-y-auto').forEach(function (el) { oxFade(el); el.onscroll = function () { oxFade(el); }; });
+    /* a kind's row opens its list, a click anywhere else closes it; its lines tick one each */
     box.querySelectorAll('.ox-h').forEach(function (h) { h.onclick = function (e) { e.stopPropagation(); var x = h.closest('.ox'); oxOpen(!x.classList.contains('open'), x); }; });
     box.querySelectorAll('.ox-it').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var on = b.getAttribute('aria-pressed') !== 'true'; oxSet(b, on); oxFocus = +b.dataset.i; oxPaint(); oxNote(); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
-    box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.onclick = function (e) { if (oxIsOpen() && !e.target.closest('.ox-pop')) oxOpen(false); };
     box.querySelectorAll('.o-prsw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'setting', key: 'pullRequests', value: on }); }; });
     box.querySelectorAll('.o-live').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); post({ type: 'hooks', on: on }); }; });
@@ -3350,7 +3344,6 @@
   }
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
   /* a mark dims once its agent is cleared */
-  function tileDim(t) { var ic = t.querySelector('.o-ic'); if (ic) ic.classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
   /* a kind's row shows the marks of what is on in its list */
   function oxNote() {
     q('.onb').querySelectorAll('.ox').forEach(function (x) {
@@ -3401,20 +3394,11 @@
   }
   function oxRows() { q('.onb').querySelectorAll('.ox-h').forEach(function (h, i) { h.classList.toggle('bg-white/[0.09]', i === oxRow); }); }
   function oxPaint() { q('.onb').querySelectorAll('.ox.open .ox-it').forEach(function (b) { var on = +b.dataset.i === oxFocus; b.classList.toggle('bg-white/[0.09]', on); if (on) b.scrollIntoView({ block: 'nearest' }); }); }
-  /* the apps step, in place: a check slides, a tile's line fades to what the scan found (a new find redraws the step) */
+  /* the apps step, in place: a list's checks and its row's marks follow (a new find redraws the step) */
   function onbSources(o) {
     var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
-    q('.onb').querySelectorAll('.o-sw').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-checked') !== String(x.enabled)) { setSw(b, x.enabled); var t = b.closest('.o-tile'); if (t) tileDim(t); } });
     q('.onb').querySelectorAll('.ox-it').forEach(function (b) { var x = src(b.dataset.id); if (x && b.getAttribute('aria-pressed') !== String(x.enabled)) oxSet(b, x.enabled); });
     oxNote();
-    q('.onb').querySelectorAll('.o-tile').forEach(function (t) {
-      var x = src(t.dataset.id), sub = t.querySelector('.o-line'), line;
-      if (!x || !sub) return;
-      line = srcLine(x);
-      if (sub.textContent === line) return;
-      sub.textContent = line;
-      if (!STILL) sub.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'ease-out' });
-    });
   }
   /* live status turned on or off: the switch slides, the note and the buttons follow */
   function onbLive(o) {
