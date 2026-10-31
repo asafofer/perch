@@ -25,8 +25,9 @@ Version row's update states in [updates.md](updates.md).
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
   - Agents: what Perch found comes first, in alphabetical order, a line for each agent or app it has seen a session of
     (`isFound`: a count above nothing; herdr, tmux, cmux, agterm and Conductor are listed like the agents) with a check and
-    how many sessions it has. Past six they go two to a line. Under them Others, one row that opens a popover list as wide as
-    the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
+    how many sessions it has. Past six they go two to a line: Up and Down go straight down a column,
+    Right and Left cross the line, and Left from the left one is Back. Under them Others, one row that opens a popover list
+    as wide as the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
     opens up from its row, over the agents above, never over the page's header, so the card keeps its size and its keys
     stay in sight; five lines at most, scrolling past that with a fade at the edge that has more. With few agents above,
     Others moves down to make that room. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet every agent is
@@ -52,7 +53,7 @@ Version row's update states in [updates.md](updates.md).
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
     Then Welcome back after and Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.
-- Return or Space flips a switch, picks a screen or presses a row's button. Left is always Back: a segmented choice moves
+- Return or Space flips a switch, picks a screen or presses a row's button. Left is Back (except from the right of two agents on a line): a segmented choice moves
   with Right (to its end) or Return (round again from the start).
 - The page's title sits under the notch's line with a Left key beside it: next to the hardware notch there is room only
   for "Settings", which steps back and is a way back too.

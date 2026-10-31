@@ -3971,7 +3971,33 @@
       if (inMenu) { b.classList.toggle('bg-white/[0.09]', on); if (on && b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); } else { b.classList.toggle('ring-1', on); b.classList.toggle('ring-white/40', on); }
     });
   }
-  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is always Back. */
+  /* Down and Up go to the next line of rows, to the one nearest the same column, so a grid is walked straight down;
+     past the last line they come round to the first. */
+  function rowBelow(rows, at, d) {
+    var cur = rows[at].getBoundingClientRect(), cx = cur.left + cur.width / 2, best = -1, bl = 0, bx = 0;
+    for (var pass = 0; pass < 2 && best < 0; pass++) {
+      [].forEach.call(rows, function (r, j) {
+        var b = r.getBoundingClientRect();
+        if (j === at && !pass) return;
+        if (!pass && (d > 0 ? b.top < cur.bottom - 2 : b.bottom > cur.top + 2)) return;
+        var line = d > 0 ? b.top : -b.bottom, dx = Math.abs(b.left + b.width / 2 - cx);
+        if (best < 0 || line < bl - 2 || (Math.abs(line - bl) <= 2 && dx < bx)) { best = j; bl = line; bx = dx; }
+      });
+    }
+    return best < 0 ? at : best;
+  }
+  /* the row beside this one on its line, to the right (1) or left (-1); -1 when there is none */
+  function rowBeside(rows, at, d) {
+    var cur = rows[at].getBoundingClientRect(), best = -1, bd = 0;
+    [].forEach.call(rows, function (r, j) {
+      var b = r.getBoundingClientRect(), dist = (b.left - cur.left) * d;
+      if (j === at || Math.abs(b.top - cur.top) > 2 || dist <= 0) return;
+      if (best < 0 || dist < bd) { best = j; bd = dist; }
+    });
+    return best;
+  }
+  /* arrows, Return and Space, forwarded from the app while Settings has the keyboard. Left is Back, except from the right
+     of two rows on a line. */
   function settingsKey(k) {
     keyPtr = ptrAt.slice(); setKb = true;
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
@@ -3984,8 +4010,11 @@
       if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
       return;
     }
+    /* rows two to a line (Agents, with many found): Left and Right cross the line, Left from the first one is Back */
+    var side = row && (k === 'left' || k === 'right') ? rowBeside(rows, setFocus, k === 'right' ? 1 : -1) : -1;
+    if (side >= 0) { setFocus = side; ntFocus = 0; paintFocus(); return; }
     if (k === 'esc' || k === 'left') { if (setPage) setGo(''); else post({ type: 'back' }); return; }
-    if (k === 'down' || k === 'up') { setFocus = (setFocus + (k === 'down' ? 1 : -1) + rows.length) % rows.length; ntFocus = 0; paintFocus(); return; }
+    if (k === 'down' || k === 'up') { setFocus = row ? rowBelow(rows, setFocus, k === 'down' ? 1 : -1) : 0; ntFocus = 0; paintFocus(); return; }
     if (!row) return;
     if (row.dataset.go) { if (k === 'right' || k === 'enter') setGo(row.dataset.go); return; }
     /* the moments' icons: Right moves along them, Return switches the one it is on; Left is Back, as everywhere here */
