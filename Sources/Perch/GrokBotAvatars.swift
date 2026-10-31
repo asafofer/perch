@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 
 /// A Grok Bot bot's avatar, as Grok Bot draws it small: its shape's silhouette (the image Grok Bot ships for its menu bar
 /// icon, `dist/electron-main/menubar-tray/assets/bot-<shape>@2x.png` inside the app's `app.asar`), filled with the bot's
@@ -23,24 +24,26 @@ enum GrokBotAvatars {
         let parts = key.split(separator: ":").map(String.init)
         guard parts.count == 2, let color = colors[parts[1]], let app = AppIcons.url("grokbot"),
               let png = Asar.file("dist/electron-main/menubar-tray/assets/bot-\(parts[0])@2x.png", in: app.appendingPathComponent("Contents/Resources/app.asar")),
-              let silhouette = NSImage(data: png), let url = tinted(silhouette, color) else { return nil }
+              let url = tinted(png, color) else { return nil }
         lock.lock(); drawn[key] = url; lock.unlock()
         return url
     }
 
-    /// The silhouette's own alpha, filled with the colour: the eyes are holes in it, so they show the card behind.
-    static func tinted(_ image: NSImage, _ color: NSColor, px: Int = 64) -> String? {
-        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: px, pixelsHigh: px, bitsPerSample: 8, samplesPerPixel: 4,
-                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
-        rep.size = NSSize(width: px, height: px)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        NSGraphicsContext.current?.imageInterpolation = .high
-        let r = NSRect(x: 0, y: 0, width: px, height: px)
-        image.draw(in: r, from: .zero, operation: .copy, fraction: 1)
-        color.setFill(); r.fill(using: .sourceIn)
-        NSGraphicsContext.restoreGraphicsState()
-        return rep.representation(using: .png, properties: [:]).map { "data:image/png;base64," + $0.base64EncodedString() }
+    /// The silhouette's own alpha, filled with the colour: the eyes are holes in it, so they show the card behind. Grok Bot's
+    /// image is 32 px, too coarse for the card, so it is enlarged smoothly, softened a little, and its edge steepened again:
+    /// a clean outline at any size, still anti-aliased.
+    static func tinted(_ png: Data, _ color: NSColor, px: CGFloat = 96, soften: CGFloat = 0.8, steep: CGFloat = 5) -> String? {
+        guard let src = CIImage(data: png), src.extent.width > 0, let rgb = color.usingColorSpace(.sRGB) else { return nil }
+        let scale = px / src.extent.width, frame = CGRect(x: 0, y: 0, width: px, height: px)
+        let alpha = src.applyingFilter("CILanczosScaleTransform", parameters: ["inputScale": scale, "inputAspectRatio": 1])
+            .clampedToExtent().applyingFilter("CIGaussianBlur", parameters: ["inputRadius": soften * scale]).cropped(to: frame)
+            .applyingFilter("CIColorMatrix", parameters: ["inputAVector": CIVector(x: 0, y: 0, z: 0, w: steep), "inputBiasVector": CIVector(x: 0, y: 0, z: 0, w: (1 - steep) / 2)])
+            .applyingFilter("CIColorClamp")
+        let fill = CIImage(color: CIColor(red: rgb.redComponent, green: rgb.greenComponent, blue: rgb.blueComponent))
+        let out = fill.applyingFilter("CISourceInCompositing", parameters: ["inputBackgroundImage": alpha]).cropped(to: frame)
+        guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
+              let data = CIContext().pngRepresentation(of: out, format: .RGBA8, colorSpace: sRGB) else { return nil }
+        return "data:image/png;base64," + data.base64EncodedString()
     }
 }
 
