@@ -115,6 +115,8 @@
      the terminal is the one showing herdr. */
   var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', agterm: 'agterm', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
   function AppOf(p, c) {
+    /* a Grok Bot bot wears its own avatar (its shape in its colour, drawn by Swift from Grok Bot's own images) */
+    if (p.avatar && icons[p.avatar]) return '<img class="' + (c || 'size-5') + ' flex-none" src="' + icons[p.avatar] + '" alt="">';
     /* a session Conductor runs wears Conductor's icon the way a terminal session wears its terminal's; Reply still goes through the card (no `via`) */
     var host = p.via || p.opens;
     if (!host) return App(p.app, c);
@@ -1051,7 +1053,7 @@
   function fill(p) {
     var a = p.ask, ph = phrase(p), h = q('.o-h'), c = q('.o-c'), box = q('.o-ask');
     /* drawn again only when it changes: a new image blinks while it decodes */
-    var ik = p.app + '|' + (p.via || p.opens || '') + '|' + !!icons[p.via || p.opens || p.app];
+    var ik = p.app + '|' + (p.via || p.opens || '') + '|' + !!icons[p.via || p.opens || p.app] + '|' + (p.avatar && icons[p.avatar] ? p.avatar : '');
     if (ik !== iconKey) { q('.o-app').innerHTML = AppOf(p, 'size-[34px]'); iconKey = ik; }
     /* a chat started without a project is named by its title alone */
     q('.o-name').textContent = p.topic || p.name; q('.o-name').title = p.topic || p.name;
@@ -4231,7 +4233,7 @@
       /* Dots and Grok Bot work in the cloud, on a computer of their own: the session wears the agent's own icon, and Open Dots goes to it */
       { id: 'dotsbrief', name: '', branch: '', away: '14m', at: '11:46 AM', headline: 'You asked for the weekly metrics brief.', context: 'It pulled the numbers from the dashboard and wrote the brief; two figures need your eye.', next: 'Check the churn figure before it goes out', topic: 'Pip', app: 'dots', attention: false, fresh: true, line: 'Finished 14m ago', status: { kind: 'done', text: 'Dots finished', app: 'dots' },
         asked: 'Every Monday, pull last week\u2019s numbers and write the metrics brief.', said: 'The brief is ready, and I put it in your drafts. Two figures look off: churn is up 2.1 points and the trial count dropped by a third.\n\nNext: check the churn figure before it goes out.' },
-      { id: 'grokfix', name: '', branch: '', away: '3m', at: '12:02 PM', headline: 'Chasing a flaky checkout test.', context: 'It reproduced the failure one run in five and is bisecting the last ten commits.', now: 'Bisecting the last ten commits', next: '', topic: 'Scout', app: 'grokbot', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Grok Bot is working', app: 'grokbot' },
+      { id: 'grokfix', avatar: 'avatar:tablet:yellow', name: '', branch: '', away: '3m', at: '12:02 PM', headline: 'Chasing a flaky checkout test.', context: 'It reproduced the failure one run in five and is bisecting the last ten commits.', now: 'Bisecting the last ten commits', next: '', topic: 'Scout', app: 'grokbot', attention: false, fresh: false, line: 'Working now', status: { kind: 'running', text: 'Grok Bot is working', app: 'grokbot' },
         asked: 'The checkout test fails one run in five. Find out why and fix it.', said: 'I can reproduce it: one run in five, always on the card step. I am bisecting the last ten commits now.' },
       /* Oh My Pi (omp), a fork of pi, in a terminal like pi: Ghostty's icon with its mark on the corner */
       { id: 'ompfix', name: 'lint-rules', via: 'ghostty', branch: 'main', away: '9m', at: '11:55 AM', headline: 'You were tightening the lint rules.', context: 'Two rules now report the line they fire on, and the autofix leaves comments alone.', next: 'Run the rules across the monorepo', topic: 'Tighten the lint rules', app: 'omp', attention: false, fresh: true, line: 'Finished 9m ago', status: { kind: 'done', text: 'Oh My Pi finished', app: 'omp' },

@@ -117,6 +117,16 @@ private final class PersonalHome {
         #expect(DotsStore.date("2026-10-14T10:02:49Z") != nil)
     }
 
+    /// Checked against Grok Bot 0.78.1's sidebar: these bots showed as an orange tablet, a violet tablet, a pink teardrop and
+    /// (chosen in the app) a black blob.
+    @Test func aGrokBotWearsTheShapeAndColourGrokBotGivesIt() {
+        #expect(GrokBotStore.look(id: "f616e30e-74cb-4c4c-86af-b06512f66e87", shape: "", color: "") == "tablet:yellow")
+        #expect(GrokBotStore.look(id: "06a1e421-e8a5-4420-a9b2-0bb79a23db6e", shape: nil, color: nil) == "tablet:violet")
+        #expect(GrokBotStore.look(id: "6a2cf2f0-68b5-4912-b292-c908ea0bb5a3", shape: "", color: "") == "teardrop:magenta")
+        #expect(GrokBotStore.look(id: "0cad71b6-17dd-4432-8e5f-d83857037a99", shape: "blob", color: "black") == "blob:black")
+        #expect(GrokBotStore.look(id: "x", shape: "pumpkin", color: "nope").hasPrefix("pumpkin:"))
+    }
+
     @Test func grokBotFileNamesAreTheirKeysInBase32() {
         #expect(GrokBotStore.fileName("sand.client.slice.ui-layout") == "onqw4zbomnwgszlooqxhg3djmnss45ljfvwgc6lpov2a.blob")
     }

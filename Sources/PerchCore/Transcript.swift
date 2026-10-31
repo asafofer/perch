@@ -543,6 +543,7 @@ public enum Recap {
         p.lastActive = b.lastActivity
         p.startedAt = b.created
         p.appSays = true
+        p.avatar = b.avatar.isEmpty ? nil : b.avatar
         if !b.unread && b.waiting == nil { p.focusedAt = b.lastActivity }
         p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText ?? b.lastText)
         p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)

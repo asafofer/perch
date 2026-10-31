@@ -16,6 +16,29 @@ public final class GrokBotStore: @unchecked Sendable {
         public let waiting: String?
         /// Its newest message, as the list shows it.
         public let lastText: String?
+        /// Its avatar, "shape:color", as Grok Bot draws it (`look`).
+        public var avatar: String = ""
+    }
+
+    /// The shape and colour Grok Bot gives a bot: the ones you chose, else ones picked from its id, by Grok Bot's own rule
+    /// (its renderer's `An`: an FNV-1a hash of the id, a mixer for the shape, mulberry32 for the colour).
+    public static let shapes = ["blob", "pebble", "bean", "egg", "squircle", "tablet", "capsule", "cylinder", "hex", "gem", "crystal", "wedge",
+                                "shield", "dome", "arch", "cloud", "teardrop", "leaf", "square", "sparkle", "clover", "flower", "heart", "house", "star", "pumpkin"]
+    static let defaultShapes = ["blob", "pebble", "squircle", "tablet", "wedge", "hex", "cloud", "teardrop"]
+    public static let colors = ["black", "brown", "red", "orange", "yellow", "green", "cyan", "blue", "violet", "magenta", "gray"]
+    public static func look(id: String, shape: String?, color: String?) -> String {
+        func fnv(_ s: String) -> UInt32 { var t: UInt32 = 2166136261; for u in s.utf16 { t ^= UInt32(u); t = t &* 16777619 }; return t }
+        let h = fnv(id)
+        var m = h; m = (m ^ (m >> 16)) &* 73244475; m = (m ^ (m >> 13)) &* 3266489909; m ^= m >> 16
+        // mulberry32's first draw, seeded with the hash (the two xors with 2654435769 on the way cancel out)
+        var t = h &+ 1831565813
+        var e = (t ^ (t >> 15)) &* (1 | t)
+        e = (e &+ ((e ^ (e >> 7)) &* (61 | e))) ^ e
+        t = e ^ (e >> 14)
+        let palette = colors.filter { $0 != "black" }
+        let s = shape.flatMap { shapes.contains($0) ? $0 : nil } ?? defaultShapes[Int(m % UInt32(defaultShapes.count))]
+        let c = color.flatMap { colors.contains($0) ? $0 : nil } ?? palette[Int(Double(t) / 4_294_967_296 * Double(palette.count))]
+        return s + ":" + c
     }
 
     let root: URL
@@ -56,8 +79,10 @@ public final class GrokBotStore: @unchecked Sendable {
                   r["isGroup"] as? Bool != true, let at = date(r["lastActivityAt"]) ?? date(r["updatedAt"]) else { return nil }
             let name = ((r["name"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let waiting = (r["awaitingUserResponse"] as? [String: Any]).map { ($0["reasonCopy"] as? String) ?? ($0["reason"] as? String) ?? "" }
-            return Bot(id: id, name: name.isEmpty ? "Grok Bot" : name, created: date(r["createdAt"]), lastActivity: at,
-                       unread: r["hasUnread"] as? Bool ?? false, waiting: waiting, lastText: (r["lastEntry"] as? [String: Any])?["text"] as? String)
+            var bot = Bot(id: id, name: name.isEmpty ? "Grok Bot" : name, created: date(r["createdAt"]), lastActivity: at,
+                          unread: r["hasUnread"] as? Bool ?? false, waiting: waiting, lastText: (r["lastEntry"] as? [String: Any])?["text"] as? String)
+            bot.avatar = Self.look(id: id, shape: r["avatarShape"] as? String, color: r["avatarColor"] as? String)
+            return bot
         }.sorted { $0.lastActivity > $1.lastActivity }
     }
 
