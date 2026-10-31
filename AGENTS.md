@@ -92,6 +92,8 @@ node scripts/render-dmg-background.mjs  # Resources/dmg/background.png and @2x f
 ./scripts/record.sh                 # the README's GIF, filmed from design.html?record (needs ffmpeg; headless, about 22 s)
 ./scripts/pr-demo.sh [scenario...] [--publish]   # a PR's demo from the design page (see Opening a PR)
 ./scripts/agents-demo.sh [folder]   # herdr with pi, OpenCode, Claude Code and Codex side by side, and pi alone, in cmux
+./scripts/notch-take.sh setup|ask   # Claude Code in a clean tmux pane that asks for a harmless command on cue (terminal asks are not answerable from the notch)
+KEYS="0:1800:0 2.2:1800:0 3.2:1040:0" ./scripts/record-notch.sh export build/notch-take.mov 1.4 10.5   # 60 fps notch takes (capture) cut to 16:9 and 4:5, with an eased camera move
 ```
 
 Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello), `--hello` (the hello beside the notch after setup), `--demo`, `--idle <s>`, `--snapshot <dir>`, `--dump` (prints what the scan finds), `PERCH_TRACE=1` for state logging.
