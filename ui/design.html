@@ -132,6 +132,7 @@ i.sci svg{width:16px;height:16px}
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
+.film .desk #hw{box-shadow:none}.film .now,.film .ttl{display:none!important}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
@@ -1265,7 +1266,7 @@ i.sci svg{width:16px;height:16px}
     return !!hit;
   });
   if (hit) { showTab(hit[0]); boxes[hit[0]].children[hit[1]].click(); }
-  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
+  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&](play|film)=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
@@ -1308,6 +1309,15 @@ i.sci svg{width:16px;height:16px}
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
   if (/[?&]play=/.test(location.search)) return;   /* pr-demo.sh: the scenarios script plays them */
+  /* ?record&film=Name (scripts/film-design.swift): that one scenario, nothing else on the desk, the notch without its pink edge */
+  var fm = /[?&]film=([^&]*)/.exec(location.search);
+  if (fm) {
+    var want = decodeURIComponent(fm[1].replace(/\+/g, ' '));
+    document.documentElement.classList.add('film');
+    var b = [].filter.call(document.querySelectorAll('button.sc'), function (x) { return x.querySelector('b').textContent === want; })[0];
+    if (b) b.click(); else console.warn('design: no scenario named ' + want);
+    return;
+  }
   function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
   [[600, function () { d.project(0); d.show('open', false, true); }],
    [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],
