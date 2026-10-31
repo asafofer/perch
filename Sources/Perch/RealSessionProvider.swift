@@ -69,8 +69,8 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             guard agentPids.contains(pid), (spoke[pid]?.at ?? .distantPast) < s.at else { continue }
             spoke[pid] = (session, s.at)
         }
-        // Oh My Pi keeps its session's owner lock open (`~/.omp/run/session-owners/<id>.lock`): exact, hooks or not.
-        let owned = { (h: LiveSessions.Hit) in h.agent == Agent.omp.id ? LiveSessions.ompSession(of: h.pid) : nil }
+        // Oh My Pi and Muse keep their session's lock open: exact, hooks or not.
+        let owned = { (h: LiveSessions.Hit) in [Agent.omp.id, Agent.muse.id].contains(h.agent) ? LiveSessions.ownedSession(of: h.pid) : nil }
         let running = Running.match(live.map { Running.Process(agent: $0.agent, cwd: $0.cwd, argv: $0.argv, session: spoke[$0.pid]?.session ?? owned($0) ?? seen($0)?.session, started: $0.started) }, to: projects)
         var places = Prefs.places
         let before = places
