@@ -3198,11 +3198,11 @@
       var oxTile = !rest.length ? '' : '<button class="ox-h o-oth mt-1.5 flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
         '<span class="grid size-4 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', 'size-2.5') + '</span>' +
         '<span class="min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">Others</span>' +
-        '<span class="ox-n flex-none text-xs text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
+        '<span class="ox-n flex-none text-xs text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span>' + svg('chevU', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
       /* the popover keeps the kinds too: a small label over each, its lines numbered in the order shown for the arrow keys */
-      var oxN = 0, oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] hidden" role="menu">' + byKind(rest).map(function (g, n) {
+      var oxN = 0, oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' left-[-6px] right-[-6px] hidden" role="menu"><div class="ox-sc overflow-y-auto">' + byKind(rest).map(function (g, n) {
         return kindLabel(g.name, 'px-2.5 ' + (n ? 'pt-2' : 'pt-1')) + g.items.map(function (x) { return popItem(x, oxN++, 'ox-it', 'data-id="' + x.id + '"'); }).join('');
-      }).join('') + '</div>';
+      }).join('') + '</div></div>';
       /* what was found, by kind: a small label over each kind's tiles, two to a line; past what the card can hold it scrolls,
          the next row showing faded */
       var kinds = byKind(fnd), tileH = dense ? 38 : 46, est = kinds.reduce(function (h, g) { return h + 20 + Math.ceil(g.items.length / 2) * tileH; }, 0);
@@ -3346,37 +3346,25 @@
     it.firstChild.classList.toggle('opacity-50', !on); it.firstChild.nextSibling.classList.toggle('text-muted-foreground', !on);
     it.querySelector('.px-chk').innerHTML = on ? svg('check', 'size-4') : '';
   }
-  /* The popover opens under Others, over the rows below; the card grows to hold it, up to the panel's height, and the list
-     scrolls past that. Up and Down choose, Return switches one, Left and Esc close it. */
+  /* The popover opens up from Others, over the tiles above it, so the card keeps its size and Back and Next stay in sight.
+     It is as tall as its list, five lines or so at most, and reaches no higher than the line under the title, or the title when that leaves too little; more scroll. Up and Down
+     choose, Return switches one, Left and Esc close it. */
   var oxFocus = 0;
   function oxIsOpen() { var p = q('.onb .ox-pop'); return !!p && !p.classList.contains('hidden'); }
   function oxOpen(open) {
     var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop'), h = x && x.querySelector('.ox-h');
     if (!pop) return;
     pop.classList.toggle('hidden', !open); h.setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
-    var rv = x.closest('.o-i'); if (rv) { rv.style.position = ''; rv.style.zIndex = ''; }
-    var note = box.querySelector('.o-allow'); if (note) note.style.visibility = '';
-    box.style.minHeight = ''; x.style.paddingBottom = '';
+    var rv = x.closest('.o-i'); if (rv) { rv.style.position = open ? 'relative' : ''; rv.style.zIndex = open ? '20' : ''; }
     if (open) {
-      pop.style.top = (h.offsetTop + h.offsetHeight + 4) + 'px';
-      /* The list opens under Others and the note and Back and Next move down below it, so they stay in sight. Five lines
-         at most, fewer when the card would outgrow the panel (430 pt with its top); more scroll. */
-      pop.style.maxHeight = '168px'; x.style.paddingBottom = (pop.offsetHeight + 8) + 'px';
-      var pane = box.closest('.inner') || box, over = pane.getBoundingClientRect().height - 430;
-      if (over > 0 && 168 - over >= 100) { pop.style.maxHeight = (168 - over) + 'px'; x.style.paddingBottom = (pop.offsetHeight + 8) + 'px'; }
-      else if (over > 0) {
-        /* a long found list leaves no room below it: the list takes the note's place, two and a half lines tall so it
-           shows it scrolls, and Back and Next move down only by what it still needs */
-        x.style.paddingBottom = '';
-        var fi = box.querySelector('.o-back'); fi = fi && fi.closest('.o-i');
-        if (rv) { rv.style.position = 'relative'; rv.style.zIndex = '20'; }
-        if (note) note.style.visibility = 'hidden';
-        pop.style.maxHeight = '88px';
-        var short = fi ? pop.getBoundingClientRect().bottom + 6 - fi.getBoundingClientRect().top : 0;
-        if (short > 0) x.style.paddingBottom = short + 'px';
-      }
-      oxFocus = -1; oxPaint(); oxFade(pop); pop.onscroll = function () { oxFade(pop); };
-      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
+      pop.style.top = 'auto'; pop.style.bottom = (x.offsetHeight - h.offsetTop + 4) + 'px';
+      var sub = (rv && rv.previousElementSibling) || box, head = sub.previousElementSibling || sub, top = h.getBoundingClientRect().top - 4;
+      var room = top - sub.getBoundingClientRect().bottom - 8;
+      if (room < 128) room = top - head.getBoundingClientRect().bottom - 2;   /* short of room: it covers the line under the title whole, never half */
+      /* the list scrolls inside the box, so its fade never lets the tiles under it show through */
+      var sc = pop.querySelector('.ox-sc'); sc.style.maxHeight = (Math.min(200, room) - 8) + 'px';
+      oxFocus = -1; oxPaint(); oxFade(sc); sc.onscroll = function () { oxFade(sc); };
+      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
     }
     if (snap && lastSt === 'onb') layout('onb', snap);
   }

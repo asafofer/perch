@@ -38,9 +38,9 @@ Version row's update states in [updates.md](updates.md).
     found". The tiles are grouped by kind, each under a small label: Terminal agents (Claude Code, Codex, Muse, Oh My Pi,
     OpenCode, pi), Coding apps (Conductor, Cursor), Personal agents (Claude chats and tasks, Dots, Grok Bot) and Terminals
     (agterm, cmux, herdr, tmux); `KINDS` in `app.js`. Others is a slim line under them ("13 more", or "2 on") that opens the
-    rest, grouped the same way, in a list under it; the note and Back and Next move down below it so they stay in sight.
-    The list is five lines at most, fewer when the card would pass 430 pt; with a long found list it takes the note's
-    place, two and a half lines tall. With nothing found, every agent is a tile under "Choose your apps", each off, and
+    rest, grouped the same way, in a list that opens up from it over the tiles, so the card keeps its size and Back and Next
+    stay where they are. The list is as tall as it needs, up to the line under the title (the title, when that leaves too
+    little), and scrolls past that. With nothing found, every agent is a tile under "Choose your apps", each off, and
     there is no Others. Past six the tiles are slim with no second line, and once the kinds are taller than the card can
     hold they scroll, the next row showing faded.
   - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
