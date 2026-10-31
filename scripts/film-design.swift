@@ -70,7 +70,8 @@ final class Filmer: NSObject, WKNavigationDelegate {
     // where a target is, for a view this wide: the notch holds the view's top on the page's top
     func point(_ target: String, _ vw: Double, _ cr: NSPoint, _ o: NSSize) -> NSPoint {
         // cr+N: N points right of the character, so a close-up keeps the row's words beside it
-        target.hasPrefix("cr") ? NSPoint(x: cr.x + (Double(target.dropFirst(3)) ?? 0) * z, y: cr.y) : NSPoint(x: notch.x, y: notch.y + vw * o.height / o.width / 2)
+        target.hasPrefix("cr") ? NSPoint(x: cr.x + (Double(target.dropFirst(3)) ?? 0) * z, y: cr.y)
+            : NSPoint(x: notch.x + (Double(target.dropFirst(1)) ?? 0) * z, y: notch.y + vw * o.height / o.width / 2)   // n-N: N points left of the notch's middle
     }
 
     // the camera's view at a time, in page points
