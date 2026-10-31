@@ -22,7 +22,15 @@ is the summary to check before promising a feature, and the row a new provider f
 | pi | ✓ | ✓ | ✓ extension | — no prompts | ✗ | ✓ typed into its pane or tab | ✓ | ✓ | ✓ from its log |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
-| Muse, Dots, Grok Bot, Oh My Pi | design only | | | | | | | | |
+
+Spiked, not built (the design page draws them; [the spikes](../spikes/) hold the evidence):
+
+| Provider | Listed | Words and recap | Live status | Approvals from the notch | Questions from the notch | Reply | Pick up | New session | Pull requests |
+|---|---|---|---|---|---|---|---|---|---|
+| [Oh My Pi](../spikes/oh-my-pi.md) | ✓ | ✓ | ✓ extension | ~ shown, answered in its terminal | ✓ extension takes its `ask` tool | ✓ typed into its pane or tab | ✓ `omp --resume` | ✓ | ✓ from its log |
+| [Muse](../spikes/muse.md) | ✓ | ~ tool calls not driven | ✓ hooks | ~ not driven | ~ shown, no answer found | ✓ typed into its pane or tab | ✓ `muse resume` | ✓ | ~ not driven |
+| [Grok Bot](../spikes/grok-bot.md) | ✓ the app's cache | ~ | ~ needs you and unread | ✗ read only | ✗ read only | ~ link, not driven | ~ link, not driven | ✗ | ✗ |
+| [Dots](../spikes/dots.md) | ~ the ChatGPT app's state | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted, not driven | ~ `codex://dots`, not driven | ✗ | ✗ |
 
 ## Hosts
 
@@ -50,7 +58,7 @@ is the summary to check before promising a feature, and the row a new provider f
 - **Cloud agents** (Claude Code cloud, Cursor cloud) are a list only: no transcript on this Mac, no hooks.
 - **Running detection** (`Agent.recognise`) knows Claude Code, Codex, OpenCode and pi; one Perch does not recognise never counts as running, so Pick up starts a second copy.
 
-## Design only
-
-Muse, Dots, Grok Bot and Oh My Pi are drawn in the design page (PR 137). Nothing in Swift reads them yet; their spikes in
-`docs/spikes/` say what is possible.
+- **Grok Bot and Dots** are cloud agents with no transcript, hook or process on this Mac: a list from the app's saved
+  state, nothing answered from the notch. Neither is coding work, so like Claude chats they may start off.
+- **Agent.answersFromNotch** is one flag for approvals and questions; Oh My Pi answers questions but not approvals, so it
+  needs splitting.
