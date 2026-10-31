@@ -3174,6 +3174,7 @@
          line, which opens a popover list of them, one to a line, off until you tick one. While the scan runs, one quiet
          line says so. */
       var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); })), scan = !!o.scanning;
+      var none = !scan && !fnd.length; if (none) { fnd = rest; rest = []; }   /* nothing found: every agent is right there to tick, no Others to open first */
       var dense = fnd.length > 6;   /* four rows of tiles leave no room for a popover: slim tiles, no second line */
       var tile = function (x) {
         var on = x.enabled;
@@ -3182,8 +3183,8 @@
           '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
       };
       var onN = rest.filter(function (x) { return x.enabled; }).length;
-      var head = scan ? 'Looking for your sessions' : fnd.length ? 'Here is what Perch found' : 'Choose your apps';
-      var sub = scan ? 'Perch only reads the ones you tick.' : fnd.length ? 'Keep the ones you want Perch to follow.' : 'Nothing yet. Tick the ones you use.';
+      var head = scan ? 'Looking for your sessions' : !none ? 'Here is what Perch found' : 'Choose your apps';
+      var sub = scan ? 'Perch only reads the ones you tick.' : !none ? 'Keep the ones you want Perch to follow.' : 'Perch found none of them yet. Tick the ones you use.';
       /* Others is the grid's last tile, quieter than the rest, so it fills the empty slot beside an odd one out; it opens a
          popover list under it, five lines tall at most, which scrolls */
       var oxTile = !rest.length ? '' : '<button class="ox-h o-oth flex ' + (dense ? 'h-8' : 'h-10') + ' cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (fnd.length ? '' : ' col-span-2') + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
@@ -3646,8 +3647,9 @@
     if (setPage === 'agents') {
       /* what Perch found, in alphabetical order, each a line with a check and how many sessions (two to a line once there are
          many); then Others, one row that opens a popover list of the agents and apps it supports that it has not seen: one to
-         a line, off until you switch one on. With nothing found, only Others. */
+         a line, off until you switch one on. With nothing found, every agent is listed, each off, and there is no Others. */
       var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); }));
+      if (!fnd.length) { fnd = rest; rest = []; }
       var cnt = function (x) { return '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>'; };
       var many = fnd.length > 6;
       var foundRows = fnd.map(function (x) {
