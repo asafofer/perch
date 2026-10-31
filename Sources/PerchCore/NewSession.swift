@@ -24,6 +24,7 @@ public enum NewSession {
         if commands.contains("codex") { out.append(Choice(id: "codex-cli", agent: "codex", terminal: true, name: codexApp ? "Codex CLI" : "Codex")) }
         if commands.contains("opencode") { out.append(Choice(id: "opencode", agent: "opencode", terminal: true, name: "OpenCode")) }
         if commands.contains("pi") { out.append(Choice(id: "pi", agent: "pi", terminal: true, name: "pi")) }
+        if commands.contains("omp") { out.append(Choice(id: "omp", agent: "omp", terminal: true, name: "Oh My Pi")) }
         if commands.contains("muse") { out.append(Choice(id: "muse", agent: "muse", terminal: true, name: "Muse")) }
         return out
     }
@@ -93,6 +94,7 @@ public enum NewSession {
         case "codex": return "codex " + q
         case "opencode": return "opencode --prompt " + q
         case "pi": return "pi" + (sessionId.map { " --session-id \($0)" } ?? "") + " " + q
+        case "omp": return "omp " + q
         case "muse": return "muse " + q
         default: return q
         }

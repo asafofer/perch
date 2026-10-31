@@ -80,7 +80,8 @@ final class HookServer: @unchecked Sendable {
         // Only the Claude app runs this hook alongside its own prompt, and Perch's OpenCode plugin asks without blocking
         // OpenCode's. Anywhere else (a terminal, `claude -p`) the prompt waits for the hook, so holding it would freeze the
         // session: those are answered at once, with no decision.
-        var alongside = event.agent == "opencode" || DesktopSessions.shared.index()[event.sessionId] != nil
+        // Perch's Oh My Pi extension asks beside omp's own picker in the same way.
+        var alongside = event.agent == "opencode" || event.agent == "omp" || DesktopSessions.shared.index()[event.sessionId] != nil
         // The PreToolUse hook is not alongside the app's prompt: the prompt waits for it. So it is held only while you are
         // elsewhere, and only for as long as the notch keeps offering the question.
         if case .asks(let ask) = event.kind, ask.viaPreToolUse, alongside {
@@ -255,12 +256,13 @@ enum HookInstaller {
     ]
 
     /// The agents Perch can install a hook for.
-    static let agents = ["claude", "codex", "opencode", "pi", "muse", "cursor"]
+    static let agents = ["claude", "codex", "opencode", "pi", "omp", "muse", "cursor"]
     static func file(_ agent: String) -> URL { agent == "codex" ? codexHooks : agent == "cursor" ? cursorHooks : agent == "muse" ? museSettings : claudeSettings }
     /// OpenCode and pi load every plugin in a folder: Perch adds its own file there and removes only that file.
     static let pluginFiles: [String: URL] = [
         "opencode": home.appendingPathComponent(".config/opencode/plugins/perch.js"),
         "pi": home.appendingPathComponent(".pi/agent/extensions/perch.ts"),
+        "omp": home.appendingPathComponent(".omp/agent/extensions/perch.ts"),
     ]
     /// The first line of each plugin file, which says it is Perch's.
     static let pluginMark = "// Perch: "

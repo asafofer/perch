@@ -17,11 +17,17 @@ public struct Agent: Equatable, Sendable {
     /// Its resume command takes your words as the first message. Muse's does not: a reply to a closed Muse session opens it
     /// and leaves the words on the clipboard.
     public var resumeTakesPrompt = true
+    /// Its questions can be answered from the notch even where its approvals cannot (Oh My Pi). Nil: as `answersFromNotch`.
+    public var questionsFromNotch: Bool? = nil
+    public var answersQuestions: Bool { questionsFromNotch ?? answersFromNotch }
 
     public static let claude = Agent(id: "claude", name: "Claude Code", short: "Claude", resumeCommand: "claude --resume", answersFromNotch: true)
     public static let codex = Agent(id: "codex", name: "Codex", short: "Codex", resumeCommand: "codex resume", answersFromNotch: false)
     public static let opencode = Agent(id: "opencode", name: "OpenCode", short: "OpenCode", resumeCommand: "opencode -s", answersFromNotch: true)
     public static let pi = Agent(id: "pi", name: "pi", short: "pi", resumeCommand: "pi --session", answersFromNotch: false)
+    /// Oh My Pi (omp), a fork of pi: pi's session files under ~/.omp, and an extension that can answer its questions (its
+    /// approvals are answered in its terminal).
+    public static let omp = Agent(id: "omp", name: "Oh My Pi", short: "Oh My Pi", resumeCommand: "omp --resume", answersFromNotch: false, questionsFromNotch: true)
     /// Meta's Muse Code. Its approvals and questions are answered in the terminal: its hooks say it waits, not what to answer.
     public static let muse = Agent(id: "muse", name: "Muse", short: "Muse", resumeCommand: "muse resume", answersFromNotch: false, resumeTakesPrompt: false)
     /// Cursor's agent chats live in the Cursor app: they open there, and have no command of their own.
@@ -34,7 +40,7 @@ public struct Agent: Equatable, Sendable {
     /// ChatGPT app). Read from their apps' saved state: no command, no hooks, nothing answered from the notch.
     public static let grokbot = Agent(id: "grokbot", name: "Grok Bot", short: "Grok Bot", resumeCommand: "", answersFromNotch: false)
     public static let dots = Agent(id: "dots", name: "Dots", short: "Dots", resumeCommand: "", answersFromNotch: false)
-    public static let all = [claude, codex, opencode, pi, muse, cursor, cowork, chat, grokbot, dots]
+    public static let all = [claude, codex, opencode, pi, omp, muse, cursor, cowork, chat, grokbot, dots]
 
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }
@@ -56,6 +62,7 @@ public struct Agent: Equatable, Sendable {
         if name == "codex" || name.hasPrefix("codex-") { return .codex }
         if name == "opencode" { return .opencode }
         if name == "pi" { return .pi }
+        if name == "omp" { return .omp }
         // Muse's launcher hands over to the binary beside it, `muse-bin-<version>`, which is what the process table shows.
         if name == "muse" || name.hasPrefix("muse-bin-") { return .muse }
         if ["node", "bun"].contains(name), let a = argv0.map({ ($0 as NSString).lastPathComponent }) {
@@ -68,6 +75,6 @@ public struct Agent: Equatable, Sendable {
     /// Worth reading a process's arguments for: an executable `recognise` could take for an agent (node and bun by argv[0]).
     public static func mayBe(_ executable: String) -> Bool {
         let name = (executable as NSString).lastPathComponent
-        return ["claude", "claude.exe", "codex", "opencode", "pi", "muse", "node", "bun"].contains(name) || name.hasPrefix("codex-") || name.hasPrefix("muse-bin-") || executable.contains("/claude/versions/")
+        return ["claude", "claude.exe", "codex", "opencode", "pi", "omp", "muse", "node", "bun"].contains(name) || name.hasPrefix("codex-") || name.hasPrefix("muse-bin-") || executable.contains("/claude/versions/")
     }
 }

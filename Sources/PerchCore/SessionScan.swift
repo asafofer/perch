@@ -112,10 +112,10 @@ public final class SessionScanner: @unchecked Sendable {
         return d
     }
 
-    private func cachedHead(_ url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
+    private func cachedHead(_ url: URL, lines: Int = 1, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         lock.lock(); let hit = headCache[url.path]; lock.unlock()
         if let hit { return hit }
-        guard let d = Self.head(of: url, parse: parse), d.sessionId != nil else { return nil }
+        guard let d = Self.head(of: url, lines: lines, parse: parse), d.sessionId != nil else { return nil }
         lock.lock(); headCache[url.path] = d; lock.unlock()
         return d
     }
@@ -372,9 +372,14 @@ public final class SessionScanner: @unchecked Sendable {
     }
 
     // MARK: pi (~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl)
-    public func pi(limit: Int, now: Date = Date()) -> [Found] {
+    public func pi(limit: Int, now: Date = Date()) -> [Found] { piLike(.pi, root: home.appendingPathComponent(".pi/agent/sessions"), limit: limit, now: now) }
+
+    // MARK: Oh My Pi (~/.omp/agent/sessions/<folder>/<time>_<id>.jsonl)
+    /// pi's files, with a padded title line before the header; its subagents' files sit one folder deeper and are left out.
+    public func omp(limit: Int, now: Date = Date()) -> [Found] { piLike(.omp, root: home.appendingPathComponent(".omp/agent/sessions"), limit: limit, now: now) }
+
+    private func piLike(_ agent: Agent, root: URL, limit: Int, now: Date) -> [Found] {
         let fm = FileManager.default
-        let root = home.appendingPathComponent(".pi/agent/sessions")
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
         var candidates: [(url: URL, mtime: Date)] = []
         for dir in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
@@ -386,17 +391,18 @@ public final class SessionScanner: @unchecked Sendable {
         var out: [Found] = [], real = 0
         for item in candidates {
             guard real < limit else { break }
-            guard let head = cachedHead(item.url, parse: PiTranscript.digest), let cwd = head.cwd, usable(cwd),
+            guard let head = cachedHead(item.url, lines: agent == .omp ? 2 : 1, parse: PiTranscript.digest), let cwd = head.cwd, usable(cwd),
                   var digest = cachedDigest(item.url, mtime: item.mtime, parse: PiTranscript.digest) else { continue }
             digest.cwd = cwd; digest.sessionId = head.sessionId
             guard digest.lastTimestamp != nil else { continue }
             let chat = Recap.isTrivial(digest)   // kept, marked: the app lists it only while it runs
-            // Unnamed, it goes by your first prompt, as pi's own list does.
+            // Oh My Pi rewrites its title line in place: read it fresh. Unnamed, it goes by your first prompt, as pi's own list does.
+            if agent == .omp, let t = Self.head(of: item.url, lines: 1, parse: PiTranscript.digest)?.title { digest.title = t }
             if digest.title == nil { digest.title = cachedFirstPrompt(item.url) }
             digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
-            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: agent, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = head.startedAt ?? Self.created(item.url); p.smallTalk = chat
                 p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
@@ -558,13 +564,17 @@ public final class SessionScanner: @unchecked Sendable {
     }
 
     /// The first line of a Codex or pi file holds the folder and id, far from the tail we read for messages.
-    static func head(of url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
+    /// `lines`: how many lines the head is (Oh My Pi puts a title line before its header).
+    static func head(of url: URL, lines: Int = 1, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        // Cut at the newline before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
-        guard let data = try? handle.read(upToCount: 1_000_000), let end = data.firstIndex(of: 0x0A),
-              let first = String(data: data[data.startIndex..<end], encoding: .utf8) else { return nil }
-        return parse([first])
+        guard let data = try? handle.read(upToCount: 1_000_000) else { return nil }
+        // Cut at newlines before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
+        var out: [String] = [], start = data.startIndex
+        while out.count < lines, let end = data[start...].firstIndex(of: 0x0A), let line = String(data: data[start..<end], encoding: .utf8) {
+            out.append(line); start = data.index(after: end)
+        }
+        return out.isEmpty ? nil : parse(out)
     }
 
     /// Only the tail of the file: sessions can be tens of megabytes and the recent part is what matters.
@@ -592,6 +602,7 @@ public final class SessionScanner: @unchecked Sendable {
         var d = parse(text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init))
         if d.title == nil, url.path.contains("/.claude/") { d.title = lastTitle(in: url) }
         if d.title == nil, url.path.contains("/.pi/") { d.title = lastTitle(in: url, marker: #""type":"session_info""#, key: "name") }
+        if d.title == nil, url.path.contains("/.omp/") { d.title = lastTitle(in: url, marker: #""type":"title_change""#, key: "title") }
         return d
     }
 

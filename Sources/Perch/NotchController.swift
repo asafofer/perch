@@ -494,7 +494,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // The Claude app's own session records too: switching sessions there rewrites lastFocusedAt, which decides the session
         // you are in (and so what the notch keeps quiet about).
         // Not claude.ai's IndexedDB (Claude tasks and chats): the app writes it all the time while open, so they wait for the timer.
-        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".local/share/muse/sessions", ".cursor/projects"]
+        let paths = [".claude/projects", ".codex/sessions", "Library/Application Support/Claude/claude-code-sessions", ".local/share/opencode", ".pi/agent/sessions", ".omp/agent/sessions", ".local/share/muse/sessions", ".cursor/projects"]
             .map { home.appendingPathComponent($0).path }.filter { FileManager.default.fileExists(atPath: $0) }
         guard !paths.isEmpty else { return }
         var ctx = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
@@ -974,7 +974,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private static let commands: Set<String> = {
         let home = NSHomeDirectory()
         let dirs = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.npm-global/bin", "\(home)/.bun/bin", "\(home)/.claude/local", "\(home)/.opencode/bin"]
-        return Set(["claude", "codex", "opencode", "pi", "muse"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
+        return Set(["claude", "codex", "opencode", "pi", "omp", "muse"].filter { c in dirs.contains { FileManager.default.isExecutableFile(atPath: "\($0)/\(c)") } })
     }()
     private func newChoices() -> [NewSession.Choice] {
         let ws = NSWorkspace.shared
