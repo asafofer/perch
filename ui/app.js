@@ -68,6 +68,15 @@
      Found: Perch has seen a session of it on this Mac (a count above nothing). The rest are Others, a popover list. */
   function isFound(x) { return x.count > 0; }
   function byName(list) { return list.slice().sort(function (a, b) { var x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; }); }
+  /* The apps step lists agents by how they are used, each kind under a small label, alphabetical inside it. An id no kind
+     names joins the first. */
+  var KINDS = [['Terminal agents', ['claude', 'codex', 'muse', 'omp', 'opencode', 'pi']], ['Coding apps', ['conductor', 'cursor']],
+    ['Personal agents', ['chat', 'cowork', 'dots', 'grokbot']], ['Terminals', ['agterm', 'cmux', 'herdr', 'tmux']]];
+  function byKind(list) {
+    var kindOf = function (id) { for (var k = 0; k < KINDS.length; k++) if (KINDS[k][1].indexOf(id) >= 0) return k; return 0; };
+    return KINDS.map(function (k, n) { return { name: k[0], items: list.filter(function (x) { return kindOf(x.id) === n; }) }; }).filter(function (g) { return g.items.length; });
+  }
+  function kindLabel(name, cls) { return '<div class="' + (cls || '') + ' px-0.5 pb-1 text-[11px] font-medium leading-4 text-muted-foreground/70">' + esc(name) + '</div>'; }
   /* a tile's second line: what it found, by name or, for chats (which are many), how many */
   function srcLine(x) { return x.id === 'chat' ? x.count + ' recent' : x.names && x.names.length ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : x.count + (x.count === 1 ? ' session' : ' sessions'); }
   /* A popover list of agents, one to a line with its mark and a check, in the look of Settings' Notify me about menu. */
@@ -3185,13 +3194,21 @@
       var onN = rest.filter(function (x) { return x.enabled; }).length;
       var head = scan ? 'Looking for your sessions' : !none ? 'Here is what Perch found' : 'Choose your apps';
       var sub = scan ? 'Perch only reads the ones you tick.' : !none ? 'Keep the ones you want Perch to follow.' : 'Perch found none of them yet. Tick the ones you use.';
-      /* Others is the grid's last tile, quieter than the rest, so it fills the empty slot beside an odd one out; it opens a
-         popover list under it, five lines tall at most, which scrolls */
-      var oxTile = !rest.length ? '' : '<button class="ox-h o-oth flex ' + (dense ? 'h-8' : 'h-10') + ' cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (fnd.length ? '' : ' col-span-2') + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
-        '<span class="grid ' + (dense ? 'size-4' : 'size-5') + ' flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', dense ? 'size-2.5' : 'size-3') + '</span>' +
-        '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4 text-muted-foreground">Others</span>' + (dense ? '' : '<span class="ox-n block truncate text-xs leading-4 text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>') + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
-      var oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] hidden" role="menu">' + rest.map(function (x, i) { return popItem(x, i, 'ox-it', 'data-id="' + x.id + '"'); }).join('') + '</div>';
-      var grid = '<div class="o-found grid grid-cols-2 gap-1.5' + (fnd.length > 10 ? ' overflow-y-auto' : '') + '"' + (fnd.length > 10 ? ' style="max-height:172px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 28px),transparent)"' : '') + '>' + fnd.map(tile).join('') + oxTile + '</div>';
+      /* Others is a quieter line under the kinds; it opens a popover list under it, five lines tall at most, which scrolls */
+      var oxTile = !rest.length ? '' : '<button class="ox-h o-oth mt-1.5 flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
+        '<span class="grid size-4 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', 'size-2.5') + '</span>' +
+        '<span class="min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">Others</span>' +
+        '<span class="ox-n flex-none text-xs text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
+      /* the popover keeps the kinds too: a small label over each, its lines numbered in the order shown for the arrow keys */
+      var oxN = 0, oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP + ' left-[-6px] right-[-6px] hidden" role="menu">' + byKind(rest).map(function (g, n) {
+        return kindLabel(g.name, 'px-2.5 ' + (n ? 'pt-2' : 'pt-1')) + g.items.map(function (x) { return popItem(x, oxN++, 'ox-it', 'data-id="' + x.id + '"'); }).join('');
+      }).join('') + '</div>';
+      /* what was found, by kind: a small label over each kind's tiles, two to a line; past what the card can hold it scrolls,
+         the next row showing faded */
+      var kinds = byKind(fnd), tileH = dense ? 38 : 46, est = kinds.reduce(function (h, g) { return h + 20 + Math.ceil(g.items.length / 2) * tileH; }, 0);
+      var tall = est > 200, fade = 'linear-gradient(to bottom,#000 calc(100% - 18px),transparent)';
+      var grid = '<div class="o-found' + (tall ? ' overflow-y-auto' : '') + '"' + (tall ? ' style="max-height:190px;-webkit-mask-image:' + fade + ';mask-image:' + fade + '"' : '') + '>' +
+        kinds.map(function (g, n) { return kindLabel(g.name, n ? 'pt-2' : '') + '<div class="grid grid-cols-2 gap-1.5">' + g.items.map(tile).join('') + '</div>'; }).join('') + '</div>' + oxTile;
       var foundHtml = scan ? '<div class="flex h-10 items-center rounded-lg bg-white/[0.04] px-3 text-[13px] text-muted-foreground/70">Looking in your agents\u2019 folders\u2026</div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
       var othersHtml = '';
       h = otitle(o, head, sub) +
