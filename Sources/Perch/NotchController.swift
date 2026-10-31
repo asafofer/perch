@@ -15,6 +15,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var screen: NSScreen
     private var info: ScreenInfo
     private var contentSize = CGSize(width: NotchGeometry.cardWidth, height: 160)
+    /// An open Settings menu that hangs past the card's foot: its box from the card's top centre, as the page measured it.
+    private var menuBox: CGRect?
     private var timerToken = 0
     private var timer: Task<Void, Never>?
     private var keyMonitor: Any?
@@ -1364,6 +1366,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "painted": if let t = body["token"] as? Int { reveal(t) }
         case "size":
             if let w = body["width"] as? Double, let h = body["height"] as? Double { contentSize = CGSize(width: w, height: h) }
+            let m = body["menu"] as? [Double] ?? []
+            menuBox = m.count == 4 ? CGRect(x: m[0], y: m[1], width: m[2], height: m[3]) : nil
         case "activity":
             let wasShowing = activityMode != ""
             activityMode = body["mode"] as? String ?? ""
@@ -2316,6 +2320,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// The drag pasteboard's count when the button went down: it moves on when a drag starts.
     private var dragBase = 0
     private var cardRect: CGRect { NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info) }
+    /// The card, or an open menu hanging past it: where the pointer is on Perch.
+    private func onCard(_ p: NSPoint) -> Bool {
+        if cardRect.contains(p) { return true }
+        guard let m = menuBox else { return false }
+        return CGRect(x: info.frame.midX + m.minX, y: info.frame.maxY - m.maxY, width: m.width, height: m.height).contains(p)
+    }
     private var draggedSincePress: Bool { NSPasteboard(name: .drag).changeCount != dragBase }
     /// The button is down and files are on their way somewhere, dragged since it went down.
     private var draggingFiles: Bool {
@@ -2324,13 +2334,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func pressedElsewhere() {
         dragBase = NSPasteboard(name: .drag).changeCount
-        pressedOutside = machine.phase != .idle && !cardRect.contains(NSEvent.mouseLocation)
+        pressedOutside = machine.phase != .idle && !onCard(NSEvent.mouseLocation)
     }
     private func releasedElsewhere() {
         guard pressedOutside else { return }
         pressedOutside = false
         guard machine.phase != .idle, machine.phase != .onboarding, !holdOpen, !wnHoldsForAccess else { return }
-        if draggedSincePress, cardRect.contains(NSEvent.mouseLocation) { return }   // dropped on the card
+        if draggedSincePress, onCard(NSEvent.mouseLocation) { return }   // dropped on the card
         send(.dismiss)
     }
 
@@ -2471,8 +2481,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             }
             hoverIdle(); return
         }
-        let rect = NotchGeometry.contentRect(width: contentSize.width, height: contentSize.height, screen: info)
-        let inside = rect.contains(NSEvent.mouseLocation)
+        let inside = onCard(NSEvent.mouseLocation)
         panel.ignoresMouseEvents = !inside
         // What's new opened by itself and left the keyboard alone; the pointer on it says you are reading it, so the arrows are its.
         if inside, !pointerOnCard, machine.phase == .whatsNew, !panel.isKeyWindow { startKeys(); panel.allowsKey = true; panel.makeKey() }
@@ -2482,7 +2491,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         // click elsewhere or Esc.
         if openedByHover, !replyOpen, !previewOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
-            if rect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
+            if inside || cardRect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }
             else { leftCardAt = Date() }
         }

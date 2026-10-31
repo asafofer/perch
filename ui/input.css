@@ -41,6 +41,8 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .ear.r { right: -6px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 5.5px, #000 6px); }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+/* a Settings menu (Notify me about, a kind of agents) may hang past the card's foot; only while one is open */
+.n[data-menu="1"] .clip { overflow: visible; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new, .n[data-s=ns] .p-ns { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: opacity .12s, transform .12s, filter .12s, color .15s, background-color .15s; }

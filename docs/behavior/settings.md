@@ -23,19 +23,15 @@ Version row's update states in [updates.md](updates.md).
   back from the left (transitions.dev page side by side).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
-  - Agents: what Perch found comes first, in alphabetical order, a line for each agent or app it has seen a session of
-    (`isFound`: a count above nothing; herdr, tmux, cmux, agterm and Conductor are listed like the agents) with a check and
-    how many sessions it has. Past six they go two to a line: Up and Down go straight down a column,
-    Right and Left cross the line, and Left from the left one is Back. Under them Others, one row that opens a popover list
-    as wide as the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
-    opens up from its row, over the agents above, never over the page's header, so the card keeps its size and its keys
-    stay in sight; five lines at most, scrolling past that with a fade at the edge that has more. With few agents above,
-    Others moves down to make that room. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet every agent is
-    listed, each off, and there is no Others. Up and Down choose in the popover, Return switches one, Left or Esc closes it.
-    A check that is off is a faint empty box, so a line reads as something to tick. With all sixteen found, or none, the
-    page is 348 pt. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for
-    what is in Others, which start off.
-    Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line),
+  - Agents: a row for each kind of agent, as on the apps step (Terminal agents, Coding apps, Personal agents, Terminals;
+    `KINDS` in `app.js`), showing the marks of the ones Perch follows, alphabetical, or None. Return or a click opens the
+    kind's popover list, like Notify me about: its agents, alphabetical, each with a check and, once Perch has seen a session
+    of it (`isFound`), how many. Up and Down choose in it, Return switches one, Left or Esc closes it. A check that is off is
+    a faint empty box. The list opens down over the rows below and may hang past the card's foot: the card keeps its size
+    (228 pt), and Swift takes clicks on the list too (the page sends its box with the card's size, `menu`), so a click there
+    is not a click outside. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for agents Perch has not
+    seen, which start off.
+    Onboarding's apps step groups the same kinds, as tiles: it opens while the first scan runs ("Looking for your sessions", one quiet line),
     then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Perch found 12 sessions
     across 3 apps" (every session it saw, across how many apps). The tiles are grouped by kind, each under a small label: Terminal agents (Claude Code, Codex, Muse, Oh My Pi,
     OpenCode, pi), Coding apps (Conductor, Cursor), Personal agents (Claude chats and tasks, Dots, Grok Bot) and Terminals
@@ -49,7 +45,7 @@ Version row's update states in [updates.md](updates.md).
     under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
     marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.
   - Notifications: one row, Notify me about, with the lit moments (`NotifyKind`) as small coloured icons and a chevron; it opens
-    a menu over the rows below, a check for each moment, and the card grows to hold it (Return opens it, Up and Down choose,
+    a menu over the rows below, a check for each moment, which may hang past the card's foot, the card keeping its size (Return opens it, Up and Down choose,
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
     Then Welcome back after and Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.

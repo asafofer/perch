@@ -70,20 +70,20 @@
   function byName(list) { return list.slice().sort(function (a, b) { var x = a.name.toLowerCase(), y = b.name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; }); }
   /* The apps step lists agents by how they are used, each kind under a small label, alphabetical inside it. An id no kind
      names joins the first. */
-  var KINDS = [['Terminal agents', ['claude', 'codex', 'muse', 'omp', 'opencode', 'pi']], ['Coding apps', ['conductor', 'cursor']],
-    ['Personal agents', ['chat', 'cowork', 'dots', 'grokbot']], ['Terminals', ['agterm', 'cmux', 'herdr', 'tmux']]];
+  var KINDS = [['Terminal agents', ['claude', 'codex', 'muse', 'omp', 'opencode', 'pi'], 'term'], ['Coding apps', ['conductor', 'cursor'], 'win'],
+    ['Personal agents', ['chat', 'cowork', 'dots', 'grokbot'], 'chat'], ['Terminals', ['agterm', 'cmux', 'herdr', 'tmux'], 'grid']];
   function byKind(list) {
     var kindOf = function (id) { for (var k = 0; k < KINDS.length; k++) if (KINDS[k][1].indexOf(id) >= 0) return k; return 0; };
-    return KINDS.map(function (k, n) { return { name: k[0], items: list.filter(function (x) { return kindOf(x.id) === n; }) }; }).filter(function (g) { return g.items.length; });
+    return KINDS.map(function (k, n) { return { name: k[0], icon: k[2], items: list.filter(function (x) { return kindOf(x.id) === n; }) }; }).filter(function (g) { return g.items.length; });
   }
   function kindLabel(name, cls) { return '<div class="' + (cls || '') + ' px-0.5 pb-1 text-[11px] font-medium leading-4 text-muted-foreground/70">' + esc(name) + '</div>'; }
   /* a tile's second line: what it found, by name or, for chats (which are many), how many */
   function srcLine(x) { return x.id === 'chat' ? x.count + ' recent' : x.names && x.names.length ? x.names.slice(0, 2).join(', ') + (x.count > 2 ? ', +' + (x.count - 2) : '') : x.count + (x.count === 1 ? ' session' : ' sessions'); }
   /* A popover list of agents, one to a line with its mark and a check, in the look of Settings' Notify me about menu. */
-  function popItem(x, i, cls, attrs) {
+  function popItem(x, i, cls, attrs, note) {
     return '<div class="' + cls + ' nt-it flex h-8 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors hover:bg-white/[0.07]" data-i="' + i + '" ' + attrs + ' aria-pressed="' + x.enabled + '">' +
       '<span class="grid flex-none transition-opacity ' + (x.enabled ? '' : 'opacity-50') + '">' + App(x.id, 'size-4') + '</span><span class="min-w-0 flex-1 truncate ' + (x.enabled ? '' : 'text-muted-foreground') + '">' + esc(x.name) + '</span>' +
-      '<span class="px-chk grid size-4 flex-none place-items-center text-foreground/80">' + (x.enabled ? svg('check', 'size-4') : '') + '</span></div>';
+      (note || '') + '<span class="px-chk grid size-4 flex-none place-items-center text-foreground/80">' + (x.enabled ? svg('check', 'size-4') : '') + '</span></div>';
   }
   var POP = 'absolute z-30 overflow-y-auto rounded-xl bg-[#1c1c1f] p-1 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.09),0_12px_32px_rgba(0,0,0,0.6)]';
   /* Codex's own mark, the icon its app ships (icon-codex-light.png), for when Codex is only a command on this Mac and for
@@ -1754,6 +1754,7 @@
     document.documentElement.dataset.guide = s.guide || '';
     n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
     n.dataset.s = st;
+    if (st !== 'set') n.dataset.menu = '';
     curH = h;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
@@ -1783,7 +1784,11 @@
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping && !crPlay) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
       : st === 'new' || (st === 'set' && fbGlow.k === 'done' && Date.now() - fbGlow.at < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
-    post({ type: 'size', width: w, height: h });
+    /* an open Settings menu may hang past the card's foot: Swift takes clicks there too, and a click on it is not a click
+       outside. Its box from the card's top centre (the card narrows and widens about that), 0 when none is open. */
+    var mn = st === 'set' && n.dataset.menu && q('.set .nt-menu'), mb = 0;
+    if (mn) { var mr = mn.getBoundingClientRect(), nr = n.getBoundingClientRect(); mb = [mr.left - nr.left - w / 2, mr.top - nr.top, mr.width, mr.height]; }
+    post({ type: 'size', width: w, height: h, menu: mb });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
     var mode = st === 'idle' ? act.mode : '', keys = !mode || mode === 'sent' || (act.p && (act.p.update || act.p.access)) ? [] : mode === 'full' ? act.keys : act.keys.filter(function (k) { return k !== 'reply'; });   /* an update, and Accessibility gone, have buttons for the mouse only */
     /* a question or a finish on the row (a question in the wings too): the shortcut that opens Perch opens it on its card instead */
@@ -3597,20 +3602,11 @@
     var pane = q('.p-set'), slid = by && !STILL ? crossSeen(pane, ['.set']) : [];
     var box = q('.set');
     box.innerHTML = html; q('.s-title').innerHTML = title;
-    /* the moments' menu opens over the rows below: the card keeps room for all of it, and the footer under it */
-    box.style.minHeight = setPage === 'notify' && notifyMenuOpen ? (34 + notifyList(o).length * 32 + 20 + 36) + 'px' : '';
-    /* the agents popover reaches up to the first agent, never over the page's header, five lines at most (Others moves down to
-       make that room when there are few agents); it scrolls inside its box, so its fade never shows the rows under it */
+    /* a menu (the moments', a kind's agents) opens down over the rows below and may hang past the card's foot: the card keeps
+       its size, the panel around it has the room */
+    box.style.minHeight = ''; n.dataset.menu = notifyMenuOpen || kindMenu ? '1' : '';
     var oxp = box.querySelector('.s-ox-pop');
-    if (oxp) {
-      var orow = box.querySelector('.s-ox'), sc = oxp.querySelector('.ox-sc'), top = orow.getBoundingClientRect().top - 4;
-      var first = box.querySelector('[data-k^="src:"]'), firstRow = first && first.closest('.s-row');
-      var room = top - (firstRow || box).getBoundingClientRect().top + 2, want = Math.min(168, sc.scrollHeight + 8);
-      /* few agents above it: Others moves down to make the room, and the card grows by that much */
-      if (room < want) { orow.style.marginTop = (want - room) + 'px'; room = want; }
-      sc.style.maxHeight = (Math.min(200, room) - 8) + 'px';
-      oxFade(sc); sc.onscroll = function () { oxFade(sc); };
-    }
+    if (oxp) { var sc = oxp.querySelector('.ox-sc'); sc.style.maxHeight = '200px'; oxFade(sc); sc.onscroll = function () { oxFade(sc); }; }
     slid.forEach(function (x) {
       if (!x.g) return;
       var dx = by > 0 ? 8 : -8, g = x.g, gone = function () { g.remove(); };
@@ -3652,8 +3648,8 @@
       var ln = box.querySelector('.s-ntl'), was = ln && ln.innerHTML;
       if (ln && b.dataset.name) { b.onmouseenter = function () { ln.textContent = b.dataset.name + ' \u00b7 ' + (b.getAttribute('aria-pressed') === 'true' ? 'on' : 'off'); }; b.onmouseleave = function () { ln.innerHTML = was; }; }
     });
-    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; if (r.classList.contains('s-ox')) { othersMenuOpen = !othersMenuOpen; notifyMenuOpen = false; } else { notifyMenuOpen = !notifyMenuOpen; othersMenuOpen = false; } ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
-    box.onclick = function (e) { if ((notifyMenuOpen || othersMenuOpen) && !e.target.closest('.s-menu')) { notifyMenuOpen = othersMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); } };
+    box.querySelectorAll('.s-menu').forEach(function (r) { r.onclick = function (e) { if (e.target.closest('.nt-menu')) return; if (r.dataset.kind) { kindMenu = kindMenu === r.dataset.kind ? '' : r.dataset.kind; notifyMenuOpen = false; } else { notifyMenuOpen = !notifyMenuOpen; kindMenu = ''; } ntFocus = 0; setSig = ''; settingsApply(setLast); ntRelayout(); }; });
+    box.onclick = function (e) { if ((notifyMenuOpen || kindMenu) && !e.target.closest('.s-menu')) { notifyMenuOpen = false; kindMenu = ''; setSig = ''; settingsApply(setLast); ntRelayout(); } };
     box.querySelectorAll('.s-prm').forEach(function (b) { b.onclick = function () {
       var m = b.dataset.m; post({ type: 'setting', key: 'showPullRequests', value: m !== 'off' }); post({ type: 'setting', key: 'pullRequests', value: m === 'checks' });
     }; });
@@ -3667,6 +3663,11 @@
     on2('.s-done', function () { post({ type: setLast && setLast.back ? 'back' : 'dismiss' }); });
     on2('.s-back', function () { setGo(''); });
   }
+  /* a kind's row, Settings, Agents: the marks of its agents that are on, alphabetical, or None */
+  function kindFaces(items) {
+    var on = byName(items).filter(function (x) { return x.enabled; });
+    return on.length ? on.map(function (x) { return '<span class="grid">' + App(x.id, 'size-4') + '</span>'; }).join('') : '<span class="text-xs text-muted-foreground">None</span>';
+  }
   /* a category's own rows */
   function pageRows(o, sc, axRow) {
     var gap = '<div class="h-1.5"></div>';
@@ -3679,24 +3680,18 @@
       return scRow + newRow + axRow;
     }
     if (setPage === 'agents') {
-      /* what Perch found, in alphabetical order, each a line with a check and how many sessions (two to a line once there are
-         many); then Others, one row that opens a popover list of the agents and apps it supports that it has not seen: one to
-         a line, off until you switch one on. With nothing found, every agent is listed, each off, and there is no Others. */
-      var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); }));
-      if (!fnd.length) { fnd = rest; rest = []; }
-      var cnt = function (x) { return '<span class="flex-none text-xs tabular-nums text-muted-foreground">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>'; };
-      var many = fnd.length > 6;
-      var foundRows = fnd.map(function (x) {
-        var r = stap(srow(sthing(App(x.id, 'size-4'), esc(x.name), x.enabled, many ? '' : cnt(x)), ckHtml(x.enabled, 'src:' + x.id, x.name)));
-        return many ? r.replace('s-row mx-2', 's-row') : r;
+      /* a row for each kind of agent (as on the apps step), showing the marks of the ones switched on; the row opens a popover
+         list of that kind's agents, alphabetical, each with a check and, once Perch has seen it, how many sessions */
+      return byKind(o.sources).map(function (g) {
+        var open = kindMenu === g.name, n = 0;
+        var items = byName(g.items).map(function (x) {
+          var note = isFound(x) ? '<span class="flex-none text-xs tabular-nums text-muted-foreground/70">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
+          return popItem(x, n++, 's-nt', 'data-k="' + x.id + '" data-src="1"', note);
+        }).join('');
+        var menu = open ? '<div class="nt-menu s-ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' right-0 top-[34px] w-[250px]"><div class="ox-sc overflow-y-auto">' + items + '</div></div>' : '';
+        return '<div class="s-row s-menu s-kr relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" data-kind="' + esc(g.name) + '" aria-expanded="' + open + '">' + slabel(esc(g.name), '', g.icon) +
+          '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5"><span class="s-kf flex items-center gap-1.5">' + kindFaces(g.items) + '</span>' + svg(open ? 'chevU' : 'chevD', 'size-3 flex-none text-muted-foreground') + '</span>' + menu + '</div>';
       }).join('');
-      var onN = rest.filter(function (x) { return x.enabled; }).length;
-      var oitems = rest.map(function (x, i) { return popItem(x, i, 's-nt', 'data-k="' + x.id + '" data-src="1"'); }).join('');
-      /* it opens up from its row, over the agents above, so the card keeps its size and its keys stay in sight */
-      var omenu = othersMenuOpen ? '<div class="nt-menu s-ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' -left-1 -right-1 bottom-[34px]"><div class="ox-sc overflow-y-auto">' + oitems + '</div></div>' : '';
-      var othersRow = rest.length ? '<div class="s-row s-menu s-ox relative mx-2 flex h-[30px] cursor-pointer items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors" aria-expanded="' + othersMenuOpen + '">' + slabel('Others', '', 'plus') +
-        '<span class="flex flex-none items-center gap-1.5 rounded-lg bg-white/[0.07] py-1 pl-2 pr-1.5 text-xs text-muted-foreground">' + '<span class="s-ox-n">' + (onN ? onN + ' on' : rest.length + (fnd.length ? ' more' : ' to choose from')) + '</span>' + svg(othersMenuOpen ? 'chevD' : 'chevU', 'size-3 flex-none') + '</span>' + omenu + '</div>' : '';
-      return (fnd.length ? (many ? '<div class="mx-2 grid grid-cols-2">' + foundRows + '</div>' : foundRows) : '<div class="mx-2 px-2 py-1 text-xs text-muted-foreground">Nothing found yet. Switch on the ones you use.</div>') + othersRow;
     }
     if (setPage === 'status') {
       /* these sat under the agents until the list outgrew the panel */
@@ -3740,7 +3735,7 @@
     if (id === setPage) return;
     var was = setPage;
     setSlide = still ? 0 : id ? 1 : -1;
-    setPage = id; othersMenuOpen = false; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
+    setPage = id; kindMenu = ''; setFocus = id ? 0 : setRootAt; setKb = true; setHot = -1;
     /* the app gives Send feedback's fields the keys while it is open, and takes files dropped on the card */
     if (id === 'feedback' || was === 'feedback') post({ type: 'feedbackOpen', open: id === 'feedback' });
     if (id === 'feedback' && fbState === 'sent') fbState = '';
@@ -3954,7 +3949,7 @@
   }
   function notifyOn(k) { return ((snap && snap.notifyOff) || []).indexOf(k) < 0; }
   /* the highlighted row, moved with the arrow keys or the pointer */
-  var othersMenuOpen = false;   /* Settings, Agents: the popover of agents Perch has not found */
+  var kindMenu = '';   /* Settings, Agents: the kind whose popover list is open */
   var setFocus = 0, liveNext = false, setHot = -1, setKb = true;   /* a row is lit while the pointer is on it or the keys chose it */
   /* opened from a question's "Settings": Agents opens on Live status, and it lights up once so the eye lands on it */
   function flashLive() {
@@ -4003,9 +3998,9 @@
     if (setPage === 'feedback') { if (k === 'esc' || k === 'left') setGo(''); return; }   /* the fields take the keys; these come only when neither has focus */
     var rows = q('.set').querySelectorAll('.s-row'), row = rows[setFocus];
     /* with the moments' menu open the keys are its own: Up and Down choose, Return switches one, Left and Esc fold it away */
-    if (notifyMenuOpen || othersMenuOpen) {
+    if (notifyMenuOpen || kindMenu) {
       var its = q('.set').querySelectorAll('.nt-menu .s-nt');
-      if (k === 'left' || k === 'esc') { notifyMenuOpen = othersMenuOpen = false; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
+      if (k === 'left' || k === 'esc') { notifyMenuOpen = false; kindMenu = ''; setSig = ''; settingsApply(setLast); ntRelayout(); return; }
       if (k === 'down' || k === 'up') { ntFocus = (ntFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; paintFocus(); return; }
       if (k === 'enter' && its[ntFocus]) its[ntFocus].click();
       return;
@@ -4044,28 +4039,30 @@
   }
   function settingsApply(o) {
     if (!o) return;
-    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, othersMenuOpen, fbState]); if (sig === setSig) return;
+    var box = q('.set'), upd = snap ? [snap.update, !!snap.canUpdate] : 0, sig = JSON.stringify([o, charNow, upd, snap && snap.notifyOff, axAsked, setPage, kindMenu, fbState]); if (sig === setSig) return;
     /* feedback is drawn once when it opens: Swift sends Settings every half second while sessions are written, and a
        redraw would take your caret and selection */
     if (setSig && setPage === 'feedback' && box.querySelector('.fb-in')) { setSig = sig; setLast = o; return; }
     /* the list is drawn again whenever what it says changes; a category with the same rows and new values changes them in
        place, so switches and the segment animate */
-    var shape = JSON.stringify([setPage, othersMenuOpen, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
+    var shape = JSON.stringify([setPage, kindMenu, o.shortcut, o.accessibility, o.accessWas, axAsked, !!o.hasExternal, o.sources.map(function (x) { return [x.id, x.count]; }), charNow, snap && snap.canUpdate, snap && snap.version, snap && snap.testBuild, o.showOn, o.displays, setPage === 'status' ? [o.live, o.prs === 'on', o.prs === 'nogh' || o.prs === 'login', o.showPRs !== false] : setPage === 'notify' ? [o.prs, o.showPRs !== false, o.sources.length, notifyMenuOpen, snap && snap.notifyOff] : setPage ? 0 : [o, snap && snap.notifyOff]]);
     if (setSig && box.dataset.shape === shape) {
       setSig = sig; setLast = o;
       box.querySelectorAll('.s-sw').forEach(function (b) {
         var v = swVal(o, b.dataset.k), r = b.closest('.s-row'), dm = r && r.querySelector('.s-dim'); setSw(b, v);
         if (dm) { dm.classList.toggle('opacity-40', !v); dm.nextSibling.classList.toggle('text-muted-foreground', !v); }
       });
-      /* the popover of agents Perch has not found, and what its row says, follow in place so it stays open while you tick */
-      var onx = 0, nx = 0;
+      /* an open kind's popover list follows in place, so it stays open while you tick */
       box.querySelectorAll('.s-ox-pop .s-nt').forEach(function (b) {
         var x = o.sources.filter(function (y) { return y.id === b.dataset.k; })[0]; if (!x) return;
         b.setAttribute('aria-pressed', String(x.enabled)); b.firstChild.classList.toggle('opacity-50', !x.enabled); b.firstChild.nextSibling.classList.toggle('text-muted-foreground', !x.enabled);
         b.querySelector('.px-chk').innerHTML = x.enabled ? svg('check', 'size-4') : '';
       });
-      var oxn = box.querySelector('.s-ox-n');
-      if (oxn) { var rs = o.sources.filter(function (y) { return !isFound(y); }); onx = rs.filter(function (y) { return y.enabled; }).length; oxn.textContent = onx ? onx + ' on' : rs.length + (o.sources.some(isFound) ? ' more' : ' to choose from'); }
+      /* each kind's row shows the marks of the agents now on */
+      box.querySelectorAll('.s-kr').forEach(function (r) {
+        var g = byKind(o.sources).filter(function (x) { return x.name === r.dataset.kind; })[0], f = r.querySelector('.s-kf'), h = g ? kindFaces(g.items) : '';
+        if (f && f.innerHTML !== h) f.innerHTML = h;
+      });
       var us = box.querySelector('.s-updslot');
       if (us && snap) {
         var html = updSlot(snap), key = html.replace(/stroke-dashoffset="[^"]*"/, '');
@@ -4402,7 +4399,7 @@
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       /* open a group on the apps step or on Settings, Agents */
-      openOthers: function () { var el = q('.onb .ox-h') || q('.set .s-ox'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
+      openOthers: function () { var el = q('.onb .ox-h') || q('.set .s-kr'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
       show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
@@ -4413,7 +4410,7 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       settings: function (o, keep) {
-        devScBack(); othersMenuOpen = false;
+        devScBack(); kindMenu = '';
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
