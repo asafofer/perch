@@ -4464,7 +4464,7 @@
       notchClip: function () {
         d0(); base.selected = 0; actGone = {}; actSeen = {};
         atNT = { fret: 300, blink: 700, close: 1830 };
-        var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Needs your approval' }) : x; });
+        var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Waiting on you' }) : x; });
         var on = Object.assign({}, base, { character: charNow, charAtNotch: true, phase: 'idle' });
         var calm = Q.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });
         apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() }));
