@@ -2567,8 +2567,11 @@
   function atNSigh() { cr.classList.add('sigh'); atNLater(function () { cr.classList.remove('sigh'); }, 900); }
   function atNRoll() {
     if (STILL) return;
+    /* from wherever the eyes are, so the roll never jumps; it ends where they rest after it */
+    var from = (cr.style.getPropertyValue('--lx') || '0px') + ' ' + (cr.style.getPropertyValue('--ly') || '0px');
+    look(0, .9);
     cr.querySelectorAll('.ey').forEach(function (e) {
-      e.animate([{ translate: '1.4px -.6px' }, { translate: '1px -2px', offset: .3 }, { translate: '-1px -2.1px', offset: .55 }, { translate: '-1.8px -.8px', offset: .8 }, { translate: '0px .9px' }],
+      e.animate([{ translate: from }, { translate: '1.4px -.6px', offset: .12 }, { translate: '1px -2px', offset: .32 }, { translate: '-1px -2.1px', offset: .55 }, { translate: '-1.8px -.8px', offset: .8 }, { translate: '0px .9px' }],
         { duration: 1100, easing: 'cubic-bezier(.45,0,.4,1)' });
     });
   }
