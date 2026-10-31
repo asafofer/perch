@@ -29,8 +29,8 @@ case "${1:-}" in
         PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/.claude/local" \
         tmux -S "$SOCK" new-session -d -s "$SESSION" -x 110 -y 28 -c "$DIR" "claude --model $MODEL"
       sleep 4
-      # a new folder asks to be trusted first
-      if tm capture-pane -p -t "$SESSION" | grep -qi "trust"; then tm send-keys -t "$SESSION" Enter; sleep 2; fi
+      # a new folder asks to be trusted first ("No, exit" is the default)
+      if tm capture-pane -p -t "$SESSION" | grep -qi "trust this folder"; then tm send-keys -t "$SESSION" Down; sleep .3; tm send-keys -t "$SESSION" Enter; sleep 3; fi
     fi
     CMD="$DIR/.attach.command"
     printf '#!/bin/bash\nprintf "\\033]0;perch-demo\\007"\nexec tmux -S %s attach -t %s\n' "$SOCK" "$SESSION" > "$CMD"; chmod +x "$CMD"

@@ -1759,7 +1759,7 @@
       crHideT = setTimeout(function () { crHideT = 0; if (cr.style.transition !== 'none') cr.style.transition = ''; }, 320);
     } else if (!crHide && crHideT) { clearTimeout(crHideT); crHideT = 0; cr.style.transition = ''; }   /* back before it settled: it moves as always */
     cr.style.opacity = crHide ? 0 : 1;
-    cr.dataset.news = news ? '1' : '';
+    cr.dataset.news = news && !atN.on ? '1' : '';   /* the old word beside it has no place in the notch */
     /* its face says how things are: wide-eyed when something needs you, happy when something finished */
     var cp = st === 'open' || (st === 'switch' && switchFx === 'watch') ? s.projects[s.selected] : null;
     if (!celebrating && !hello && !dropping && !crPlay && !atN.on) cr.dataset.m = st === 'idle' ? (news ? 'alert' : 'sleep')
@@ -1952,10 +1952,10 @@
     if (key === actGlideFor && actGlides.length) return;
     actGlides.forEach(function (a) { a.cancel(); }); actGlides = []; actGlideFor = key;
     actEl.querySelectorAll('.mq-on').forEach(function (b) { b.classList.remove('mq-on', 'mq-rtl'); });
-    if (act.mode !== 'full' || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    if (act.mode !== 'full' || atN.on || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;   /* with the character in, only its eyes move */
     var tries = 0, was = '';
     setTimeout(function start() {
-      if (actGlideFor !== key) return;
+      if (actGlideFor !== key || atN.on) return;
       /* measured once the notch has stopped growing: mid-grow a box is a sliver, and a glide sized to it runs the
          whole name out of sight. Two readings in a row that agree mean it has settled. */
       var boxes = actEl.querySelectorAll('.act-n, .act-p'), now = [].map.call(boxes, function (b) { return b.clientWidth; }).join();
