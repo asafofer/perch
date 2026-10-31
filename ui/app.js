@@ -1756,7 +1756,7 @@
     document.documentElement.dataset.guide = s.guide || '';
     n.dataset.hide = virt && st === 'idle' && !act.mode ? '1' : '';
     n.dataset.s = st;
-    if (st !== 'set') n.dataset.menu = '';
+    if (st !== 'set' && st !== 'onb') n.dataset.menu = '';
     curH = h;
     if (st === 'idle') {
       var d = 18; cr.style.width = cr.style.height = d + 'px';
@@ -1788,7 +1788,7 @@
       : st === 'new' || (st === 'set' && fbGlow.k === 'done' && Date.now() - fbGlow.at < 2600) ? 'happy' : (cp && cp.status.kind === 'attention' ? 'alert' : (cp && cp.status.kind === 'done' && cp.fresh ? 'happy' : 'awake'));
     /* an open Settings menu may hang past the card's foot: Swift takes clicks there too, and a click on it is not a click
        outside. Its box from the card's top centre (the card narrows and widens about that), 0 when none is open. */
-    var mn = st === 'set' && n.dataset.menu && q('.set .nt-menu'), mb = 0;
+    var mn = n.dataset.menu && (st === 'set' ? q('.set .nt-menu') : st === 'onb' ? q('.onb .ox.open .ox-pop') : null), mb = 0;
     if (mn) { var mr = mn.getBoundingClientRect(), nr = n.getBoundingClientRect(); mb = [mr.left - nr.left - w / 2, mr.top - nr.top, mr.width, mr.height]; }
     post({ type: 'size', width: w, height: h, menu: mb });
     /* Swift needs the shape to let clicks through to it, and the keys to listen for while it shows */
@@ -3202,41 +3202,27 @@
     } else if (st === 3) {
       h = shortcutStep(o);
     } else if (st === 4) {
-      /* Perch has already looked: what it found is on top, in alphabetical order, each with a check (on, unless it is
-         chats), and you keep or clear them. Every agent and app it supports that it did not find is under Others, one
-         line, which opens a popover list of them, one to a line, off until you tick one. While the scan runs, one quiet
-         line says so. */
-      var fnd = byName(o.sources.filter(isFound)), rest = byName(o.sources.filter(function (x) { return !isFound(x); })), scan = !!o.scanning;
-      var none = !scan && !fnd.length; if (none) { fnd = rest; rest = []; }   /* nothing found: every agent is right there to tick, no Others to open first */
-      var dense = fnd.length > 6;   /* four rows of tiles leave no room for a popover: slim tiles, no second line */
-      var tile = function (x) {
-        var on = x.enabled;
-        return '<div class="o-tile cursor-pointer flex ' + (dense ? 'h-8' : 'h-10') + ' items-center gap-2.5 rounded-lg bg-white/[0.06] px-3' + (pop ? ' o-pop' : '') + '" data-id="' + x.id + '"><span class="o-ic flex-none ' + (on ? '' : 'opacity-50') + '">' + App(x.id, dense ? 'size-4' : 'size-5') + '</span>' +
-          '<span class="min-w-0 flex-1"><span class="block truncate text-[13px] font-medium leading-4">' + esc(x.name) + '</span>' + (dense ? '' : '<span class="o-line block truncate text-xs leading-4 text-muted-foreground">' + esc(srcLine(x)) + '</span>') + '</span>' +
-          '<button role="switch" aria-checked="' + on + '" aria-label="Include ' + esc(x.name) + '" data-id="' + x.id + '" class="o-sw ck">' + svg('check', 'size-4') + '</button></div>';
-      };
-      var onN = rest.filter(function (x) { return x.enabled; }).length;
+      /* Perch has already looked: a row for each kind of agent (as in Settings, Agents), showing the marks of the ones it
+         will follow (what it found, ticked, except chats); a row opens a popover list of that kind's agents, each with a check
+         and how many sessions it found. While the scan runs, one quiet line says so. */
+      var fnd = o.sources.filter(isFound), scan = !!o.scanning, none = !scan && !fnd.length;
       /* the title says what the scan found: every session it saw (chats are not sessions), across how many apps */
       var nSes = fnd.reduce(function (n, x) { return n + (x.id === 'chat' ? 0 : x.count || 0); }, 0), plural = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
       var head = scan ? 'Looking for your sessions' : !none ? 'Perch found ' + plural(nSes, 'session') + ' across ' + plural(fnd.length, 'app') : 'Choose your apps';
       var sub = scan ? 'Perch only reads the ones you tick.' : !none ? 'Keep the ones you want Perch to follow.' : 'Perch found none of them yet. Tick the ones you use.';
-      /* Others is a quieter line under the kinds; it opens a popover list under it, five lines tall at most, which scrolls */
-      var oxTile = !rest.length ? '' : '<button class="ox-h o-oth mt-1.5 flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.03] px-3 text-left transition-colors hover:bg-white/[0.06]' + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' +
-        '<span class="grid size-4 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground">' + svg('plus', 'size-2.5') + '</span>' +
-        '<span class="min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">Others</span>' +
-        '<span class="ox-n flex-none text-xs text-muted-foreground/70">' + (onN ? onN + ' on' : rest.length + ' more') + '</span>' + svg('chevU', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>';
-      /* the popover keeps the kinds too: a small label over each, its lines numbered in the order shown for the arrow keys */
-      var oxN = 0, oxPop = !rest.length ? '' : '<div class="ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' left-[-6px] right-[-6px] hidden" role="menu"><div class="ox-sc overflow-y-auto">' + byKind(rest).map(function (g, n) {
-        return kindLabel(g.name, 'px-2.5 ' + (n ? 'pt-2' : 'pt-1')) + g.items.map(function (x) { return popItem(x, oxN++, 'ox-it', 'data-id="' + x.id + '"'); }).join('');
-      }).join('') + '</div></div>';
-      /* what was found, by kind: a small label over each kind's tiles, two to a line; past what the card can hold it scrolls,
-         the next row showing faded */
-      var kinds = byKind(fnd), tileH = dense ? 38 : 46, est = kinds.reduce(function (h, g) { return h + 20 + Math.ceil(g.items.length / 2) * tileH; }, 0);
-      var tall = est > 200;   /* its fade follows the scroll (oxFade, bound in onbBind): only an edge with more past it fades */
-      var grid = '<div class="o-found' + (tall ? ' overflow-y-auto' : '') + '"' + (tall ? ' style="max-height:190px"' : '') + '>' +
-        kinds.map(function (g, n) { return kindLabel(g.name, n ? 'pt-2' : '') + '<div class="grid grid-cols-2 gap-1.5">' + g.items.map(tile).join('') + '</div>'; }).join('') + '</div>' + oxTile;
+      var rows = byKind(o.sources).map(function (g) {
+        var n = 0, items = byName(g.items).map(function (x) {
+          var note = isFound(x) ? '<span class="flex-none text-xs tabular-nums text-muted-foreground/70">' + x.count + (x.count === 1 ? ' session' : ' sessions') + '</span>' : '';
+          return popItem(x, n++, 'ox-it', 'data-id="' + x.id + '"', note);
+        }).join('');
+        return '<div class="ox relative">' +
+          '<button class="ox-h flex h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 text-left transition-colors hover:bg-white/[0.09]' + (pop ? ' o-pop' : '') + '" aria-expanded="false" aria-haspopup="menu">' + stile(g.icon) +
+          '<span class="min-w-0 flex-1 truncate text-[13px] font-medium">' + esc(g.name) + '</span>' +
+          '<span class="ox-n flex flex-none items-center gap-1.5">' + kindFaces(g.items) + '</span>' + svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground') + '</button>' +
+          '<div class="ox-pop ' + POP.replace('overflow-y-auto', 'overflow-hidden') + ' right-0 w-[250px] hidden" role="menu"><div class="ox-sc overflow-y-auto">' + items + '</div></div></div>';
+      }).join('');
       var foundHtml = scan ? '<div class="flex h-10 items-center gap-2.5 rounded-lg bg-white/[0.04] px-3 text-[13px]"><span class="o-scan-ic t-ic size-5 flex-none"></span>' +
-        '<span class="o-scan-t shimmer min-w-0 flex-1 truncate"><span class="o-scan-w">Looking in your agents\u2019 folders\u2026</span><span class="shine">Looking in your agents\u2019 folders\u2026</span></span></div>' : '<div class="ox relative">' + grid + oxPop + '</div>';
+        '<span class="o-scan-t shimmer min-w-0 flex-1 truncate"><span class="o-scan-w">Looking in your agents\u2019 folders\u2026</span><span class="shine">Looking in your agents\u2019 folders\u2026</span></span></div>' : '<div class="o-kinds flex flex-col gap-1.5">' + rows + '</div>';
       var othersHtml = '';
       h = otitle(o, head, sub) +
         oi(3, '<div class="mt-3 px-4">' + foundHtml + othersHtml + '</div>') +
@@ -3262,7 +3248,7 @@
         ofoot(4, true, '', 'Done', 'finish');
     }
     box.className = 'onb' + (animate ? ' go' : '');
-    box.innerHTML = h;
+    box.innerHTML = h; n.dataset.menu = '';
     introToken++; introGlow = '';
     if (st === 0) introduce(animate);
     onbBind(box);
@@ -3276,11 +3262,12 @@
     box.querySelectorAll('.o-sc').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: b.dataset.a }); }; });
     box.querySelectorAll('.o-sc-big .kcap').forEach(function (b) { b.onclick = function () { post({ type: 'shortcut', action: 'try' }); }; });
     if (onbStep === 3) scAfter(onbLast);
+    if (onbStep === 4) oxRows();
     box.querySelectorAll('.o-restart').forEach(function (b) { b.onclick = function () { onbDo('restart'); }; });
     /* a click on a tile ticks it; Others opens its popover, a click anywhere else closes it; its lines tick one each */
     box.querySelectorAll('.o-tile').forEach(function (t) { t.onclick = function (e) { if (!e.target.closest('.o-sw')) t.querySelector('.o-sw').click(); }; });
     box.querySelectorAll('.o-found.overflow-y-auto').forEach(function (el) { oxFade(el); el.onscroll = function () { oxFade(el); }; });
-    box.querySelectorAll('.ox-h').forEach(function (h) { h.onclick = function (e) { e.stopPropagation(); oxOpen(!oxIsOpen()); }; });
+    box.querySelectorAll('.ox-h').forEach(function (h) { h.onclick = function (e) { e.stopPropagation(); var x = h.closest('.ox'); oxOpen(!x.classList.contains('open'), x); }; });
     box.querySelectorAll('.ox-it').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var on = b.getAttribute('aria-pressed') !== 'true'; oxSet(b, on); oxFocus = +b.dataset.i; oxPaint(); oxNote(); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.querySelectorAll('.o-sw').forEach(function (b) { b.onclick = function () { var on = b.getAttribute('aria-checked') !== 'true'; setSw(b, on); var t = b.closest('.o-tile'); if (t) tileDim(t); post({ type: 'source', id: b.dataset.id, enabled: on }); }; });
     box.onclick = function (e) { if (oxIsOpen() && !e.target.closest('.ox-pop')) oxOpen(false); };
@@ -3364,10 +3351,13 @@
   /* the apps step, in place: a switch slides, a tile's line fades to what the scan found */
   /* a mark dims once its agent is cleared */
   function tileDim(t) { var ic = t.querySelector('.o-ic'); if (ic) ic.classList.toggle('opacity-50', ![].some.call(t.querySelectorAll('.o-sw'), function (b) { return b.getAttribute('aria-checked') === 'true'; })); }
-  /* Others: how many of them are on, said on its line */
+  /* a kind's row shows the marks of what is on in its list */
   function oxNote() {
-    var box = q('.onb'), its = box.querySelectorAll('.ox-it'), on = [].filter.call(its, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).length, el = box.querySelector('.ox-n');
-    if (el) el.textContent = on ? on + ' on' : its.length + (box.querySelector('.o-tile') ? ' more' : ' to choose from');
+    q('.onb').querySelectorAll('.ox').forEach(function (x) {
+      var on = [].filter.call(x.querySelectorAll('.ox-it'), function (b) { return b.getAttribute('aria-pressed') === 'true'; }), el = x.querySelector('.ox-n');
+      var h = on.length ? on.map(function (b) { return '<span class="grid">' + App(b.dataset.id, 'size-4') + '</span>'; }).join('') : '<span class="text-xs text-muted-foreground">None</span>';
+      if (el && el.innerHTML !== h) el.innerHTML = h;
+    });
   }
   /* one item of the popover, switched in place */
   function oxSet(it, on) {
@@ -3375,27 +3365,31 @@
     it.firstChild.classList.toggle('opacity-50', !on); it.firstChild.nextSibling.classList.toggle('text-muted-foreground', !on);
     it.querySelector('.px-chk').innerHTML = on ? svg('check', 'size-4') : '';
   }
-  /* The popover opens up from Others, over the tiles above it, so the card keeps its size and Back and Next stay in sight.
-     It is as tall as its list, five lines or so at most, and reaches no higher than the line under the title (with few tiles, Others moves down to make the room); more scroll. Up and Down
-     choose, Return switches one, Left and Esc close it. */
-  var oxFocus = 0;
-  function oxIsOpen() { var p = q('.onb .ox-pop'); return !!p && !p.classList.contains('hidden'); }
-  function oxOpen(open) {
-    var box = q('.onb'), x = box.querySelector('.ox'), pop = x && x.querySelector('.ox-pop'), h = x && x.querySelector('.ox-h');
-    if (!pop) return;
-    pop.classList.toggle('hidden', !open); h.setAttribute('aria-expanded', String(open)); x.classList.toggle('open', open);
-    var rv = x.closest('.o-i'); if (rv) { rv.style.position = open ? 'relative' : ''; rv.style.zIndex = open ? '20' : ''; }
-    h.style.marginTop = '';
-    if (open) {
-      pop.style.top = 'auto'; pop.style.bottom = (x.offsetHeight - h.offsetTop + 4) + 'px';
-      var sub = (rv && rv.previousElementSibling) || box, head = sub.previousElementSibling || sub, top = h.getBoundingClientRect().top - 4;
-      var room = top - sub.getBoundingClientRect().bottom - 8, want = Math.min(168, pop.querySelector('.ox-sc').scrollHeight + 8);
-      /* few tiles above it: Others moves down to make the room (the card grows by that much), never over the title */
-      if (room < want) { h.style.marginTop = (6 + want - room) + 'px'; pop.style.bottom = (x.offsetHeight - h.offsetTop + 4) + 'px'; room = want; }
-      /* the list scrolls inside the box, so its fade never lets the tiles under it show through */
-      var sc = pop.querySelector('.ox-sc'); sc.style.maxHeight = (Math.min(200, room) - 8) + 'px';
+  /* A kind's row opens its popover list under it, over the rows below, and it may hang past the card's foot; a row low on
+     the card opens it upward instead when the panel has no room under it. One open at a time. Up and Down choose, Return
+     switches one, Left and Esc close it. */
+  var oxFocus = 0, oxRow = -1;
+  function oxIsOpen() { return !!q('.onb .ox.open'); }
+  function oxOpen(open, x) {
+    var box = q('.onb'), was = box.querySelector('.ox.open');
+    if (was && (!open || was !== x)) {
+      was.classList.remove('open'); was.querySelector('.ox-pop').classList.add('hidden'); was.querySelector('.ox-h').setAttribute('aria-expanded', 'false');
+      var wc = was.querySelector('.ox-chev'); if (wc) wc.outerHTML = svg('chevD', 'ox-chev size-3 flex-none text-muted-foreground');
+    }
+    var rv = (x || was || box).closest('.o-i');
+    if (rv) { rv.style.position = open ? 'relative' : ''; rv.style.zIndex = open ? '20' : ''; }
+    n.dataset.menu = open ? '1' : '';
+    if (open && x) {
+      var pop = x.querySelector('.ox-pop'), h = x.querySelector('.ox-h'), sc = pop.querySelector('.ox-sc');
+      x.classList.add('open'); pop.classList.remove('hidden'); h.setAttribute('aria-expanded', 'true');
+      var ch = x.querySelector('.ox-chev'); if (ch) ch.outerHTML = svg('chevU', 'ox-chev size-3 flex-none text-muted-foreground');
+      sc.style.maxHeight = '200px';
+      var want = Math.min(208, sc.scrollHeight + 8), below = 430 - (h.getBoundingClientRect().bottom - n.getBoundingClientRect().top);
+      if (want + 4 <= below) { pop.style.top = (h.offsetHeight + 4) + 'px'; pop.style.bottom = 'auto'; }
+      else { pop.style.top = 'auto'; pop.style.bottom = (h.offsetHeight + 4) + 'px'; }
+      oxRow = [].indexOf.call(box.querySelectorAll('.ox'), x);
       oxFocus = -1; oxPaint(); oxFade(sc); sc.onscroll = function () { oxFade(sc); };
-      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
+      if (!STILL) pop.animate([{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'cubic-bezier(.2,.8,.3,1)' });
     }
     if (snap && lastSt === 'onb') layout('onb', snap);
   }
@@ -3405,7 +3399,8 @@
     var m = top || bot ? 'linear-gradient(to bottom,' + (top ? 'transparent,#000 18px' : '#000') + ',' + (bot ? '#000 calc(100% - 18px),transparent' : '#000') + ')' : '';
     el.style.webkitMaskImage = m; el.style.maskImage = m;
   }
-  function oxPaint() { q('.onb').querySelectorAll('.ox-it').forEach(function (b) { var on = +b.dataset.i === oxFocus; b.classList.toggle('bg-white/[0.09]', on); if (on) b.scrollIntoView({ block: 'nearest' }); }); }
+  function oxRows() { q('.onb').querySelectorAll('.ox-h').forEach(function (h, i) { h.classList.toggle('bg-white/[0.09]', i === oxRow); }); }
+  function oxPaint() { q('.onb').querySelectorAll('.ox.open .ox-it').forEach(function (b) { var on = +b.dataset.i === oxFocus; b.classList.toggle('bg-white/[0.09]', on); if (on) b.scrollIntoView({ block: 'nearest' }); }); }
   /* the apps step, in place: a check slides, a tile's line fades to what the scan found (a new find redraws the step) */
   function onbSources(o) {
     var src = function (id) { return o.sources.filter(function (y) { return y.id === id; })[0]; };
@@ -3438,12 +3433,16 @@
   /* Return and the arrow keys, forwarded from the app while the card has the keyboard. */
   function onbKey(k) {
     if (onbStep === 4 && oxIsOpen()) {
-      var its = q('.onb').querySelectorAll('.ox-it');
-      if (k === 'esc' || k === 'left') { oxOpen(false); return; }
+      var its = q('.onb').querySelectorAll('.ox.open .ox-it');
+      if (k === 'esc' || k === 'left') { oxOpen(false); oxRow = -1; oxRows(); return; }
       if (k === 'down' || k === 'up') { oxFocus = oxFocus < 0 ? (k === 'down' ? 0 : its.length - 1) : (oxFocus + (k === 'down' ? 1 : -1) + its.length) % its.length; oxPaint(); return; }
       if (k === 'enter' && its[oxFocus]) its[oxFocus].click();
       return;
     }
+    /* the kinds' rows: Up and Down choose one, Right or Return opens its list; with none chosen Return is Next */
+    var oxs = onbStep === 4 ? q('.onb').querySelectorAll('.ox') : [];
+    if (oxs.length && (k === 'down' || k === 'up')) { oxRow = oxRow < 0 ? (k === 'down' ? 0 : oxs.length - 1) : (oxRow + (k === 'down' ? 1 : -1) + oxs.length) % oxs.length; oxRows(); return; }
+    if (oxs.length && oxRow >= 0 && (k === 'right' || k === 'enter')) { oxOpen(true, oxs[oxRow]); return; }
     if (k === 'enter') { var b = q('.o-primary'); if (b) b.click(); return; }
     /* S skips a step that can be skipped; Left goes back, except on the character page where it changes the shape */
     if (k === 'skip') { var sk = q('.o-skip'); if (sk) sk.click(); return; }
