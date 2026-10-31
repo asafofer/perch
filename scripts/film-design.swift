@@ -36,7 +36,7 @@ func eased(_ p: Double, _ kind: String) -> Double {
 final class Filmer: NSObject, WKNavigationDelegate {
     let panel: NSPanel, web: WKWebView
     let queue = DispatchQueue(label: "film.encode", attributes: .concurrent), group = DispatchGroup()
-    let dir: String, frames: Int, fps = 60.0
+    let dir: String, frames: Int, fps = Double(ProcessInfo.processInfo.environment["FPS"] ?? "") ?? 60   // FPS=180: three frames to each of a 60 fps film, for motion blur
     var started = false, z = 1.0, notch = NSPoint.zero
 
     init(size: NSSize, dir: String, seconds: Double, clock: String) {

@@ -4461,21 +4461,31 @@
       foldNow: function () { clearTimeout(actTimer); actSettle(); },
       /* the X clip's beats, on one locked frame: closed, open at 0.4 s, waiting and fretting until Allow at 5.5 s, a satisfied
          blink as the glow lets go, closed again by 8.2 s and held, so it loops */
+      /* the X clip, one continuous shot (scripts/macro-film.py films it): closed; at 0.8 s the notch opens with the
+         character in it; waiting, it goes from looking at you to side-eye, double blinks, glances at how long it has been, and
+         a full glare at 5.6 s, held; at 7.2 s it gives up and the notch closes, closed again by 8 s so it loops.
+         window.__clipT0 is when it began, for the design page's timer beside "Waiting on you". */
       notchClip: function () {
         d0(); base.selected = 0; actGone = {}; actSeen = {};
-        atNT = { fret: 300, blink: 700, close: 1830 };
+        atNT = { fret: 1e9, blink: 0, close: 820 };
         var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Waiting on you' }) : x; });
         var on = Object.assign({}, base, { character: charNow, charAtNotch: true, phase: 'idle' });
         var calm = Q.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });
         apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() }));
+        window.__clipT0 = Date.now();
         autoTimer = setTimeout(function () {
           apply(Object.assign({}, on, { projects: Q, timerToken: Math.random() }));
-          /* 5.5 s: the peak, its hardest glare and the glow at its strongest, held half a second; then it gives up and the notch closes */
-          autoTimer = setTimeout(function () {
-            atNClear(); cr.dataset.fret = n.dataset.fret = '1'; atNFace('glare'); look(2.4, .8); atNBlink(2, 180);
-            autoTimer = setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 600);
-          }, 4900);
-        }, 400);
+          var T = function (ms, f) { setTimeout(function () { if (atN.on && !atN.out) f(); }, ms - 800); };
+          T(1900, function () { atNBlink(1); });
+          T(2600, function () { atNFace('bored'); look(2.3, .4); });                 /* side-eye */
+          T(3300, function () { look(1.2, 1.8); });                                  /* at the timer */
+          T(3700, function () { atNFace('impatient'); look(0, 1); atNBlink(2, 190); });
+          T(4500, function () { atNFace('bored'); look(2.4, .5); });
+          T(5000, function () { look(1.2, 1.8); atNBlink(2, 170); });
+          T(5600, function () { atNFace('glare'); look(0, 1.1); });                  /* the peak */
+          T(6150, function () { atNBlink(2, 170); });
+          setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 6400);
+        }, 800);
       },
       notchChar: function (hold, face) {
         atNT = { fret: 1600, blink: 0, close: 820 };

@@ -134,7 +134,17 @@ i.sci svg{width:16px;height:16px}
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
 .film .desk #hw{box-shadow:none}
 /* filmed close: WebKit draws the coat's filter at screen resolution whatever the zoom, so a film lights it with a gradient instead */
-.film .cr .f g.coat{filter:none!important}.film .cr .f path:not(.pl):not(.fd){fill:url(#coat-film)}.film .now,.film .ttl{display:none!important}
+.film .cr .f g.coat{filter:none!important}
+/* &macro (scripts/macro-film.py): the notch alone on near-black, a soft shadow under the open panel; &timer: how long it has
+   waited, in rolling digits beside "Waiting on you" */
+.macro .desk{background:#111!important}.macro .act-b.act-o{display:none}.macro .act-p{white-space:nowrap}.macro .mb,.macro .ttl,.macro .now{display:none!important}
+.macro .n[data-act=full]{box-shadow:0 16px 28px -10px rgba(0,0,0,.9),0 4px 10px -4px rgba(0,0,0,.6)}
+.odo{display:inline-flex;align-items:center;flex:none;margin-left:.42em;color:#F5B83D;font-weight:500;font-variant-numeric:tabular-nums}
+.odo .w{display:inline-block;height:2.5em;margin:-.625em 0;overflow:hidden;width:.64em;text-align:center;
+  -webkit-mask-image:linear-gradient(transparent .55em,#000 .8em,#000 1.7em,transparent 1.95em);mask-image:linear-gradient(transparent .55em,#000 .8em,#000 1.7em,transparent 1.95em)}
+.odo .w b{display:block;font-weight:inherit;padding-top:.5em;will-change:transform}
+.odo .w i{display:block;height:1.5em;line-height:1.5em;font-style:normal}
+.odo .c{padding:0 .03em}.film .cr .f path:not(.pl):not(.fd){fill:url(#coat-film)}.film .now,.film .ttl{display:none!important}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
@@ -784,7 +794,7 @@ i.sci svg{width:16px;height:16px}
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Character at the notch', 'Settings, Notifications: Character at the notch on. Claude works and the notch is plain. Claude asks: the notch opens in one spring with your character inside, at the left of the row, looking at you. Left waiting it acts it out with its face: a glance at the buttons, then bored (heavy lids, a slow look away, a sighing blink), then impatient (a slanted glare, an eye-roll, double blinks) as an orange glow grows along the notch\u2019s inner edge. Command+Option+A: one slow, satisfied blink, and the notch closes. Only its eyes move.', function () { d.notchChar(); }],
-      ['Character at the notch: clip', 'The X clip on one locked frame: closed, the notch opens at 0.4 s, it frets with a growing orange glow, Allow at 5.5 s with its keycap flashing, a satisfied blink as the glow lets go, closed by 8.2 s and held so it loops.', function () { d.notchClip(); }],
+      ['Character at the notch: clip', 'The X clip (scripts/macro-film.py): closed; the notch opens at 0.8 s; it waits, from looking at you to side-eye, double blinks and a full glare at 5.6 s, held; at 7.2 s the notch closes again, so it loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
       ['Character at the notch: asks', 'The notch has just opened: the character looks at you. Held here, unanswered (it turns impatient after 3 s).', function () { d.notchChar(true, 'alert'); }],
       ['Character at the notch: bored', 'Heavy lids, looking away.', function () { d.notchChar(true, 'bored'); }],
       ['Character at the notch: impatient', 'A glare at the buttons, lids slanted, the orange glow along the notch\u2019s inner edge.', function () { d.notchChar(true, 'glare'); }],
@@ -1317,6 +1327,31 @@ i.sci svg{width:16px;height:16px}
   if (fm) {
     var want = decodeURIComponent(fm[1].replace(/\+/g, ' '));
     document.documentElement.classList.add('film');
+    if (/[?&]macro\b/.test(location.search)) {
+      document.documentElement.classList.add('macro');
+      /* the timer: each digit a wheel on a spring that rolls to the next second, faster and faster until 0:47 */
+      if (!/[?&]timer=0\b/.test(location.search)) (function () {
+        var col = '<b>' + '01234567890'.split('').map(function (x) { return '<i>' + x + '</i>'; }).join('') + '</b>';
+        var odo = document.createElement('span'); odo.className = 'odo';
+        odo.innerHTML = '<span class="w"><b><i>0</i></b></span><span class="c">:</span><span class="w">' + col + '</span><span class="w">' + col + '</span>';
+        var wheels = odo.querySelectorAll('.w b'), tens = wheels[1], ones = wheels[2], st = [{ x: 0, v: 0 }, { x: 1, v: 0 }], last = null;
+        var goal = function (t) { var s = Math.min(1, Math.max(0, (t - 1600) / 4900)); return Math.floor(1 + 46 * Math.pow(s, 1.9) + 1e-9); };
+        var spring = function (w, g, dt) { var k = 560, c = 2 * Math.sqrt(k) * .6; w.v += (-k * (w.x - g) - c * w.v) * dt; w.x += w.v * dt; };
+        var put = function (el, x) { el.style.transform = 'translateY(' + (-(((x % 10) + 10) % 10) * 1.5).toFixed(4) + 'em)'; };
+        (function tick() {
+          if (window.__clipT0 != null) {
+            var t = Date.now() - window.__clipT0, now = performance.now(), dt = last == null ? 0 : Math.min(.05, (now - last) / 1000); last = now;
+            var lab = [].filter.call(document.querySelectorAll('.act *'), function (e) { return e.childNodes.length === 1 && e.firstChild.nodeType === 3 && e.firstChild.nodeValue === 'Waiting on you'; })[0];
+            if (lab && lab.nextSibling !== odo) lab.parentNode.insertBefore(odo, lab.nextSibling);
+            var g = goal(t);
+            if (t < 1600) { st[0].x = 0; st[1].x = 1; st[0].v = st[1].v = 0; }
+            else for (var n = Math.max(1, Math.ceil(dt / .002)), i = 0; i < n; i++) { spring(st[1], g, dt / n); spring(st[0], Math.floor(g / 10), dt / n); }
+            put(tens, st[0].x); put(ones, st[1].x);
+          }
+          requestAnimationFrame(tick);
+        })();
+      })();
+    }
     document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><radialGradient id="coat-film" cx=".3" cy=".22" r=".95">' +
       '<stop offset="0" stop-color="#FFF46E"/><stop offset=".45" stop-color="#F9C640"/><stop offset=".85" stop-color="#D88E22"/><stop offset="1" stop-color="#E9A030"/></radialGradient></svg>');
     var b = [].filter.call(document.querySelectorAll('button.sc'), function (x) { return x.querySelector('b').textContent === want; })[0];
