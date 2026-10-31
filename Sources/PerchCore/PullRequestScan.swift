@@ -6,8 +6,8 @@ import Foundation
 public enum PullRequestScan {
     static let create = "gh pr " + "create"
     /// The ids a call carries in a log line: Claude Code's `id` and `tool_use_id`, Codex's `call_id`, pi's `toolCallId`,
-    /// OpenCode's `callID`.
-    private static let ids = try! NSRegularExpression(pattern: #""(?:id|call_id|tool_use_id|toolCallId|callID)"\s*:\s*"([^"]+)""#)
+    /// OpenCode's `callID`, Muse's `call_id` and its result's `tool_call_id`.
+    private static let ids = try! NSRegularExpression(pattern: #""(?:id|call_id|tool_use_id|tool_call_id|toolCallId|callID)"\s*:\s*"([^"]+)""#)
     /// An address that ends what was printed: the command prints the new pull request's address last, so a line of output that only
     /// mentions one (a grep over docs, a list) is not it. The address is followed by the end of the string, after any newlines.
     private static let urls = try! NSRegularExpression(pattern: #"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+(?=(?:\\+n|\\+r|\s)*[\"'\]}])"#)

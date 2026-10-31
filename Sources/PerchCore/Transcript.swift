@@ -956,9 +956,9 @@ public enum Activity {
             if let about = input["description"] as? String, !about.isEmpty { return Recap.clip(ongoing(about), 70) }
             let c = command(input).split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
             return c.isEmpty ? nil : "Running `\(Recap.clip(c, 48))`"
-        case "Read", "read", "view_image": return "Reading \(file(""))"
-        case "Edit", "MultiEdit", "edit", "multiedit", "StrReplace": return "Editing \(file(""))"
-        case "Write", "write": return "Writing \(file(""))"
+        case "Read", "read", "read_file", "view_image": return "Reading \(file(""))"
+        case "Edit", "MultiEdit", "edit", "multiedit", "StrReplace", "edit_file": return "Editing \(file(""))"
+        case "Write", "write", "write_file": return "Writing \(file(""))"
         case "NotebookEdit", "EditNotebook": return "Editing \(file(""))"
         case "apply_patch", "patch": return "Changing files"
         case "Grep", "grep": return "Searching for \(quoted("pattern"))"
@@ -969,7 +969,7 @@ public enum Activity {
         case "Task", "Agent", "task", "subagent": return (input["description"] as? String).map { "Helper: \(Recap.clip($0, 60))" } ?? "Working with a helper"
         case "Skill", "skill": return ((input["skill"] ?? input["name"]) as? String).map { "Using \($0)" }
         case "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "update_plan", "ToolSearch", "AskUserQuestion", "ExitPlanMode",
-             "todowrite", "todoread", "question", "": return nil
+             "todowrite", "todoread", "question", "request_user_input", "": return nil
         default:
             if tool.hasPrefix("mcp__") { return "Using " + (tool.split(separator: "_").last.map(String.init) ?? tool).replacingOccurrences(of: "-", with: " ") }
             return "Using \(tool)"

@@ -53,6 +53,16 @@ public struct HookEvent: Equatable, Sendable {
         case "Stop": kind = .finished(message: o["last_assistant_message"] as? String)
         case "StopFailure": kind = .failed
         case "Interrupt": kind = .interrupted
+        case "Notification":
+            // Muse says so only once a request still waits on you; it is answered in the terminal.
+            guard agent == Agent.muse.id else { return nil }
+            let tool: String
+            switch o["notification_type"] as? String {
+            case "permission_prompt": tool = "muse_approval"
+            case "question_prompt": tool = "muse_question"
+            default: return nil
+            }
+            kind = .asks(Ask(id: requestId, agent: agent, tool: tool, input: ["message": o["message"] as? String ?? ""]))
         default: return nil
         }
         var e = HookEvent(agent: agent, sessionId: session, kind: kind, at: at)
@@ -135,6 +145,13 @@ public struct Ask: Equatable, Sendable {
             // One of pi's extensions asks in the terminal: the card shows it, and you answer it there.
             kind = .question; title = "\(who) asked you something"
             subject = Recap.clip((input["question"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "A question in the terminal", 140)
+            questions = []; answerable = false
+        case "muse_approval":
+            // Muse's hooks say it waits for your OK, not on what: the card says so, and you answer in the terminal.
+            kind = .permission; title = "\(who) wants your OK"; subject = "Answer it in the terminal"
+            questions = []; answerable = false
+        case "muse_question":
+            kind = .question; title = "\(who) asked you something"; subject = "Answer it in the terminal"
             questions = []; answerable = false
         case "ExitPlanMode":
             kind = .plan; title = "\(who) has a plan for you"

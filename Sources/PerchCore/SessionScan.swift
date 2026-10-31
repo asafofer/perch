@@ -381,6 +381,60 @@ public final class SessionScanner: @unchecked Sendable {
         return out
     }
 
+    // MARK: Muse (~/.local/share/muse/sessions/YYYY/MM/DD/<id>/session.jsonl; titles from its index)
+    /// Muse Code's sessions in your terminal. Headless runs (`muse exec`) and subagents (their own logs, under `subagent/`)
+    /// get no row.
+    public func muse(limit: Int, now: Date = Date()) -> [Found] {
+        let fm = FileManager.default
+        let data = home.appendingPathComponent(".local/share/muse")
+        let root = data.appendingPathComponent("sessions")
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let cal = Calendar.current
+        var candidates: [(url: URL, mtime: Date, id: String)] = []
+        // Sharded by local date: only the days inside the window are listed.
+        for back in 0...maxAgeDays {
+            guard let day = cal.date(byAdding: .day, value: -back, to: now) else { continue }
+            let c = cal.dateComponents([.year, .month, .day], from: day)
+            let dir = root.appendingPathComponent(String(format: "%04d/%02d/%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0))
+            for s in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] {
+                let f = dir.appendingPathComponent(s).appendingPathComponent("session.jsonl")
+                if let m = Self.mtime(f), m > cutoff { candidates.append((f, m, s)) }
+            }
+        }
+        guard !candidates.isEmpty else { return [] }
+        candidates.sort { $0.mtime > $1.mtime }
+        let titles = MuseIndex(url: data.appendingPathComponent("session-index.db")).titles()
+        var out: [Found] = [], real = 0
+        for item in candidates {
+            guard real < limit else { break }
+            guard let head = cachedMuseHead(item.url), head.interactive, let cwd = head.cwd, usable(cwd),
+                  var digest = cachedDigest(item.url, mtime: item.mtime, parse: MuseTranscript.digest) else { continue }
+            digest.cwd = cwd; digest.sessionId = item.id
+            guard digest.lastTimestamp != nil else { continue }
+            let chat = Recap.isTrivial(digest)   // kept, marked: the app lists it only while it runs
+            digest.title = titles[item.id] ?? head.firstPrompt
+            digest.repoName = cachedRepo(cwd)
+            let cg = cachedGit(cwd, withBranch: true)
+            digest.branch = cg.branch
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .muse, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+                p.terminal = true; p.startedAt = Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
+                out.append((p, digest, cg.info, last)); if !chat { real += 1 }
+            }
+        }
+        return out
+    }
+
+    /// The top of a Muse log never changes once it holds the folder and the first prompt.
+    private var museHeads: [String: MuseTranscript.Head] = [:]
+    private func cachedMuseHead(_ url: URL) -> MuseTranscript.Head? {
+        lock.lock(); let hit = museHeads[url.path]; lock.unlock()
+        if let hit { return hit }
+        guard let h = MuseTranscript.head(of: url) else { return nil }
+        if h.firstPrompt != nil { lock.lock(); museHeads[url.path] = h; lock.unlock() }
+        return h
+    }
+
     // MARK: Cursor (~/.cursor/projects/<folder>/agent-transcripts/<id>/<id>.jsonl; titles and folders from its database)
     /// Cursor's agent chats, in the editor and in its Agents window alike. Subagents' and archived ones are left out.
     public func cursor(limit: Int, now: Date = Date()) -> [Found] {

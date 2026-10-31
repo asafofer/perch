@@ -107,7 +107,7 @@ enum AgentPresence {
         let home = FileManager.default.homeDirectoryForCurrentUser.path, fm = FileManager.default
         let folders: [String: [String]] = [
             "claude": [home + "/.claude"], "codex": [home + "/.codex"],
-            "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"], "cursor": [home + "/.cursor/projects"],
+            "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"], "muse": [home + "/.local/share/muse/sessions"], "cursor": [home + "/.cursor/projects"],
             "cowork": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
             "chat": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
         ]
