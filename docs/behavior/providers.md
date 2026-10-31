@@ -23,7 +23,7 @@ is the summary to check before promising a feature, and the row a new provider f
 | Muse | ✓ | ✓ | ✓ hooks | ~ shown, answered in its terminal (not driven) | ~ shown, answered in its terminal (not driven) | ✓ typed into its pane or tab | ✓ | ✓ (not driven) | ✓ from its log (not driven) |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
-| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ~ shown with its choices, answered in Grok Bot | ~ pasted (not driven) | ✓ link | ✗ | ✗ |
+| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ~ shown with its choices, answered in Grok Bot | ✓ pasted into its reply box | ✓ link | ✗ | ✗ |
 | Dots | ~ the ChatGPT app's saved state, one row per dot (not driven) | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted (not driven) | ~ `codex://dots` (not driven) | ✗ | ✗ |
 
 Spiked, not built (the design page draws it; [the spike](../spikes/oh-my-pi.md) holds the evidence):
@@ -59,6 +59,6 @@ Spiked, not built (the design page draws it; [the spike](../spikes/oh-my-pi.md) 
 - **Cloud agents** (Claude Code cloud, Cursor cloud) are a list only: no transcript on this Mac, no hooks.
 - **Running detection** (`Agent.recognise`) knows Claude Code, Codex, OpenCode and pi; one Perch does not recognise never counts as running, so Pick up starts a second copy.
 
-- **Grok Bot and Dots** are personal agents in the cloud, each one long chat, with no transcript, hook or process on this Mac: a row per bot or dot from its app's saved state, written only while the app runs, nothing answered from the notch. They start on, like every new source. Grok Bot was driven in the real app (a bot's question on the card, Pick up to that bot). Dots was not: on this Mac its page in ChatGPT never loaded, and its saved copy was 17 days old, past the list's 14 days. Muse's own app (a personal agent) is not available in Israel and is not built.
+- **Grok Bot and Dots** are personal agents in the cloud, each one long chat, with no transcript, hook or process on this Mac: a row per bot or dot from its app's saved state, written only while the app runs, nothing answered from the notch. They start on, like every new source. Grok Bot was driven in the real app against a throwaway bot: its avatar, its question on the card with its choices, Pick up to that bot with its reply box focused, the card following its answer within seconds, and a reply from the notch landing in its chat with you put back where you were. Dots was not: on this Mac its page in ChatGPT never loaded, and its saved copy was 17 days old, past the list's 14 days. Muse's own app (a personal agent) is not available in Israel and is not built.
 - **Agent.answersFromNotch** is one flag for approvals and questions; Oh My Pi answers questions but not approvals, so it
   needs splitting.
