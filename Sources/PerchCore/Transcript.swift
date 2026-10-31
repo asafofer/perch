@@ -526,6 +526,50 @@ public enum Recap {
         return p
     }
 
+    /// A Grok Bot bot: one long chat, named after the bot. Its app says when it waits on you; otherwise it has news when it said
+    /// something you have not read. What it said is the app's copy of the chat when this Mac has it, else its newest message.
+    public static func grokBot(_ b: GrokBotStore.Bot, words: SessionDigest?, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.grokbot.id
+        let asks = words?.pendingTool.flatMap { Ask(pending: $0, agent: a) }
+        let status: AgentStatus = b.waiting != nil || asks != nil ? AgentStatus(kind: .needsYou, text: "Grok Bot is waiting for you", app: a)
+            : AgentStatus(kind: .done, text: "Grok Bot replied", app: a)
+        var p = Project(id: "grokbot:" + b.id, name: "", branch: nil, away: RelativeTime.away(from: b.lastActivity, to: now),
+                        at: RelativeTime.clock(b.lastActivity, now: now, calendar: calendar),
+                        headline: status.kind == .needsYou ? "Answer it in Grok Bot" : "",
+                        context: words.flatMap(said(from:)) ?? b.lastText.map { clip($0, 200) } ?? "", next: "",
+                        topic: clip(b.name, 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened Grok Bot"), RestoreStep(icon: "term", text: "Went back to \(b.name)")],
+                        sessionId: b.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = b.lastActivity
+        p.startedAt = b.created
+        p.appSays = true
+        if !b.unread && b.waiting == nil { p.focusedAt = b.lastActivity }
+        p.said = Recap.said(words?.lastAssistantFull ?? words?.lastAssistantText ?? b.lastText)
+        p.asked = Recap.asked(words?.lastUserFull ?? words?.lastUserText)
+        p.askedLast = words?.lastRole == "user"
+        if var q = asks { q.transcriptAt = b.lastActivity; p.ask = q }
+        return p
+    }
+
+    /// A dot: one long chat in the ChatGPT app, named after the dot. Only its newest message is on this Mac. Paused waits on
+    /// you; otherwise it has news when its newest message came after you last read the chat.
+    public static func dot(_ d: DotsStore.Dot, now: Date, calendar: Calendar = .current) -> Project {
+        let a = Agent.dots.id
+        let status = d.paused ? AgentStatus(kind: .needsYou, text: "Dots is paused", app: a) : AgentStatus(kind: .done, text: "Dots replied", app: a)
+        var p = Project(id: "dots:" + d.id, name: "", branch: nil, away: RelativeTime.away(from: d.lastActivity, to: now),
+                        at: RelativeTime.clock(d.lastActivity, now: now, calendar: calendar),
+                        headline: d.paused ? "Resume it in ChatGPT" : "", context: d.preview.map { clip($0, 200) } ?? "", next: "",
+                        topic: clip(d.name, 90), app: a, agents: [status],
+                        steps: [RestoreStep(icon: "win", text: "Opened ChatGPT"), RestoreStep(icon: "term", text: "Went back to \(d.name)")],
+                        sessionId: d.id, cwd: nil, desktopSessionId: nil)
+        p.lastActive = d.lastActivity
+        p.startedAt = d.created
+        p.appSays = true
+        if !d.unread && !d.paused { p.focusedAt = d.lastActivity }
+        p.said = Recap.said(d.preview)
+        return p
+    }
+
     /// An agent that runs in Cursor's cloud: its title, its repository, and Cursor's own word on it. Only the list is on this
     /// Mac, so there is no recap and no folder; Cursor's Agents window is where to read it.
     public static func cloudAgent(_ c: CursorStore.CloudAgent, now: Date, calendar: Calendar = .current) -> Project {

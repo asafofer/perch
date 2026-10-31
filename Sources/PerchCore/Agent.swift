@@ -30,7 +30,11 @@ public struct Agent: Equatable, Sendable {
     /// look the same in Perch; each has its own switch.
     public static let cowork = Agent(id: "cowork", name: "Claude tasks", short: "Claude", resumeCommand: "", answersFromNotch: false)
     public static let chat = Agent(id: "chat", name: "Claude chats", short: "Claude", resumeCommand: "", answersFromNotch: false, onByDefault: false)
-    public static let all = [claude, codex, opencode, pi, muse, cursor, cowork, chat]
+    /// Personal agents that run in the cloud, each one long chat: Grok Bot's bots (its own app) and OpenAI's Dots (in the
+    /// ChatGPT app). Read from their apps' saved state: no command, no hooks, nothing answered from the notch.
+    public static let grokbot = Agent(id: "grokbot", name: "Grok Bot", short: "Grok Bot", resumeCommand: "", answersFromNotch: false)
+    public static let dots = Agent(id: "dots", name: "Dots", short: "Dots", resumeCommand: "", answersFromNotch: false)
+    public static let all = [claude, codex, opencode, pi, muse, cursor, cowork, chat, grokbot, dots]
 
     /// The agent with that id; Claude for anything unknown (sample data).
     public static func of(_ id: String) -> Agent { all.first { $0.id == id } ?? claude }

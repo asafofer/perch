@@ -1,7 +1,7 @@
 import AppKit
 import PerchCore
 
-/// Reads the recent sessions of Claude Code, Codex, OpenCode, pi, Muse and Cursor and turns each into a card. One row per session.
+/// Reads the recent sessions of Claude Code, Codex, OpenCode, pi, Muse, Cursor, Grok Bot and Dots and turns each into a card. One row per session.
 final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     /// The list shows five rows at a time and scrolls for the rest.
     var maxProjects = 15
@@ -20,6 +20,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     func parkedProjects() -> [Project] {
         var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects) + scanner.muse(limit: maxProjects) + scanner.cursor(limit: maxProjects)
             + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects, words: isEnabled(Agent.chat.id))
+            + scanner.grokBots(limit: maxProjects) + scanner.dots(limit: maxProjects)
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
         for item in all where !item.project.smallTalk {
@@ -127,7 +128,7 @@ enum Landing {
 /// herdr pane, cmux surface or agterm pane, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle, grokBotApp = "com.anysphere.sand"
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {
@@ -177,6 +178,14 @@ enum Restorer {
             else { done(.none) }
             return
         }
+        if p.app == Agent.grokbot.id || p.app == Agent.dots.id, let url = link(p) {
+            // Their own app, by bundle: two copies of the ChatGPT app can claim `codex://`, and only the newer has Dots.
+            let bundle = p.app == Agent.dots.id ? codexApp : grokBotApp
+            if let app = AppIcons.url(p.app) { NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) }
+            else { NSWorkspace.shared.open(url) }
+            done(.app(bundle, exact: true))
+            return
+        }
         if let url = link(p) {
             // A web page (a cloud Code session) opens in the browser, so a reply is never pasted as if the Claude app showed this session.
             NSWorkspace.shared.open(url); done(.app(claudeApp, exact: url.scheme != "https"))
@@ -191,6 +200,9 @@ enum Restorer {
         // A cloud Code session ("session_...") has no link into the app that is known; the web page is the one that works.
         case Agent.cowork.id: return p.desktopSessionId.flatMap { URL(string: $0.hasPrefix("session_") ? "https://claude.ai/code/\($0)" : "claude://claude.ai/cowork/\($0)") }
         case Agent.chat.id: return p.sessionId.flatMap { URL(string: "claude://claude.ai/chat/\($0)") }
+        // A Grok Bot bot opens by its id; Dots has one link, to its home (with one dot per account, that is the dot).
+        case Agent.grokbot.id: return p.sessionId.flatMap { URL(string: "grokbot://app/v1/agent?id=\($0)") }
+        case Agent.dots.id: return URL(string: "codex://dots")
         default: return p.desktopSessionId.flatMap { URL(string: "claude://code/continue?session=\($0)") }
         }
     }

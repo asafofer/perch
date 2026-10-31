@@ -15,6 +15,9 @@ enum AppIcons {
         // The OpenCode desktop app, when it is installed. pi has no app: the page draws its own mark.
         "opencode": ("ai.opencode.desktop", "/Applications/OpenCode.app"),
         "conductor": (ConductorApp.bundle, "/Applications/Conductor.app"),
+        // Personal agents: Grok Bot's own app, and Dots in the ChatGPT app (the Codex app's bundle; its newest copy has Dots).
+        "grokbot": ("com.anysphere.sand", "/Applications/Grok Bot.app"),
+        "dots": ("com.openai.codex", "/Applications/Codex.app"),
         "xcode": ("com.apple.dt.Xcode", "/Applications/Xcode.app"),
         "numbers": ("com.apple.iWork.Numbers", "/Applications/Numbers.app"),
         "terminal": ("com.apple.Terminal", "/System/Applications/Utilities/Terminal.app"),
@@ -107,7 +110,8 @@ enum AgentPresence {
         let home = FileManager.default.homeDirectoryForCurrentUser.path, fm = FileManager.default
         let folders: [String: [String]] = [
             "claude": [home + "/.claude"], "codex": [home + "/.codex"],
-            "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"], "muse": [home + "/.local/share/muse/sessions"], "cursor": [home + "/.cursor/projects"],
+            "opencode": [home + "/.local/share/opencode/opencode.db"], "pi": [home + "/.pi/agent"], "muse": [home + "/.local/share/muse/sessions"],
+            "grokbot": [home + "/Library/Application Support/Grok Bot/sand-client-persistence"], "dots": [home + "/.codex/.codex-global-state.json"], "cursor": [home + "/.cursor/projects"],
             "cowork": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
             "chat": [home + "/Library/Application Support/Claude/IndexedDB/https_claude.ai_0.indexeddb.blob"],
         ]

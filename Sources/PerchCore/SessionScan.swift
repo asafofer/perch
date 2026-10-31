@@ -66,6 +66,7 @@ public final class SessionScanner: @unchecked Sendable {
     let conductor: ConductorSessions
     let claudeCache: ClaudeCache
     let claudeWords: ClaudeWords
+    let dotsStore: DotsStore
 
     /// The Claude app's tasks and chats are read from `home` unless given, so a test's home folder holds them too.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared,
@@ -74,6 +75,7 @@ public final class SessionScanner: @unchecked Sendable {
         let idb = home.appendingPathComponent("Library/Application Support/Claude/IndexedDB")
         self.claudeCache = claudeCache ?? ClaudeCache(root: idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob"))
         self.claudeWords = ClaudeWords(idb: idb)
+        self.dotsStore = DotsStore(url: home.appendingPathComponent(".codex/.codex-global-state.json"))
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -243,6 +245,28 @@ public final class SessionScanner: @unchecked Sendable {
             var d = words[c.id] ?? SessionDigest()
             d.sessionId = c.id; d.title = c.title; d.lastTimestamp = c.updated
             return (Recap.chat(c, words: words[c.id], now: now), d, nil, c.updated)
+        }
+    }
+
+    /// Grok Bot's bots and OpenAI's Dots, from their apps' saved state (`PersonalAgents.swift`). A bot's chat copy is read only
+    /// when its file changed.
+    public func grokBots(limit: Int, now: Date = Date()) -> [Found] {
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let store = GrokBotStore(root: home.appendingPathComponent("Library/Application Support/Grok Bot/sand-client-persistence"))
+        return store.bots().filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
+            let words = store.words(bot: b.id)
+            var d = words ?? SessionDigest()
+            d.sessionId = b.id; d.title = b.name; d.lastTimestamp = b.lastActivity
+            return (Recap.grokBot(b, words: words, now: now), d, nil, b.lastActivity)
+        }
+    }
+
+    public func dots(limit: Int, now: Date = Date()) -> [Found] {
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        return dotsStore.dots().filter { $0.lastActivity > cutoff }.prefix(limit).map { dot in
+            var d = SessionDigest()
+            d.sessionId = dot.id; d.title = dot.name; d.lastTimestamp = dot.lastActivity; d.lastAssistantText = dot.preview
+            return (Recap.dot(dot, now: now), d, nil, dot.lastActivity)
         }
     }
 
