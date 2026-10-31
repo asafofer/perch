@@ -398,7 +398,7 @@ i.sci svg{width:16px;height:16px}
   var APP_SOURCES = [{ id: 'cowork', name: 'Claude tasks', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
   /* every agent Perch knows, with what a Mac that has some of them would send: found ones have sessions and are on (chats start off), the rest have none and are off */
   var CAT = [['agterm', 'agterm', ['docs'], 1], ['claude', 'Claude Code', ['Website', 'Docs', 'Finance'], 9], ['codex', 'Codex', ['Onboarding flow'], 2], ['cmux', 'cmux', ['tui-kit'], 1], ['conductor', 'Conductor', ['conductor-test'], 1], ['cursor', 'Cursor', ['api-server', 'website'], 2],
-    ['cowork', 'Claude tasks', ['Taxes', 'Inbox'], 2], ['chat', 'Claude chats', [], 30], ['dots', 'Dots', ['Weekly metrics brief', 'Inbox triage'], 2], ['grokbot', 'Grok Bot', ['Fix the flaky checkout test'], 1], ['herdr', 'herdr', ['price-scraper'], 1], ['muse', 'Muse', ['ledger-api'], 1], ['opencode', 'OpenCode', ['tui-kit'], 1], ['pi', 'pi', ['price-scraper'], 3], ['tmux', 'tmux', ['api-server'], 1]];
+    ['cowork', 'Claude tasks', ['Taxes', 'Inbox'], 2], ['chat', 'Claude chats', [], 30], ['dots', 'Dots', ['Weekly metrics brief', 'Inbox triage'], 2], ['grokbot', 'Grok Bot', ['Fix the flaky checkout test'], 1], ['herdr', 'herdr', ['price-scraper'], 1], ['muse', 'Muse', ['ledger-api'], 1], ['omp', 'Oh My Pi', ['lint-rules'], 1], ['opencode', 'OpenCode', ['tui-kit'], 1], ['pi', 'pi', ['price-scraper'], 3], ['tmux', 'tmux', ['api-server'], 1]];
   function srcs(found, on) { return CAT.map(function (c) { var f = found.indexOf(c[0]) >= 0; return { id: c[0], name: c[1], count: f ? c[3] : 0, names: f ? c[2] : [], enabled: (on || (f && c[0] !== 'chat' ? [c[0]] : [])).indexOf(c[0]) >= 0 }; }); }
   var ALL_IDS = CAT.map(function (c) { return c[0]; });
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
@@ -485,6 +485,8 @@ i.sci svg{width:16px;height:16px}
     ['Muse, Dots, Grok Bot', [
       ['Muse, finished', 'Muse Code in a terminal, like OpenCode and pi: the terminal\u2019s icon with Muse\u2019s mark on its corner, and Open Ghostty on the button. Hover the icon for where it runs.', function () { d.project(14); d.show('open', false, true); }],
       ['Muse, working', 'What it says it is doing, and the step on the Now row.', function () { d.variant(14, { status: { kind: 'running', text: 'Muse is working', app: 'muse' }, now: 'Running `cargo test`', fresh: false, line: 'Working now' }); }],
+      ['Oh My Pi, finished', 'Oh My Pi (omp), the pi fork, in a terminal like pi: the terminal\u2019s icon with Oh My Pi\u2019s own mark on its corner, and Open Ghostty on the button. Hover the icon for where it runs.', function () { d.project(17); d.show('open', false, true); }],
+      ['Oh My Pi, working', 'What it says it is doing, and the step on the Now row.', function () { d.variant(17, { status: { kind: 'running', text: 'Oh My Pi is working', app: 'omp' }, now: 'Running `pnpm lint`', fresh: false, line: 'Working now' }); }],
       ['Dots, finished', 'Dots works in the cloud, on a computer of its own, so there is no terminal and no folder: the session wears Dots\u2019 own icon, its title is the task, and Open Dots goes to it.', function () { d.project(15); d.show('open', false, true); }],
       ['Dots, working', 'Dots keeps going with your Mac closed. The card says what it is on, the same as any agent.', function () { d.variant(15, { status: { kind: 'running', text: 'Dots is working', app: 'dots' }, now: 'Reading the dashboard', fresh: false, line: 'Working now' }); }],
       ['Grok Bot, working', 'Grok Bot in the cloud: its own icon, the task as the title, the step on the Now row.', function () { d.project(16); d.show('open', false, true); }],
@@ -495,7 +497,7 @@ i.sci svg{width:16px;height:16px}
       ['Settings: Agents, one of Others on', 'Closed, the row says how many of them are on.', function () { d.settings({ sources: srcs(['claude', 'codex', 'cursor'], ['claude', 'codex', 'cursor', 'dots']), page: 'agents' }); }],
       ['Settings: Agents, nothing found yet', 'A Mac with none of them yet: a quiet line, and Others to choose from.', function () { d.settings({ sources: srcs([]), page: 'agents' }); }],
       ['Settings: Agents, a long list', 'Nine found: two to a line, so Others still has room under it.', function () { d.settings({ sources: srcs(ALL_IDS.slice(0, 9)), page: 'agents' }); }],
-      ['Settings: Agents, found all fifteen', 'Everything found: no Others, two to a line, alphabetical.', function () { d.settings({ sources: srcs(ALL_IDS), page: 'agents' }); }],
+      ['Settings: Agents, found all sixteen', 'Everything found: no Others, two to a line, alphabetical.', function () { d.settings({ sources: srcs(ALL_IDS), page: 'agents' }); }],
       ['Settings: Status', 'Live status and Pull requests, which sat under the agents until the list could outgrow the panel.', function () { d.settings({ page: 'status' }); }],
       ['Onboarding: the scan comes in', 'Step 4 opens while Perch is still looking: one quiet line. Then what it found rises in, each with a check, and the title says so.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'cursor']), true); }],
       ['Onboarding: what it found', 'Here is what Perch found: three already on, alphabetical. Keep them or clear one. Others is a line below.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'cursor'])); }],
@@ -504,7 +506,7 @@ i.sci svg{width:16px;height:16px}
       ['Onboarding: herdr and tmux found', 'The apps agents run in are listed with the agents, ticked the same way.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'herdr', 'tmux', 'cursor'])); }],
       ['Onboarding: nothing found', 'A fresh Mac: nothing found, and Others to choose from.', function () { d.onboarding(4, true, false, null, srcs([])); }],
       ['Onboarding: a long list', 'Nine found: slim tiles with no second line, so Others still has room.', function () { d.onboarding(4, true, false, null, srcs(ALL_IDS.slice(0, 9))); }],
-      ['Onboarding: found all fifteen', 'Everything found: slim tiles, and the list scrolls once it is past what the card can hold.', function () { d.onboarding(4, true, false, null, srcs(ALL_IDS)); }]
+      ['Onboarding: found all sixteen', 'Everything found: slim tiles, and the list scrolls once it is past what the card can hold.', function () { d.onboarding(4, true, false, null, srcs(ALL_IDS)); }]
     ]],
     ['Preview', [
       ['Preview', 'The card is a gist. Space, Preview, or a click on the summary shows the agent\u2019s whole last message, as tall as the panel lets it be, with no field under it. Your own message is above it as a bubble.', preview(1)],

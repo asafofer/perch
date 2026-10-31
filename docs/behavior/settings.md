@@ -29,8 +29,8 @@ Version row's update states in [updates.md](updates.md).
     the rows: everything Perch supports that it has not seen, alphabetical, one to a line, off until you switch one on. It
     shows five lines and scrolls past that, fading at the edge that has more; the card grows only by what the list needs
     past the rows. Closed, the row says "12 more" or, once some are on, "2 on". With nothing found yet there is a quiet
-    line and Others ("15 to choose from"). Up and Down choose in the popover, Return switches one, Left or Esc closes it.
-    With all fifteen found the page is 348 pt. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for
+    line and Others ("16 to choose from"). Up and Down choose in the popover, Return switches one, Left or Esc closes it.
+    With all sixteen found the page is 348 pt. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for
     what is in Others, which start off.
     Onboarding's apps step is the same: it opens while the first scan runs ("Looking for your sessions", one quiet line),
     then what it found rises in as tiles, ticked (chats are not), with the names of their sessions, under "Here is what Perch
