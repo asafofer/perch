@@ -89,10 +89,12 @@ final class FocusProbe {
             spots.insert(Spot.cmux(surface: surface))
             viewers = known.viewers.filter { if case .cmux(_, let s) = $0.place { return s.lowercased() == surface.lowercased() } else { return false } }
         case Terminals.herdr:
-            // Its window shows the default core's terminals and says which has focus.
+            // Its window shows the default core's terminals and says which has focus. A tmux client in that terminal shows
+            // one pane of its own, read below like a client in any terminal's tab.
             guard let t = HerdrApp.focusedTerminal() else { return .cannotTell }
             let sockets = Set(known.hits.compactMap { h -> String? in if case .hc(_, let s) = h.place, HerdrCore.session(socket: s) == "default" { return s } else { return nil } })
-            return Looking(spots: Set(sockets.map { Spot.hc(socket: $0, terminal: t) }))
+            spots.formUnion(sockets.map { Spot.hc(socket: $0, terminal: t) })
+            viewers = known.viewers.filter { if case .hc(let vt, let vs) = $0.place { return vt == t && HerdrCore.session(socket: vs) == "default" } else { return false } }
         case Terminals.agterm:
             guard let pane = Agterm.focusedPane() else { return .cannotTell }
             spots.insert(Spot.agterm(pane: pane))
