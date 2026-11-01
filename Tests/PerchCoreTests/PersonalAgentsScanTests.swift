@@ -75,6 +75,7 @@ private final class PersonalHome {
         h.bots([h.bot("b1", "X Growth", ago: 60, last: "Building the list now."), h.bot("b2", "Inbox, home", ago: 120, last: "Done.")])
         let sidebar = ["Grok Bot, Main Bot", "X Growth, Working", "Inbox, home, Unread activity, Working", "Perch"]
         #expect(GrokBotStore.working(sidebar) == ["X Growth", "Inbox, home"])
+        #expect(sidebar.map(GrokBotStore.name(ofSidebar:)) == ["Grok Bot", "X Growth", "Inbox, home", "Perch"])
         let found = h.scanner.grokBots(limit: 15, now: h.now, sidebar: sidebar).map(\.project)
         #expect(found.map(\.status.kind) == ["running", "running"])
         #expect(found[0].status.text == "Grok Bot is working")

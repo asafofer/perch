@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import PerchCore
 
 /// Grok Bot keeps whether a bot is at work in memory only; its window's sidebar is the one place on this Mac that says it.
 /// Read through Accessibility, as Perch reads Cursor's window: nothing is pressed.
@@ -66,6 +67,59 @@ enum GrokBotWindow {
         case .noValue, .attributeUnsupported: return []
         default: return nil
         }
+    }
+
+    /// Presses a choice of a bot's open question in Grok Bot's window, Grok Bot left behind the app you are in, which answers
+    /// it as a click there would. When another bot shows, this one is chosen in the sidebar first and that one again after.
+    /// Nothing is pressed unless the window's heading names the bot (a name two bots share is never chosen) and a button with
+    /// the choice's words sits under the question's words. False when nothing was pressed. Blocks for up to a few seconds.
+    nonisolated static func answer(bot: String, question: String, choice: String) -> Bool {
+        guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { return false }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        if ConductorApp.attr(ax, "AXManualAccessibility") as? Bool != true {
+            AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        }
+        func role(_ e: AXUIElement) -> String? { ConductorApp.attr(e, kAXRoleAttribute) as? String }
+        func heading() -> String? { ConductorApp.first(in: [ax]) { role($0) == "AXHeading" }.flatMap(label) }
+        func button(of name: String) -> AXUIElement? {
+            guard let list = ConductorApp.first(in: [ax], { label($0) == "Bot list" }) else { return nil }
+            let hits = all(in: list) { role($0) == "AXButton" && GrokBotStore.name(ofSidebar: label($0) ?? "") == name }
+            return hits.count == 1 ? hits[0] : nil
+        }
+        func press(_ e: AXUIElement) -> Bool { AXUIElementPerformAction(e, kAXPressAction as CFString) == .success }
+        func waitFor(_ seconds: Double, _ ok: () -> Bool) -> Bool {
+            let end = Date().addingTimeInterval(seconds)
+            while Date() < end { if ok() { return true }; Thread.sleep(forTimeInterval: 0.15) }
+            return ok()
+        }
+        let shown = heading()
+        var back: AXUIElement?
+        if shown != bot {
+            guard let b = button(of: bot), press(b) else { return false }
+            back = shown.flatMap(button(of:))
+        }
+        defer { if let back { _ = press(back) } }
+        guard waitFor(3, { heading() == bot }) else { return false }
+        // The newest question with these words: an older one asked the same way has already been answered.
+        var pick: AXUIElement?
+        _ = waitFor(2) {
+            let asked = all(in: ax, limit: 4000) { role($0) == "AXGroup" && label($0) == question }
+            pick = asked.last.flatMap { q in all(in: q) { role($0) == "AXButton" && label($0) == choice }.first }
+            return pick != nil
+        }
+        return pick.map(press) ?? false
+    }
+
+    /// Every element in this tree, breadth first, that matches.
+    nonisolated private static func all(in root: AXUIElement, limit: Int = 600, _ match: (AXUIElement) -> Bool) -> [AXUIElement] {
+        var out: [AXUIElement] = [], queue = [root], seen = 0
+        while !queue.isEmpty, seen < limit {
+            let e = queue.removeFirst(); seen += 1
+            if match(e) { out.append(e) }
+            queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+        }
+        return out
     }
 
     nonisolated private static func label(_ e: AXUIElement) -> String? {
