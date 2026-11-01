@@ -4,7 +4,7 @@
 
 - With live status on, hooks say exactly what happened (`LiveStatus.apply`) and win over the transcript, except a stop: Claude sends no hook for Stop or Esc, so a transcript that ends in one after the last hook wins (`LiveStatus.holds`).
 - Without hooks, status is guessed from the transcript's shape (`Recap.statusAndNext`).
-- herdr's own reading of a pane counts between the two ([agents.md](agents.md)).
+- herdr's own reading of a pane, and hc's in Herdr's app, count between the two ([agents.md](agents.md)).
 
 ## Answering from the notch, per agent
 
