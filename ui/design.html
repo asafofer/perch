@@ -141,6 +141,7 @@ i.sci svg{width:16px;height:16px}
 /* the clip opens slower, in a spring that overshoots a little, and closes in one smooth 0.6 s ease */
 .macro .n[data-s=idle][data-nb="1"]{transition:width .6s cubic-bezier(.45,0,.25,1),margin-left .6s cubic-bezier(.45,0,.25,1),height .6s cubic-bezier(.45,0,.25,1),border-radius .6s cubic-bezier(.45,0,.25,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s,background-color 0s .6s}
 .macro .n[data-s=idle][data-nb="1"][data-act=full]{transition:width .7s cubic-bezier(.3,1.6,.45,1),margin-left .7s cubic-bezier(.3,1.6,.45,1),height .7s cubic-bezier(.3,1.6,.45,1),border-radius .7s cubic-bezier(.3,1.6,.45,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s}
+.macro .act>*{transition:opacity .35s cubic-bezier(.4,0,.6,1),transform .3s cubic-bezier(.2,.9,.3,1),left .45s cubic-bezier(.3,1.2,.45,1),right .45s cubic-bezier(.3,1.2,.45,1)}
 .macro .n[data-act=full]{box-shadow:0 16px 28px -10px rgba(0,0,0,.9),0 4px 10px -4px rgba(0,0,0,.6)}
 .odo{display:inline-flex;align-items:center;flex:none;margin-left:.42em;color:#F5B83D;font-weight:500;font-variant-numeric:tabular-nums}
 .odo .w{display:inline-block;height:2.5em;margin:-.625em 0;overflow:hidden;width:.64em;text-align:center;
