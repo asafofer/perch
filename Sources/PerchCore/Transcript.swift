@@ -532,6 +532,7 @@ public enum Recap {
         let a = Agent.grokbot.id
         let asks = words?.pendingTool.flatMap { Ask(pending: $0, agent: a) }
         let status: AgentStatus = b.waiting != nil || asks != nil ? AgentStatus(kind: .needsYou, text: "Grok Bot is waiting for you", app: a)
+            : b.working ? AgentStatus(kind: .running, text: "Grok Bot is working", app: a)
             : AgentStatus(kind: .done, text: "Grok Bot replied", app: a)
         var p = Project(id: "grokbot:" + b.id, name: "", branch: nil, away: RelativeTime.away(from: b.lastActivity, to: now),
                         at: RelativeTime.clock(b.lastActivity, now: now, calendar: calendar),

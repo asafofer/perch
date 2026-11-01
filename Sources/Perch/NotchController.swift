@@ -708,6 +708,18 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             markSeen(p)
             let onCard = machine.phase != .idle
             if onCard || putAway?.session == p.id { putAway = nil }
+            // One of its own choices is pressed in Grok Bot's window, Grok Bot left behind; words of your own (Other), or a
+            // window that cannot show the question, go in as your next message, which brings Grok Bot forward.
+            // The answer names its question: one meant for another bot's card (the list moved under it) is never pressed here.
+            if let qn = ask.questions.first, qn.options.contains(text), answers.map({ $0.keys.contains(qn.text) }) ?? true {
+                let bot = p.topic, id = p.id
+                send(.dismiss)
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    let pressed = GrokBotWindow.answer(bot: bot, question: qn.text, choice: text)
+                    await MainActor.run { guard let self else { return }; if pressed { self.replying(id); self.refreshProjects() } else { self.pasteReply(text, to: id) } }
+                }
+                return
+            }
             pasteReply(text, to: p.id)
             send(.dismiss)
             return

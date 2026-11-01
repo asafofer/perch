@@ -2529,9 +2529,9 @@
     if (st === 'idle' && was !== 'idle') hand(false);
     lastSt = st;
     /* the notch closed, or another session's card took its place, under a pointer resting on a PR mark: no leave comes, so its label would float on alone */
-    var cardId = s.projects && s.projects[s.selected] ? s.projects[s.selected].id : null;
-    if (st !== was || (st === 'open' && cardId !== prCard)) prNow();
-    prCard = cardId;
+    var shownId = s.projects && s.projects[s.selected] ? s.projects[s.selected].id : null;   /* not cardId: a var of that name here hides the card's own, and every refresh looked like another session's card */
+    if (st !== was || (st === 'open' && shownId !== prCard)) prNow();
+    prCard = shownId;
     if (selOn || st !== 'open') selCheck();
     if (st === 'switch' && was !== 'switch') { listKb = true; keyPtr = ptrAt.slice(); ptrFresh = true; markList(); }   /* opened (by the hotkey too): the first row is lit, and a pointer resting over a row of it has not chosen that row */
     /* The panel moved to another display: it is there at once, at that display's size. Nothing grows or shrinks from the
