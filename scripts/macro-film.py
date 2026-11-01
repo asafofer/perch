@@ -21,7 +21,7 @@ FPS = 60
 SUB = a.fps_in // FPS                    # frames filmed per frame shown
 SHUT = max(1, round(SUB * .5))           # a 180 degree shutter: the first half of them make the blur
 files = sorted(glob.glob(os.path.join(a.frames, 'f*.png')))
-BG = 17 / 255.0
+BG = 0.0   # above the screen's top edge: the bezel
 
 def ease_io(p): return p * p * (3 - 2 * p) if p < 1 else 1.0
 def ease_out(p): return 1 - (1 - p) ** 3
