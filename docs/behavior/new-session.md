@@ -3,7 +3,8 @@
 ## Opening it
 
 - Option+Command+N from anywhere (a Carbon hotkey, id 5, recordable from its Settings row; `Prefs.newShortcut`), or New session in the list's footer, opens the `newSession` phase.
-- It asks which agent (the Claude and Codex apps and the command line agents found on this Mac, `NewSession.choices`), which folder, then the prompt.
+- It asks which agent (the Claude and Codex apps and the command line agents found on this Mac, `NewSession.choices`, each with its own icon), where a command line agent opens, which folder, then the prompt.
+- Where (a command line agent only): the terminals and hosts on this Mac Perch can open a session in (`Terminals.installedOpens`: Terminal always, iTerm2, Ghostty, cmux, agterm and Herdr when installed), each with its icon and the agent on its corner. It starts on the one you used last; a number picks one and goes on. With only Terminal there is no Where step. The one chosen becomes the one used last (`Prefs.lastTerminal`).
 - Folders: the folders sessions ran in (a worktree counted as its repo), No project, or the Mac's own picker. The Claude app cannot be asked for no folder, so for it that row is Let Claude choose: given none, Claude uses the folder picked in its own new-session screen.
 - It starts on the agent and folder of the session you are looking at (the row or card you were on, else the one in front of you), else what you started with last (`NewSession.defaults`).
 - Typing narrows the agents and the folders.
@@ -29,7 +30,7 @@
 
 ## Starting a terminal agent
 
-- It opens in a new window of your terminal (a new session in agterm): `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
+- It opens where you chose: a new window of that terminal (a new session in agterm, a new tab in Herdr, typed into its shell through hc): `claude --session-id <id> '<words>'`, `codex`, `opencode --prompt`, `pi --session-id`.
 
 ## Started, or not
 

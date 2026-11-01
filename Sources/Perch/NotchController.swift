@@ -1015,7 +1015,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return UISnapshot.NewSession(
             apps: choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) },
             projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },
-            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere")
+            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere",
+            terminals: Terminals.installedOpens.compactMap { b in Terminals.keys[b].map { .init(id: $0, name: NSWorkspace.shared.urlForApplication(withBundleIdentifier: b)?.deletingPathExtension().lastPathComponent ?? $0) } },
+            terminal: via)
     }
 
     /// Choose a folder…: the Mac's own picker. The folder becomes the session's, and the card goes on to the prompt.
@@ -1109,8 +1111,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
     /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
-    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
+    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double, terminal key: String? = nil) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
+        // Where a command line agent opens (the Where step): it becomes the terminal you used last, which the start, the row
+        // being started and Return on it all go by.
+        if choice.terminal, let key, let bundle = Terminals.installedOpens.first(where: { Terminals.keys[$0] == key }) { Prefs.lastTerminal = bundle }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
         Clipboard.letGo(prompt)
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
@@ -1276,7 +1281,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "newSession":
             switch body["action"] as? String {
-            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3, terminal: body["terminal"] as? String) }
             case "chooseFolder": chooseFolder()
             default: openNewSession()
             }

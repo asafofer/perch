@@ -15,6 +15,11 @@ enum Terminals {
     /// The ones Perch can open a new session in.
     static let opens: Set<String> = [terminal, iterm, ghostty, cmux, agterm, herdr]
 
+    /// The ones Perch can open a session in that are on this Mac, in a fixed order (Terminal always is).
+    static var installedOpens: [String] {
+        [terminal, iterm, ghostty, cmux, agterm, herdr].filter { $0 == terminal || NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil }
+    }
+
     /// The terminal you used last, if Perch can open a session in it; Terminal otherwise.
     static var preferred: String { Prefs.lastTerminal.flatMap { opens.contains($0) ? $0 : nil } ?? terminal }
 

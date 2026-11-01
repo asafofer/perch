@@ -60,6 +60,8 @@ struct UISnapshot: Encodable {
     /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
     struct NewSession: Encodable {
         struct App: Encodable { let id: String; let app: String; let via: String?; let name: String }
+        /// A terminal or host a command line agent can open in, by its key in `icons`.
+        struct Terminal: Encodable { let id: String; let name: String }
         struct Folder: Encodable { let name: String; let path: String; let label: String; let away: String }
         let apps: [App]
         let projects: [Folder]
@@ -67,6 +69,9 @@ struct UISnapshot: Encodable {
         let project: String?
         /// "list" when opened from the list (it goes back there), "anywhere" otherwise.
         let from: String
+        /// Where a command line agent can open (the Where step, asked when there is more than one), and the one used last.
+        let terminals: [Terminal]
+        let terminal: String
     }
 
     struct Character: Encodable { let shape: String; let color: String }
