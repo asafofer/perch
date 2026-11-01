@@ -81,6 +81,13 @@ private final class PersonalHome {
         #expect(h.scanner.grokBots(limit: 15, now: h.now, sidebar: ["X Growth", "Perch"]).first?.project.status.kind == "done")
     }
 
+    @Test func aGrokBotAtWorkThatWaitsOnYouSaysItWaits() {
+        let h = PersonalHome()
+        h.bots([h.bot("b1", "Scout", ago: 60, waiting: "Pick a seat", last: "Which seat?")])
+        let p = h.scanner.grokBots(limit: 15, now: h.now, sidebar: ["Scout, Working"]).first?.project
+        #expect(p?.status.kind == "attention"); #expect(p?.status.text == "Grok Bot is waiting for you")
+    }
+
     @Test func grokBotsSharingANameAreNotTakenForAtWork() {
         let h = PersonalHome()
         h.bots([h.bot("b1", "Scout", ago: 60, last: "One."), h.bot("b2", "Scout", ago: 120, last: "Two.")])
