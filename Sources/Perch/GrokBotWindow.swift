@@ -12,26 +12,30 @@ enum GrokBotWindow {
         guard AXIsProcessTrusted(), let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first else { return [] }
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 0.5)
+        // A timeout holds only for the element it is set on, so each one gets it, and the whole read stops after a second.
+        let deadline = Date().addingTimeInterval(1)
         // Electron builds its tree only once asked, and asking again restarts it, so only while it is not on.
         if ConductorApp.attr(ax, "AXManualAccessibility") as? Bool != true {
             AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
         }
         // Breadth first, and never into a chat, which can hold hundreds of elements.
         var queue = [ax], seen = 0
-        while !queue.isEmpty, seen < 400 {
+        while !queue.isEmpty, seen < 400, Date() < deadline {
             let e = queue.removeFirst(); seen += 1
+            AXUIElementSetMessagingTimeout(e, 0.25)
             let name = label(e)
-            if name == "Bot list" { return buttons(in: e) }
+            if name == "Bot list" { return buttons(in: e, until: deadline) }
             if name == "Conversation transcript" { continue }
             queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
         }
         return []
     }
 
-    nonisolated private static func buttons(in list: AXUIElement) -> [String] {
+    nonisolated private static func buttons(in list: AXUIElement, until deadline: Date) -> [String] {
         var out: [String] = [], queue = [list], seen = 0
-        while !queue.isEmpty, seen < 300 {
+        while !queue.isEmpty, seen < 300, Date() < deadline {
             let e = queue.removeFirst(); seen += 1
+            AXUIElementSetMessagingTimeout(e, 0.25)
             if ConductorApp.attr(e, kAXRoleAttribute) as? String == "AXButton" { if let name = label(e) { out.append(name) }; continue }
             queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
         }

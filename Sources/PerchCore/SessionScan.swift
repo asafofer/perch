@@ -254,9 +254,11 @@ public final class SessionScanner: @unchecked Sendable {
     /// again only when its file changed. `sidebar` is what Grok Bot's window lists, which alone says a bot is at work.
     public func grokBots(limit: Int, now: Date = Date(), sidebar: [String] = []) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let store = grokStore, working = GrokBotStore.working(sidebar)
-        return store.bots().filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
-            var b = b; b.working = working.contains(b.name)
+        let store = grokStore, working = GrokBotStore.working(sidebar), bots = store.bots()
+        // The sidebar names a bot only by its name: two bots sharing one cannot be told apart, so neither counts as at work.
+        let shared = Set(Dictionary(grouping: bots, by: \.name).filter { $0.value.count > 1 }.keys)
+        return bots.filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
+            var b = b; b.working = working.contains(b.name) && !shared.contains(b.name)
             let words = store.words(bot: b.id)
             var d = words ?? SessionDigest()
             d.sessionId = b.id; d.title = b.name; d.lastTimestamp = b.lastActivity
