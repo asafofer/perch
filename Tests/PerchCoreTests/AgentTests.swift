@@ -52,6 +52,36 @@ import Foundation
         #expect(Place.from(environment: ["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s"]) == .herdr(pane: "w1:p1", socket: "/s", session: "default"))
     }
 
+    @Test func anHcTerminalWinsOverWhatItsCoreInherited() {
+        // As read from Claude Code in a terminal of Herdr's app: hc says it is Ghostty, and passes on what its core started with.
+        let hc = ["HC_TERMINAL_ID": "t2", "HC_TERMINAL_SOCKET": "/Users/a/.local/state/herdr-core/default/default.sock", "HC_SCOPE": "x", "TERM_PROGRAM": "ghostty"]
+        #expect(Place.from(environment: hc) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
+        #expect(Place.from(environment: hc.merging(["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s", "TMUX": "/tmp/t,1,0", "TMUX_PANE": "%3"]) { a, _ in a }) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
+        #expect(Place.from(environment: ["HC_TERMINAL_ID": "t2"]) == .tab)
+        // tmux started in an hc terminal: its panes carry hc's variables as well; under them is the tmux pane, which
+        // LiveSessions takes when the agent's tty is that pane's.
+        let nested = hc.merging(["TMUX": "/private/tmp/tmux-501/default,4242,0", "TMUX_PANE": "%3"]) { a, _ in a }
+        #expect(Place.from(environment: nested) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
+        #expect(Place.from(environment: nested, skippingHc: true) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))
+        #expect(Place.from(environment: hc, skippingHc: true) == .tab)
+        #expect(Spot.key(.hc(terminal: "t2", socket: "/s"), tty: "/dev/ttys001") == Spot.hc(socket: "/s", terminal: "t2"))
+        #expect(HerdrCore.session(socket: "/Users/a/.local/state/herdr-core/default/default.sock") == "default")
+        #expect(HerdrCore.session(socket: "/Users/a/.local/state/herdr-core/work/work.sock") == "work")
+    }
+
+    @Test func herdrCoreAndItsWindowAreRead() {
+        let ls = #"{"hidden_finished":0,"terminals":[{"address":"t2","agent":"claude-code","cwd":"/Users/a/PerchTest","state":"live","status":"done","turn":1,"where":"perch-test / 1"},{"address":"t3","agent":"zsh","cwd":"/Users/a/PerchTest","state":"live","turn":0},{"address":"t1","state":"finished","status":"working"}]}"#
+        #expect(HerdrCore.statuses(ls) == ["t2": "done"])
+        #expect(HerdrCore.statuses("not json").isEmpty)
+        let listing = #"{"spaces":[{"id":"sp1","name":"perch-test","tabs":[{"id":"tb1","terminals":[{"terminal":"t2","pane":"pA","status":null}]},{"id":"tb2","terminals":[{"terminal":"t3","pane":"pB"}]}]}],"recent":[]}"#
+        #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":"pB","overlays":[]}"#, listing: listing) == "t3")
+        #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":"pA","overlays":["frame-welcome"]}"#, listing: listing) == nil)
+        #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":null,"overlays":[]}"#, listing: listing) == nil)
+        #expect(HerdrCore.inWindow("t3", listing: listing))
+        #expect(!HerdrCore.inWindow("t7", listing: listing))   // started with hc run alone: in no tab
+        #expect(!HerdrCore.inWindow("t2", listing: "not json"))
+    }
+
     @Test func anAgtermPaneIsReadFromItsVariables() {
         let agterm = ["AGTERM_WINDOW_ID": "W1", "AGTERM_SESSION_ID": "S1", "AGTERM_PANE_ID": "P1", "TERM_PROGRAM": "agterm"]
         #expect(Place.from(environment: agterm) == .agterm(window: "W1", session: "S1", pane: "P1"))
@@ -151,6 +181,7 @@ import Foundation
         var app = p("c", "claude", "/a", 10); app.conductor = "ws"
         #expect(PlaceSwitch.hides(tmux, kind: "tmux", off: ["tmux"]))
         #expect(!PlaceSwitch.hides(tmux, kind: "herdr", off: ["tmux"]))   // another place
+        #expect(PlaceSwitch.hides(tmux, kind: "hc", off: ["herdr"]))   // Herdr's app goes with herdr
         #expect(!PlaceSwitch.hides(tmux, kind: nil, off: ["tmux"]))   // nowhere known yet
         #expect(PlaceSwitch.hides(app, kind: nil, off: ["conductor"]))
         #expect(!PlaceSwitch.hides(app, kind: nil, off: ["tmux"]))

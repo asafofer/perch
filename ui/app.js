@@ -135,8 +135,8 @@
   }
   /* A terminal session: the icon says where Pick up takes you, so it is the terminal's, with the agent (Claude, Codex,
      OpenCode, pi) as a small badge on its corner. A session in the Claude or Codex app keeps that app's icon. In herdr,
-     the terminal is the one showing herdr. */
-  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', agterm: 'agterm', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor' };
+     the terminal is the one showing herdr; in Herdr's own app it is Herdr. */
+  var TERMS = { terminal: 'Terminal', iterm: 'iTerm2', ghostty: 'Ghostty', cmux: 'cmux', agterm: 'agterm', warp: 'Warp', kitty: 'kitty', wezterm: 'WezTerm', vscode: 'VS Code', cursor: 'Cursor', zed: 'Zed', conductor: 'Conductor', herdr: 'Herdr' };
   function AppOf(p, c) {
     /* a Grok Bot bot wears its own avatar (its shape in its colour, drawn by Swift from Grok Bot's own images) */
     if (p.avatar && icons[p.avatar]) return '<img class="' + (c || 'size-5') + ' flex-none" src="' + icons[p.avatar] + '" alt="">';
@@ -144,7 +144,7 @@
     var host = p.via || p.opens;
     if (!host) return App(p.app, c);
     var small = c === 'size-3.5', tile = c === 'size-[34px]', b = small ? 'size-2 -bottom-[2px] -right-[3px]' : tile ? 'size-[17px] -bottom-[3px] -right-[4px]' : 'size-[11px] -bottom-[3px] -right-[3px]';
-    var term = icons[host] ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + icons[host] + '" alt="">'
+    var term = iconOf(host) ? '<img class="' + (c || 'size-5') + ' flex-none ' + (tile ? 'rounded-[8px]' : 'rounded-[5px]') + '" src="' + iconOf(host) + '" alt="">'
       : '<svg class="' + (c || 'size-5') + ' flex-none" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#27272A"/><path d="M7 8l4 4-4 4M12.5 16.5h5" stroke="#E4E4E7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     return '<span class="relative flex flex-none" title="' + agentName(p.app) + ' in ' + (p.host ? esc(p.host) + ', in ' : '') + esc(TERMS[host] || 'a terminal') + '">' + term +
       /* a real app icon has a clear margin around its rounded square (Apple's icon grid): in a badge it is scaled past it, so
@@ -1434,8 +1434,8 @@
      agent and folder of the session you are looking at (the row you were on in the list; from anywhere else, the session
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
-  var nw = { on: false, step: 'app', app: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
-  var NW_STEPS = ['app', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
+  var nw = { on: false, step: 'app', app: 0, term: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
+  var NW_STEPS = ['app', 'where', 'project', 'prompt'], nwSlide = 0, nwDrawn = '', nwAdv = 0;
   /* what a row says while a file is over it (nwDropRow) */
   var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
@@ -1448,9 +1448,15 @@
   /* the agents, narrowed by what you typed on that step (by name or where it opens) */
   function nwAppList() {
     var words = nw.aq.toLowerCase().split(/\s+/).filter(Boolean);
-    return nwApps().filter(function (a) { var hay = (a.name + ' ' + nwWhere(a)).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    return nwApps().filter(function (a) { var hay = (a.name + ' ' + (a.via ? 'terminal' : nwWhere(a))).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) >= 0; }); });
   }
-  function nwAgent() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
+  function nwChosen() { return nwAppList()[nw.app] || nwApps()[nw.app] || { app: 'claude', name: 'Claude' }; }
+  /* the terminals and hosts a command line agent can open in (Swift's Terminals.opens on this Mac), the one you used last first */
+  function nwTerms() { return (nw.o && nw.o.terminals) || []; }
+  /* asked only for a command line agent, and only when there is more than one place to open it */
+  function nwAsksWhere(a) { return !!a.via && nwTerms().length > 1; }
+  /* the agent as it will start: a command line agent in the terminal chosen on the Where step */
+  function nwAgent() { var a = nwChosen(), t = nwTerms()[nw.term]; return a.via && t ? Object.assign({}, a, { via: t.id }) : a; }
   function nwFolder() { var r = nwRows()[nw.proj]; return r && !r.pick ? r : { none: true }; }
   function nwTile(ic) { return '<span class="grid size-5 flex-none place-items-center rounded-[5px] bg-white/[0.08] text-muted-foreground" aria-hidden="true">' + svg(ic, 'size-3') + '</span>'; }
   /* No project, as each agent takes it. The Claude app cannot be asked for a chat without a folder: given none, it uses
@@ -1474,6 +1480,8 @@
       var kept = (nw.text || nw.files.length) && nw.kept, agent = kept ? kept.app : o.agent;
       var ai = nwApps().findIndex(function (a) { return a.id === agent; });
       nw.on = true; nw.app = ai < 0 ? 0 : ai; nw.q = ''; nw.aq = '';
+      var ti = nwTerms().findIndex(function (t) { return t.id === (kept && kept.via ? kept.via : o.terminal); });
+      nw.term = ti < 0 ? 0 : ti;
       var pi = nwRows().findIndex(function (r) { return kept ? (kept.none ? r.none : !r.none && !r.pick && r.path === kept.path) : !r.none && !r.pick && r.name === o.project; });
       if (pi < 0 && kept) pi = nwRows().findIndex(function (r) { return !r.none && !r.pick && r.name === o.project; });
       nw.proj = pi < 0 ? 0 : pi;
@@ -1488,19 +1496,26 @@
     var box = q('.nw'), a = nwAgent(), f = nwFolder(), html = '', at = NW_STEPS.indexOf(nw.step);
     /* along the top: the choices made so far as chips, then this step's question (or what you typed to narrow the folders) */
     var crumbs = '';
-    if (at > 0) crumbs += nwChip('app', AppOf(a, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
-    if (at > 1) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? nwNone(a)[2] : f.name) + '</span>');
-    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
-    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
+    if (at > 0) crumbs += nwChip('app', App(a.app, 'size-3.5') + '<span class="truncate">' + esc(a.name) + '</span>') + nwSep();
+    if (at > 1 && nwAsksWhere(a)) crumbs += nwChip('where', AppOf({ app: a.app, via: a.via }, 'size-3.5') + '<span class="truncate">' + esc(nwWhere(a)) + '</span>') + nwSep();
+    if (at > 2) crumbs += nwChip('project', svg(f.none ? 'chat' : 'folder', 'size-3 flex-none text-muted-foreground') + '<span class="truncate">' + esc(f.none ? nwNone(a)[2] : f.name) + '</span>');
+    var ask = nw.step === 'app' ? (nw.aq ? '<span dir="auto">' + esc(nw.aq) + '</span><i class="s-caret"></i>' : 'New session') : nw.step === 'where' ? 'Where?' : nw.step === 'project' ? (nw.q ? '<span dir="auto">' + esc(nw.q) + '</span><i class="s-caret"></i>' : 'Which folder?') : '';
+    var right = nw.step === 'app' ? (nw.aq ? nwAppList().length + ' of ' + nwApps().length : 'Which agent?') : nw.step === 'where' ? 'Opens ' + esc(agentShort(a.app)) + ' in' : nw.step === 'project' ? (nw.q ? (nwRows().length - 1) + ' of ' + ((nw.o.projects || []).length) : 'Type to filter') : nw.step === 'prompt' ? 'Opens in ' + nwWhere(a) : '';
     html += '<div class="flex h-9 items-center gap-1.5 pl-4 pr-4"><div class="flex min-w-0 flex-1 items-center gap-1.5">' + crumbs +
       (ask ? '<span class="nw-ask min-w-0 truncate text-sm font-medium leading-4' + (at ? ' pl-0.5' : '') + '">' + ask + '</span>' : '') + '</div>' +
       (right ? '<span class="nw-right flex-none text-xs text-muted-foreground">' + esc(right) + '</span>' : '') +
-      (nw.step !== 'prompt' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
+      (nw.step !== 'prompt' && nw.step !== 'where' ? '<span class="nw-dhint hidden flex-none text-xs font-medium text-foreground">Drop on ' + (nw.step === 'app' ? 'an agent' : 'a folder') + ' to start</span>' : '') + '</div>';
     if (nw.step === 'app') {
       var apps = nwAppList();
       html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + (apps.length ? '' : '<div class="px-2.5 pb-2 pt-1 text-[13px] leading-[18px] text-muted-foreground">No agent matches</div>') + apps.map(function (x, i) {
-        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf(x) +
-          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="nw-rt flex flex-none items-center gap-2"><span class="text-xs text-muted-foreground">' + esc(nwWhere(x)) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</span>' + NW_DZ + '</div>';
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.app ? ' bg-accent' : '') + '" data-i="' + i + '">' + App(x.app) +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(x.name) + '</span><span class="nw-rt flex flex-none items-center gap-2"><span class="text-xs text-muted-foreground">' + (x.via ? 'Terminal' : esc(nwWhere(x))) + '</span>' + (i < 9 ? Kbd(String(i + 1)) : '') + '</span>' + NW_DZ + '</div>';
+      }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
+    } else if (nw.step === 'where') {
+      /* where a command line agent opens: each terminal or host wearing its own icon with the agent on its corner */
+      html += '<div class="nw-l relative max-h-[196px] overflow-y-auto px-1.5 pb-1">' + nwTerms().map(function (t, i) {
+        return '<div class="nrow flex h-9 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm transition-colors' + (i === nw.term ? ' bg-accent' : '') + '" data-i="' + i + '">' + AppOf({ app: a.app, via: t.id }) +
+          '<span class="nm min-w-0 flex-1 truncate font-medium">' + esc(TERMS[t.id] || t.name) + '</span><span class="nw-rt flex flex-none items-center gap-2">' + (t.id === nw.o.terminal ? '<span class="text-xs text-muted-foreground">Used last</span>' : '') + (i < 9 ? Kbd(String(i + 1)) : '') + '</span></div>';
       }).join('') + '</div>' + nwHints(['\u2191\u2193', 'Choose'], [ENTER, 'Next'], ['\u2190', 'Back']);
     } else if (nw.step === 'project') {
       var rows = nwRows();
@@ -1577,14 +1592,14 @@
   /* the character's eyes go to what you are choosing */
   function nwSeen() { var el = q('.nw .nrow.bg-accent .nm') || q('.nw-in') || q('.nw-ask'); if (el) lookAt(el, 40); }
   function nwPick(i, quiet) {
-    if (nw.step === 'app') nw.app = i; else nw.proj = i;
+    if (nw.step === 'app') nw.app = i; else if (nw.step === 'where') nw.term = i; else nw.proj = i;
     q('.nw').querySelectorAll('.nrow').forEach(function (r) { r.classList.toggle('bg-accent', +r.dataset.i === i); });
     if (!quiet) nwShow();
     nwSeen();
   }
   function nwTo(step) {
     /* leaving the agents: the one you chose keeps its place in the whole list */
-    if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwAgent(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
+    if (nw.step === 'app' && step !== 'app' && nw.aq) { var a = nwChosen(); nw.aq = ''; nw.app = Math.max(0, nwApps().indexOf(a)); }
     /* and leaving the folders: the one you chose keeps its place too, rather than whatever row the narrowed one sat at
        (it was No project, then the app's own choice: a typed "perch" started in another folder) */
     if (nw.step === 'project' && step !== 'project' && nw.q) { var f = nwRows()[nw.proj]; nw.q = ''; var fi = nwRows().indexOf(f); nw.proj = fi < 0 ? 0 : fi; }
@@ -1592,12 +1607,14 @@
     nw.step = step; if (step !== 'project') nw.q = ''; newRender(); blinkEl(cr);
   }
   function nwNext() {
-    if (nw.step === 'app') { if (!nwAppList().length) return; return nwTo('project'); }
+    if (nw.step === 'app') { if (!nwAppList().length) return; return nwTo(nwAsksWhere(nwChosen()) ? 'where' : 'project'); }
+    if (nw.step === 'where') return nwTo('project');
     if (nw.step === 'project') { if (nwRows()[nw.proj].pick) { post({ type: 'newSession', action: 'chooseFolder' }); return; } return nwTo('prompt'); }
   }
   function nwBack() {
     if (nw.step === 'prompt') return nwTo('project');
-    if (nw.step === 'project') return nwTo('app');
+    if (nw.step === 'project') return nwTo(nwAsksWhere(nwChosen()) ? 'where' : 'app');
+    if (nw.step === 'where') return nwTo('app');
     post({ type: 'back' });
   }
   /* Return starts it and leaves you where you are: the words fly into the notch like a reply to a terminal, and the new
@@ -1610,7 +1627,7 @@
     if (!go && from !== 'list') newFly(words || nw.lastFiles.map(function (x) { return x.split('/').pop(); }).join(' '));
     /* opened from anywhere, the card folds into one line, like a reply's Sent: Starting until Perch sees the new session (started) */
     if (!go && from !== 'list') sentNext = { p: nwLineP(a, f), words: 'Starting', at: Date.now(), pending: true };
-    post({ type: 'newSession', action: 'start', agent: a.id, folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
+    post({ type: 'newSession', action: 'start', agent: a.id, terminal: a.via || '', folder: f.none ? '' : f.path, prompt: t, title: words || nw.lastFiles.map(function (x) { return x.replace(/\/+$/, '').split('/').pop(); }).join(', '), go: !!go, from: from, close: SEND_CLOSE });
   }
   function nwLineP(a, f) { return { id: 'new-session', name: f.none ? nwNone(a)[2] : f.name, topic: '', app: a.app, via: a.via, status: { kind: 'running', text: 'Starting', app: a.app } }; }
   /* Swift: the new session is there (its transcript or process seen), or it never came. On the one line the words change in
@@ -1705,12 +1722,13 @@
   /* the keys while it shows (the prompt's own field takes its keys itself); true when one was used */
   function newKey(e) {
     if (nw.step === 'prompt') { if (e.key === 'Escape') { nwBack(); return true; } return false; }
-    var max = nw.step === 'app' ? nwAppList().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.proj;
+    var max = nw.step === 'app' ? nwAppList().length : nw.step === 'where' ? nwTerms().length : nwRows().length, cur = nw.step === 'app' ? nw.app : nw.step === 'where' ? nw.term : nw.proj;
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && max) { nwPick((cur + (e.key === 'ArrowDown' ? 1 : -1) + max) % max); return true; }
     if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
     if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
     if (e.key === 'ArrowLeft') { nwBack(); return true; }
-    if (nw.step === 'app' && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
+    /* a number picks and goes on a moment later; a second number before then replaces the first rather than going on twice */
+    if ((nw.step === 'app' || nw.step === 'where') && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); clearTimeout(nwAdv); nwAdv = setTimeout(nwNext, 140); return true; }
     if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
     /* typing narrows the agents too (a number still picks one) */
     if (nw.step === 'app' && (e.key === 'Backspace' || (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.aq)))) {
@@ -2518,7 +2536,7 @@
     activity(s, st);
     testTag(s);
     if (st === 'switch') list(s); else { marquee(null); lastSel = -1; }
-    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
+    if (st === 'ns') newApply(s.newSession || {}, !nw.on); else { if (nw.on) { var ka = nwAgent(), kf = nwFolder(); nw.kept = { app: ka.id, via: ka.via, path: kf.path, none: !!kf.none }; } nw.on = false; nwDrop = 0; }
     /* Without Accessibility Perch cannot type for you: Send asks for it, then sends once it is on.
        A terminal session takes a reply without Accessibility: Perch types it into its tab. */
     var canSend = s.canSend !== false || !!(p && p.via);
@@ -4402,7 +4420,9 @@
     function newFrom(p) {
       var agent = !p ? 'claude' : p.app === 'claude' ? (p.via ? 'claude-code' : 'claude') : p.app;
       var dir = p && NEW_DIRS.filter(function (x) { return x.name === p.name.toLowerCase(); })[0];
-      return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch' };
+      /* the places a command line agent can open in, the one used last first */
+      return { apps: NEW_APPS, projects: NEW_DIRS, agent: agent, project: dir ? dir.name : 'perch',
+        terminals: [{ id: 'ghostty', name: 'Ghostty' }, { id: 'herdr', name: 'Herdr' }, { id: 'terminal', name: 'Terminal' }, { id: 'cmux', name: 'cmux' }], terminal: 'ghostty' };
     }
     var devNewRun = 0;
     function devNew(m) {
@@ -4419,6 +4439,7 @@
       }
       if (m.action !== 'start') return;
       var a = NEW_APPS.filter(function (x) { return x.id === m.agent; })[0] || NEW_APPS[0];
+      if (a.via && m.terminal) a = Object.assign({}, a, { via: m.terminal });
       var name = m.folder ? m.folder.split('/').pop() : 'No project', fail = D.newFails, id = 'new-' + Date.now();
       var row = { id: id, name: name, via: a.via, branch: 'main', away: '0m', at: 'now', headline: '', context: '', now: 'Reading the code', next: '', topic: (m.title || m.prompt).length > 70 ? (m.title || m.prompt).slice(0, 68) + '\u2026' : (m.title || m.prompt), app: a.app, attention: false, fresh: true, line: 'Working now', status: { kind: 'running', text: agentName(a.app) + ' is working', app: a.app } };
       var later = function (ms, f) { var k = devNewRun; setTimeout(function () { if (k === devNewRun) f(); }, ms); };
@@ -4491,7 +4512,8 @@
         var front = P.filter(function (x) { return x.id === 'api'; })[0];
         var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
         apply(Object.assign({}, base, { phase: 'newSession', character: charNow, autoCollapse: false, newSession: ns, timerToken: Math.random() }));
-        if (o.step || o.q) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
+        if (o.term !== undefined) nw.term = o.term;
+        if (o.step || o.q || o.term !== undefined) { nw.step = o.step || nw.step; nw.q = o.q || ''; if (o.q) nw.proj = 0; newRender(); }
       },
       /* a character as markup, for pages that draw it outside the notch (ui/install/background.html, the disk image's picture) */
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },

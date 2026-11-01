@@ -1027,7 +1027,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         return UISnapshot.NewSession(
             apps: choices.map { .init(id: $0.id, app: $0.agent, via: $0.terminal ? via : nil, name: $0.name) },
             projects: folders.map { .init(name: $0.name, path: $0.path, label: $0.path.hasPrefix(home) ? "~" + $0.path.dropFirst(home.count) : $0.path, away: $0.away) },
-            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere")
+            agent: d.choice, project: folders.first { $0.path == d.folder }?.name, from: machine.newFrom == .switcher ? "list" : "anywhere",
+            terminals: Terminals.installedOpens.compactMap { b in Terminals.keys[b].map { .init(id: $0, name: NSWorkspace.shared.urlForApplication(withBundleIdentifier: b)?.deletingPathExtension().lastPathComponent ?? $0) } },
+            terminal: via)
     }
 
     /// Choose a folder…: the Mac's own picker. The folder becomes the session's, and the card goes on to the prompt.
@@ -1121,8 +1123,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Return on the prompt. It goes back to the list it came from, or folds into one line (after the words have flown in);
     /// Command+Return goes to the new session instead. The app or terminal is driven off the main thread.
-    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double) {
+    private func startNewSession(_ id: String, folder: String?, prompt: String, title: String? = nil, go: Bool, close: Double, terminal key: String? = nil) {
         guard let choice = newChoices().first(where: { $0.id == id }) else { return }
+        // Where a command line agent opens (the Where step): it becomes the terminal you used last, which the start, the row
+        // being started and Return on it all go by.
+        if choice.terminal, let key, let bundle = Terminals.installedOpens.first(where: { Terminals.keys[$0] == key }) { Prefs.lastTerminal = bundle }
         Prefs.lastNewChoice = id; if let folder { Prefs.lastNewFolder = folder }
         Clipboard.letGo(prompt)
         let sid = choice.terminal && (choice.agent == "claude" || choice.agent == "pi") ? UUID().uuidString.lowercased() : nil
@@ -1288,7 +1293,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "switcher": send(.openSwitcher)
         case "newSession":
             switch body["action"] as? String {
-            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3) }
+            case "start": if let a = body["agent"] as? String, let t = body["prompt"] as? String { startNewSession(a, folder: (body["folder"] as? String).flatMap { $0.isEmpty ? nil : $0 }, prompt: t, title: body["title"] as? String, go: body["go"] as? Bool ?? false, close: body["close"] as? Double ?? 0.3, terminal: body["terminal"] as? String) }
             case "chooseFolder": chooseFolder()
             default: openNewSession()
             }
@@ -1773,7 +1778,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func sourcesState() -> [UISnapshot.Source] {
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
         let on = Prefs.enabledSources, placesOff = Prefs.placesOff
-        let names = ["conductor": "Conductor", "herdr": "herdr", "tmux": "tmux", "cmux": "cmux", "agterm": "agterm"]
+        let names = ["conductor": "Conductor", "herdr": HerdrApp.url != nil ? "Herdr" : "herdr", "tmux": "tmux", "cmux": "cmux", "agterm": "agterm"]
         return Agent.all.map { a in
             // Chats go by count alone: their titles can be personal, and onboarding shows them before you choose.
             UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: a.id == Agent.chat.id ? [] : counts[a.id]?.names ?? [], enabled: on.contains(a.id))
@@ -1785,7 +1790,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let bins = ["/opt/homebrew/bin/", "/usr/local/bin/", home + "/.local/bin/", home + "/.cargo/bin/"]
         let command = { (c: String) in bins.contains { FileManager.default.isExecutableFile(atPath: $0 + c) } }
-        return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", "herdr", command("herdr")),
+        return [("conductor", "Conductor", AppIcons.url("conductor") != nil), ("herdr", HerdrApp.url != nil ? "Herdr" : "herdr", command("herdr") || HerdrApp.url != nil),
                 ("tmux", "tmux", command("tmux")), ("cmux", "cmux", AppIcons.url("cmux") != nil),
                 ("agterm", "agterm", AppIcons.url("agterm") != nil)]
             .filter(\.2).map { UISnapshot.Place(id: $0.0, name: $0.1) }

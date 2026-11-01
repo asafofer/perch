@@ -1,6 +1,6 @@
 # Perch: guide for people and agents picking this up
 
-Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode, pi, Oh My Pi or Muse in any terminal, including inside the herdr and cmux multiplexers.
+Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode, pi, Oh My Pi or Muse in any terminal, including inside Herdr's app and the herdr and cmux multiplexers.
 
 Read this file first. `README.md` has install and usage. How each feature behaves is in `docs/behavior/`, one file per area (see [Behaviour docs](#behaviour-docs)).
 
@@ -32,7 +32,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   PullRequests        A session's pull requests: the Claude app's list, what the GitHub CLI says (GitHubCLI, parse), the cache that asks it (PullRequestChecker), and what a session shows.
   Feedback            What Send feedback sends: the 4 MB limit for files, the email check, the subject, the multipart form.
   InstalledCopy       A test build's way back (its menu's Back to installed Perch): which other copy is the installed one.
-  Place               Where a running agent lives (herdr pane, tmux pane, cmux surface, tab) from its environment; what a tmux server says (TmuxServer); which process is which session (Running); herdr's status (HerdrStatus).
+  Place               Where a running agent lives (Herdr's hc terminal, herdr pane, tmux pane, cmux surface, tab) from its environment; what a tmux server says (TmuxServer); which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
   NotchController     Owns the machine, the panel, the WKWebView, timers, hover, keys, refresh.

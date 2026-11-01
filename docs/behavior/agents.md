@@ -1,6 +1,6 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), Herdr's app, herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 
@@ -35,9 +35,10 @@ OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex
 - The process table shows the binary the `muse` launcher hands over to, `muse-bin-<version>`. Resume with `muse resume <id>`; a new session is `muse '<words>'`.
 - Spike: [muse.md](../spikes/muse.md).
 
-## herdr, tmux, cmux and agterm
+## Herdr's app, herdr, tmux, cmux and agterm
 
-- They host any agent. Every process in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`; in agterm `AGTERM_WINDOW_ID`, `AGTERM_SESSION_ID` and `AGTERM_PANE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). herdr wins, then tmux, since their servers can inherit a cmux tab's values.
+- They host any agent. Every process in a terminal of Herdr's app carries `HC_TERMINAL_ID` and `HC_TERMINAL_SOCKET`; in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`; in agterm `AGTERM_WINDOW_ID`, `AGTERM_SESSION_ID` and `AGTERM_PANE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). Herdr's app wins (its terminals also say they are Ghostty, and pass on what its runtime started with), then herdr, then tmux, since their servers can inherit a cmux tab's values.
+- Herdr's app (`dev.herdr.app`, [spike](../spikes/herdr-app.md)): its runtime, herdr-core (`hc`), runs every terminal apart from the window (`HerdrApp`). The session wears Herdr's icon. Pick up brings Herdr forward on that terminal (`herdr-app do agent.focus`). One in no tab of the window (started with `hc run` alone) opens `hc attach` in your terminal: Herdr answers a focus on it with "ok" and shows nothing, so Perch checks `herdr-app ls` first (`HerdrCore.inWindow`). A tmux pane inside a Herdr terminal carries hc's variables too; the agent is in the pane its tty is. A tmux client attached in a Herdr tab is that session's viewer: Pick up shows the pane in it and brings that tab forward, and with Herdr in front the pane it shows is the session you are in. A session on another core, or in no tab, wears the terminal it is attached in (`Terminals.attachApp`). Reply is `hc send`, which waits for a pause in typing. hc's own status for an agent that reports it (`hc ls`) counts like herdr's. With Herdr in front, the terminal in its focused pane is the session you are in. A session that ran there opens again in a new Herdr tab (`tab.new`, then the resume command), and Herdr counts as a terminal for New session. The window shows the default core only.
 - herdr: a server runs apart from any terminal, so the terminal you see it in is the one running a `herdr` client for that session (`LiveSessions.Viewer`). With none attached, Pick up opens one. herdr's own reading of each pane (working, blocked, done) counts below hooks and above the transcript (`HerdrStatus`).
 - tmux is the same with its own CLI (`Tmux`, the server's executable from its pid, `-S` the socket):
   - one call per server lists its panes and clients (`TmuxServer.listing`);

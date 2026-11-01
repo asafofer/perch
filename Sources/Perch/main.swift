@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for hit in hits {
                 let place: String
                 switch hit.place {
+                case .hc(let t, let socket): place = "hc \(HerdrCore.session(socket: socket)) terminal \(t)"
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
                 case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"
