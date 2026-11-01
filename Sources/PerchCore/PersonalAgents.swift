@@ -190,14 +190,18 @@ public final class DotsStore: @unchecked Sendable {
         var profiles = Array(((value("cloud-aeon-sidebar-cache-v1")?["profilesByThreadId"] as? [String: Any]) ?? [:]).values.compactMap { $0 as? [String: Any] })
         if let p = (value("primary-aeon-selection-v1")?["response"] as? [String: Any])?["profile"] as? [String: Any] { profiles.append(p) }
         // The newest copy of a dot wins; its newest message comes from whichever copy has one (the primary dot's has none).
-        var byId: [String: Dot] = [:]
+        // A copy being deleted removes the dot unless a newer copy says otherwise.
+        var byId: [String: Dot] = [:], deleted: [String: Date] = [:]
         for p in profiles {
-            guard let id = p["id"] as? String, p["status"] as? String != "deleting", let dot = Self.dot(p, id: id) else { continue }
+            guard let id = p["id"] as? String else { continue }
+            if p["status"] as? String == "deleting" { deleted[id] = max(deleted[id] ?? .distantPast, Self.dot(p, id: id)?.lastActivity ?? .distantFuture); continue }
+            guard let dot = Self.dot(p, id: id) else { continue }
             guard let had = byId[id] else { byId[id] = dot; continue }
             let (new, old) = dot.lastActivity > had.lastActivity ? (dot, had) : (had, dot)
             byId[id] = new.preview != nil ? new : Dot(id: id, name: new.name, created: new.created ?? old.created, lastActivity: new.lastActivity,
                                                      paused: new.paused, unread: old.unread, preview: old.preview)
         }
+        for (id, at) in deleted where (byId[id]?.lastActivity ?? .distantPast) <= at { byId[id] = nil }
         return byId.values.sorted { $0.lastActivity > $1.lastActivity }
     }
 

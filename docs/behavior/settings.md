@@ -29,8 +29,8 @@ Version row's update states in [updates.md](updates.md).
     of it (`isFound`), how many. Up and Down choose in it, Return switches one, Left or Esc closes it. A check that is off is
     a faint empty box. The list opens down over the rows below and may hang past the card's foot: the card keeps its size
     (228 pt), and Swift takes clicks on the list too (the page sends its box with the card's size, `menu`), so a click there
-    is not a click outside. Kept as `sources.disabled`, and `sources.optedIn` for Claude chats and for agents Perch has not
-    seen, which start off.
+    is not a click outside. Kept as `sources.disabled`, and `sources.optedIn` for a source that starts off (`onByDefault` false: Claude chats)
+    and was switched on; every other agent starts on, seen or not.
     Onboarding's apps step is the same rows: it opens while the first scan runs ("Looking for your sessions", one quiet
     line), then the four kinds rise in under "Perch found 12 sessions across 3 apps" (every session it saw, across how
     many apps), each showing the marks of what it found, ticked (chats are not). A row opens its list under it (upward when

@@ -131,6 +131,16 @@ private final class MuseHome {
         #expect(p?.prs.map(\.url) == [pr])
     }
 
+    @Test func aMuseSessionsOwnIdIsNotACall() {
+        // the create failed, so no address came back; one Muse mentions later is not the session's pull request
+        let h = MuseHome(), site = h.folder("code/ledger")
+        h.session("np", cwd: site, ago: 30, records: [
+            h.prompt("np", -60, "open a pull request for the export split"), h.shell("np", -50, "c9", "gh pr create --fill"),
+            h.result("np", -45, "c9", "not logged in"), h.said("np", -40, "See https://github.com/asafofer/ledger/pull/3"), h.end("np", -39),
+        ])
+        #expect(h.scanner.muse(limit: 15, now: h.now).first?.project.prs.isEmpty == true)
+    }
+
     @Test func museIsRecognisedByItsBinary() {
         #expect(Agent.recognise(executable: "/Users/a/.local/bin/muse-bin-1.4.14-R7309.1", argv0: nil) == .muse)
         #expect(Agent.mayBe("/Users/a/.local/bin/muse-bin-1.4.14-R7309.1"))

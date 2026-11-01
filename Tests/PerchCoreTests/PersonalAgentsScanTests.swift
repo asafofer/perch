@@ -134,6 +134,18 @@ private final class PersonalHome {
         #expect(found.map(\.topic) == ["Pip"]); #expect(found.first?.needsAttention == true)
     }
 
+    @Test func aNewerDeletionOfADotWinsOverAnOlderCopy() {
+        let h = PersonalHome()
+        h.dots(sidebar: [["id": "a", "display_name": "Pip", "status": "active", "is_paused": false, "updated_at": h.iso(-600)],
+                         ["id": "k", "display_name": "Kept", "status": "active", "is_paused": false, "updated_at": h.iso(-60)]],
+               primary: ["id": "a", "display_name": "Pip", "status": "deleting", "is_paused": false, "updated_at": h.iso(-30)])
+        #expect(h.scanner.dots(limit: 15, now: h.now).map(\.project.topic) == ["Kept"])
+        // an older deletion does not hide a dot that is active again since
+        h.dots(sidebar: [["id": "a", "display_name": "Pip", "status": "active", "is_paused": false, "updated_at": h.iso(-30)]],
+               primary: ["id": "a", "display_name": "Pip", "status": "deleting", "is_paused": false, "updated_at": h.iso(-600)])
+        #expect(h.scanner.dots(limit: 15, now: h.now).map(\.project.topic) == ["Pip"])
+    }
+
     @Test func dotsTimesWithSixFractionalDigitsAreRead() {
         #expect(DotsStore.date("2026-10-14T10:02:49.867829Z") != nil)
         #expect(DotsStore.date("2026-10-14T10:02:49Z") != nil)

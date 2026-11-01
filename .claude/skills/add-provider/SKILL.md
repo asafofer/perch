@@ -57,8 +57,8 @@ Tests, in this order:
 1. **Unit:** a fake home with real files from the spike (`OtherAgentsScanTests`, `CursorScanTests`), and `LiveStatusTests`
    for its events. `swift test` stays green.
 2. **Hooks in a stand-in home** before your real config: `PERCH_HOME=<short folder> .build/debug/Perch --install-hooks <id>`,
-   then the tool run with only that home. Raise a request by hand through the socket:
-   `echo '<payload>' | ~/.config/perch/hook <id> <event>` ([status.md](../../../docs/behavior/status.md#trying-it)).
+   then the tool run with only that home. Raise a request by hand to the Perch you are testing, which listens on the real
+   socket (the stand-in home's hook would post to a socket nothing listens on): `echo '<payload>' | ~/.config/perch/hook <id> <event>` ([status.md](../../../docs/behavior/status.md#trying-it)).
 3. **The real app with the real tool** (AGENTS.md, step 2), driving each ✓ cell: the session is listed with its words; status
    moves from working to finished; an approval and a question answered from the notch land in the tool; a reply arrives;
    Pick up reaches the exact session; New session starts one in the chosen folder; a pull request it opened shows. Follow

@@ -8,6 +8,8 @@ public enum PullRequestScan {
     /// The ids a call carries in a log line: Claude Code's `id` and `tool_use_id`, Codex's `call_id`, pi's `toolCallId`,
     /// OpenCode's `callID`, Muse's `call_id` and its result's `tool_call_id`.
     private static let ids = try! NSRegularExpression(pattern: #""(?:id|call_id|tool_use_id|tool_call_id|toolCallId|callID)"\s*:\s*"([^"]+)""#)
+    /// Muse's envelope names its session on every line (`"stream":{"kind":"session","id":...}`): not a call.
+    private static let stream = try! NSRegularExpression(pattern: #""stream"\s*:\s*\{[^}]*\}"#)
     /// An address that ends what was printed: the command prints the new pull request's address last, so a line of output that only
     /// mentions one (a grep over docs, a list) is not it. The address is followed by the end of the string, after any newlines.
     private static let urls = try! NSRegularExpression(pattern: #"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+(?=(?:\\+n|\\+r|\s)*[\"'\]}])"#)
@@ -25,7 +27,8 @@ public enum PullRequestScan {
             let hasCreate = line.contains(PullRequestScan.create), hasURL = line.contains("/pull/")
             guard hasCreate || hasURL else { return }
             let range = NSRange(line.startIndex..., in: line)
-            let callIds = PullRequestScan.ids.matches(in: line, range: range).compactMap { m in Range(m.range(at: 1), in: line).map { String(line[$0]) } }
+            let calls = PullRequestScan.stream.stringByReplacingMatches(in: line, range: range, withTemplate: "")
+            let callIds = PullRequestScan.ids.matches(in: calls, range: NSRange(calls.startIndex..., in: calls)).compactMap { m in Range(m.range(at: 1), in: calls).map { String(calls[$0]) } }
             if hasCreate && !hasURL { pending.formUnion(callIds); return }
             if hasCreate && hasURL && line.contains("\"callID\"") { pending.formUnion(callIds) }   // a call and its answer in one record (OpenCode)
             guard hasURL, let hit = callIds.first(where: { pending.contains($0) }) else { return }
