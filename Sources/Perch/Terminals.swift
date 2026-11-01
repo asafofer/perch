@@ -110,7 +110,8 @@ enum Terminals {
     /// An hc terminal that is in no tab of Herdr's window, attached in your terminal. Exact only when hc is there to run:
     /// without it the window holds a shell, no place for a reply.
     private static func attachHc(terminal t: String, socket: String, in cwd: String) -> Shown {
-        let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd, app: preferred == herdr ? terminal : preferred)
+        // A folder that could not be read is no place to cd to: the window starts at home.
+        let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd.isEmpty ? NSHomeDirectory() : cwd, app: preferred == herdr ? terminal : preferred)
         return Shown(app: app, exact: FileManager.default.isExecutableFile(atPath: HerdrApp.hc))
     }
 
