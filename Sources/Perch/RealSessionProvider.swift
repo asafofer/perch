@@ -61,6 +61,8 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
         for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.bin) } }
+        // Herdr's window, asked once when an agent runs in hc: which terminals are in its tabs.
+        let herdrListing = live.contains { if case .hc = $0.place { return true } else { return false } } ? HerdrApp.window(["ls"]) : nil
         // hc's, one query per core.
         var hc: [String: [String: String]] = [:]
         for h in live { if case .hc(_, let socket) = h.place, hc[socket] == nil { hc[socket] = HerdrApp.statuses(socket: socket) } }
@@ -89,8 +91,10 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             if let h = running[i].map({ live[$0] }) {
                 projects[i].pid = h.pid; projects[i].spot = Spot.key(h.place, tty: h.tty)
                 switch h.place {
-                case .hc:
-                    projects[i].via = Terminals.herdr; places[id] = ["kind": "hc"]
+                case .hc(let t, let socket):
+                    // In a tab of Herdr's window: Herdr. Else (another core, or started with hc run alone) it is attached in your terminal.
+                    projects[i].via = HerdrCore.session(socket: socket) == "default" && herdrListing.map { HerdrCore.inWindow(t, listing: $0) } == true ? Terminals.herdr : Terminals.attachApp
+                    places[id] = ["kind": "hc"]
                     if let s = seen(h) { projects[i] = HerdrStatus.apply(s.status, to: projects[i]) }
                 case .herdr(_, let socket, let session):
                     projects[i].host = "herdr"; projects[i].via = h.app ?? preferred

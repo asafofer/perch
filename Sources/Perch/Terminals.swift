@@ -112,11 +112,14 @@ enum Terminals {
         return false
     }
 
+    /// Where an hc terminal Herdr's window cannot show is attached: your terminal, or Terminal when that is Herdr.
+    static var attachApp: String { preferred == herdr ? terminal : preferred }
+
     /// An hc terminal that is in no tab of Herdr's window, attached in your terminal. Never exact: nothing confirms the attach
     /// took, so a reply is not pasted there (a reply to it goes in through hc anyway).
     private static func attachHc(terminal t: String, socket: String, in cwd: String) -> Shown {
         // A folder that could not be read is no place to cd to: the window starts at home.
-        let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd.isEmpty ? NSHomeDirectory() : cwd, app: preferred == herdr ? terminal : preferred)
+        let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd.isEmpty ? NSHomeDirectory() : cwd, app: attachApp)
         return Shown(app: app, exact: false)
     }
 
