@@ -766,9 +766,11 @@ enum LiveSessions {
     }
 
     /// Whether this process still runs the session `id`: Oh My Pi and Muse can move to another (/new) between scans, and their
-    /// lock says which they run now. Other agents are taken at their word.
-    nonisolated static func runs(_ h: Hit, _ id: String) -> Bool {
-        guard [Agent.omp.id, Agent.muse.id].contains(h.agent), let now = ownedSession(of: h.pid) else { return true }
+    /// lock says which they run now. Other agents are taken at their word. A lock that cannot be read counts, unless `sure`
+    /// (typing a reply, which cannot be taken back; `/resume` lets go of the old lock for a moment).
+    nonisolated static func runs(_ h: Hit, _ id: String, sure: Bool = false) -> Bool {
+        guard [Agent.omp.id, Agent.muse.id].contains(h.agent) else { return true }
+        guard let now = ownedSession(of: h.pid) else { return !sure }
         return now == id
     }
     /// The session a process runs, from the lock it keeps open: Oh My Pi's owner lock (`~/.omp/run/session-owners/<id>.lock`,
