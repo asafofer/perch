@@ -34,8 +34,8 @@ KEYS = [  # t, look x, look y, width, focus x, focus y, ease into this key
     (1.5, -150, 44, 250, -205, 15, ease_io),       # eases back as the notch springs open; focus settles on the character
     (2.5, -158, 44, 200, -205, 15, ease_soft),     # drifting in, toward the character
     (5.6, -168.5, 44, 110, -205, 15, ease_io),       # the push in, side-eye to glare
-    (7.5, -168.5, 44, 107, -205, 15, ease_soft),     # held on the glare
-    (8.1, -40, 34, 240, -40, 20, ease_io),         # back out as the notch closes
+    (7.2, -168.5, 44, 108, -205, 15, ease_soft),     # held on the glare
+    (8.2, -40, 34, 240, -40, 20, ease_soft),       # a slow pull back over a second, eased with the collapse (7.5 to 8.1 s)
     (8.5, -40, 34, 240, -40, 20, ease_soft),       # resting closed, where the clip began, so it loops
 ]
 
