@@ -69,8 +69,7 @@ enum Terminals {
         case .hc(let t, let socket):
             if HerdrApp.focus(terminal: t, socket: socket) { return Shown(app: herdr, exact: true) }
             // In no tab of Herdr's window (a terminal started with hc alone): attach to it in your terminal.
-            let opened = open(HerdrApp.attach(terminal: t, socket: socket), in: live.cwd, app: preferred == herdr ? terminal : preferred)
-            return Shown(app: opened, exact: true)
+            return attachHc(terminal: t, socket: socket, in: live.cwd)
         case .herdr(let pane, let socket, let session):
             Herdr.focus(pane: pane, socket: socket, bin: live.bin)
             if let v = live.viewer { return show(v) }
@@ -108,12 +107,19 @@ enum Terminals {
         return false
     }
 
+    /// An hc terminal that is in no tab of Herdr's window, attached in your terminal. Exact only when hc is there to run:
+    /// without it the window holds a shell, no place for a reply.
+    private static func attachHc(terminal t: String, socket: String, in cwd: String) -> Shown {
+        let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd, app: preferred == herdr ? terminal : preferred)
+        return Shown(app: app, exact: FileManager.default.isExecutableFile(atPath: HerdrApp.hc))
+    }
+
     /// The terminal showing a herdr or tmux client, brought forward at that client's tab: a Herdr terminal when the client
     /// runs in one (else that terminal attached in yours).
     static func show(_ v: LiveSessions.Viewer) -> Shown? {
         if case .hc(let t, let socket) = v.place {
             if HerdrApp.focus(terminal: t, socket: socket) { return Shown(app: herdr, exact: true) }
-            return Shown(app: open(HerdrApp.attach(terminal: t, socket: socket), in: v.cwd, app: preferred == herdr ? terminal : preferred), exact: true)
+            return attachHc(terminal: t, socket: socket, in: v.cwd)
         }
         if case .cmux(let w, let s) = v.place, Cmux.focus(workspace: w, surface: s) { return Shown(app: cmux, exact: true) }
         if case .agterm(let w, let s, let pane) = v.place, Agterm.focus(window: w, session: s, pane: pane) { return Shown(app: agterm, exact: true) }
