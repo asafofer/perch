@@ -147,11 +147,14 @@ public enum Running {
     /// A freshly started agent with nothing said yet has none.
     public static func match(_ processes: [Process], to projects: [Project]) -> [Int: Int] {
         var out: [Int: Int] = [:], taken = Set<Int>()
-        for (h, p) in processes.enumerated() {
-            guard let i = projects.indices.first(where: { k in
-                projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in p.session == id || p.argv.contains(id) } == true
-            }) else { continue }
-            out[i] = h; taken.insert(h)
+        // The session a process says it runs first: its command line can still name one it left (Oh My Pi's /new).
+        for byArgv in [false, true] {
+            for (h, p) in processes.enumerated() where !taken.contains(h) {
+                guard let i = projects.indices.first(where: { k in
+                    projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in byArgv ? p.argv.contains(id) : p.session == id } == true
+                }) else { continue }
+                out[i] = h; taken.insert(h)
+            }
         }
         let start = { (h: Int) in processes[h].started ?? .distantPast }
         let active = { (i: Int) in projects[i].lastActive ?? .distantPast }
@@ -222,5 +225,17 @@ public enum HerdrCore {
             }
         }
         return nil
+    }
+}
+
+/// The places agents run in can be switched off like an agent (Settings, Agents): the sessions in them then get no row.
+public enum PlaceSwitch {
+    /// Whether a session is hidden: it runs in a Conductor workspace that is off, or its terminal session runs (or last ran)
+    /// in a place that is off (`kind`, as Perch remembers it: herdr, tmux, cmux, agterm; Herdr's app, "hc", goes with herdr).
+    public static func hides(_ p: Project, kind: String?, off: Set<String>) -> Bool {
+        if off.isEmpty { return false }
+        if p.conductor != nil { return off.contains("conductor") }
+        guard p.terminal, let kind else { return false }
+        return off.contains(kind == "hc" ? "herdr" : kind)
     }
 }

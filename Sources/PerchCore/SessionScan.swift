@@ -66,6 +66,8 @@ public final class SessionScanner: @unchecked Sendable {
     let conductor: ConductorSessions
     let claudeCache: ClaudeCache
     let claudeWords: ClaudeWords
+    let dotsStore: DotsStore
+    let grokStore: GrokBotStore
 
     /// The Claude app's tasks and chats are read from `home` unless given, so a test's home folder holds them too.
     public init(home: URL = FileManager.default.homeDirectoryForCurrentUser, desktop: DesktopSessions = .shared, conductor: ConductorSessions = .shared,
@@ -74,6 +76,8 @@ public final class SessionScanner: @unchecked Sendable {
         let idb = home.appendingPathComponent("Library/Application Support/Claude/IndexedDB")
         self.claudeCache = claudeCache ?? ClaudeCache(root: idb.appendingPathComponent("https_claude.ai_0.indexeddb.blob"))
         self.claudeWords = ClaudeWords(idb: idb)
+        self.dotsStore = DotsStore(url: home.appendingPathComponent(".codex/.codex-global-state.json"))
+        self.grokStore = GrokBotStore(root: home.appendingPathComponent("Library/Application Support/Grok Bot/sand-client-persistence"))
     }
 
     /// Reading a session tail is the slow part, so a file is only read again when it changed.
@@ -110,10 +114,10 @@ public final class SessionScanner: @unchecked Sendable {
         return d
     }
 
-    private func cachedHead(_ url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
+    private func cachedHead(_ url: URL, lines: Int = 1, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         lock.lock(); let hit = headCache[url.path]; lock.unlock()
         if let hit { return hit }
-        guard let d = Self.head(of: url, parse: parse), d.sessionId != nil else { return nil }
+        guard let d = Self.head(of: url, lines: lines, parse: parse), d.sessionId != nil else { return nil }
         lock.lock(); headCache[url.path] = d; lock.unlock()
         return d
     }
@@ -246,6 +250,28 @@ public final class SessionScanner: @unchecked Sendable {
         }
     }
 
+    /// Grok Bot's bots and OpenAI's Dots, from their apps' saved state (`PersonalAgents.swift`). A bot's chat copy is parsed
+    /// again only when its file changed.
+    public func grokBots(limit: Int, now: Date = Date()) -> [Found] {
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let store = grokStore
+        return store.bots().filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
+            let words = store.words(bot: b.id)
+            var d = words ?? SessionDigest()
+            d.sessionId = b.id; d.title = b.name; d.lastTimestamp = b.lastActivity
+            return (Recap.grokBot(b, words: words, now: now), d, nil, b.lastActivity)
+        }
+    }
+
+    public func dots(limit: Int, now: Date = Date()) -> [Found] {
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        return dotsStore.dots().filter { $0.lastActivity > cutoff }.prefix(limit).map { dot in
+            var d = SessionDigest()
+            d.sessionId = dot.id; d.title = dot.name; d.lastTimestamp = dot.lastActivity; d.lastAssistantText = dot.preview
+            return (Recap.dot(dot, now: now), d, nil, dot.lastActivity)
+        }
+    }
+
     /// A helper left in the background writes its own transcript (`<id>/subagents/agent-<agentId>.jsonl`) while the session's
     /// waits: its last change there is the helper's last sign of life.
     static func heardFrom(helpersOf url: URL, _ d: inout SessionDigest) {
@@ -348,9 +374,14 @@ public final class SessionScanner: @unchecked Sendable {
     }
 
     // MARK: pi (~/.pi/agent/sessions/--<folder>--/<time>_<id>.jsonl)
-    public func pi(limit: Int, now: Date = Date()) -> [Found] {
+    public func pi(limit: Int, now: Date = Date()) -> [Found] { piLike(.pi, root: home.appendingPathComponent(".pi/agent/sessions"), limit: limit, now: now) }
+
+    // MARK: Oh My Pi (~/.omp/agent/sessions/<folder>/<time>_<id>.jsonl)
+    /// pi's files, with a padded title line before the header; its subagents' files sit one folder deeper and are left out.
+    public func omp(limit: Int, now: Date = Date()) -> [Found] { piLike(.omp, root: home.appendingPathComponent(".omp/agent/sessions"), limit: limit, now: now) }
+
+    private func piLike(_ agent: Agent, root: URL, limit: Int, now: Date) -> [Found] {
         let fm = FileManager.default
-        let root = home.appendingPathComponent(".pi/agent/sessions")
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
         var candidates: [(url: URL, mtime: Date)] = []
         for dir in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
@@ -362,23 +393,78 @@ public final class SessionScanner: @unchecked Sendable {
         var out: [Found] = [], real = 0
         for item in candidates {
             guard real < limit else { break }
-            guard let head = cachedHead(item.url, parse: PiTranscript.digest), let cwd = head.cwd, usable(cwd),
+            guard let head = cachedHead(item.url, lines: agent == .omp ? 2 : 1, parse: PiTranscript.digest), let cwd = head.cwd, usable(cwd),
                   var digest = cachedDigest(item.url, mtime: item.mtime, parse: PiTranscript.digest) else { continue }
             digest.cwd = cwd; digest.sessionId = head.sessionId
             guard digest.lastTimestamp != nil else { continue }
             let chat = Recap.isTrivial(digest)   // kept, marked: the app lists it only while it runs
-            // Unnamed, it goes by your first prompt, as pi's own list does.
+            // Oh My Pi rewrites its title line in place: read it fresh. Unnamed, it goes by your first prompt, as pi's own list does.
+            if agent == .omp, let t = Self.head(of: item.url, lines: 1, window: 4096, parse: PiTranscript.digest)?.title { digest.title = t }
             if digest.title == nil { digest.title = cachedFirstPrompt(item.url) }
             digest.repoName = cachedRepo(cwd)
             let cg = cachedGit(cwd, withBranch: true)
             digest.branch = cg.branch
-            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .pi, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: agent, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
                 p.terminal = true; p.startedAt = head.startedAt ?? Self.created(item.url); p.smallTalk = chat
                 p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
                 out.append((p, digest, cg.info, last)); if !chat { real += 1 }
             }
         }
         return out
+    }
+
+    // MARK: Muse (~/.local/share/muse/sessions/YYYY/MM/DD/<id>/session.jsonl; titles from its index)
+    /// Muse Code's sessions in your terminal. Headless runs (`muse exec`) and subagents (their own logs, under `subagent/`)
+    /// get no row.
+    public func muse(limit: Int, now: Date = Date()) -> [Found] {
+        let fm = FileManager.default
+        let data = home.appendingPathComponent(".local/share/muse")
+        let root = data.appendingPathComponent("sessions")
+        let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
+        let cal = Calendar.current
+        var candidates: [(url: URL, mtime: Date, id: String)] = []
+        // Sharded by local date: only the days inside the window are listed.
+        for back in 0...maxAgeDays {
+            guard let day = cal.date(byAdding: .day, value: -back, to: now) else { continue }
+            let c = cal.dateComponents([.year, .month, .day], from: day)
+            let dir = root.appendingPathComponent(String(format: "%04d/%02d/%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0))
+            for s in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] {
+                let f = dir.appendingPathComponent(s).appendingPathComponent("session.jsonl")
+                if let m = Self.mtime(f), m > cutoff { candidates.append((f, m, s)) }
+            }
+        }
+        guard !candidates.isEmpty else { return [] }
+        candidates.sort { $0.mtime > $1.mtime }
+        let titles = MuseIndex(url: data.appendingPathComponent("session-index.db")).titles()
+        var out: [Found] = [], real = 0
+        for item in candidates {
+            guard real < limit else { break }
+            guard let head = cachedMuseHead(item.url), head.interactive, let cwd = head.cwd, usable(cwd),
+                  var digest = cachedDigest(item.url, mtime: item.mtime, parse: MuseTranscript.digest) else { continue }
+            digest.cwd = cwd; digest.sessionId = item.id
+            guard digest.lastTimestamp != nil else { continue }
+            let chat = Recap.isTrivial(digest)   // kept, marked: the app lists it only while it runs
+            digest.title = titles[item.id] ?? head.firstPrompt
+            digest.repoName = cachedRepo(cwd)
+            let cg = cachedGit(cwd, withBranch: true)
+            digest.branch = cg.branch
+            if var p = Recap.project(digest: digest, git: cg.info, now: now, agent: .muse, quietFor: now.timeIntervalSince(item.mtime)), let last = digest.lastTimestamp {
+                p.terminal = true; p.startedAt = Self.created(item.url); p.smallTalk = chat
+                p.prs = PullRequestScan.requests(PullRequestScan.created(in: item.url))
+                out.append((p, digest, cg.info, last)); if !chat { real += 1 }
+            }
+        }
+        return out
+    }
+
+    /// The top of a Muse log never changes once it holds the folder and the first prompt.
+    private var museHeads: [String: MuseTranscript.Head] = [:]
+    private func cachedMuseHead(_ url: URL) -> MuseTranscript.Head? {
+        lock.lock(); let hit = museHeads[url.path]; lock.unlock()
+        if let hit { return hit }
+        guard let h = MuseTranscript.head(of: url) else { return nil }
+        if h.firstPrompt != nil { lock.lock(); museHeads[url.path] = h; lock.unlock() }
+        return h
     }
 
     // MARK: Cursor (~/.cursor/projects/<folder>/agent-transcripts/<id>/<id>.jsonl; titles and folders from its database)
@@ -480,13 +566,17 @@ public final class SessionScanner: @unchecked Sendable {
     }
 
     /// The first line of a Codex or pi file holds the folder and id, far from the tail we read for messages.
-    static func head(of url: URL, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
+    /// `lines`: how many lines the head is (Oh My Pi puts a title line before its header).
+    static func head(of url: URL, lines: Int = 1, window: Int = 1_000_000, parse: ([String]) -> SessionDigest = CodexTranscript.digest) -> SessionDigest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        // Cut at the newline before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
-        guard let data = try? handle.read(upToCount: 1_000_000), let end = data.firstIndex(of: 0x0A),
-              let first = String(data: data[data.startIndex..<end], encoding: .utf8) else { return nil }
-        return parse([first])
+        guard let data = try? handle.read(upToCount: window) else { return nil }
+        // Cut at newlines before decoding: a chunk that ends inside a character (Hebrew, emoji) is not valid UTF-8.
+        var out: [String] = [], start = data.startIndex
+        while out.count < lines, let end = data[start...].firstIndex(of: 0x0A), let line = String(data: data[start..<end], encoding: .utf8) {
+            out.append(line); start = data.index(after: end)
+        }
+        return out.isEmpty ? nil : parse(out)
     }
 
     /// Only the tail of the file: sessions can be tens of megabytes and the recent part is what matters.
@@ -514,6 +604,7 @@ public final class SessionScanner: @unchecked Sendable {
         var d = parse(text.split(separator: "\n", omittingEmptySubsequences: true).map(String.init))
         if d.title == nil, url.path.contains("/.claude/") { d.title = lastTitle(in: url) }
         if d.title == nil, url.path.contains("/.pi/") { d.title = lastTitle(in: url, marker: #""type":"session_info""#, key: "name") }
+        if d.title == nil, url.path.contains("/.omp/") { d.title = lastTitle(in: url, marker: #""type":"title_change""#, key: "title") }
         return d
     }
 

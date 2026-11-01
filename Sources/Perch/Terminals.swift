@@ -845,6 +845,34 @@ enum LiveSessions {
         return nil
     }
 
+    /// Whether this process still runs the session `id`: Oh My Pi and Muse can move to another (/new) between scans, and their
+    /// lock says which they run now. Other agents are taken at their word. A lock that cannot be read counts, unless `sure`
+    /// (typing a reply, which cannot be taken back; `/resume` lets go of the old lock for a moment).
+    nonisolated static func runs(_ h: Hit, _ id: String, sure: Bool = false) -> Bool {
+        guard [Agent.omp.id, Agent.muse.id].contains(h.agent) else { return true }
+        guard let now = ownedSession(of: h.pid) else { return !sure }
+        return now == id
+    }
+    /// The session a process runs, from the lock it keeps open: Oh My Pi's owner lock (`~/.omp/run/session-owners/<id>.lock`,
+    /// or under `$XDG_STATE_HOME/omp`; moved by `/new` and `/resume`), Muse's in its session's folder
+    /// (`…/muse/sessions/YYYY/MM/DD/<id>/.session.lock`).
+    nonisolated static func ownedSession(of pid: pid_t) -> String? {
+        let size = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
+        guard size > 0 else { return nil }
+        var fds = [proc_fdinfo](repeating: proc_fdinfo(), count: Int(size) / MemoryLayout<proc_fdinfo>.stride)
+        let got = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, &fds, size)
+        guard got > 0 else { return nil }
+        for fd in fds.prefix(Int(got) / MemoryLayout<proc_fdinfo>.stride) where fd.proc_fdtype == UInt32(PROX_FDTYPE_VNODE) {
+            var info = vnode_fdinfowithpath()
+            guard proc_pidfdinfo(pid, fd.proc_fd, PROC_PIDFDVNODEPATHINFO, &info, Int32(MemoryLayout<vnode_fdinfowithpath>.size)) > 0 else { continue }
+            let path = withUnsafeBytes(of: info.pvip.vip_path) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+            // `~/.omp/run/…`, or `$XDG_STATE_HOME/omp/run/…` when that folder exists
+            if path.contains("omp/run/session-owners/"), path.hasSuffix(".lock") { return String((path as NSString).lastPathComponent.dropLast(".lock".count)) }
+            if path.contains("/muse/sessions/"), path.hasSuffix("/.session.lock"), !path.contains("/subagent/") { return ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent }
+        }
+        return nil
+    }
+
     /// A process's parent, from the process table. Unlike proc_pidinfo it also works for processes owned by root,
     /// like the `login` that Terminal puts between itself and your shell.
     static func parent(of pid: pid_t) -> pid_t? {
