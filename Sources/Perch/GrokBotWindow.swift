@@ -38,7 +38,8 @@ enum GrokBotWindow {
             let name = label(e)
             if name == "Bot list" { return buttons(in: e, until: deadline) }
             if name == "Conversation transcript" { continue }
-            queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+            guard let kids = children(e) else { return nil }
+            queue.append(contentsOf: kids)
         }
         return []
     }
@@ -50,9 +51,20 @@ enum GrokBotWindow {
             let e = queue.removeFirst(); seen += 1
             AXUIElementSetMessagingTimeout(e, 0.25)
             if ConductorApp.attr(e, kAXRoleAttribute) as? String == "AXButton" { if let name = label(e) { out.append(name) }; continue }
-            queue.append(contentsOf: (ConductorApp.attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+            guard let kids = children(e) else { return nil }
+            queue.append(contentsOf: kids)
         }
         return out
+    }
+
+    /// An element's children: none when it has none, nil when Grok Bot did not answer in time (the read is then not whole).
+    nonisolated private static func children(_ e: AXUIElement) -> [AXUIElement]? {
+        var v: AnyObject?
+        switch AXUIElementCopyAttributeValue(e, kAXChildrenAttribute as CFString, &v) {
+        case .success: return v as? [AXUIElement] ?? []
+        case .cannotComplete: return nil
+        default: return []
+        }
     }
 
     nonisolated private static func label(_ e: AXUIElement) -> String? {
