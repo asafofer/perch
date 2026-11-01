@@ -143,11 +143,14 @@ public enum Running {
     /// A freshly started agent with nothing said yet has none.
     public static func match(_ processes: [Process], to projects: [Project]) -> [Int: Int] {
         var out: [Int: Int] = [:], taken = Set<Int>()
-        for (h, p) in processes.enumerated() {
-            guard let i = projects.indices.first(where: { k in
-                projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in p.session == id || p.argv.contains(id) } == true
-            }) else { continue }
-            out[i] = h; taken.insert(h)
+        // The session a process says it runs first: its command line can still name one it left (Oh My Pi's /new).
+        for byArgv in [false, true] {
+            for (h, p) in processes.enumerated() where !taken.contains(h) {
+                guard let i = projects.indices.first(where: { k in
+                    projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in byArgv ? p.argv.contains(id) : p.session == id } == true
+                }) else { continue }
+                out[i] = h; taken.insert(h)
+            }
         }
         let start = { (h: Int) in processes[h].started ?? .distantPast }
         let active = { (i: Int) in projects[i].lastActive ?? .distantPast }

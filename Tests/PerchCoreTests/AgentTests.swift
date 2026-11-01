@@ -140,6 +140,12 @@ import Foundation
         #expect(Running.match(procs, to: list) == [1: 0, 0: 1, 2: 2])
     }
 
+    @Test func theSessionAProcessRunsWinsOverOneItsCommandNames() {
+        // omp --resume old, then /new: its lock says new, its command line still says old
+        let list = [p("old", "omp", "/a", 600), p("new", "omp", "/a", 10)]
+        #expect(Running.match([Running.Process(agent: "omp", cwd: "/a", argv: ["omp", "--resume", "old"], session: "new")], to: list) == [1: 0])
+    }
+
     @Test func herdrsSessionIdNamesTheSession() {
         let list = [p("new", "opencode", "/a", 10), p("old", "opencode", "/a", 600)]
         #expect(Running.match([Running.Process(agent: "opencode", cwd: "/a", argv: ["opencode"], session: "old")], to: list) == [1: 0])
