@@ -4,10 +4,11 @@ import Foundation
 /// nudge, so a wrong answer is worse in one direction: when Perch cannot tell which tab, pane or surface is in front,
 /// every live session in that app counts as "maybe" and stays quiet.
 public enum Spot {
-    /// Where a running agent lives, as a key to compare with what is in front: its herdr or tmux pane (on that server), its
+    /// Where a running agent lives, as a key to compare with what is in front: its hc terminal, its herdr or tmux pane (on that server), its
     /// cmux surface, its agterm pane, or its terminal's tty.
     public static func key(_ place: Place, tty: String) -> String {
         switch place {
+        case .hc(let terminal, let socket): return hc(socket: socket, terminal: terminal)
         case .herdr(let pane, let socket, _): return herdr(socket: socket, pane: pane)
         case .tmux(let pane, let socket): return tmux(socket: socket, pane: pane)
         case .cmux(_, let surface): return cmux(surface: surface)
@@ -21,6 +22,7 @@ public enum Spot {
     public static func herdr(socket: String, pane: String) -> String { herdrPrefix(socket) + pane }
     static func herdrPrefix(_ socket: String) -> String { "herdr:\(socket)|" }
     public static func tmux(socket: String, pane: String) -> String { "tmux:\(socket)|" + pane }
+    public static func hc(socket: String, terminal: String) -> String { "hc:\(socket)|" + terminal }
 }
 
 /// What was read from the app in front.

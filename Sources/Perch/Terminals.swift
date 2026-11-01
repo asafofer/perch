@@ -5,21 +5,21 @@ import PerchCore
 
 /// Terminal apps. Pick up goes back to the tab a session runs in, or opens it again in the terminal you use.
 enum Terminals {
-    static let terminal = "com.apple.Terminal", warp = "dev.warp.Warp-Stable", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app", agterm = Agterm.bundle
+    static let terminal = "com.apple.Terminal", warp = "dev.warp.Warp-Stable", iterm = "com.googlecode.iterm2", ghostty = "com.mitchellh.ghostty", cmux = "com.cmuxterm.app", agterm = Agterm.bundle, herdr = HerdrApp.bundle
     /// Every app that counts as a terminal, with the name its icon goes by in the page.
     static let keys: [String: String] = [
         terminal: "terminal", iterm: "iterm", ghostty: "ghostty", cmux: "cmux", "com.cmuxterm.app.nightly": "cmux", agterm: "agterm", warp: "warp",
         "com.github.wez.wezterm": "wezterm", "net.kovidgoyal.kitty": "kitty", "com.microsoft.VSCode": "vscode",
-        "com.todesktop.230313mzl4w4u92": "cursor", "dev.zed.Zed": "zed",
+        "com.todesktop.230313mzl4w4u92": "cursor", "dev.zed.Zed": "zed", herdr: "herdr",
     ]
     /// The ones Perch can open a new session in.
-    static let opens: Set<String> = [terminal, iterm, ghostty, cmux, agterm]
+    static let opens: Set<String> = [terminal, iterm, ghostty, cmux, agterm, herdr]
 
     /// The terminal you used last, if Perch can open a session in it; Terminal otherwise.
     static var preferred: String { Prefs.lastTerminal.flatMap { opens.contains($0) ? $0 : nil } ?? terminal }
 
-    /// Opens a new window (a workspace in cmux, a session in agterm) in `cwd` that runs `command`, and says which app it
-    /// opened in: Terminal when agterm could not make the session.
+    /// Opens a new window (a workspace in cmux, a session in agterm, a tab in Herdr) in `cwd` that runs `command`, and says
+    /// which app it opened in: Terminal when agterm or Herdr could not make it.
     @discardableResult
     static func open(_ command: String, in cwd: String, app: String = preferred) -> String {
         let typed = "cd \(shellQuote(cwd)) && \(command)"
@@ -46,6 +46,8 @@ enum Terminals {
             Cmux.open(command, in: cwd)
         case agterm:
             if !Agterm.open(command, in: cwd) { return open(command, in: cwd, app: terminal) }
+        case herdr:
+            if !HerdrApp.open(command, in: cwd) { return open(command, in: cwd, app: terminal) }
         default:
             run("tell application \"Terminal\"\nactivate\ndo script \(appleQuote(typed))\nend tell")
         }
@@ -64,6 +66,11 @@ enum Terminals {
     @discardableResult
     static func focus(_ live: LiveSessions.Hit, hints: [String] = []) -> Shown? {
         switch live.place {
+        case .hc(let t, let socket):
+            if HerdrApp.focus(terminal: t, socket: socket) { return Shown(app: herdr, exact: true) }
+            // In no tab of Herdr's window (a terminal started with hc alone): attach to it in your terminal.
+            open(HerdrApp.attach(terminal: t, socket: socket), in: live.cwd, app: preferred == herdr ? terminal : preferred)
+            return Shown(app: preferred == herdr ? terminal : preferred, exact: true)
         case .herdr(let pane, let socket, let session):
             Herdr.focus(pane: pane, socket: socket, bin: live.bin)
             if let v = live.viewer { return show(v) }
@@ -229,6 +236,7 @@ enum Terminals {
     /// a Return inside a paste is a new line, not Send. Terminal cannot type without its own Return, so Codex gets one more, alone.
     static func type(_ line: String, into live: LiveSessions.Hit) -> Bool {
         switch live.place {
+        case .hc(let t, let socket): return HerdrApp.type(line, terminal: t, socket: socket)
         case .herdr(let pane, let socket, _): return Herdr.type(line, pane: pane, socket: socket, bin: live.bin)
         case .tmux(let pane, let socket): return Tmux.type(line, pane: pane, socket: socket, bin: live.bin)
         case .cmux(let w, let s): if Cmux.type(line, workspace: w, surface: s) { return true }
@@ -318,6 +326,77 @@ enum Terminals {
 
     static func shellQuote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     static func appleQuote(_ s: String) -> String { "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+}
+
+/// Herdr's desktop app and herdr-core (`hc`), the runtime it shows: hc runs the terminals and types into them, and the
+/// app's own CLI (`herdr-app`) brings one forward in its window or opens a tab.
+enum HerdrApp {
+    static let bundle = "dev.herdr.app"
+    static var url: URL? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) }
+    /// The app's CLI is its own executable.
+    static var cli: String? { url?.appendingPathComponent("Contents/MacOS/Herdr").path }
+    /// hc: where Herdr's installer puts it, else a package manager's.
+    static var hc: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return [home + "/.local/bin/herdr-core", home + "/.local/bin/hc", "/opt/homebrew/bin/hc", "/usr/local/bin/hc"]
+            .first { FileManager.default.isExecutableFile(atPath: $0) } ?? home + "/.local/bin/hc"
+    }
+    /// Runs hc on the core at `socket`.
+    private static func core(_ args: [String], socket: String) -> String? {
+        Terminals.tool(hc, args, env: ["HC_SESSION": HerdrCore.session(socket: socket)])
+    }
+    /// Runs a command in Herdr's window. Nil when no window answers or the command failed (it exits 1 with an error).
+    @discardableResult
+    static func window(_ args: [String]) -> String? { cli.flatMap { Terminals.tool($0, args) } }
+
+    /// Herdr open with its window answering, started if it is not running. False when it is not installed or does not answer in time.
+    static func ready() -> Bool {
+        if NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty {
+            guard let url else { return false }
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
+        for _ in 0..<40 { if window(["status"]) != nil { return true }; Thread.sleep(forTimeInterval: 0.15) }
+        return false
+    }
+
+    /// Shows the terminal in Herdr's window (switching space and tab) and brings Herdr forward. False when the window has
+    /// no tab with it, as for a terminal started with hc alone. Herdr's window shows the default core only.
+    static func focus(terminal: String, socket: String) -> Bool {
+        guard HerdrCore.session(socket: socket) == "default", ready(), window(["do", "agent.focus", "--terminal", terminal]) != nil else { return false }
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
+        return true
+    }
+
+    /// The command that shows that terminal in a terminal of your own.
+    static func attach(terminal: String, socket: String) -> String {
+        "HC_SESSION=\(Terminals.shellQuote(HerdrCore.session(socket: socket))) \(Terminals.shellQuote(hc)) attach \(Terminals.shellQuote(terminal))"
+    }
+
+    /// Pastes the line and presses Return; hc waits for a pause in typing first, and leaves an agent waiting on a prompt alone.
+    static func type(_ line: String, terminal: String, socket: String) -> Bool {
+        core(["send", terminal, line], socket: socket) != nil
+    }
+
+    /// A new tab in the space Herdr shows (a new space when there is none), in `cwd`, whose shell is given `command`.
+    static func open(_ command: String, in cwd: String) -> Bool {
+        guard ready() else { return false }
+        let made = window(["do", "tab.new", "--folder", cwd]) ?? window(["do", "space.new", "--folder", cwd])
+        guard let out = made, let o = (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any], let t = o["terminal"] as? String,
+              Terminals.tool(hc, ["send", t, command]) != nil else { return false }
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
+        return true
+    }
+
+    /// What hc sees in its terminals, by address: working, blocked, done or idle, for the agents that report it.
+    static func statuses(socket: String) -> [String: String] {
+        core(["ls", "--json"], socket: socket).map(HerdrCore.statuses) ?? [:]
+    }
+
+    /// The terminal that has focus in Herdr's window, or nil when that cannot be read.
+    static func focusedTerminal() -> String? {
+        guard let status = window(["status"]), let listing = window(["ls"]) else { return nil }
+        return HerdrCore.focusedTerminal(status: status, listing: listing)
+    }
 }
 
 /// herdr, a multiplexer whose server outlives the terminal: its CLI focuses a pane, types into it and opens tabs.
@@ -710,6 +789,7 @@ enum LiveSessions {
                 } else { place = .tab }
             }
             switch place {
+            case .hc: app = Terminals.herdr
             case .herdr(_, _, let session):
                 viewer = viewers.first { $0.tmux == nil && $0.session == session }
                 app = viewer?.app

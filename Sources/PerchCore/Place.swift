@@ -1,7 +1,9 @@
 import Foundation
 
-/// Where a running agent lives, read from its environment. herdr, tmux, cmux and agterm put their own variables in every process they run.
+/// Where a running agent lives, read from its environment. Herdr's app, herdr, tmux, cmux and agterm put their own variables in every process they run.
 public enum Place: Equatable, Sendable {
+    /// A terminal of herdr-core (`hc`), the runtime Herdr's app shows: its address (`t7`) on the core at `socket`.
+    case hc(terminal: String, socket: String)
     /// A pane in a herdr server. `socket` reaches that server; `session` is its name ("default" for the usual one).
     case herdr(pane: String, socket: String, session: String)
     /// A pane in a tmux server (`%3`). `socket` reaches that server.
@@ -15,8 +17,10 @@ public enum Place: Equatable, Sendable {
     case tab
 
     /// Innermost first: a herdr or tmux server started from a cmux tab passes that tab's variables to every pane, so theirs
-    /// win; herdr is taken to run inside tmux rather than the other way round.
+    /// win; herdr is taken to run inside tmux rather than the other way round. An hc terminal says it is Ghostty
+    /// (TERM_PROGRAM) and passes on whatever its core was started with, so its own variables come first.
     public static func from(environment env: [String: String]) -> Place {
+        if let t = env["HC_TERMINAL_ID"], !t.isEmpty, let socket = env["HC_TERMINAL_SOCKET"], !socket.isEmpty { return .hc(terminal: t, socket: socket) }
         if let pane = env["HERDR_PANE_ID"], !pane.isEmpty, let socket = env["HERDR_SOCKET_PATH"], !socket.isEmpty {
             return .herdr(pane: pane, socket: socket, session: env["HERDR_SESSION"].flatMap { $0.isEmpty ? nil : $0 } ?? "default")
         }
@@ -169,8 +173,8 @@ public enum Running {
     }
 }
 
-/// What herdr says about an agent in one of its panes, when hooks say nothing: it reads the screen, so it knows when
-/// an agent shows an approval or a question even without hooks.
+/// What herdr, or Herdr's own runtime, says about an agent in one of its panes, when hooks say nothing: it reads the
+/// screen, so it knows when an agent shows an approval or a question even without hooks.
 public enum HerdrStatus {
     public static func apply(_ status: String, to p: Project) -> Project {
         let a = Agent.of(p.app)
@@ -185,5 +189,38 @@ public enum HerdrStatus {
         default: return p
         }
         return q
+    }
+}
+
+/// What herdr-core (`hc`) and Herdr's window say, read from their JSON.
+public enum HerdrCore {
+    /// The core's session, which `HC_SESSION` picks: the name its socket is called by (`…/default/default.sock`).
+    public static func session(socket: String) -> String {
+        let name = ((socket as NSString).lastPathComponent as NSString).deletingPathExtension
+        return name.isEmpty ? "default" : name
+    }
+
+    /// `hc ls --json`: each live terminal's status, by address, for the ones that report one (working, blocked, done, idle).
+    public static func statuses(_ json: String) -> [String: String] {
+        guard let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any], let list = o["terminals"] as? [[String: Any]] else { return [:] }
+        var out: [String: String] = [:]
+        for t in list where t["state"] as? String == "live" {
+            if let a = t["address"] as? String, let s = t["status"] as? String { out[a] = s }
+        }
+        return out
+    }
+
+    /// The terminal in the pane that has focus in Herdr's window, from `herdr-app status` and `herdr-app ls`. Nil when no
+    /// pane has focus or something sits over it (an overlay such as the welcome).
+    public static func focusedTerminal(status: String, listing: String) -> String? {
+        guard let s = (try? JSONSerialization.jsonObject(with: Data(status.utf8))) as? [String: Any],
+              let pane = s["focused_pane"] as? String, (s["overlays"] as? [Any])?.isEmpty != false,
+              let l = (try? JSONSerialization.jsonObject(with: Data(listing.utf8))) as? [String: Any] else { return nil }
+        for space in l["spaces"] as? [[String: Any]] ?? [] {
+            for tab in space["tabs"] as? [[String: Any]] ?? [] {
+                for t in tab["terminals"] as? [[String: Any]] ?? [] where t["pane"] as? String == pane { return t["terminal"] as? String }
+            }
+        }
+        return nil
     }
 }

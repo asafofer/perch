@@ -54,8 +54,12 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         // herdr's own view of its panes, one query per server.
         var herdr: [String: [String: (status: String, session: String?)]] = [:]
         for h in live { if case .herdr(_, let socket, _) = h.place, herdr[socket] == nil { herdr[socket] = Herdr.agents(socket: socket, bin: h.bin) } }
+        // hc's, one query per core.
+        var hc: [String: [String: String]] = [:]
+        for h in live { if case .hc(_, let socket) = h.place, hc[socket] == nil { hc[socket] = HerdrApp.statuses(socket: socket) } }
         func seen(_ h: LiveSessions.Hit) -> (status: String, session: String?)? {
             if case .herdr(let pane, let socket, _) = h.place { return herdr[socket]?[pane] }
+            if case .hc(let t, let socket) = h.place { return hc[socket]?[t].map { ($0, nil) } }
             return nil
         }
         // What the hooks said: the session each agent process last spoke for. A hook script's parent may be a shell
@@ -76,6 +80,9 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
             if let h = running[i].map({ live[$0] }) {
                 projects[i].pid = h.pid; projects[i].spot = Spot.key(h.place, tty: h.tty)
                 switch h.place {
+                case .hc:
+                    projects[i].via = Terminals.herdr; places[id] = ["kind": "hc"]
+                    if let s = seen(h) { projects[i] = HerdrStatus.apply(s.status, to: projects[i]) }
                 case .herdr(_, let socket, let session):
                     projects[i].host = "herdr"; projects[i].via = h.app ?? preferred
                     places[id] = ["kind": "herdr", "socket": socket, "session": session, "workspace": h.place.herdrWorkspace ?? "", "bin": h.bin ?? ""]
@@ -103,6 +110,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
                     projects[i].via = viewers.first { $0.tmux == last?["socket"] && $0.session == last?["session"] }?.app ?? preferred
                 case "cmux": projects[i].via = Terminals.cmux
                 case "agterm": projects[i].via = Terminals.agterm
+                case "hc": projects[i].via = HerdrApp.url == nil ? preferred : Terminals.herdr
                 default: projects[i].via = preferred
                 }
             }
@@ -196,8 +204,8 @@ enum Restorer {
     }
 
     /// Opens a session that is not running again, where it last ran: a new tab in its herdr workspace, a new window in its
-    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, a new agterm session, the
-    /// OpenCode app, or a new window of your terminal.
+    /// tmux session, the cmux surface that kept it (cmux resumes it), a new cmux workspace, a new agterm session, a new
+    /// Herdr tab, the OpenCode app, or a new window of your terminal.
     /// Blocks on the tools it drives, so call it off the main thread.
     /// Where a session opened again in a herdr or tmux client's terminal lands. A tab of that terminal that was only a guess
     /// is no place to type into, so it lands as an app that is not exact.
@@ -233,7 +241,11 @@ enum Restorer {
             }
             if last?["kind"] == "cmux" { Terminals.open(command, in: cwd, app: Terminals.cmux); return .newTerminal(Terminals.cmux, cwd: cwd, agent: agent) }
         }
-        // Terminals.open falls back to Terminal when agterm cannot make the session.
+        // Terminals.open falls back to Terminal when agterm or Herdr cannot make the session.
+        if last?["kind"] == "hc", HerdrApp.url != nil {
+            let app = Terminals.open(command, in: cwd, app: Terminals.herdr)
+            return .newTerminal(app, cwd: cwd, agent: agent)
+        }
         if last?["kind"] == "agterm" {
             let app = Terminals.open(command, in: cwd, app: Terminals.agterm)
             return .newTerminal(app, cwd: cwd, agent: agent)
