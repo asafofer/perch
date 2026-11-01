@@ -2561,7 +2561,7 @@
   }
   /* Waiting on you, acted with the face alone. A glance at the buttons and back; then bored: heavy lids, a slow look away,
      a long sighing blink; then impatient: lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and
-     at you in turn. The orange glow comes in with the glare. */
+     at you in turn. */
   function atNFace(m) { if (atN.on && !atN.out && !atN.sent) cr.dataset.m = m; }
   function atNBlink(n2, gap) { for (var i = 0; i < (n2 || 1); i++) (function (i) { atNLater(function () { cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); }, 90); }, i * (gap || 210)); })(i); }
   function atNSigh() { cr.classList.add('sigh'); atNLater(function () { cr.classList.remove('sigh'); }, 900); }

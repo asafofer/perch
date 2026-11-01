@@ -26,7 +26,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 
 - Off by default; Settings, Notifications, Character at the notch (`Prefs.charAtNotch`, sent as `charAtNotch`).
 - A request or a question in a session you are not in: the live activity opens as always, in one spring (width and height on one curve, `.n[data-nb]` in input.css), and your character sits inside it at the left of the row, before the app's icon (app.js `atN`). It fades in once the notch has opened around it; it never leaves the notch, never leans or hops: only its face acts.
-- It looks at you; after 1.6 s it acts out the wait: a glance at the buttons and back, bored (heavy lids, a slow look away, a sighing blink), then impatient (lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and at you in turn) while an orange glow grows along the notch's inner edge. With reduced motion it only shows the glare and the glow.
+- It looks at you; after 1.6 s it acts out the wait: a glance at the buttons and back, bored (heavy lids, a slow look away, a sighing blink), then impatient (lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and at you in turn). With reduced motion it only shows the glare.
 - Answered from the notch: the button lights, one slow blink opens into a smile, and the notch closes straight, without the Sent line; the character fades riding the closing edge. If the answer reached nothing, Didn't send shows as always. Answered elsewhere, it fades as the row goes.
 - Folded to wings, it stays in the left wing beside the app's icon. The design page plays it (While you work, Character at the notch; `perch.notchChar(face)` forces alert, bored, glare, happy or `act`).
 
