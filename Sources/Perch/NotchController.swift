@@ -1452,7 +1452,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let live = LiveSessions.all()
                 // Never typed into a process that has since moved to another session (Oh My Pi's /new): that would answer it.
-                let hit = (live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }).flatMap { LiveSessions.runs($0, id) ? $0 : nil }
+                let hit = live.first { $0.pid == pid && $0.agent == agent && LiveSessions.runs($0, id) } ?? live.first { $0.agent == agent && $0.argv.contains(id) && LiveSessions.runs($0, id) }
                 var done = false, unsure = false
                 if let hit { done = Terminals.type(line, into: hit) }
                 else if live.contains(where: { $0.agent == agent && $0.cwd == cwd && !claimed.contains($0.pid) }) {

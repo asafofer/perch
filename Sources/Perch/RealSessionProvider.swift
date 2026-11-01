@@ -144,7 +144,7 @@ enum Restorer {
                 let landing: Landing
                 let live = LiveSessions.all()
                 // Its process, or one whose command line names it, unless that process has since moved to another session.
-                let hit = (live.first { $0.pid == pid && $0.agent == agent } ?? live.first { $0.agent == agent && $0.argv.contains(id) }).flatMap { LiveSessions.runs($0, id) ? $0 : nil }
+                let hit = live.first { $0.pid == pid && $0.agent == agent && LiveSessions.runs($0, id) } ?? live.first { $0.agent == agent && $0.argv.contains(id) && LiveSessions.runs($0, id) }
                 if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("%@", "Perch pick up: \(agent) \(id.prefix(8)) in \(cwd); running: \(hit.map { "\($0.pid) \($0.place)" } ?? "no")") }
                 if let hit, let shown = Terminals.focus(hit, hints: hints) {
                     landing = .app(shown.app, exact: shown.exact)

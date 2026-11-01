@@ -772,7 +772,8 @@ enum LiveSessions {
         return now == id
     }
     /// The session a process runs, from the lock it keeps open: Oh My Pi's owner lock (`~/.omp/run/session-owners/<id>.lock`,
-    /// moved by `/new` and `/resume`), Muse's in its session's folder (`…/muse/sessions/YYYY/MM/DD/<id>/.session.lock`).
+    /// or under `$XDG_STATE_HOME/omp`; moved by `/new` and `/resume`), Muse's in its session's folder
+    /// (`…/muse/sessions/YYYY/MM/DD/<id>/.session.lock`).
     nonisolated static func ownedSession(of pid: pid_t) -> String? {
         let size = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
         guard size > 0 else { return nil }
@@ -783,7 +784,8 @@ enum LiveSessions {
             var info = vnode_fdinfowithpath()
             guard proc_pidfdinfo(pid, fd.proc_fd, PROC_PIDFDVNODEPATHINFO, &info, Int32(MemoryLayout<vnode_fdinfowithpath>.size)) > 0 else { continue }
             let path = withUnsafeBytes(of: info.pvip.vip_path) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
-            if path.contains("/.omp/run/session-owners/"), path.hasSuffix(".lock") { return String((path as NSString).lastPathComponent.dropLast(".lock".count)) }
+            // `~/.omp/run/…`, or `$XDG_STATE_HOME/omp/run/…` when that folder exists
+            if path.contains("omp/run/session-owners/"), path.hasSuffix(".lock") { return String((path as NSString).lastPathComponent.dropLast(".lock".count)) }
             if path.contains("/muse/sessions/"), path.hasSuffix("/.session.lock"), !path.contains("/subagent/") { return ((path as NSString).deletingLastPathComponent as NSString).lastPathComponent }
         }
         return nil
