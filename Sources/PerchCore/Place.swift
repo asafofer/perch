@@ -215,6 +215,15 @@ public enum HerdrCore {
         return out
     }
 
+    /// Whether a terminal is in a tab of Herdr's window (`herdr-app ls`). One started with `hc run` alone is not, and the
+    /// window answers a focus on it with "ok" while showing nothing.
+    public static func inWindow(_ terminal: String, listing: String) -> Bool {
+        guard let l = (try? JSONSerialization.jsonObject(with: Data(listing.utf8))) as? [String: Any] else { return false }
+        return (l["spaces"] as? [[String: Any]] ?? []).contains { space in
+            (space["tabs"] as? [[String: Any]] ?? []).contains { tab in (tab["terminals"] as? [[String: Any]] ?? []).contains { $0["terminal"] as? String == terminal } }
+        }
+    }
+
     /// The terminal in the pane that has focus in Herdr's window, from `herdr-app status` and `herdr-app ls`. Nil when no
     /// pane has focus or something sits over it (an overlay such as the welcome).
     public static func focusedTerminal(status: String, listing: String) -> String? {

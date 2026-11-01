@@ -77,6 +77,9 @@ import Foundation
         #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":"pB","overlays":[]}"#, listing: listing) == "t3")
         #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":"pA","overlays":["frame-welcome"]}"#, listing: listing) == nil)
         #expect(HerdrCore.focusedTerminal(status: #"{"focused_pane":null,"overlays":[]}"#, listing: listing) == nil)
+        #expect(HerdrCore.inWindow("t3", listing: listing))
+        #expect(!HerdrCore.inWindow("t7", listing: listing))   // started with hc run alone: in no tab
+        #expect(!HerdrCore.inWindow("t2", listing: "not json"))
     }
 
     @Test func anAgtermPaneIsReadFromItsVariables() {

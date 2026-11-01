@@ -385,7 +385,8 @@ enum HerdrApp {
     /// Shows the terminal in Herdr's window (switching space and tab) and brings Herdr forward. False when the window has
     /// no tab with it, as for a terminal started with hc alone. Herdr's window shows the default core only.
     static func focus(terminal: String, socket: String) -> Bool {
-        guard HerdrCore.session(socket: socket) == "default", ready(), window(["do", "agent.focus", "--terminal", terminal]) != nil else { return false }
+        guard HerdrCore.session(socket: socket) == "default", ready(), let listing = window(["ls"]), HerdrCore.inWindow(terminal, listing: listing),
+              window(["do", "agent.focus", "--terminal", terminal]) != nil else { return false }
         NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
         return true
     }
