@@ -23,19 +23,25 @@ Version row's update states in [updates.md](updates.md).
   back from the left (transitions.dev page side by side).
 - On a page every setting is a row of its own, with no menu to drop down, so a page is only as tall as it needs:
   - Shortcuts: Open Perch and New session, each with Change (the recorder) and Reset for a recorded one.
-  - Agents: a row for each kind of agent, as on the apps step (Terminal agents, Coding apps, Personal agents, Terminals;
-    `KINDS` in `app.js`), showing the marks of the ones Perch follows, alphabetical, or None. Return or a click opens the
-    kind's popover list, like Notify me about: its agents, alphabetical, each with a check and, once Perch has seen a session
-    of it (`isFound`), how many. Up and Down choose in it, Return switches one, Left or Esc closes it. A check that is off is
-    a faint empty box. The list opens down over the rows below and may hang past the card's foot: the card keeps its size
-    (228 pt), and Swift takes clicks on the list too (the page sends its box with the card's size, `menu`), so a click there
-    is not a click outside. Kept as `sources.disabled`, and `sources.optedIn` for a source that starts off (`onByDefault` false: Claude chats)
+  - Agents: a row for each kind, as on the apps step (Terminal agents, Coding apps, Personal agents, Terminals; `KINDS` in
+    `app.js`), showing the marks of what Perch follows, alphabetical, or None. Everything Perch supports is listed, on this
+    Mac or not (`sourcesState`), so it shows what Perch works with. Return or a click opens the kind's popover list, like
+    Notify me about: its entries, alphabetical, each with a check and, once Perch has seen a session of it (`isFound`), how
+    many. Up and Down choose in it, Return switches one, Left or Esc closes it. A check that is off is a faint empty box. The
+    list opens down over the rows below and may hang past the card's foot: the card keeps its size (228 pt), and Swift takes
+    clicks on the list too (the page sends its box with the card's size, `menu`), so a click there is not a click outside.
+    An agent is kept as `sources.disabled`, and `sources.optedIn` for one that starts off (`onByDefault` false: Claude chats)
     and was switched on; every other agent starts on, seen or not.
+    The places agents run in are switches too: Conductor (under Coding apps), and agterm, cmux, herdr and tmux (Terminals).
+    A place has no sessions of its own, so switched off it hides the sessions running in it: a Conductor workspace's, or a
+    terminal session that runs or last ran there (`PlaceSwitch`, from where Perch remembers it ran). They get no row and no
+    card; the agent in them stays on for its other sessions. A request they make is still answered in their terminal (Claude's
+    prompt runs alongside Perch's hook). A place has no count, so no session is counted twice. Kept as `places.disabled`.
     Onboarding's apps step is the same rows: it opens while the first scan runs ("Looking for your sessions", one quiet
     line), then the four kinds rise in under "Perch found 12 sessions across 3 apps" (every session it saw, across how
-    many apps), each showing the marks of what it found, ticked (chats are not). A row opens its list under it (upward when
-    the panel has no room below), which may hang past the card. Up and Down choose a row, Right or Return opens it; with
-    no row chosen Return is Next. With nothing found the title is "Choose your apps" and every kind says None.
+    many apps), each showing the marks of what Perch will follow: everything, on but Claude chats. A row opens its list
+    under it (upward when the panel has no room below), which may hang past the card. Up and Down choose a row, Right or
+    Return opens it; with no row chosen Return is Next. With nothing found the title is "Choose your apps".
   - Status: Live status as a toggle, and Pull requests (Off, Marks, Checks: [pull-requests.md](pull-requests.md)), which sat
     under the agents until the list could outgrow the panel. Its row on the list says "Live, PR marks" (or checks, or no PR
     marks), or "Live status off". The reason line's Settings link on a question Perch cannot answer opens this page.

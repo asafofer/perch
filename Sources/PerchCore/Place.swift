@@ -190,3 +190,15 @@ public enum HerdrStatus {
         return q
     }
 }
+
+/// The places agents run in can be switched off like an agent (Settings, Agents): the sessions in them then get no row.
+public enum PlaceSwitch {
+    /// Whether a session is hidden: it runs in a Conductor workspace that is off, or its terminal session runs (or last ran)
+    /// in a place that is off (`kind`, as Perch remembers it: herdr, tmux, cmux, agterm).
+    public static func hides(_ p: Project, kind: String?, off: Set<String>) -> Bool {
+        if off.isEmpty { return false }
+        if p.conductor != nil { return off.contains("conductor") }
+        guard p.terminal, let kind else { return false }
+        return off.contains(kind)
+    }
+}

@@ -28,6 +28,10 @@ enum Prefs {
             d.set(Array(newValue.subtracting(byDefault)), forKey: "sources.optedIn")
         }
     }
+    /// The places agents run in (Conductor, herdr, tmux, cmux, agterm) whose sessions you switched off: they get no row and
+    /// no card. All on until you switch one off.
+    static let placeIds = ["conductor", "herdr", "tmux", "cmux", "agterm"]
+    static var placesOff: Set<String> { get { Set(d.stringArray(forKey: "places.disabled") ?? []) } set { d.set(Array(newValue).sorted(), forKey: "places.disabled") } }
     /// Accessibility Perch had (AccessLoss): whether it ever had it, the build that last had it (a loss on another build came
     /// with an update), and whether this loss was said, so a relaunch does not say it again.
     /// nil on an install from before it was kept (AccessLoss.seeded).

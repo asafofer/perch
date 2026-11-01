@@ -1348,7 +1348,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 onMenuIcon?(image)
             }
         case "source":
-            if let id = body["id"] as? String, let on = body["enabled"] as? Bool {
+            if let id = body["id"] as? String, let on = body["enabled"] as? Bool, Prefs.placeIds.contains(id) {
+                var off = Prefs.placesOff
+                if on { off.remove(id) } else { off.insert(id) }
+                Prefs.placesOff = off
+                refreshProjects(); push()
+            } else if let id = body["id"] as? String, let on = body["enabled"] as? Bool {
                 var set = Prefs.enabledSources
                 if on { set.insert(id) } else { set.remove(id) }
                 Prefs.enabledSources = set
@@ -1749,14 +1754,17 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     // MARK: settings
     var onIdleMinutesChanged: ((Int) -> Void)?
 
-    /// The agents Settings and onboarding offer: Claude and Codex always, the others once they are on this Mac.
+    /// What Settings and onboarding offer: every agent Perch supports, on this Mac or not, then the places agents run in (a
+    /// place has no sessions of its own: switched off, the sessions running in it get no row). A place's count stays 0 so a
+    /// session is not counted twice.
     private func sourcesState() -> [UISnapshot.Source] {
         let counts = (provider as? RealSessionProvider)?.counts ?? [:]
-        let on = Prefs.enabledSources
-        return Agent.all.filter { ["claude", "codex"].contains($0.id) || (counts[$0.id]?.count ?? 0) > 0 || AgentPresence.installed($0) }.map { a in
+        let on = Prefs.enabledSources, placesOff = Prefs.placesOff
+        let names = ["conductor": "Conductor", "herdr": "herdr", "tmux": "tmux", "cmux": "cmux", "agterm": "agterm"]
+        return Agent.all.map { a in
             // Chats go by count alone: their titles can be personal, and onboarding shows them before you choose.
             UISnapshot.Source(id: a.id, name: a.name, count: counts[a.id]?.count ?? 0, names: a.id == Agent.chat.id ? [] : counts[a.id]?.names ?? [], enabled: on.contains(a.id))
-        }
+        } + Prefs.placeIds.map { UISnapshot.Source(id: $0, name: names[$0] ?? $0, count: 0, names: [], enabled: !placesOff.contains($0)) }
     }
 
     /// The places Perch follows a session into that are on this Mac: their apps, or their commands where they have none.

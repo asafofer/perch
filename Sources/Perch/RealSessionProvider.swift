@@ -7,6 +7,10 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     var maxProjects = 15
     /// Whether an agent (an Agent id) is switched on in Perch's settings.
     var isEnabled: (String) -> Bool = { Prefs.enabledSources.contains($0) }
+    /// Whether a session runs (or last ran) in a place you switched off (`PlaceSwitch`).
+    static func inPlaceOff(_ p: Project, off: Set<String>) -> Bool {
+        off.isEmpty ? false : PlaceSwitch.hides(p, kind: Prefs.places[p.sessionId ?? p.id]?["kind"], off: off)
+    }
     struct Count { let count: Int; let names: [String] }
     private var _counts: [String: Count] = [:]
     /// What the last scan found per agent, before any agent is switched off. Onboarding shows this.
@@ -32,14 +36,16 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
         lock.lock(); _counts = perApp.mapValues { Count(count: $0.names.count, names: $0.names) }; lock.unlock()
         // Small talk in a terminal takes no real session's place: it is matched to the running agents with the rest (so its
         // process does not claim another session in that folder), then kept only if one of them runs it.
-        let on = all.filter { isEnabled($0.project.app) }
+        let placesOff = Prefs.placesOff
+        let on = all.filter { isEnabled($0.project.app) && !Self.inPlaceOff($0.project, off: placesOff) }
         var out = (Array(on.filter { !$0.project.smallTalk }.prefix(maxProjects)) + on.filter(\.project.smallTalk)).sorted { $0.last > $1.last }
         if out.contains(where: { $0.project.terminal }) {
             var projects = out.map(\.project)
             Self.placeTerminalSessions(&projects)
             for i in out.indices { out[i].project = projects[i] }
         }
-        out = Array(out.filter { !$0.project.smallTalk || $0.project.pid != nil }.prefix(maxProjects))
+        // where a session runs is known for sure only once it is placed: one found running in a place switched off goes too
+        out = Array(out.filter { (!$0.project.smallTalk || $0.project.pid != nil) && !Self.inPlaceOff($0.project, off: placesOff) }.prefix(maxProjects))
         let fresh = Dictionary(out.map { ($0.project.id, (digest: $0.digest, git: $0.git)) }, uniquingKeysWith: { a, _ in a })
         lock.lock(); _inputs = fresh; lock.unlock()
         var projects = out.map(\.project)
