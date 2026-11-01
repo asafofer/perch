@@ -36,14 +36,6 @@ h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 
 /* the disk image window (Installing): Finder's window as a stand-in, the picture inside is the real one that ships (install/background.html) */
 .desk.inst .fin{top:14px}
-.isheet .isb{padding:2px 16px 10px;color:#A1A1AA;font:500 12px/1 Inter,sans-serif}
-.isheet .isb p{margin:8px 0 2px;color:#71717A;font-size:11px}
-.isheet .isr{display:flex;align-items:center;height:26px}
-.isheet .isr>span{width:112px;flex:none;color:#D4D4D8}
-.isheet{width:720px;margin-left:-360px}
-.isheet .isr i{display:grid;place-items:center;width:28px;flex:none}
-.isheet .isr i.big>*{transform:scale(1.8)}
-.isheet .isr:has(i.big){height:38px}
 .fin{position:absolute;left:50%;top:52px;width:660px;margin-left:-330px;border-radius:14px;overflow:hidden;z-index:3;background:#161B19;box-shadow:0 0 0 .5px rgba(255,255,255,.14),0 0 0 .5px rgba(0,0,0,.6),0 26px 64px rgba(0,0,0,.6);transition:opacity .35s,transform .35s}
 .fin .dbar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px/1 Inter,sans-serif;color:#9AA39E;letter-spacing:-.005em}
 .fin .dbar i{position:absolute;top:8.5px;width:11px;height:11px;border-radius:50%;background:#3A423E;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
@@ -163,7 +155,6 @@ i.sci svg{width:16px;height:16px}
     <div class="desk" id="desk"><div class="mb"></div><div id="scene"></div><div id="hw" title="The hardware notch"></div><div class="now" id="now">Welcome back</div></div>
     <div class="disp" id="disp"><span>Display</span><button data-n="1" aria-pressed="true">MacBook with notch</button><button data-n="0" aria-pressed="false">External display, no notch</button>
       <button id="hwtoggle" aria-pressed="true" title="Paint the hardware notch over the card, so anything under it shows as cut off">Hardware notch</button></div>
-    <div class="disp" id="iset"><span>Icons</span><button data-s="" aria-pressed="true">Lucide</button><button data-s="lucide15" aria-pressed="false">Lucide 1.5</button><button data-s="phosphor-light" aria-pressed="false">Phosphor light</button><button data-s="phosphor-regular" aria-pressed="false">Phosphor regular</button><button data-s="sf" aria-pressed="false" title="Drawn by this Mac (ui/sfsymbols.local.json), never committed: Apple&rsquo;s licence keeps them out of the repo">SF Symbols</button></div>
   </div>
 
   <section>
@@ -979,9 +970,6 @@ i.sci svg{width:16px;height:16px}
       ['Settings: could not reopen', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[8][1]) }); }],
       ['Settings: mac too old', 'In Settings, the Updates row for this failure: the reason beside Updates, and the button that fits.', function () { d.settings({ update: Object.assign({ version: '0.3.7', phase: 'failed' }, UPD_ERR[9][1]) }); }],
     ]],
-    ['Icons', [
-      ['Side by side', 'The same icons in each set: as big as the card draws them, then twice that to see their shape. The Icons switch under the desk puts a set in every other scenario. SF Symbols show only where this Mac drew them (ui/sfsymbols.local.json).', function () { d.show('idle'); iconSheet(); }]
-    ]],
     ['Installing', [
       ['Disk image', 'Open Perch.dmg: a window with Perch on the left, an arrow and Applications on the right, and the characters peeking up from the bottom edge.', function () { d.show('idle'); disk(false); }],
       ['Disk image: drag', 'The drag it asks for: Perch is picked up, taken along the arrow, and Applications lights up to take it. Finder\u2019s own icons, window and highlight are stand-ins here; the picture behind them is the real one.', function () { d.show('idle'); disk(true); }]
@@ -1009,26 +997,6 @@ i.sci svg{width:16px;height:16px}
      ships; the Applications folder is a stand-in (Finder draws the real one). play: the drag it asks for, Perch to Applications. */
   var APPS_SVG = '<svg viewBox="0 0 112 112"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6CC2FA"/><stop offset="1" stop-color="#2D84E4"/></linearGradient></defs><path d="M10 30a8 8 0 0 1 8-8h22l8 8h46a8 8 0 0 1 8 8v52a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8z" fill="#2A78D6"/><rect x="10" y="38" width="92" height="52" rx="8" fill="url(#fg)"/><path d="M42 80l14-26 14 26M47 72h18" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/></svg>';
   function diskStop() { var e = document.querySelector('.fin'); if (e) e.remove(); document.getElementById('desk').classList.remove('inst'); }
-  /* the icon sets side by side, in the disk image's window: a row per set, the icons Perch shows most */
-  var SHEET = ['enter', 'check', 'x', 'open', 'pr', 'term', 'gear', 'keyboard', 'bell', 'monitor', 'folder', 'chat', 'clip', 'refresh', 'plus', 'chevR', 'n:done', 'n:run', 'n:ask', 'n:plan', 'n:error'];
-  var SHEETSETS = [['Lucide', ''], ['Lucide 1.5', 'lucide15'], ['Phosphor light', 'phosphor-light'], ['Phosphor regular', 'phosphor-regular'], ['SF Symbols', 'sf']];
-  function iconSheet() {
-    var me = charRun;
-    isetReady.then(function () { if (me === charRun) iconSheetDraw(); });
-  }
-  function iconSheetDraw() {
-    var desk = document.getElementById('desk'); desk.classList.add('inst');
-    var w = document.createElement('div'); w.className = 'fin isheet';
-    var band = function (big) {
-      return SHEETSETS.map(function (x) {
-        var o = x[1] ? ISETS[x[1]] : null;
-        if (x[1] && !o) return '';
-        return '<div class="isr"><span>' + x[0] + '</span>' + SHEET.map(function (n) { return '<i class="' + (big ? 'big' : '') + '">' + d.iconIn(o, n, 'size-3.5') + '</i>'; }).join('') + '</div>';
-      }).join('');
-    };
-    w.innerHTML = '<div class="dbar"><i></i><i></i><i></i>Icons</div><div class="isb"><p>As drawn</p>' + band(false) + '<p>Twice the size</p>' + band(true) + '</div>';
-    desk.appendChild(w);
-  }
   function disk(play) {
     diskStop();
     var desk = document.getElementById('desk'), me = charRun, at = function (ms, f) { setTimeout(function () { if (me === charRun) f(); }, ms); };
@@ -1063,17 +1031,6 @@ i.sci svg{width:16px;height:16px}
     document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!+b.dataset.n === !!has)); });
   }
   document.querySelectorAll('#disp button[data-n]').forEach(function (b) { b.onclick = function () { setDisplay(+b.dataset.n); dispPicked = true; if (lastRun) lastRun(); dispPicked = false; }; });
-  /* icon sets to compare in place: Lucide as it is, Lucide thinner, Phosphor (icon-sets.json) and SF Symbols (local only) */
-  var ISETS = { lucide15: { stroke: 1.5 } };
-  function isetLoad(f, kind) { return fetch(f, { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (o) { Object.keys(o).forEach(function (k) { ISETS[k] = { kind: kind, d: o[k] }; }); }).catch(function () {}); }
-  var isetReady = Promise.all([isetLoad('icon-sets.json', 'ph'), isetLoad('sfsymbols.local.json', 'sf')]).then(function () {
-    document.querySelectorAll('#iset button').forEach(function (b) { if (b.dataset.s && !ISETS[b.dataset.s]) b.disabled = true; });
-  });
-  document.querySelectorAll('#iset button').forEach(function (b) { b.onclick = function () {
-    d.iconSet(b.dataset.s ? ISETS[b.dataset.s] : null);
-    document.querySelectorAll('#iset button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-    if (lastRun) lastRun();
-  }; });
   var hwt = document.getElementById('hwtoggle'); hwt.onclick = function () { var off = document.getElementById('desk').classList.toggle('noguide'); hwt.setAttribute('aria-pressed', String(!off)); };
   /* wallpaper: the glow and the card are judged against a real desktop */
 
@@ -1110,7 +1067,6 @@ i.sci svg{width:16px;height:16px}
     'Pull requests': '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/>',
     'Which screen': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
     'Update errors': '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
-    'Icons': '<path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/>',
     'Installing': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
     'Updates': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
     'Onboarding': '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>'
