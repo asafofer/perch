@@ -2602,7 +2602,7 @@
   function atNWants(s, st) {
     if (!s.charAtNotch || st !== 'idle' || hello || celebrating) return false;
     if (act.mode === 'sent') return atN.on;
-    return (act.mode === 'full' || act.mode === 'wings') && !!act.p && !act.p.update && !act.p.access && !actErr(act.p) && !act.p.ci && ['run', 'ask', 'plan', 'need'].indexOf(act.kind) >= 0;
+    return (act.mode === 'full' || act.mode === 'wings') && !!act.p && !act.p.update && !act.p.access && !actErr(act.p) && !(act.p.ci && !act.p.ask) && ['run', 'ask', 'plan', 'need'].indexOf(act.kind) >= 0;
   }
   function atNotch(s, st) {
     if (st !== 'idle' && atN.on) { atNClear(); actPressing = false; atN.on = atN.out = atN.sent = false; cr.dataset.nb = n.dataset.nb = ''; cr.style.transition = ''; return; }
