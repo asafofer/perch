@@ -12,7 +12,7 @@ Code and Codex in the real app unless it says otherwise. What shipped is in [age
   no terminal app above it. It also says `TERM_PROGRAM=ghostty`, and passes on whatever environment its core started with.
 - **Pick up: works.** `herdr-app do agent.focus --terminal t2` switches Herdr's window to that space and tab (about 6 ms) but
   does not bring Herdr forward, so Perch activates it too. A terminal that is in no tab (started with `hc run` alone)
-  is refused (`no running terminal`); Perch then attaches to it in your terminal (`hc attach t2`).
+  is not in the window: for a plain program `agent.focus` says `no running terminal`, and for an agent it says `ok` and shows nothing. Perch checks `herdr-app ls` first and attaches it in your terminal (`hc attach t7`).
 - **Reply: works, Claude Code and Codex.** `hc send t2 "<words>"` pastes, waits for a pause and presses Return. Codex took it
   as one message. No tags are added when the sender is outside hc.
 - **Status: ~.** `hc ls --json` gives each terminal's `agent` (`claude-code`, `zsh`) and, for agents that report it (OSC
@@ -21,8 +21,8 @@ Code and Codex in the real app unless it says otherwise. What shipped is in [age
   and `herdr-app ls` says which terminal is in it.
 - **Opening again: works.** `herdr-app do tab.new --folder <cwd>` returns the new terminal; `hc send` types the resume
   command into its shell. With no space yet, `space.new --folder`.
-- **New session from the notch:** the same path once Herdr is the last terminal you used. Not driven.
-- **Approvals and questions:** through Perch's hooks, as in any terminal. Not driven in Herdr.
+- **New session from the notch: works.** New session's Where step offers Herdr; Codex started in a new Herdr tab with its prompt.
+- **Approvals and questions: shown, answered in Herdr.** Perch's hooks show them on the card (hc said `blocked`); as for every terminal, Perch does not hold the hook, and Open Herdr lands on the prompt.
 
 ## Traps
 
