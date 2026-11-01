@@ -22,6 +22,14 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 - A pull request that starts needing you (Checks failing, Changes requested, Merge conflicts) is announced as `ci`, unless Checks failing is off in Settings, Notifications ([pull-requests.md](pull-requests.md)).
 - A finish folds away. A request folds to wings until answered. A stop on an error (nothing to answer) says so once and folds away, and does not come back for the same error (`actErr`).
 
+## The character at the notch
+
+- Off by default; Settings, Notifications, Character at the notch (`Prefs.charAtNotch`, sent as `charAtNotch`).
+- A request or a question in a session you are not in: the live activity opens as always, in one spring (width and height on one curve, `.n[data-nb]` in input.css), and your character sits inside it at the left of the row, before the app's icon (app.js `atN`). It fades in once the notch has opened around it; it never leaves the notch, never leans or hops: only its face acts.
+- It looks at you; after 1.6 s it acts out the wait: a glance at the buttons and back, bored (heavy lids, a slow look away, a sighing blink), then impatient (lids slanted into a glare, an eye-roll, double blinks, glaring at the buttons and at you in turn). With reduced motion it only shows the glare.
+- Answered from the notch: the button lights, one slow blink opens into a smile, and the notch closes straight, without the Sent line; the character fades riding the closing edge. If the answer reached nothing, Didn't send shows as always. Answered elsewhere, it fades as the row goes.
+- Folded to wings, it stays in the left wing beside the app's icon. The design page plays it (While you work, Character at the notch; `perch.notchChar(face)` forces alert, bored, glare, happy or `act`).
+
 ## Sent, or Didn't send
 
 - An answer from the notch or a card says it went: the chosen button lights for a beat, then the notch folds to one line, the session on the left and Sent with a blue paper plane on the right, whatever the answer (a choice, Allow, Deny), for about two seconds (app.js `sentShow`). From a card, the plane waits until the notch has settled.

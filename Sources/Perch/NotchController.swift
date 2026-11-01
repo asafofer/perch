@@ -1321,6 +1321,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
                 if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
                 if key == "hoverExternal", let on = body["value"] as? Bool { Prefs.hoverExternal = on }
+                if key == "charAtNotch", let on = body["value"] as? Bool { Prefs.charAtNotch = on }
                 if key == "showOn", let raw = body["value"] as? String {
                     let choice = ShowOn(raw: raw)
                     Prefs.showOn = choice
@@ -1796,7 +1797,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                                    hasExternal: NSScreen.screens.contains { $0.notchSize == nil }, hoverExternal: Prefs.hoverExternal,
                                    showOn: Prefs.showOn.raw, displays: displaysState(), shortcut: shortcutState("open"),
                                    newShortcut: .init(keys: Prefs.newShortcut.keys, custom: Prefs.newShortcut != Prefs.standardNew),
-                                   accessWas: access.had, back: machine.settingsFrom != nil, showPRs: Prefs.prShow, prs: prsSetting)
+                                   accessWas: access.had, back: machine.settingsFrom != nil, showPRs: Prefs.prShow, prs: prsSetting, charAtNotch: Prefs.charAtNotch)
     }
     /// Checks, as the page shows it: on, off, or why it cannot be (no GitHub CLI, or no login).
     private var prsSetting: String {

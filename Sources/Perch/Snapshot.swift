@@ -119,7 +119,9 @@ struct UISnapshot: Encodable {
         var back = false
         /// Pull requests: whether the marks show, and Checks: "on", "off", or why it cannot be ("nogh": no GitHub CLI, "login": not signed in).
         var showPRs = true
-        var prs = "off" }
+        var prs = "off"
+        /// Character at the notch (Notifications).
+        var charAtNotch = false }
     var newSession: NewSession?
 
     /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
@@ -135,6 +137,8 @@ struct UISnapshot: Encodable {
     let notifyOff = Prefs.notifyOff.sorted()
     /// Pull requests are shown at all (Settings, Pull requests).
     let showPRs = Prefs.prShow
+    /// The character shows in the notch when an agent needs you (Settings, Notifications: Character at the notch).
+    let charAtNotch = Prefs.charAtNotch
     let phase: String
     let settings: Settings?
     let character: Character
