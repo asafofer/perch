@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # The notch clip as a macro shot: frames of the design page filmed flat (film-design.swift, the notch alone on #111, many
 # frames a second) are seen by a virtual camera tilted over them, with a shallow depth of field, motion blur from the
-# frames between, and a slow drift.
+# frames between, and a slow drift that ends where it began, so the clip loops.
 #
 #   macro-film.py <frames dir> <out.mp4> [--ppt 8] [--fps-in 240] [--seconds 8]
 #
@@ -13,7 +13,7 @@ import cv2
 ap = argparse.ArgumentParser()
 ap.add_argument('frames'); ap.add_argument('out')
 ap.add_argument('--ppt', type=float, default=8); ap.add_argument('--fps-in', type=int, default=240)
-ap.add_argument('--seconds', type=float, default=8); ap.add_argument('--size', default='1080x1350')
+ap.add_argument('--seconds', type=float, default=8.5); ap.add_argument('--size', default='1080x1350')
 ap.add_argument('--only', default='', help='times to write as stills instead, e.g. 0.5,3,5,6.8')
 a = ap.parse_args()
 W, H = map(int, a.size.split('x'))
@@ -31,9 +31,12 @@ def ease_soft(p): return 0.5 - 0.5 * math.cos(math.pi * p)
 KEYS = [  # t, look x, look y, width, focus x, focus y, ease into this key
     (0.0, -40, 34, 240, -40, 20, None),
     (0.8, -44, 34, 234, -40, 20, ease_soft),       # barely moving on the closed notch
-    (1.6, -155, 42, 260, -205, 15, ease_io),       # eases back a little as the notch opens; focus settles on the character
-    (7.0, -185, 34, 178, -205, 15, ease_soft),     # a slow, even push toward the character
-    (8.0, -185, 34, 175, -205, 15, ease_soft),     # still on the glare; the clip ends with the notch open
+    (1.5, -150, 44, 250, -205, 15, ease_io),       # eases back as the notch springs open; focus settles on the character
+    (2.5, -158, 44, 200, -205, 15, ease_soft),     # drifting in, toward the character
+    (5.6, -168.5, 44, 110, -205, 15, ease_io),       # the push in, side-eye to glare
+    (7.5, -168.5, 44, 107, -205, 15, ease_soft),     # held on the glare
+    (8.1, -40, 34, 240, -40, 20, ease_io),         # back out as the notch closes
+    (8.5, -40, 34, 240, -40, 20, ease_soft),       # resting closed, where the clip began, so it loops
 ]
 
 def camera(t):

@@ -138,6 +138,9 @@ i.sci svg{width:16px;height:16px}
 /* &macro (scripts/macro-film.py): the notch alone on near-black, a soft shadow under the open panel; &timer: how long it has
    waited, in rolling digits beside "Waiting on you" */
 .macro .desk{background-size:240%;background-position:84% 22%}.macro .act-b.act-o{display:none}.macro .act-p{white-space:nowrap}.macro .ttl,.macro .now{display:none!important}
+/* the clip opens slower, in a spring that overshoots a little, and closes in one smooth 0.6 s ease */
+.macro .n[data-s=idle][data-nb="1"]{transition:width .6s cubic-bezier(.45,0,.25,1),margin-left .6s cubic-bezier(.45,0,.25,1),height .6s cubic-bezier(.45,0,.25,1),border-radius .6s cubic-bezier(.45,0,.25,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s,background-color 0s .6s}
+.macro .n[data-s=idle][data-nb="1"][data-act=full]{transition:width .7s cubic-bezier(.3,1.6,.45,1),margin-left .7s cubic-bezier(.3,1.6,.45,1),height .7s cubic-bezier(.3,1.6,.45,1),border-radius .7s cubic-bezier(.3,1.6,.45,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s}
 .macro .n[data-act=full]{box-shadow:0 16px 28px -10px rgba(0,0,0,.9),0 4px 10px -4px rgba(0,0,0,.6)}
 .odo{display:inline-flex;align-items:center;flex:none;margin-left:.42em;color:#F5B83D;font-weight:500;font-variant-numeric:tabular-nums}
 .odo .w{display:inline-block;height:2.5em;margin:-.625em 0;overflow:hidden;width:.64em;text-align:center;
@@ -794,7 +797,7 @@ i.sci svg{width:16px;height:16px}
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Character at the notch', 'Settings, Notifications: Character at the notch on. Claude works and the notch is plain. Claude asks: the notch opens in one spring with your character inside, at the left of the row, looking at you. Left waiting it acts it out with its face: a glance at the buttons, then bored (heavy lids, a slow look away, a sighing blink), then impatient (a slanted glare, an eye-roll, double blinks) as an orange glow grows along the notch\u2019s inner edge. Command+Option+A: one slow, satisfied blink, and the notch closes. Only its eyes move.', function () { d.notchChar(); }],
-      ['Character at the notch: clip', 'The X clip (scripts/macro-film.py): closed; the notch opens at 0.8 s; it waits, from looking at you to side-eye, double blinks and a full glare at 5.6 s, held; at 7.2 s the notch closes again, so it loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
+      ['Character at the notch: clip', 'The X clip (scripts/macro-film.py): closed; the notch springs open at 0.8 s; it waits: side-eye, an eye-roll, double blinks and a full glare at 5.6 s, held; at 7.5 s the notch closes, closed again by 8.1 s, so 8.5 s loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
       ['Character at the notch: asks', 'The notch has just opened: the character looks at you. Held here, unanswered (it turns impatient after 3 s).', function () { d.notchChar(true, 'alert'); }],
       ['Character at the notch: bored', 'Heavy lids, looking away.', function () { d.notchChar(true, 'bored'); }],
       ['Character at the notch: impatient', 'A glare at the buttons, lids slanted, the orange glow along the notch\u2019s inner edge.', function () { d.notchChar(true, 'glare'); }],

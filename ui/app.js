@@ -4470,7 +4470,7 @@
       notchClip: function () {
         d0(); base.selected = 0; actGone = {}; actSeen = {};
         atNT = { fret: 1e9, blink: 0, close: 820 };
-        var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Waiting on you' }) : x; });
+        var Q = P.map(function (x) { return x.id === 'onboarding' ? Object.assign({}, x, { name: 'Perch', topic: 'Waiting on you', ask: Object.assign({}, x.ask, { subject: 'npm test' }) }) : x; });
         var on = Object.assign({}, base, { character: charNow, charAtNotch: true, phase: 'idle' });
         var calm = Q.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, line: x.id === 'onboarding' ? 'Working now' : x.line, status: x.id === 'onboarding' ? { kind: 'running', text: 'Claude Code is working', app: 'claude' } : x.status }); });
         apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() }));
@@ -4485,6 +4485,8 @@
           T(5150, function () { atNFace('impatient'); atNBlink(2, 190); });
           T(5600, function () { atNFace('glare'); look(0, 1.1); });                  /* the peak */
           T(6400, function () { atNBlink(2, 170); });
+          /* held on the glare, then the notch closes at 7.5 s and rests closed to 8.5 s, where the clip began */
+          setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 7500 - 800);
         }, 800);
       },
       notchChar: function (hold, face) {
