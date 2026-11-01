@@ -16,7 +16,7 @@ Code and Codex in the real app unless it says otherwise. What shipped is in [age
 - **Reply: works, Claude Code and Codex.** `hc send t2 "<words>"` pastes, waits for a pause and presses Return. Codex took it
   as one message. No tags are added when the sender is outside hc.
 - **Status: ~.** `hc ls --json` gives each terminal's `agent` (`claude-code`, `zsh`) and, for agents that report it (OSC
-  7501), `status`: Claude Code showed `done` and `idle`. Perch's hooks still come first; blocked was not seen.
+  7501), `status`: Claude Code showed `done`, `idle`, and `blocked` while it waited on an approval or a question. Perch's hooks still come first.
 - **The session you are in: works.** `herdr-app status` names the `focused_pane` (none under an overlay such as the welcome),
   and `herdr-app ls` says which terminal is in it.
 - **Opening again: works.** `herdr-app do tab.new --folder <cwd>` returns the new terminal; `hc send` types the resume
