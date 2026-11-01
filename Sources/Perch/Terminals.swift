@@ -107,12 +107,12 @@ enum Terminals {
         return false
     }
 
-    /// An hc terminal that is in no tab of Herdr's window, attached in your terminal. Exact only when hc is there to run:
-    /// without it the window holds a shell, no place for a reply.
+    /// An hc terminal that is in no tab of Herdr's window, attached in your terminal. Never exact: nothing confirms the attach
+    /// took, so a reply is not pasted there (a reply to it goes in through hc anyway).
     private static func attachHc(terminal t: String, socket: String, in cwd: String) -> Shown {
         // A folder that could not be read is no place to cd to: the window starts at home.
         let app = open(HerdrApp.attach(terminal: t, socket: socket), in: cwd.isEmpty ? NSHomeDirectory() : cwd, app: preferred == herdr ? terminal : preferred)
-        return Shown(app: app, exact: FileManager.default.isExecutableFile(atPath: HerdrApp.hc))
+        return Shown(app: app, exact: false)
     }
 
     /// The terminal showing a herdr or tmux client, brought forward at that client's tab: a Herdr terminal when the client
@@ -323,15 +323,21 @@ enum Terminals {
 
     /// Runs a command line tool and returns what it printed, or nil when it failed.
     @discardableResult
-    static func tool(_ path: String, _ args: [String], env: [String: String] = [:]) -> String? {
+    /// One that is still running after `timeout` seconds is ended, and counts as failed: a tool that hangs with its output
+    /// open would otherwise hold whatever waits on it (the scan) for good.
+    static func tool(_ path: String, _ args: [String], env: [String: String] = [:], timeout: TimeInterval = 30) -> String? {
         guard FileManager.default.isExecutableFile(atPath: path) else { return nil }
         let p = Process(); p.executableURL = URL(fileURLWithPath: path); p.arguments = args
         if !env.isEmpty { p.environment = ProcessInfo.processInfo.environment.merging(env) { _, new in new } }
         // Nothing reads what it says on stderr, so that goes nowhere: an unread pipe that fills up blocks the tool for good.
         let out = Pipe(); p.standardOutput = out; p.standardError = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
+        let late = DispatchWorkItem { if p.isRunning { p.terminate() } }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout, execute: late)
         let data = out.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
+        late.cancel()
+        if p.terminationReason == .uncaughtSignal { return nil }
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("%@", "Perch: \((path as NSString).lastPathComponent) \(args.joined(separator: " ")) -> \(p.terminationStatus)") }
         return p.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
     }
@@ -354,12 +360,12 @@ enum HerdrApp {
             .first { FileManager.default.isExecutableFile(atPath: $0) } ?? home + "/.local/bin/hc"
     }
     /// Runs hc on the core at `socket`.
-    private static func core(_ args: [String], socket: String) -> String? {
-        Terminals.tool(hc, args, env: ["HC_SESSION": HerdrCore.session(socket: socket)])
+    private static func core(_ args: [String], socket: String, timeout: TimeInterval = 30) -> String? {
+        Terminals.tool(hc, args, env: ["HC_SESSION": HerdrCore.session(socket: socket)], timeout: timeout)
     }
     /// Runs a command in Herdr's window. Nil when no window answers or the command failed (it exits 1 with an error).
     @discardableResult
-    static func window(_ args: [String]) -> String? { cli.flatMap { Terminals.tool($0, args) } }
+    static func window(_ args: [String]) -> String? { cli.flatMap { Terminals.tool($0, args, timeout: 5) } }
 
     /// Herdr open with its window answering, started if it is not running. False when it is not installed or does not answer in time.
     static func ready() -> Bool {
@@ -402,7 +408,7 @@ enum HerdrApp {
 
     /// What hc sees in its terminals, by address: working, blocked, done or idle, for the agents that report it.
     static func statuses(socket: String) -> [String: String] {
-        core(["ls", "--json"], socket: socket).map(HerdrCore.statuses) ?? [:]
+        core(["ls", "--json"], socket: socket, timeout: 5).map(HerdrCore.statuses) ?? [:]
     }
 
     /// The terminal that has focus in Herdr's window, or nil when that cannot be read.
