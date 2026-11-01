@@ -4463,7 +4463,7 @@
       foldNow: function () { clearTimeout(actTimer); actSettle(); },
       /* the X clip's beats, on one locked frame: closed, open at 0.4 s, waiting and fretting until Allow at 5.5 s, a satisfied
          blink as the glow lets go, closed again by 8.2 s and held, so it loops */
-      /* the X clip, one continuous shot (scripts/macro-film.py films it): closed; at 0.8 s the notch opens with the
+      /* the X clip, one continuous shot (perch-studio's macro-clip films it): closed; at 0.8 s the notch opens with the
          character in it; waiting, it goes from looking at you to side-eye, double blinks, glances at how long it has been, and
          a full glare at 5.6 s, held; at 7.2 s it gives up and the notch closes, closed again by 8 s so it loops.
          window.__clipT0 is when it began, for the design page's timer beside "Waiting on you". */

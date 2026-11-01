@@ -135,7 +135,7 @@ i.sci svg{width:16px;height:16px}
 .film .desk #hw{box-shadow:none}
 /* filmed close: WebKit draws the coat's filter at screen resolution whatever the zoom, so a film lights it with a gradient instead */
 .film .cr .f g.coat{filter:none!important}
-/* &macro (scripts/macro-film.py): the notch alone on near-black, a soft shadow under the open panel; &timer: how long it has
+/* &macro (perch-studio's macro-clip films it): the notch alone on near-black, a soft shadow under the open panel; &timer: how long it has
    waited, in rolling digits beside "Waiting on you" */
 .macro .desk{background-size:240%;background-position:84% 22%}.macro .act-b.act-o{display:none}.macro .act-p{white-space:nowrap}.macro .ttl,.macro .now{display:none!important}
 /* the clip opens slower, in a spring that overshoots a little, and closes in one smooth 0.6 s ease */
@@ -798,7 +798,7 @@ i.sci svg{width:16px;height:16px}
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
       ['Character at the notch', 'Settings, Notifications: Character at the notch on. Claude works and the notch is plain. Claude asks: the notch opens in one spring with your character inside, at the left of the row, looking at you. Left waiting it acts it out with its face: a glance at the buttons, then bored (heavy lids, a slow look away, a sighing blink), then impatient (a slanted glare, an eye-roll, double blinks) as an orange glow grows along the notch\u2019s inner edge. Command+Option+A: one slow, satisfied blink, and the notch closes. Only its eyes move.', function () { d.notchChar(); }],
-      ['Character at the notch: clip', 'The X clip (scripts/macro-film.py): closed; the notch springs open at 0.8 s; it waits: side-eye, an eye-roll, double blinks and a full glare at 5.6 s, held; at 7.5 s the notch closes, closed again by 8.1 s, so 8.5 s loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
+      ['Character at the notch: clip', 'The X clip (filmed by perch-studio, macro-clip/): closed; the notch springs open at 0.8 s; it waits: side-eye, an eye-roll, double blinks and a full glare at 5.6 s, held; at 7.5 s the notch closes, closed again by 8.1 s, so 8.5 s loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
       ['Character at the notch: asks', 'The notch has just opened: the character looks at you. Held here, unanswered (it turns impatient after 3 s).', function () { d.notchChar(true, 'alert'); }],
       ['Character at the notch: bored', 'Heavy lids, looking away.', function () { d.notchChar(true, 'bored'); }],
       ['Character at the notch: impatient', 'A glare at the buttons, lids slanted, the orange glow along the notch\u2019s inner edge.', function () { d.notchChar(true, 'glare'); }],
@@ -1326,7 +1326,7 @@ i.sci svg{width:16px;height:16px}
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
   if (/[?&]play=/.test(location.search)) return;   /* pr-demo.sh: the scenarios script plays them */
-  /* ?record&film=Name (scripts/film-design.swift): that one scenario, nothing else on the desk, the notch without its pink edge */
+  /* ?record&film=Name (perch-studio's macro-clip/film-design.swift): that one scenario, nothing else on the desk, the notch without its pink edge */
   var fm = /[?&]film=([^&]*)/.exec(location.search);
   if (fm) {
     var want = decodeURIComponent(fm[1].replace(/\+/g, ' '));
