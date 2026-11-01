@@ -140,6 +140,23 @@ import Foundation
         #expect(Running.match(procs, to: list) == [1: 0, 0: 1, 2: 2])
     }
 
+    @Test func theSessionAProcessRunsWinsOverOneItsCommandNames() {
+        // omp --resume old, then /new: its lock says new, its command line still says old
+        let list = [p("old", "omp", "/a", 600), p("new", "omp", "/a", 10)]
+        #expect(Running.match([Running.Process(agent: "omp", cwd: "/a", argv: ["omp", "--resume", "old"], session: "new")], to: list) == [1: 0])
+    }
+
+    @Test func aPlaceSwitchedOffHidesTheSessionsInIt() {
+        var tmux = p("t", "claude", "/a", 10); tmux.terminal = true
+        var app = p("c", "claude", "/a", 10); app.conductor = "ws"
+        #expect(PlaceSwitch.hides(tmux, kind: "tmux", off: ["tmux"]))
+        #expect(!PlaceSwitch.hides(tmux, kind: "herdr", off: ["tmux"]))   // another place
+        #expect(!PlaceSwitch.hides(tmux, kind: nil, off: ["tmux"]))   // nowhere known yet
+        #expect(PlaceSwitch.hides(app, kind: nil, off: ["conductor"]))
+        #expect(!PlaceSwitch.hides(app, kind: nil, off: ["tmux"]))
+        #expect(!PlaceSwitch.hides(p("x", "claude", "/a", 10), kind: "tmux", off: ["tmux"]))   // not a terminal session
+    }
+
     @Test func herdrsSessionIdNamesTheSession() {
         let list = [p("new", "opencode", "/a", 10), p("old", "opencode", "/a", 600)]
         #expect(Running.match([Running.Process(agent: "opencode", cwd: "/a", argv: ["opencode"], session: "old")], to: list) == [1: 0])

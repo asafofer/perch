@@ -41,6 +41,8 @@ html[data-guide="2"] .n[data-shape="1"]::after { background: #f0f; }
 .ear.r { right: -6px; transform-origin: 0 0; background: radial-gradient(circle at 100% 100%, transparent 5.5px, #000 6px); }
 .n:not([data-s=idle]) .ear { transform: scale(1); }
 .clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+/* a Settings menu (Notify me about, a kind of agents) may hang past the card's foot; only while one is open */
+.n[data-menu="1"] .clip { overflow: visible; }
 .pane { position: absolute; left: 0; top: 0; width: 400px; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .n[data-s=open] .p-open, .n[data-s=switch] .p-switch, .n[data-s=onb] .p-onb, .n[data-s=set] .p-set, .n[data-s=new] .p-new, .n[data-s=ns] .p-ns { opacity: 1; pointer-events: auto; transition: opacity .22s .12s; }
 .rv { opacity: 0; transform: translateY(5px); filter: blur(3px); transition: opacity .12s, transform .12s, filter .12s, color .15s, background-color .15s; }
@@ -216,6 +218,12 @@ html[data-glow="external"] .n:not([data-s=idle]) { box-shadow: 0 16px 38px -10px
 .ck { display: grid; place-items: center; width: 16px; height: 16px; flex: none; cursor: pointer; color: rgba(255,255,255,.8); }
 .ck svg { opacity: 0; scale: .7; transition: opacity .18s ease-out, scale .25s cubic-bezier(.34,1.35,.64,1); }
 .ck[aria-checked="true"] svg { opacity: 1; scale: 1; }
+/* off, a check is a faint empty box, so a row reads as something to tick; on, the box gives way to the check */
+.ck svg { grid-area: 1 / 1; }
+.ck::before { content: ''; grid-area: 1 / 1; width: 13px; height: 13px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.22); transition: opacity .18s ease-out; }
+.ck[aria-checked="true"]::before { opacity: 0; }
+.px-chk:empty::before { content: ''; width: 13px; height: 13px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.22); }
+@media (prefers-reduced-motion: reduce) { .ck::before { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ck svg { transition: none; } }
 .sw { position: relative; width: 26px; height: 16px; flex: none; border-radius: 999px; background: rgba(255,255,255,.2); cursor: pointer; transition: background-color .2s; }
 .sw[aria-checked="true"] { background: var(--cr); }
@@ -592,3 +600,15 @@ html:not([data-hl=native]) .p-open :not(.r-in)::selection { background: transpar
 .fade { overflow: hidden; white-space: nowrap; text-overflow: clip; }
 .fade.cut:not(.mq-on) { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
 .fade.cut:not(.mq-on):dir(rtl) { -webkit-mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(270deg, #000 calc(100% - 20px), transparent); }
+
+/* ---- the apps step: what Perch found, then Others (a popover list) ---- */
+.ox-chev { transition: rotate .22s cubic-bezier(.4,0,.2,1); }
+.ox.open .ox-chev { rotate: 180deg; }
+.o-pop { animation: o-pop .42s cubic-bezier(.2,.8,.3,1) both; }
+.o-pop:nth-child(2) { animation-delay: .05s; } .o-pop:nth-child(3) { animation-delay: .1s; } .o-pop:nth-child(4) { animation-delay: .15s; } .o-pop:nth-child(n+5) { animation-delay: .2s; }
+@keyframes o-pop { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.ox-pop::-webkit-scrollbar, .s-ox-pop::-webkit-scrollbar { width: 0; }
+/* the apps step's lists scroll without a bar; their fades say there is more */
+.ox-sc { scrollbar-width: none; overscroll-behavior: contain; }
+.ox-sc::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .ox-chev { transition: none; } .o-pop { animation: none; } }

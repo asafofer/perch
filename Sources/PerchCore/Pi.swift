@@ -17,6 +17,8 @@ public enum PiTranscript {
                 d.sessionId = o["id"] as? String; d.cwd = o["cwd"] as? String; d.startedAt = at
                 continue
             }
+            // Oh My Pi's title: the padded slot on the first line, and each rename after it (`title_change`).
+            if type == "title" || type == "title_change" { let n = (o["title"] as? String)?.trimmingCharacters(in: .whitespaces); if n?.isEmpty == false { d.title = n }; continue }
             // A name you gave it with /name; cleared when the name is removed.
             if type == "session_info" { let n = (o["name"] as? String)?.trimmingCharacters(in: .whitespaces); d.title = n?.isEmpty == false ? n : nil; continue }
             guard type == "message", let m = o["message"] as? [String: Any], let role = m["role"] as? String else { continue }
