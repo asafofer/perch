@@ -1013,7 +1013,7 @@ i.sci svg{width:16px;height:16px}
       ['3. Your shortcut: custom', 'A recorded combo, shown the same way.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true }); }, 300); }],
       ['3. Your shortcut: recording', 'Waiting for the keys; the big keys dim and the button says Cancel.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ recording: true }); }, 300); }],
       ['3. Your shortcut: no Accessibility', 'A tap needs Accessibility, so the line points to a key combo.', function () { d.onboarding(3, false); }],
-      ['4. Choose your apps', 'What Perch found on this Mac, each on or off; the rest are under Others.', function () { d.onboarding(4, true); }],
+      ['4. Choose your apps', 'A row for each kind of agent, showing what Perch found and will follow; a row opens its list.', function () { d.onboarding(4, true); }],
       ['4. Choose your apps: first scan', 'Opened before the first scan is in: one quiet line, Scanning, and the tiles keep their size. Each line then fades to what it found, once; the app goes on sending snapshots every half second and nothing moves.', function () { d.onboarding(4, true, false, null, true, true); }],
       ['5. Live status', 'The hook, with consent: Turn on, or Skip. The switch does the same.', function () { d.onboarding(5, true); }],
       ['5. Live status: on', 'The switch is on and turns it off again, removing the hooks; the buttons follow it.', function () { d.onboarding(5, true, false, 'on'); }],

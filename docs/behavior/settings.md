@@ -44,7 +44,7 @@ Version row's update states in [updates.md](updates.md).
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
     Then Welcome back after and Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.
-- Return or Space flips a switch, picks a screen or presses a row's button. Left is Back (except from the right of two agents on a line): a segmented choice moves
+- Return or Space flips a switch, picks a screen or presses a row's button. Left is always Back: a segmented choice moves
   with Right (to its end) or Return (round again from the start).
 - The page's title sits under the notch's line with a Left key beside it: next to the hardware notch there is room only
   for "Settings", which steps back and is a way back too.
