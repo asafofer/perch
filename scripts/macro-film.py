@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # The notch clip as a macro shot: frames of the design page filmed flat (film-design.swift, the notch alone on #111, many
 # frames a second) are seen by a virtual camera tilted over them, with a shallow depth of field, motion blur from the
-# frames between, and a slow drift that ends where it began, so the clip loops.
+# frames between, and a slow drift.
 #
 #   macro-film.py <frames dir> <out.mp4> [--ppt 8] [--fps-in 240] [--seconds 8]
 #
@@ -32,9 +32,8 @@ KEYS = [  # t, look x, look y, width, focus x, focus y, ease into this key
     (0.0, -40, 34, 240, -40, 20, None),
     (0.8, -44, 34, 234, -40, 20, ease_soft),       # barely moving on the closed notch
     (1.6, -155, 42, 260, -205, 15, ease_io),       # eases back a little as the notch opens; focus settles on the character
-    (6.5, -185, 34, 178, -205, 15, ease_soft),     # a slow, even push toward the character
-    (7.2, -185, 34, 175, -205, 15, ease_soft),     # still on the glare
-    (8.0, -40, 34, 240, -40, 20, ease_io),         # back to where it began as the notch closes
+    (7.0, -185, 34, 178, -205, 15, ease_soft),     # a slow, even push toward the character
+    (8.0, -185, 34, 175, -205, 15, ease_soft),     # still on the glare; the clip ends with the notch open
 ]
 
 def camera(t):

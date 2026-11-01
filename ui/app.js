@@ -2565,14 +2565,16 @@
   function atNFace(m) { if (atN.on && !atN.out && !atN.sent) cr.dataset.m = m; }
   function atNBlink(n2, gap) { for (var i = 0; i < (n2 || 1); i++) (function (i) { atNLater(function () { cr.classList.add('blink'); atNLater(function () { cr.classList.remove('blink'); }, 90); }, i * (gap || 210)); })(i); }
   function atNSigh() { cr.classList.add('sigh'); atNLater(function () { cr.classList.remove('sigh'); }, 900); }
-  function atNRoll() {
+  function atNRoll(k) {
     if (STILL) return;
+    k = k || 1;   /* how far the eyes travel; the clip rolls them wider and slower so it reads on film */
+    var at = function (x, y) { return (x * k).toFixed(2) + 'px ' + (y * k).toFixed(2) + 'px'; };
     /* from wherever the eyes are, so the roll never jumps; it ends where they rest after it */
     var from = (cr.style.getPropertyValue('--lx') || '0px') + ' ' + (cr.style.getPropertyValue('--ly') || '0px');
     look(0, .9);
     cr.querySelectorAll('.ey').forEach(function (e) {
-      e.animate([{ translate: from }, { translate: '1.4px -.6px', offset: .12 }, { translate: '1px -2px', offset: .32 }, { translate: '-1px -2.1px', offset: .55 }, { translate: '-1.8px -.8px', offset: .8 }, { translate: '0px .9px' }],
-        { duration: 1100, easing: 'cubic-bezier(.45,0,.4,1)' });
+      e.animate([{ translate: from }, { translate: at(1.4, -.6), offset: .12 }, { translate: at(1, -2), offset: .32 }, { translate: at(-1, -2.1), offset: .55 }, { translate: at(-1.8, -.8), offset: .8 }, { translate: '0px .9px' }],
+        { duration: 1100 * Math.sqrt(k), easing: 'cubic-bezier(.45,0,.4,1)' });
     });
   }
   function atNFret() {
@@ -4477,14 +4479,12 @@
           apply(Object.assign({}, on, { projects: Q, timerToken: Math.random() }));
           var T = function (ms, f) { setTimeout(function () { if (atN.on && !atN.out) f(); }, ms - 800); };
           T(1900, function () { atNBlink(1); });
-          T(2600, function () { atNFace('bored'); look(2.3, .4); });                 /* side-eye */
-          T(3300, function () { look(1.2, 1.8); });                                  /* at the timer */
-          T(3700, function () { atNFace('impatient'); look(0, 1); atNBlink(2, 190); });
-          T(4500, function () { atNFace('bored'); look(2.4, .5); });
-          T(5000, function () { look(1.2, 1.8); atNBlink(2, 170); });
+          T(2500, function () { atNFace('bored'); look(2.3, .4); });                 /* side-eye */
+          T(3300, function () { look(0, 1); atNBlink(1); });
+          T(3700, function () { atNRoll(1.5); });                                    /* the eye-roll, wide and slow */
+          T(5150, function () { atNFace('impatient'); atNBlink(2, 190); });
           T(5600, function () { atNFace('glare'); look(0, 1.1); });                  /* the peak */
-          T(6150, function () { atNBlink(2, 170); });
-          setTimeout(function () { apply(Object.assign({}, on, { projects: calm, timerToken: Math.random() })); }, 6400);
+          T(6400, function () { atNBlink(2, 170); });
         }, 800);
       },
       notchChar: function (hold, face) {
