@@ -19,7 +19,7 @@ a = ap.parse_args()
 W, H = map(int, a.size.split('x'))
 FPS = 60
 SUB = a.fps_in // FPS                    # frames filmed per frame shown
-SHUT = max(1, round(SUB * .75))          # a 270 degree shutter: the first three quarters of them make the blur
+SHUT = max(1, round(SUB * .5))           # a 180 degree shutter: the first half of them make the blur
 files = sorted(glob.glob(os.path.join(a.frames, 'f*.png')))
 BG = 17 / 255.0
 
@@ -29,12 +29,12 @@ def ease_soft(p): return 0.5 - 0.5 * math.cos(math.pi * p)
 
 # the camera, in the page's points from the notch's top middle (y down): where it looks, how wide it sees there, what is in focus
 KEYS = [  # t, look x, look y, width, focus x, focus y, ease into this key
-    (0.0, -36, 20, 165, -40, 26, None),
-    (0.8, -32, 20, 146, -40, 26, ease_soft),       # drifting in on the closed notch
-    (1.6, -40, 56, 430, -203, 15, ease_out),       # eases back as the notch springs open; focus racks onto the character
-    (6.5, -152, 44, 142, -160, 44, ease_io),       # a slow push toward the character and the timer
-    (7.2, -151, 44, 137, -160, 44, ease_soft),     # nearly still on the glare
-    (8.0, -36, 20, 165, -40, 26, ease_io),         # back to where it began as the notch closes
+    (0.0, -40, 34, 240, -40, 20, None),
+    (0.8, -44, 34, 234, -40, 20, ease_soft),       # barely moving on the closed notch
+    (1.6, -155, 42, 260, -205, 15, ease_io),       # eases back a little as the notch opens; focus settles on the character
+    (6.5, -185, 34, 178, -205, 15, ease_soft),     # a slow, even push toward the character
+    (7.2, -185, 34, 175, -205, 15, ease_soft),     # still on the glare
+    (8.0, -40, 34, 240, -40, 20, ease_io),         # back to where it began as the notch closes
 ]
 
 def camera(t):
@@ -49,10 +49,9 @@ def camera(t):
             fx, fy = k0[4] + (k1[4] - k0[4]) * p, k0[5] + (k1[5] - k0[5]) * p
             break
     ph = 2 * math.pi * t / a.seconds   # the drift: one slow loop over the clip
-    pitch = math.radians(16 + 2.0 * math.sin(ph))
-    yaw = math.radians(-13 + 2.5 * math.sin(ph + 1.1))
-    roll = math.radians(-2.5 + 1.0 * math.sin(ph + 2.3))
-    lx += 3 * math.sin(ph + .4) * w / 300; ly += 2 * math.sin(ph * 2 + .9) * w / 300
+    pitch = math.radians(9 + 0.6 * math.sin(ph))
+    yaw = math.radians(-6 + 0.8 * math.sin(ph + 1.1))
+    roll = math.radians(-1 + 0.3 * math.sin(ph + 2.3))
     return lx, ly, w, fx, fy, pitch, yaw, roll
 
 FOV = math.radians(26)
@@ -95,7 +94,7 @@ def warp(k, t):
     return cv2.warpPerspective(im, Hm @ S, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(BG, BG, BG))
 
 LEVELS = [0, 1.2, 2.4, 4.0, 6.0, 8.5, 12.0, 16.0]
-APERTURE = 80.0   # how fast things leave focus, in pixels of blur for a depth a whole camera distance off
+APERTURE = 30.0   # how fast things leave focus, in pixels of blur for a depth a whole camera distance off
 
 def depth_blur(img, t):
     Hm, R, tvec, (fx, fy) = plane_to_image(t)
@@ -115,8 +114,8 @@ def depth_blur(img, t):
     return pick(lo) * (1 - f) + pick(hi) * f
 
 def frame(i):
-    # the shutter is open for the first three quarters of the frame: the filmed frames in that time, each seen by the camera of its moment
-    ts = [(i + .75 * j / SHUT) / FPS for j in range(SHUT)]
+    # the shutter is open for the first half of the frame: the filmed frames in that time, each seen by the camera of its moment
+    ts = [(i + .5 * j / SHUT) / FPS for j in range(SHUT)]
     acc = np.zeros((H, W, 3), np.float32)
     for t in ts:
         acc += warp(int(round(t * a.fps_in)), t)
