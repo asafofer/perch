@@ -69,8 +69,8 @@ enum Terminals {
         case .hc(let t, let socket):
             if HerdrApp.focus(terminal: t, socket: socket) { return Shown(app: herdr, exact: true) }
             // In no tab of Herdr's window (a terminal started with hc alone): attach to it in your terminal.
-            open(HerdrApp.attach(terminal: t, socket: socket), in: live.cwd, app: preferred == herdr ? terminal : preferred)
-            return Shown(app: preferred == herdr ? terminal : preferred, exact: true)
+            let opened = open(HerdrApp.attach(terminal: t, socket: socket), in: live.cwd, app: preferred == herdr ? terminal : preferred)
+            return Shown(app: opened, exact: true)
         case .herdr(let pane, let socket, let session):
             Herdr.focus(pane: pane, socket: socket, bin: live.bin)
             if let v = live.viewer { return show(v) }
@@ -377,12 +377,13 @@ enum HerdrApp {
         core(["send", terminal, line], socket: socket) != nil
     }
 
-    /// A new tab in the space Herdr shows (a new space when there is none), in `cwd`, whose shell is given `command`.
+    /// A new tab in the space Herdr shows (a new space when there is none), in `cwd`, whose shell is given `command`. The
+    /// window's tabs are on the default core, whatever HC_SESSION Perch was started with.
     static func open(_ command: String, in cwd: String) -> Bool {
         guard ready() else { return false }
         let made = window(["do", "tab.new", "--folder", cwd]) ?? window(["do", "space.new", "--folder", cwd])
         guard let out = made, let o = (try? JSONSerialization.jsonObject(with: Data(out.utf8))) as? [String: Any], let t = o["terminal"] as? String,
-              Terminals.tool(hc, ["send", t, command]) != nil else { return false }
+              Terminals.tool(hc, ["send", t, command], env: ["HC_SESSION": "default"]) != nil else { return false }
         NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.activate()
         return true
     }
@@ -770,7 +771,7 @@ enum LiveSessions {
         // Each tmux server an agent runs in, asked once: its panes, and its clients as viewers.
         var tmux: [String: (bin: String, said: TmuxServer)] = [:]
         for f in found {
-            guard case .tmux(_, let socket) = Place.from(environment: f.args.environment), tmux[socket] == nil else { continue }
+            guard case .tmux(_, let socket) = Place.from(environment: f.args.environment, skippingHc: true), tmux[socket] == nil else { continue }
             let bin = Tmux.bin(server: f.args.environment["TMUX"].flatMap(TmuxServer.socket)?.server)
             guard let said = Tmux.ask(socket: socket, bin: bin) else { continue }
             tmux[socket] = (bin, said)
@@ -779,6 +780,9 @@ enum LiveSessions {
         let hits = found.map { f in
             var place = Place.from(environment: f.args.environment)
             var viewer: Viewer?, app: String?, bin = f.args.environment["HERDR_BIN_PATH"], tmuxSession: String?
+            // tmux run inside an hc terminal: its panes carry hc's variables too, and the agent is in the pane its tty is.
+            if case .hc = place, case .tmux(let pane, let socket) = Place.from(environment: f.args.environment, skippingHc: true),
+               tmux[socket]?.said.panes[pane]?.tty == f.tty { place = .tmux(pane: pane, socket: socket) }
             if case .tmux(let pane, let socket) = place {
                 // Only a process on that pane's own terminal is in it: an app started from tmux (an editor) passes TMUX on
                 // to the shells in its own terminal.

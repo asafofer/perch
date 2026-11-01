@@ -58,6 +58,12 @@ import Foundation
         #expect(Place.from(environment: hc) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
         #expect(Place.from(environment: hc.merging(["HERDR_PANE_ID": "w1:p1", "HERDR_SOCKET_PATH": "/s", "TMUX": "/tmp/t,1,0", "TMUX_PANE": "%3"]) { a, _ in a }) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
         #expect(Place.from(environment: ["HC_TERMINAL_ID": "t2"]) == .tab)
+        // tmux started in an hc terminal: its panes carry hc's variables as well; under them is the tmux pane, which
+        // LiveSessions takes when the agent's tty is that pane's.
+        let nested = hc.merging(["TMUX": "/private/tmp/tmux-501/default,4242,0", "TMUX_PANE": "%3"]) { a, _ in a }
+        #expect(Place.from(environment: nested) == .hc(terminal: "t2", socket: "/Users/a/.local/state/herdr-core/default/default.sock"))
+        #expect(Place.from(environment: nested, skippingHc: true) == .tmux(pane: "%3", socket: "/private/tmp/tmux-501/default"))
+        #expect(Place.from(environment: hc, skippingHc: true) == .tab)
         #expect(Spot.key(.hc(terminal: "t2", socket: "/s"), tty: "/dev/ttys001") == Spot.hc(socket: "/s", terminal: "t2"))
         #expect(HerdrCore.session(socket: "/Users/a/.local/state/herdr-core/default/default.sock") == "default")
         #expect(HerdrCore.session(socket: "/Users/a/.local/state/herdr-core/work/work.sock") == "work")

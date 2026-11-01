@@ -18,9 +18,11 @@ public enum Place: Equatable, Sendable {
 
     /// Innermost first: a herdr or tmux server started from a cmux tab passes that tab's variables to every pane, so theirs
     /// win; herdr is taken to run inside tmux rather than the other way round. An hc terminal says it is Ghostty
-    /// (TERM_PROGRAM) and passes on whatever its core was started with, so its own variables come first.
-    public static func from(environment env: [String: String]) -> Place {
-        if let t = env["HC_TERMINAL_ID"], !t.isEmpty, let socket = env["HC_TERMINAL_SOCKET"], !socket.isEmpty { return .hc(terminal: t, socket: socket) }
+    /// (TERM_PROGRAM) and passes on whatever its core was started with, so its own variables come first. A tmux server
+    /// started in an hc terminal passes hc's on to its panes in turn: `skippingHc` reads the place under them, which
+    /// `LiveSessions` takes when the agent's tty is that tmux pane's.
+    public static func from(environment env: [String: String], skippingHc: Bool = false) -> Place {
+        if !skippingHc, let t = env["HC_TERMINAL_ID"], !t.isEmpty, let socket = env["HC_TERMINAL_SOCKET"], !socket.isEmpty { return .hc(terminal: t, socket: socket) }
         if let pane = env["HERDR_PANE_ID"], !pane.isEmpty, let socket = env["HERDR_SOCKET_PATH"], !socket.isEmpty {
             return .herdr(pane: pane, socket: socket, session: env["HERDR_SESSION"].flatMap { $0.isEmpty ? nil : $0 } ?? "default")
         }
