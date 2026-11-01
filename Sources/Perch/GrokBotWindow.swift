@@ -57,13 +57,14 @@ enum GrokBotWindow {
         return out
     }
 
-    /// An element's children: none when it has none, nil when Grok Bot did not answer in time (the read is then not whole).
+    /// An element's children: none when it has none (no value, or no such attribute), nil for any other failure, such as
+    /// Grok Bot not answering in time or the element going away (the read is then not whole).
     nonisolated private static func children(_ e: AXUIElement) -> [AXUIElement]? {
         var v: AnyObject?
         switch AXUIElementCopyAttributeValue(e, kAXChildrenAttribute as CFString, &v) {
-        case .success: return v as? [AXUIElement] ?? []
-        case .cannotComplete: return nil
-        default: return []
+        case .success: return v as? [AXUIElement]
+        case .noValue, .attributeUnsupported: return []
+        default: return nil
         }
     }
 
