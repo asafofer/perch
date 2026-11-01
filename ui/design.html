@@ -834,7 +834,7 @@ i.sci svg{width:16px;height:16px}
       ['Character at the notch: asks', 'The notch has just opened: the character looks at you. Held here, unanswered (it turns impatient after 3 s).', function () { d.notchChar(true, 'alert'); }],
       ['Character at the notch: bored', 'Heavy lids, looking away.', function () { d.notchChar(true, 'bored'); }],
       ['Character at the notch: impatient', 'A glare at the buttons, lids slanted.', function () { d.notchChar(true, 'glare'); }],
-      ['Character at the notch: folded', 'After nine seconds the row folds to wings; the character stays in the left wing, beside the app\u2019s icon, until you answer.', function () { d.notchChar(true); setTimeout(function () { window.perchDev.foldNow && window.perchDev.foldNow(); }, 2600); }],
+      ['Character at the notch: folded', 'After nine seconds the row folds to wings; the character stays in the left wing, beside the app\u2019s icon, until you answer.', function () { var me = charRun; d.notchChar(true); setTimeout(function () { if (me === charRun && window.perchDev.foldNow) window.perchDev.foldNow(); }, 2600); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', true); }],
       ['Finished elsewhere', 'A session you are not in finishes. The notch grows: its project beside the camera, Finished with a check on the right, and below the session\u2019s title with Pick up or Reply, each on a Command+Option key. A small cross at the left of the row (or Command+Option+.) puts it away; otherwise it folds away after six seconds, and resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
       ['Wants to run a command', 'The command, with Allow and Deny. After nine seconds it folds to wings, the app and a mark, that stay until you answer.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
@@ -1371,6 +1371,7 @@ i.sci svg{width:16px;height:16px}
         var col = '<b>' + '01234567890'.split('').map(function (x) { return '<i>' + x + '</i>'; }).join('') + '</b>';
         var odo = document.createElement('span'); odo.className = 'odo';
         odo.innerHTML = '<span class="w"><b><i>0</i></b></span><span class="c">:</span><span class="w">' + col + '</span><span class="w">' + col + '</span>';
+        var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         var wheels = odo.querySelectorAll('.w b'), tens = wheels[1], ones = wheels[2], st = [{ x: 0, v: 0 }, { x: 1, v: 0 }], last = null;
         var goal = function (t) { var s = Math.min(1, Math.max(0, (t - 1600) / 4900)); return Math.floor(1 + 46 * Math.pow(s, 1.9) + 1e-9); };
         var spring = function (w, g, dt) { var k = 560, c = 2 * Math.sqrt(k) * .6; w.v += (-k * (w.x - g) - c * w.v) * dt; w.x += w.v * dt; };
@@ -1382,6 +1383,7 @@ i.sci svg{width:16px;height:16px}
             if (lab && lab.nextSibling !== odo) lab.parentNode.insertBefore(odo, lab.nextSibling);
             var g = goal(t);
             if (t < 1600) { st[0].x = 0; st[1].x = 1; st[0].v = st[1].v = 0; }
+            else if (still) { st[1].x = g; st[0].x = Math.floor(g / 10); }   /* reduced motion: the digits change in place, no roll */
             else for (var n = Math.max(1, Math.ceil(dt / .002)), i = 0; i < n; i++) { spring(st[1], g, dt / n); spring(st[0], Math.floor(g / 10), dt / n); }
             put(tens, st[0].x); put(ones, st[1].x);
           }

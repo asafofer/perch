@@ -2602,10 +2602,10 @@
   function atNWants(s, st) {
     if (!s.charAtNotch || st !== 'idle' || hello || celebrating) return false;
     if (act.mode === 'sent') return atN.on;
-    return (act.mode === 'full' || act.mode === 'wings') && !!act.p && !act.p.update && !act.p.access && ['run', 'ask', 'plan', 'need'].indexOf(act.kind) >= 0;
+    return (act.mode === 'full' || act.mode === 'wings') && !!act.p && !act.p.update && !act.p.access && !actErr(act.p) && !act.p.ci && ['run', 'ask', 'plan', 'need'].indexOf(act.kind) >= 0;
   }
   function atNotch(s, st) {
-    if (st !== 'idle' && atN.on) { atNClear(); atN.on = atN.out = atN.sent = false; cr.dataset.nb = n.dataset.nb = ''; cr.style.transition = ''; return; }
+    if (st !== 'idle' && atN.on) { atNClear(); actPressing = false; atN.on = atN.out = atN.sent = false; cr.dataset.nb = n.dataset.nb = ''; cr.style.transition = ''; return; }
     var want = atNWants(s, st);
     if (want && !atN.on) atNIn();
     else if (atN.on && !atN.out && !want) atNOut();
@@ -2670,7 +2670,7 @@
   }
   /* it fades as the row's words do, carried by the closing edge on the notch's own curve */
   function atNOut() {
-    atNClear(); atN.out = true;
+    atNClear(); atN.out = true; actPressing = false;
     cr.style.transition = STILL ? 'opacity .15s' : 'transform .42s .08s cubic-bezier(.4,0,.2,1), opacity .15s cubic-bezier(.4,0,1,1)'; cr.style.opacity = 0;
     atNLater(function () {
       atN.on = atN.out = atN.sent = false; cr.dataset.nb = ''; cr.classList.remove('blink'); look(0, 0);
