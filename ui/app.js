@@ -1411,7 +1411,7 @@
      in front of you, youAreIn), else the ones you started with last. Return starts it and leaves you where you are; Command+Return starts it and
      takes you there. Your words are a draft until they go: closing keeps them, and the next Command+Option+N opens on them. */
   var nw = { on: false, step: 'app', app: 0, term: 0, proj: 0, q: '', aq: '', text: '', last: '', files: [], lastFiles: [], o: null };
-  var NW_STEPS = ['app', 'where', 'project', 'prompt'], nwSlide = 0, nwDrawn = '';
+  var NW_STEPS = ['app', 'where', 'project', 'prompt'], nwSlide = 0, nwDrawn = '', nwAdv = 0;
   /* what a row says while a file is over it (nwDropRow) */
   var NW_DZ = '<span class="nw-dz hidden flex-none items-center text-xs font-medium text-foreground">Drop to start</span>';
   function nwApps() { return (nw.o && nw.o.apps) || []; }
@@ -1703,7 +1703,8 @@
     if (e.key === 'Enter' || e.key === 'ArrowRight') { nwNext(); return true; }
     if (e.key === 'Escape') { if (nw.q) { nw.q = ''; nw.proj = 0; newRender(); } else if (nw.aq) { nw.aq = ''; nw.app = 0; newRender(); } else nwBack(); return true; }
     if (e.key === 'ArrowLeft') { nwBack(); return true; }
-    if ((nw.step === 'app' || nw.step === 'where') && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); setTimeout(nwNext, 140); return true; }
+    /* a number picks and goes on a moment later; a second number before then replaces the first rather than going on twice */
+    if ((nw.step === 'app' || nw.step === 'where') && /^[1-9]$/.test(e.key) && +e.key <= max) { nwPick(+e.key - 1); clearTimeout(nwAdv); nwAdv = setTimeout(nwNext, 140); return true; }
     if (nw.step === 'project' && e.metaKey && (e.key === 'o' || e.key === 'O')) { nw.proj = nwRows().length - 1; nwNext(); return true; }
     /* typing narrows the agents too (a number still picks one) */
     if (nw.step === 'app' && (e.key === 'Backspace' || (e.key.length === 1 && !/[0-9]/.test(e.key) && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !nw.aq)))) {

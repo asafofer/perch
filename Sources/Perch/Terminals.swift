@@ -108,8 +108,13 @@ enum Terminals {
         return false
     }
 
-    /// The terminal showing a herdr client, brought forward at that client's tab.
+    /// The terminal showing a herdr or tmux client, brought forward at that client's tab: a Herdr terminal when the client
+    /// runs in one (else that terminal attached in yours).
     static func show(_ v: LiveSessions.Viewer) -> Shown? {
+        if case .hc(let t, let socket) = v.place {
+            if HerdrApp.focus(terminal: t, socket: socket) { return Shown(app: herdr, exact: true) }
+            return Shown(app: open(HerdrApp.attach(terminal: t, socket: socket), in: v.cwd, app: preferred == herdr ? terminal : preferred), exact: true)
+        }
         if case .cmux(let w, let s) = v.place, Cmux.focus(workspace: w, surface: s) { return Shown(app: cmux, exact: true) }
         if case .agterm(let w, let s, let pane) = v.place, Agterm.focus(window: w, session: s, pane: pane) { return Shown(app: agterm, exact: true) }
         return focusTab(app: v.app, tty: v.tty, cwd: v.cwd)
