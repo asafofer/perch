@@ -29,5 +29,5 @@ Code and Codex in the real app unless it says otherwise. What shipped is in [age
 - An app opened from inside the Claude app (`open -a Herdr`) inherits its environment, and so do hc's core and every agent in it:
   Claude Code then says "Transcript saving is off — inherited CLAUDE_CODE_CHILD_SESSION marker". Start Herdr with `env -i … open`.
 - `hc` without `HC_SESSION` reaches the default core; the session is the socket's name.
-- Herdr's window shows the default core only.
+- Herdr's window shows the default core only. A terminal on another core (`HC_SESSION=work`) answers `hc send` and `hc attach` with that variable set.
 - Codex's first start in a folder asks to trust its hooks; text sent then goes into that prompt.
