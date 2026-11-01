@@ -18,6 +18,19 @@ public final class GrokBotStore: @unchecked Sendable {
         public let lastText: String?
         /// Its avatar, "shape:color", as Grok Bot draws it (`look`).
         public var avatar: String = ""
+        /// Whether it is running a turn now. Grok Bot never writes this down; its window's sidebar says it (`working`).
+        public var working = false
+    }
+
+    /// The bots Grok Bot's sidebar shows at work. Each bot is a button named "<name>, <state>, ...", "Working" among the states
+    /// while it runs a turn (Grok Bot 0.78.1; others seen: "Unread activity", "Main Bot"). A name can hold ", " itself.
+    public static func working(_ sidebar: [String]) -> Set<String> {
+        let states: Set<String> = ["Working", "Unread activity", "Main Bot"]
+        return Set(sidebar.compactMap { label in
+            let parts = label.components(separatedBy: ", ")
+            guard parts.dropFirst().contains("Working") else { return nil }
+            return parts.prefix { !states.contains($0) }.joined(separator: ", ")
+        })
     }
 
     /// The shape and colour Grok Bot gives a bot: the ones you chose, else ones picked from its id, by Grok Bot's own rule

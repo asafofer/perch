@@ -69,6 +69,18 @@ private final class PersonalHome {
         #expect(found[1].said == "Paid the rent."); #expect(found[1].focusedAt != nil)   // read, and no chat copy: the list's last message
     }
 
+    /// Grok Bot 0.78.1 names a bot's sidebar button "X Growth, Working" while it runs a turn, and "X Growth" once done.
+    @Test func aGrokBotItsSidebarSaysIsWorkingIsAtWork() {
+        let h = PersonalHome()
+        h.bots([h.bot("b1", "X Growth", ago: 60, last: "Building the list now."), h.bot("b2", "Inbox, home", ago: 120, last: "Done.")])
+        let sidebar = ["Grok Bot, Main Bot", "X Growth, Working", "Inbox, home, Unread activity, Working", "Perch"]
+        #expect(GrokBotStore.working(sidebar) == ["X Growth", "Inbox, home"])
+        let found = h.scanner.grokBots(limit: 15, now: h.now, sidebar: sidebar).map(\.project)
+        #expect(found.map(\.status.kind) == ["running", "running"])
+        #expect(found[0].status.text == "Grok Bot is working")
+        #expect(h.scanner.grokBots(limit: 15, now: h.now, sidebar: ["X Growth", "Perch"]).first?.project.status.kind == "done")
+    }
+
     @Test func aGrokBotWaitingOnYouSaysSoAndShowsItsQuestion() {
         let h = PersonalHome()
         h.bots([h.bot("q", "Scout", ago: 30, waiting: "Needs your answer", last: "Which seat?")])

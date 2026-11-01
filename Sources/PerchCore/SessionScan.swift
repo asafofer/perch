@@ -251,11 +251,12 @@ public final class SessionScanner: @unchecked Sendable {
     }
 
     /// Grok Bot's bots and OpenAI's Dots, from their apps' saved state (`PersonalAgents.swift`). A bot's chat copy is parsed
-    /// again only when its file changed.
-    public func grokBots(limit: Int, now: Date = Date()) -> [Found] {
+    /// again only when its file changed. `sidebar` is what Grok Bot's window lists, which alone says a bot is at work.
+    public func grokBots(limit: Int, now: Date = Date(), sidebar: [String] = []) -> [Found] {
         let cutoff = now.addingTimeInterval(-Double(maxAgeDays) * 86_400)
-        let store = grokStore
+        let store = grokStore, working = GrokBotStore.working(sidebar)
         return store.bots().filter { $0.lastActivity > cutoff }.prefix(limit).map { b in
+            var b = b; b.working = working.contains(b.name)
             let words = store.words(bot: b.id)
             var d = words ?? SessionDigest()
             d.sessionId = b.id; d.title = b.name; d.lastTimestamp = b.lastActivity

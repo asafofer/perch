@@ -24,7 +24,7 @@ final class RealSessionProvider: SessionProviding, @unchecked Sendable {
     func parkedProjects() -> [Project] {
         var all = scanner.claude(limit: maxProjects) + scanner.codex(limit: maxProjects) + scanner.opencode(limit: maxProjects) + scanner.pi(limit: maxProjects) + scanner.omp(limit: maxProjects) + scanner.muse(limit: maxProjects) + scanner.cursor(limit: maxProjects)
             + scanner.tasks(limit: maxProjects) + scanner.chats(limit: maxProjects, words: isEnabled(Agent.chat.id))
-            + scanner.grokBots(limit: maxProjects) + scanner.dots(limit: maxProjects)
+            + scanner.grokBots(limit: maxProjects, sidebar: isEnabled(Agent.grokbot.id) ? GrokBotWindow.sidebar() : []) + scanner.dots(limit: maxProjects)
         all.sort { $0.last > $1.last }
         var perApp: [String: (seen: Set<String>, names: [String])] = [:]
         for item in all where !item.project.smallTalk {
@@ -136,7 +136,7 @@ enum Landing {
 /// herdr pane, cmux surface or agterm pane, or open again where they last ran.
 @MainActor
 enum Restorer {
-    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle, grokBotApp = "com.anysphere.sand"
+    nonisolated static let claudeApp = "com.anthropic.claudefordesktop", codexApp = "com.openai.codex", opencodeApp = "ai.opencode.desktop", cursorApp = CursorApp.bundle, conductorApp = ConductorApp.bundle, grokBotApp = GrokBotWindow.bundle
 
     /// `done` runs on the main thread once the session is on its way.
     static func resume(_ p: Project, then done: @escaping @MainActor (Landing) -> Void = { _ in }) {

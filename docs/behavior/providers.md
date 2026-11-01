@@ -24,7 +24,7 @@ is the summary to check before promising a feature, and the row a new provider f
 | Muse | ✓ | ✓ | ✓ hooks | ~ shown, answered in its terminal (not driven) | ~ shown, answered in its terminal (not driven) | ✓ typed into its pane or tab | ✓ | ✓ (not driven) | ✓ from its log (not driven) |
 | Cursor, local chats | ✓ | ✓ | ✓ hooks | ✓ through its window | ✗ | ✓ through its window | ✓ link | ✗ | ✗ |
 | Cursor, cloud agents | ✓ | ✗ | ~ its cache | ✗ | ✗ | ✗ | ~ link not driven | ✗ | ✗ |
-| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you and unread | ✗ shown, answered in Grok Bot | ✓ the choice sent as your next message | ✓ pasted into its reply box | ✓ link | ✗ | ✗ |
+| Grok Bot | ✓ the app's saved state, one row per bot | ~ its chat copy when opened on this Mac, else the last message | ~ waiting on you, working while its window is open, and unread | ✗ shown, answered in Grok Bot | ✓ the choice sent as your next message | ✓ pasted into its reply box | ✓ link | ✗ | ✗ |
 | Dots | ~ the ChatGPT app's saved state, one row per dot (not driven) | ~ last message | ~ paused and unread | ✗ | ✗ | ~ pasted (not driven) | ~ `codex://dots` (not driven) | ✗ | ✗ |
 
 
