@@ -2666,6 +2666,8 @@
       if (late()) { sentShow(p, words); return; }
       if (sentBase) actKnown = sentBase;
       sentBase = null; setAct('', null, true); if (snap) { activity(snap, lastSt); layout(lastSt, snap); }
+      /* another session already waits: the character stays for it, and starts that wait afresh */
+      if (snap && atN.on && atN.sent && !atN.out && atNWants(snap, lastSt)) atNIn();
     }, atNT.close);
   }
   /* it fades as the row's words do, carried by the closing edge on the notch's own curve */
@@ -2674,7 +2676,8 @@
     cr.style.transition = STILL ? 'opacity .15s' : 'transform .42s .08s cubic-bezier(.4,0,.2,1), opacity .15s cubic-bezier(.4,0,1,1)'; cr.style.opacity = 0;
     atNLater(function () {
       atN.on = atN.out = atN.sent = false; cr.dataset.nb = ''; cr.classList.remove('blink'); look(0, 0);
-      cr.style.transition = ''; if (snap) layout(lastSt, snap);
+      cr.style.transition = ''; actGlideFor = ''; if (snap) layout(lastSt, snap);
+      if (act.mode === 'full') actGlide();   /* a long title shown meanwhile glides now that the character is gone */
     }, 200);
     atNLater(function () { n.dataset.nb = ''; n.style.removeProperty('--nbg'); }, 600);   /* the notch keeps its closing spring to the end */
   }
