@@ -47,7 +47,15 @@
     clip: '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
     refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
-  function svg(n, c) { return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
+  /* design page only: another icon set laid over ICON and NMARK, to compare them in place (perchDev.iconSet). Phosphor is
+     filled paths on a 256 grid; SF Symbols are pictures Swift drew, used as a mask so they take the colour */
+  var ISET = null;
+  function sw() { return ISET && ISET.stroke || 2; }
+  function isetMark(body, cls, col, style) {
+    if (ISET.kind === 'sf') return '<span class="inline-block ' + cls + '" style="background:' + col + ';-webkit-mask:url(' + body + ') center/contain no-repeat;mask:url(' + body + ') center/contain no-repeat;' + (style || '') + '" aria-hidden="true"></span>';
+    return '<svg class="' + cls + '" viewBox="0 0 256 256" fill="' + col + '" style="' + (style || '') + '" aria-hidden="true">' + body + '</svg>';
+  }
+  function svg(n, c) { var o = ISET && ISET.d && ISET.d[n]; if (o) return isetMark(o, c || 'size-3.5', 'currentColor'); return '<svg class="' + (c || 'size-3.5') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + sw() + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
   var BTN = 'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 h-6 px-2 cursor-pointer';
   function Button(v, label, extra, cls) {
     var c = { default: 'bg-primary text-primary-foreground hover:bg-primary/90', ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground' }[v];
@@ -2052,10 +2060,11 @@
   function notifyList(o) { return NOTIFY.concat([['ci', 'Checks failing']]); }
   function ciOff(o) { return !(o.prs === 'on' && o.showPRs !== false); }
   /* the same marks in the text colour, for the icon group: one quiet colour instead of six */
-  function nCol(k) { return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
+  function nCol(k) { var o = ISET && ISET.d && ISET.d['n:' + k]; if (o) return isetMark(o, 'size-4', NMARK[k][1]); return '<svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="' + NMARK[k][1] + '" stroke-width="' + sw() + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NMARK[k][0] + '</svg>'; }
   function nMark(k) {
-    var m = NMARK[k];
-    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
+    var m = NMARK[k], o = ISET && ISET.d && ISET.d['n:' + k];
+    if (o) return isetMark(o, 'size-4 flex-none', m[1], glow(m[1]));
+    return '<svg class="size-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="' + m[1] + '" stroke-width="' + sw() + '" stroke-linecap="round" stroke-linejoin="round" style="' + glow(m[1]) + '" aria-hidden="true">' + m[0] + '</svg>';
   }
   function notifyKind(p) { var k = actKind(p); return p.ci && !p.ask ? 'ci' : actErr(p) ? 'error' : k === 'need' ? 'ask' : k; }   /* a guessed wait, with no request open, is a question */
   function muted(s, p) { return (s.notifyOff || []).indexOf(notifyKind(p)) >= 0; }
@@ -4176,6 +4185,10 @@
       });
     }
     window.perchDev = {
+      /* lays another icon set over Perch's own, or null for Lucide as it is: { kind: 'ph' | 'sf', d: { name: body }, stroke } */
+      iconSet: function (o) { ISET = o; },
+      /* one icon drawn in a given set, for the design page's side by side ('n:done' is a notification mark, in its colour) */
+      iconIn: function (o, n, cls) { var was = ISET; ISET = o; var h = n.indexOf('n:') === 0 ? nCol(n.slice(2)) : svg(n, cls); ISET = was; return h; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
