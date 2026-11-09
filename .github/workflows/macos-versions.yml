@@ -19,7 +19,7 @@ jobs:
       - run: cd ui && npm ci
       - run: CONFIG=release ./scripts/run.sh --package-only
       - run: ditto -c -k --keepParent build/Perch.app Perch.zip
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: perch-app
           path: Perch.zip
@@ -37,7 +37,7 @@ jobs:
           name: perch-app
       - run: ditto -x -k Perch.zip build
       - run: ./scripts/compat/check.sh build/Perch.app out
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: seen-on-${{ matrix.os }}
