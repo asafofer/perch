@@ -421,6 +421,7 @@
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
     '<div class="m-pop pointer-events-none absolute right-2.5 top-[30px] z-30 w-[148px] origin-top-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+    '<div class="m-toast pointer-events-none absolute inset-x-3 bottom-[46px] z-40 hidden justify-center"><span class="max-w-[420px] rounded-lg bg-[#1b2120]/95 px-3 py-1.5 text-center text-xs leading-4 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"></span></div>' +
     '<div class="inner pt-8 pb-2">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
@@ -449,6 +450,7 @@
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="m-toast pointer-events-none absolute inset-x-3 bottom-[38px] z-40 hidden justify-center"><span class="max-w-[420px] rounded-lg bg-[#1b2120]/95 px-3 py-1.5 text-center text-xs leading-4 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"></span></div>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
@@ -632,6 +634,18 @@
     pop.style.pointerEvents = 'none';
     var done = function () { pop.style.display = 'none'; pop.style.opacity = '0'; pop._a = null; if (pop === popO) mFit(false); };
     if (calm || quiet) done(); else { pop._a = pop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); pop._a.onfinish = done; setTimeout(done, 160); }
+  }
+  /* How a rename, archive or delete went, as a line over the footer of the card or list that is open (the character's word only
+     shows at rest). A failure stays longer. */
+  var toastT = 0;
+  function toast(text, bad) {
+    var el = q(lastSt === 'switch' ? '.p-switch .m-toast' : '.p-open .m-toast'); if (!el) return false;
+    var span = el.firstChild;
+    span.textContent = text; span.classList.toggle('text-red-300', !!bad);
+    el.style.display = 'flex';
+    if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'ease-out' });
+    clearTimeout(toastT); toastT = setTimeout(function () { el.style.display = 'none'; }, bad ? 7000 : 2400);
+    return true;
   }
   function mShow(on, quiet) {
     var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -4334,7 +4348,7 @@
   new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
   window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, manageMenu: function (o) { manageMenu(o); }, manageKey: manageKey, manageToggle: function () { manageMenu(mng.mode ? false : 'menu'); }, manageKeyName: function (k) { manageKey({ key: k }); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, manageMenu: function (o) { manageMenu(o); }, manageKey: manageKey, managed: function (text, bad) { if ((lastSt === 'open' || lastSt === 'switch') && toast(text, bad)) return; pop('awake', 2600, text); }, manageToggle: function () { manageMenu(mng.mode ? false : 'menu'); }, manageKeyName: function (k) { manageKey({ key: k }); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* the character at the notch, forced while it shows: a face (alert, bored, glare, happy), or 'act' for the whole wait from its start */
     notchChar: function (m) {
       if (!atN.on) return; atNClear();
@@ -4426,9 +4440,9 @@
     /* More: renamed in place; archived or deleted, the row is gone and the list is back */
     if (m.type === 'manage') {
       var mi = s.projects.map(function (x) { return x.id; }).indexOf(m.id); if (mi < 0) return;
-      if (m.action === 'rename') { s.projects[mi].topic = m.name; if (!s.projects[mi].topic) s.projects[mi].name = m.name; s.timerToken++; apply(s); pop('awake', 2200, 'Renamed'); return; }
+      if (m.action === 'rename') { s.projects[mi].topic = m.name; if (!s.projects[mi].topic) s.projects[mi].name = m.name; s.timerToken++; apply(s); window.perch.managed('Renamed', false); return; }
       var gone = s.projects.splice(mi, 1)[0]; window.perchDev.drop(gone.id);
-      s.selected = 0; s.phase = s.projects.length ? 'switcher' : 'idle'; s.timerToken++; apply(s); pop('awake', 2200, m.action === 'archive' ? 'Archived' : 'Deleted'); return;
+      s.selected = 0; s.phase = s.projects.length ? 'switcher' : 'idle'; s.timerToken++; apply(s); window.perch.managed(m.action === 'archive' ? 'Archived' : 'Deleted', false); return;
     }
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */

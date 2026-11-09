@@ -180,40 +180,49 @@ extension ClaudeComposer {
             _ = wait(2, { app.isActive ? true : nil })   // from a process that is not an app, isActive can lag: the row menu is the test
         }
         defer { if let was, was != app, !was.isTerminated { was.activate() } }
-        guard let row = wait(3, { sidebarRow(titles: titles, in: page) }) else { return fail("no sidebar row for the session") }
+        // Its row, by the exact title, and only when that row is the one: two sessions that read alike would otherwise get the wrong one.
+        let wanted = titles.filter { !$0.isEmpty }
+        guard !wanted.isEmpty else { return fail("the session has no title to find its row by") }
+        let found = wait(3, { () -> [AXUIElement]? in let r = sidebarRows(titles: wanted, in: page); return r.isEmpty ? nil : r }) ?? []
+        guard found.count == 1, let row = found.first else { return fail(found.isEmpty ? "no sidebar row for the session" : "more than one session has this title") }
         guard AXUIElementPerformAction(row, "AXShowMenu" as CFString) == .success,
               let menu = wait(3, { rowMenu(in: ax) }) else { return fail("its row menu did not open (Claude active: \(app.isActive))") }
         let want = a == .rename ? "Rename" : a == .archive ? "Archive" : "Delete"
-        guard let item = menuItem(want, in: menu) else { pressKey(53); return fail("the row menu has no \(want)") }
-        guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { pressKey(53); return fail("\(want) did not press") }
+        guard let item = menuItem(want, in: menu) else { sendKey(53, to: app); return fail("the row menu has no \(want)") }
+        guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { sendKey(53, to: app); return fail("\(want) did not press") }
         switch a {
         case .rename:
             guard let name, !name.isEmpty else { return fail("no name") }
             // The row's title becomes a field with the title in it, focused.
-            guard let field = wait(2, { editField(in: ax, titles: titles) }) else { return fail("no field to rename in") }
+            guard let field = wait(2, { editField(in: ax, titles: wanted) }) else { return fail("no field to rename in") }
             AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, name as CFString)
             // The field's value reads back stale until it is confirmed (a web input), so Return is the check: the row says the rest.
             Thread.sleep(forTimeInterval: 0.2)
-            pressReturn()
-            guard wait(3, { sidebarRow(titles: [name], in: page) }) != nil else { return fail("the app did not take the new name") }
+            guard sendKey(36, to: app) else { return fail("the Claude app was not in front for Return") }
+            guard wait(3, { sidebarRows(titles: [name], in: page).isEmpty ? nil : true }) != nil else { return fail("the app did not take the new name") }
         case .archive:
-            guard wait(3, { sidebarRow(titles: titles, in: page) == nil ? true : nil }) != nil else { return fail("the session is still in the list") }
+            guard wait(3, { sidebarRows(titles: wanted, in: page).isEmpty ? true : nil }) != nil else { return fail("the session is still in the list") }
         case .delete:
             // The app asks once more: its confirming button.
             if let ok = wait(2, { confirmButton(in: ax) }) { _ = AXUIElementPerformAction(ok, kAXPressAction as CFString) }
-            guard wait(4, { sidebarRow(titles: titles, in: page) == nil ? true : nil }) != nil else { return fail("the session is still in the list") }
+            guard wait(4, { sidebarRows(titles: wanted, in: page).isEmpty ? true : nil }) != nil else { return fail("the session is still in the list") }
         }
         // The window shows what it showed before.
-        if let wasShowing, !wasTitle.isEmpty, wasShowing != id, let back = sidebarRow(titles: [wasTitle], in: page) { _ = AXUIElementPerformAction(back, kAXPressAction as CFString) }
+        if let wasShowing, !wasTitle.isEmpty, wasShowing != id {
+            let back = sidebarRows(titles: [wasTitle], in: page)
+            if back.count == 1 { _ = AXUIElementPerformAction(back[0], kAXPressAction as CFString) }
+        }
         return .success(())
     }
 
-    /// A sidebar row by its title: a button holding that text.
-    private static func sidebarRow(titles: [String], in page: AXUIElement) -> AXUIElement? {
+    /// The sidebar rows whose title is exactly this: a button whose label, or the text inside it, is the title.
+    private static func sidebarRows(titles: [String], in page: AXUIElement) -> [AXUIElement] {
+        let wanted = titles.filter { !$0.isEmpty }
+        guard !wanted.isEmpty else { return [] }
         let bar = first(in: page, limit: 400, { classes($0).contains("dframe-sidebar") }) ?? page
-        return all(in: bar, stopAtFirst: true) { e in
-            role(e) == "AXButton" && titles.contains { t in string(e, kAXTitleAttribute).hasPrefix(t) || first(in: e, limit: 12, { role($0) == "AXStaticText" && value($0) == t }) != nil }
-        }.first
+        return all(in: bar) { e in
+            role(e) == "AXButton" && wanted.contains { t in string(e, kAXTitleAttribute) == t || first(in: e, limit: 12, { role($0) == "AXStaticText" && value($0) == t }) != nil }
+        }
     }
     /// The row menu: a web popover, its items each in a group of their own, so there is no menu element to find. Focus goes to its
     /// first item when it opens; the nearest ancestor holding Archive among its items is the menu.
@@ -233,7 +242,7 @@ extension ClaudeComposer {
     private static func editField(in app: AXUIElement, titles: [String]) -> AXUIElement? {
         first(in: app, limit: 60000, { e in
             let r = role(e)
-            return (r == "AXTextField" || r == "AXTextArea") && titles.contains { value(e).hasPrefix($0) }
+            return (r == "AXTextField" || r == "AXTextArea") && titles.contains { !$0.isEmpty && value(e).hasPrefix($0) }
         })
     }
     /// The confirming button of the question Delete asks.
@@ -242,9 +251,13 @@ extension ClaudeComposer {
             role(e) == "AXButton" && string(e, kAXTitleAttribute) == "Delete" && !classes(e).contains("dframe-sidebar")
         })
     }
-    private static func pressReturn() { pressKey(36) }
-    private static func pressKey(_ code: CGKeyCode) {
+    /// A key to the Claude app, and only when it is in front: the event goes to whatever is, so another app that took the front a
+    /// moment ago (a terminal) must not get a Return. False when it was not sent.
+    @discardableResult
+    private static func sendKey(_ code: CGKeyCode, to app: NSRunningApplication) -> Bool {
+        guard wait(1, { app.isActive || NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier ? true : nil }) != nil else { return false }
         for down in [true, false] { CGEvent(keyboardEventSource: CGEventSource(stateID: .hidSystemState), virtualKey: code, keyDown: down)?.post(tap: .cghidEventTap) }
+        return true
     }
 }
 

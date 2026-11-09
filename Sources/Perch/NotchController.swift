@@ -1463,7 +1463,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Rename, archive or delete the session `id`, the way its agent allows (`SessionManager`), off the main thread. The card then
     /// says how it went, and archived or deleted sessions leave the list at once instead of after the next scan.
     private func manage(_ body: [String: Any]) {
-        guard let a = (body["action"] as? String).flatMap(ManageAction.init(rawValue:)), let id = body["id"] as? String,
+        guard !manageBusy, let a = (body["action"] as? String).flatMap(ManageAction.init(rawValue:)), let id = body["id"] as? String,
               let p = projects.first(where: { $0.id == id }), SessionManage.actions(for: p).contains(a) else { return }
         let name = (body["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         if a == .rename, name?.isEmpty != false { return }
@@ -1475,10 +1475,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func managed(_ a: ManageAction, _ p: Project, _ r: Result<Void, SessionManager.Failure>, name: String? = nil) {
         manageBusy = false
-        let say: String
+        let say: String, failed: Bool
         switch r {
-        case .failure(let f): say = "Couldn't \(a.rawValue) it: \(f.why)"
+        case .failure(let f): say = "Couldn't \(a.rawValue) it: \(f.why)"; failed = true
         case .success:
+            failed = false
             say = a == .rename ? "Renamed" : a == .archive ? "Archived" : "Deleted"
             if a == .rename, let name {
                 renamed[p.id] = (name, Date().addingTimeInterval(40))
@@ -1495,8 +1496,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             refreshProjects()
         }
         push()
-        let quoted = say.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'")
-        web.evaluateJavaScript("window.perch && window.perch.say('\(quoted)')", completionHandler: nil)
+        // Shown in the card or list when it is open (the character's word only shows at rest), as JSON so no text can break the call.
+        if let data = try? JSONEncoder().encode(say), let text = String(data: data, encoding: .utf8) {
+            web.evaluateJavaScript("window.perch && window.perch.managed(\(text), \(failed))", completionHandler: nil)
+        }
     }
 
     private func snooze(_ when: String) {
@@ -2210,7 +2213,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             if !self.manageMode.isEmpty, self.manageMode != "rename" {
                 let ch = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
                 let name: String? = switch e.keyCode { case 53: "Escape"; case 36, 76: "Enter"; case 125: "ArrowDown"; case 126: "ArrowUp"
-                    default: ch.count == 1 && ch.first!.isLetter ? ch : nil }
+                    default: ch.count == 1 && ch.first!.isLetter && e.modifierFlags.intersection([.command, .control, .option]).isEmpty ? ch : nil }
                 if e.modifierFlags.contains(.command), ch == "k" { self.web.evaluateJavaScript("window.perch && window.perch.manageToggle()", completionHandler: nil); return nil }
                 if let name { self.web.evaluateJavaScript("window.perch && window.perch.manageKeyName('\(name)')", completionHandler: nil) }
                 return nil
@@ -2328,7 +2331,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 if self.machine.phase == .open, !asking { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
             case (_, "k"):
                 // More, on the card and in the list (where letters filter): Command+K, as Raycast opens its actions.
-                guard list, e.modifierFlags.contains(.command), self.projects.indices.contains(self.machine.selected),
+                guard list, !self.manageBusy, e.modifierFlags.contains(.command), self.projects.indices.contains(self.machine.selected),
                       !SessionManage.actions(for: self.projects[self.machine.selected]).isEmpty else { return e }
                 self.web.evaluateJavaScript("window.perch && window.perch.manageToggle()", completionHandler: nil)
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }

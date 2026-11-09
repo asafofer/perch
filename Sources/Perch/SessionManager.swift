@@ -59,10 +59,14 @@ enum SessionManager {
         proc.standardInput = inp; proc.standardOutput = out; proc.standardError = FileHandle.nullDevice
         let done = DispatchSemaphore(value: 0), lock = NSLock()
         var buffer = "", outcome: (ok: Bool, why: String)?, sent = false
-        let send = { (line: String) in inp.fileHandleForWriting.write(Data((line + "\n").utf8)) }
+        // The throwing write: a Codex that has already gone (no `app-server` in this build) must not take Perch with it.
+        let send = { (line: String) in _ = try? inp.fileHandleForWriting.write(contentsOf: Data((line + "\n").utf8)) }
         // Read while it runs: a pipe holds 64 KB, and Codex writes more than that.
         out.fileHandleForReading.readabilityHandler = { h in
-            let chunk = String(decoding: h.availableData, as: UTF8.self)
+            let data = h.availableData
+            // Empty data is the end of its output: let go of the handler (it would fire again and again) and stop waiting.
+            if data.isEmpty { h.readabilityHandler = nil; done.signal(); return }
+            let chunk = String(decoding: data, as: UTF8.self)
             lock.lock(); defer { lock.unlock() }
             buffer += chunk
             while let nl = buffer.firstIndex(of: "\n") {
