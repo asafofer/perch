@@ -2,7 +2,7 @@
 
 ## Opening it
 
-- Option+Command+N from anywhere (a Carbon hotkey, id 5, recordable from its Settings row; `Prefs.newShortcut`), or New session in the list's footer, opens the `newSession` phase. The footer and the empty list's hint show the shortcut as set (every snapshot carries it as `newKeys`).
+- Option+Command+N from anywhere (a Carbon hotkey, id 5, recordable from its Settings row; `Prefs.newShortcut`), or New session in the list's footer, opens the `newSession` phase. The footer and the empty list's hint show the shortcut as set (every snapshot carries it as `newKeys`); when another app holds it they show no key.
 - It asks which agent (the Claude and Codex apps and the command line agents found on this Mac, `NewSession.choices`, each with its own icon), where a command line agent opens, which folder, then the prompt.
 - Where (a command line agent only): the terminals and hosts on this Mac Perch can open a session in (`Terminals.installedOpens`: Terminal always, iTerm2, Ghostty, cmux, agterm and Herdr when installed), each with its icon and the agent on its corner. It starts on the one you used last; a number picks one and goes on. With only Terminal there is no Where step. The one chosen becomes the one used last (`Prefs.lastTerminal`).
 - Folders: the folders sessions ran in (a worktree counted as its repo), No project, or the Mac's own picker. The Claude app cannot be asked for no folder, so for it that row is Let Claude choose: given none, Claude uses the folder picked in its own new-session screen.

@@ -1265,7 +1265,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd(newKeys()) + 'Start a new session</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + newKeyCap() + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -2500,12 +2500,14 @@
   }
   /* New session's shortcut as one key cap, as the list shows it (Swift sends newKeys; the dev harness keeps its own) */
   function newKeys() { return (snap && snap.newKeys || (typeof devScNew === 'object' && devScNew ? devScNew.keys : null) || ['\u2325', '\u2318', 'N']).join(''); }
+  /* the same, drawn: nothing when another app holds it (Swift sends no keys), as the activity's buttons show no key then */
+  function newKeyCap() { var k = newKeys(); return k ? Kbd(k) : ''; }
   var nkShown = '\u2325\u2318N';
   function apply(s) {
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
     var nk = newKeys(), nkb = q('.x-new');
-    if (nkb && nk !== nkShown) { nkShown = nk; q('.x-nk').innerHTML = Kbd(nk); nkb.title = 'New session (' + nk + '), from anywhere'; }
+    if (nkb && nk !== nkShown) { nkShown = nk; q('.x-nk').innerHTML = newKeyCap(); nkb.title = nk ? 'New session (' + nk + '), from anywhere' : 'New session'; }
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
@@ -4248,6 +4250,7 @@
     if (!snap) return;
     var s = JSON.parse(JSON.stringify(snap));
     if (s.settings) { s.settings.shortcut = devScOut(s.settings.accessibility); s.settings.newShortcut = { keys: devScNew.keys, custom: devScNew.custom }; }
+    if (s.newKeys) s.newKeys = devScNew.keys;
     if (s.onboarding) s.onboarding.shortcut = devScOut(s.onboarding.accessibility);
     s.timerToken++; apply(s);
   }
@@ -4536,7 +4539,7 @@
       },
       shortcut: function (patch) { devScSync(patch); },
       /* New session's shortcut as if it had been changed in Settings (keys like ['\u2303', '\u21E7', 'K']) */
-      newShortcut: function (keys) { devScNew = { keys: keys, kind: 'combo', custom: true }; devScSync(); },
+      newShortcut: function (keys) { devScNew = { keys: keys, kind: 'combo', custom: true }; if (devSc.which === 'new') devSc.saved = false; devScSync(); },
       settings: function (o, keep) {
         devScBack(); kindMenu = '';
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
