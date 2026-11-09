@@ -55,6 +55,10 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var replyOpen = false
     /// The More popup is showing ("menu", "rename", "archive" or "delete", else empty): it holds the card open and takes the keys.
     private var manageMode = ""
+    /// Rename, archive or delete is under way: the card stays, even while the Claude app comes forward for it.
+    private var manageBusy = false
+    /// A name you just gave a session, shown until a scan reads it from the agent (or 40 s pass), by project id.
+    private var renamed: [String: (name: String, until: Date)] = [:]
     /// Preview: the agent's whole last message on the card, with no reply field.
     private var previewOpen = false
     /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
@@ -616,7 +620,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Live hook status over the transcript's guess, then what needs you first.
     private func decorate(_ list: [Project]) -> [Project] {
+        let now = Date()
+        renamed = renamed.filter { $0.value.until > now }
         let withLive = list.map { p -> Project in
+            // Renamed a moment ago: the new name until the agent's own record shows it (the Claude app writes it seconds later).
+            if let r = renamed[p.id] { if p.topic == r.name || p.name == r.name { renamed[p.id] = nil } else { return SessionManage.retitled(p, r.name) } }
+            return p
+        }.map { p -> Project in
             let key = p.sessionId ?? p.id
             // A terminal session no process runs: what it asked waits on no one, and does not come back if it is resumed.
             if p.terminal, p.pid == nil, p.sessionId != nil, let l = live[key] { live[key] = l.agentGone() }
@@ -1457,17 +1467,25 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
               let p = projects.first(where: { $0.id == id }), SessionManage.actions(for: p).contains(a) else { return }
         let name = (body["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         if a == .rename, name?.isEmpty != false { return }
+        manageBusy = true
         Task.detached(priority: .userInitiated) { [weak self] in
             let r = SessionManager.perform(a, on: p, name: name)
-            await MainActor.run { self?.managed(a, p, r) }
+            await MainActor.run { self?.managed(a, p, r, name: name) }
         }
     }
-    private func managed(_ a: ManageAction, _ p: Project, _ r: Result<Void, SessionManager.Failure>) {
+    private func managed(_ a: ManageAction, _ p: Project, _ r: Result<Void, SessionManager.Failure>, name: String? = nil) {
+        manageBusy = false
         let say: String
         switch r {
         case .failure(let f): say = "Couldn't \(a.rawValue) it: \(f.why)"
         case .success:
             say = a == .rename ? "Renamed" : a == .archive ? "Archived" : "Deleted"
+            if a == .rename, let name {
+                renamed[p.id] = (name, Date().addingTimeInterval(40))
+                projects = decorate(base)
+                // The Claude app writes the new title into its own record a few seconds after: read it again then.
+                if p.desktopSessionId != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in self?.refreshProjects() } }
+            }
             if a != .rename {
                 base.removeAll { $0.id == p.id }
                 projects = decorate(base)
@@ -2442,7 +2460,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, manageMode.isEmpty, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, manageMode.isEmpty, !manageBusy, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.

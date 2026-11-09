@@ -28,6 +28,14 @@ public enum SessionManage {
         p.app == Agent.claude.id && p.desktopSessionId != nil ? "Brings Claude forward" : nil
     }
 
+    /// The same session under a name you just gave it, until the next scan reads it from the agent: the title is `topic`, or the
+    /// name when it has none (a chat started with no project).
+    public static func retitled(_ p: Project, _ title: String) -> Project {
+        var q = p
+        if p.topic.isEmpty { q.name = title } else { q.topic = title }
+        return q
+    }
+
     // MARK: Claude Code in a terminal
 
     /// The title record Claude Code writes for /rename: the last one wins, as Perch reads it.

@@ -604,7 +604,7 @@
   }
   function mPaint(mode, p) {
     if (mode === 'rename') {
-      mPop.innerHTML = '<input class="m-in2 h-6 w-full cursor-text rounded-md bg-white/[0.1] px-2 text-xs text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">';
+      mPop.innerHTML = '<input class="m-in2 h-7 w-full cursor-text rounded-md bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name"><div class="mt-1 flex items-center justify-end gap-0.5">' + Button('ghost', 'Cancel', Kbd('esc'), 'x-rnno') + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rnyes pr-0.5') + '</div>';
       var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
     } else if (mode === 'delete' || mode === 'archive') {
       var del = mode === 'delete';
@@ -662,6 +662,7 @@
     if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
     var was = mng.mode; mng.mode = mode || '';
     var isUp = function (m) { return m === 'menu' || m === 'delete' || m === 'archive' || (m === 'rename' && inList); };
+    mPop.style.width = mode === 'rename' && inList ? '290px' : '';
     mShow(isUp(mode), quiet || (isUp(mode) && isUp(was)));
     if (!inList) { if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain); else if (!mode && fMain.style.display === 'none') footer(fMain); }
     if (!quiet || (!mode && was)) post({ type: 'manageMenu', mode: mode || '' });   /* a close the page did by itself is still told, so Perch lets go of the keys */
@@ -673,6 +674,8 @@
   }
   [popO, popS].forEach(function (pp) { pp.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('x-rnno')) return manageMenu('menu');
+    if (b.classList.contains('x-rnyes')) return manageDo('rename');
     if (b.classList.contains('x-delno')) return manageMenu('menu');
     if (b.classList.contains('x-delyes')) return manageDo(mng.mode);
     var k = (b.dataset.act || '').slice(2); if (k) manageMenu(k);
