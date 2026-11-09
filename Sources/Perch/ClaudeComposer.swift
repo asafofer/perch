@@ -172,14 +172,18 @@ extension ClaudeComposer {
         let ax = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(ax, 1)
         AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
-        guard let page = wait(4, { page(in: ax) }) else { return fail("its window shows no Code page") }
+        // Forward first: with the app behind another, its page is not in the accessibility tree at all (only its window), which is
+        // how a rename from the notch found no page while Claude was in the background.
         let was = NSWorkspace.shared.frontmostApplication
-        let wasShowing = showing(page), wasTitle = string(page, "AXTitle").removingSuffix(" - Claude Code")
         if !app.isActive {
             app.activate()
             _ = wait(2, { app.isActive ? true : nil })   // from a process that is not an app, isActive can lag: the row menu is the test
         }
         defer { if let was, was != app, !was.isTerminated { was.activate() } }
+        // Its window may be on Home, or closed: the session's own link brings the Code page up.
+        if wait(2, { page(in: ax) }) == nil, let link = URL(string: "claude://code/continue?session=\(id)") { NSWorkspace.shared.open(link) }
+        guard let page = wait(6, { page(in: ax) }) else { return fail("its window shows no Code page") }
+        let wasShowing = showing(page), wasTitle = string(page, "AXTitle").removingSuffix(" - Claude Code")
         // Its row, by the exact title, and only when that row is the one: two sessions that read alike would otherwise get the wrong one.
         let wanted = titles.filter { !$0.isEmpty }
         guard !wanted.isEmpty else { return fail("the session has no title to find its row by") }
