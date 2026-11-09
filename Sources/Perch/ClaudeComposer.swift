@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import PerchCore
 
 /// Answers a session in the Claude app without bringing the app forward, through Accessibility: Claude's window switches to
 /// the session from its sidebar, the words go into the message field and Send is pressed, then the window goes back to what
@@ -157,6 +158,85 @@ enum ClaudeComposer {
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < end
         return nil
+    }
+}
+
+/// Rename, archive or delete a session of the Claude app through its own sidebar menu. The app builds that menu only while it is
+/// the active app (tried with it hidden behind another: the call succeeds and nothing shows), so Claude comes forward for the
+/// moment it takes, and what was in front before it comes back. A step that does not look as expected gives up before the next.
+extension ClaudeComposer {
+    static func manage(_ a: ManageAction, session id: String, titles: [String], name: String?) -> Swift.Result<Void, SessionManager.Failure> {
+        func fail(_ why: String) -> Swift.Result<Void, SessionManager.Failure> { .failure(.init(why: why)) }
+        guard AXIsProcessTrusted() else { return fail("Perch needs Accessibility to use the Claude app's menu") }
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: Restorer.claudeApp).first else { return fail("the Claude app is not open") }
+        let ax = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(ax, 1)
+        AXUIElementSetAttributeValue(ax, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+        guard let page = wait(4, { page(in: ax) }) else { return fail("its window shows no Code page") }
+        let was = NSWorkspace.shared.frontmostApplication
+        let wasShowing = showing(page), wasTitle = string(page, "AXTitle").removingSuffix(" - Claude Code")
+        if !app.isActive {
+            app.activate()
+            guard wait(3, { app.isActive ? true : nil }) != nil else { return fail("the Claude app would not come forward") }
+        }
+        defer { if let was, was != app, !was.isTerminated { was.activate() } }
+        guard let row = wait(3, { sidebarRow(titles: titles, in: page) }) else { return fail("no sidebar row for the session") }
+        guard AXUIElementPerformAction(row, "AXShowMenu" as CFString) == .success,
+              let menu = wait(2, { rowMenu(in: ax) }) else { return fail("its row menu did not open") }
+        let want = a == .rename ? "Rename" : a == .archive ? "Archive" : "Delete"
+        guard let item = (attr(menu, kAXChildrenAttribute) as? [AXUIElement])?.first(where: { string($0, kAXTitleAttribute) == want }) else {
+            _ = AXUIElementPerformAction(menu, kAXCancelAction as CFString); return fail("the row menu has no \(want)")
+        }
+        guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { return fail("\(want) did not press") }
+        switch a {
+        case .rename:
+            guard let name, !name.isEmpty else { return fail("no name") }
+            // The row's title becomes a field with the title in it, focused.
+            guard let field = wait(2, { editField(in: ax, titles: titles) }) else { return fail("no field to rename in") }
+            AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, name as CFString)
+            guard value(field) == name else { return fail("the name did not land in the field") }
+            if AXUIElementPerformAction(field, kAXConfirmAction as CFString) != .success { pressReturn() }
+            guard wait(3, { sidebarRow(titles: [name], in: page) }) != nil else { return fail("the app did not take the new name") }
+        case .archive:
+            guard wait(3, { sidebarRow(titles: titles, in: page) == nil ? true : nil }) != nil else { return fail("the session is still in the list") }
+        case .delete:
+            // The app asks once more: its confirming button.
+            if let ok = wait(2, { confirmButton(in: ax) }) { _ = AXUIElementPerformAction(ok, kAXPressAction as CFString) }
+            guard wait(4, { sidebarRow(titles: titles, in: page) == nil ? true : nil }) != nil else { return fail("the session is still in the list") }
+        }
+        // The window shows what it showed before.
+        if let wasShowing, !wasTitle.isEmpty, wasShowing != id, let back = sidebarRow(titles: [wasTitle], in: page) { _ = AXUIElementPerformAction(back, kAXPressAction as CFString) }
+        return .success(())
+    }
+
+    /// A sidebar row by its title: a button holding that text.
+    private static func sidebarRow(titles: [String], in page: AXUIElement) -> AXUIElement? {
+        let bar = first(in: page, limit: 400, { classes($0).contains("dframe-sidebar") }) ?? page
+        return all(in: bar, stopAtFirst: true) { e in
+            role(e) == "AXButton" && titles.contains { t in string(e, kAXTitleAttribute).hasPrefix(t) || first(in: e, limit: 12, { role($0) == "AXStaticText" && value($0) == t }) != nil }
+        }.first
+    }
+    /// The row menu is the one that has Archive in it.
+    private static func rowMenu(in app: AXUIElement) -> AXUIElement? {
+        first(in: app, limit: 3000, { e in
+            role(e) == "AXMenu" && ((attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? []).contains { string($0, kAXTitleAttribute) == "Archive" }
+        })
+    }
+    /// The field Rename opens: it holds the session's current title.
+    private static func editField(in app: AXUIElement, titles: [String]) -> AXUIElement? {
+        first(in: app, limit: 3000, { e in
+            let r = role(e)
+            return (r == "AXTextField" || r == "AXTextArea") && titles.contains { value(e).hasPrefix($0) }
+        })
+    }
+    /// The confirming button of the question Delete asks.
+    private static func confirmButton(in app: AXUIElement) -> AXUIElement? {
+        first(in: app, limit: 3000, { e in
+            role(e) == "AXButton" && string(e, kAXTitleAttribute) == "Delete" && !classes(e).contains("dframe-sidebar")
+        })
+    }
+    private static func pressReturn() {
+        for down in [true, false] { CGEvent(keyboardEventSource: CGEventSource(stateID: .hidSystemState), virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
     }
 }
 
