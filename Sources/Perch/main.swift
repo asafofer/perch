@@ -32,6 +32,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             catch { print("could not write \(out.path): \(error)") }
             exit(0)
         }
+        // `--manage rename|archive|delete <agent> <session id> [new name]`: what the More menu does, without the menu, for trying a route
+        // on a session made for the purpose.
+        if let i = args.firstIndex(of: "--manage") {
+            let rest = Array(args.dropFirst(i + 1))
+            guard rest.count >= 3, let action = ManageAction(rawValue: rest[0]) else { print("usage: --manage rename|archive|delete <agent> <session id> [name]"); exit(2) }
+            let p = Project(id: rest[2], name: "", branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: rest[1], agents: [], steps: [], sessionId: rest[2])
+            switch SessionManager.perform(action, on: p, name: rest.count > 3 ? rest[3] : nil) {
+            case .success: print("ok"); exit(0)
+            case .failure(let f): print("failed: \(f.why)"); exit(1)
+            }
+        }
         if args.contains("--dump") {
             for s in NSScreen.screens { print("screen: \(s.localizedName) | \(s.displayID) | notch: \(s.notchSize != nil ? "yes" : "no")") }
             print("show on: \(Prefs.showOn.raw) -> \(ScreenChooser.target().localizedName)")
