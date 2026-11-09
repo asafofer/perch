@@ -554,7 +554,7 @@
   }
   function mPaint(mode, p) {
     if (mode === 'rename') {
-      mPop.innerHTML = '<input class="m-in2 h-6 w-full cursor-text rounded-md bg-white/[0.1] px-2 text-xs text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name"><div class="flex justify-end px-1 pb-0.5 pt-1">' + Kbd(svg('enter', 'size-2')) + '</div>';
+      mPop.innerHTML = '<input class="m-in2 h-6 w-full cursor-text rounded-md bg-white/[0.1] px-2 text-xs text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">';
       var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
     } else if (mode === 'delete' || mode === 'archive') {
       var del = mode === 'delete';
@@ -2473,12 +2473,13 @@
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
     var p = s.projects[s.selected];
-    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); }
+    if (st !== 'open') { snoozeMenu(false, true); replyMenu(false, true); }
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
+    if (st !== 'open' && st !== 'switch') manageMenu(false, true);   /* the list has More too */
     if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
-    q('.x-lmore').style.display = st === 'switch' && manageOf(p).length ? '' : 'none';
+    q('.x-lmore').style.display = st === 'switch' && manageOf(p).length && (!s.shown || s.shown.indexOf(s.selected) >= 0) ? '' : 'none';   /* a row to act on: with nothing matching, none */
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);

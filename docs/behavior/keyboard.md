@@ -13,3 +13,7 @@
 - A card you hover open takes it only when it shows something to answer (`cardTakesKeys`): otherwise a number or Esc lands in the agent's own prompt behind it, and Esc there dismisses the question.
 - A card takes the keyboard once (on opening, or as the pointer comes onto it) and leaves it with whoever takes it next: Raycast closes the instant it loses focus.
 - When another app takes the keyboard, or a launcher has it (`Quiet.launcherOpen`, an app other than the one in front, read through Accessibility), the card makes way (`makeWay`), except during onboarding or a reply.
+
+## More
+
+- Command+K opens the More popup on the card and in the list ([manage.md](manage.md)). While it is open the popup takes the keys: Up, Down and Return choose, the letter on a row does it, Esc closes. Renaming is a field, which takes its own keys.

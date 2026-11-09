@@ -177,25 +177,24 @@ extension ClaudeComposer {
         let wasShowing = showing(page), wasTitle = string(page, "AXTitle").removingSuffix(" - Claude Code")
         if !app.isActive {
             app.activate()
-            guard wait(3, { app.isActive ? true : nil }) != nil else { return fail("the Claude app would not come forward") }
+            _ = wait(2, { app.isActive ? true : nil })   // from a process that is not an app, isActive can lag: the row menu is the test
         }
         defer { if let was, was != app, !was.isTerminated { was.activate() } }
         guard let row = wait(3, { sidebarRow(titles: titles, in: page) }) else { return fail("no sidebar row for the session") }
         guard AXUIElementPerformAction(row, "AXShowMenu" as CFString) == .success,
-              let menu = wait(2, { rowMenu(in: ax) }) else { return fail("its row menu did not open") }
+              let menu = wait(3, { rowMenu(in: ax) }) else { return fail("its row menu did not open (Claude active: \(app.isActive))") }
         let want = a == .rename ? "Rename" : a == .archive ? "Archive" : "Delete"
-        guard let item = (attr(menu, kAXChildrenAttribute) as? [AXUIElement])?.first(where: { string($0, kAXTitleAttribute) == want }) else {
-            _ = AXUIElementPerformAction(menu, kAXCancelAction as CFString); return fail("the row menu has no \(want)")
-        }
-        guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { return fail("\(want) did not press") }
+        guard let item = menuItem(want, in: menu) else { pressKey(53); return fail("the row menu has no \(want)") }
+        guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { pressKey(53); return fail("\(want) did not press") }
         switch a {
         case .rename:
             guard let name, !name.isEmpty else { return fail("no name") }
             // The row's title becomes a field with the title in it, focused.
             guard let field = wait(2, { editField(in: ax, titles: titles) }) else { return fail("no field to rename in") }
             AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, name as CFString)
-            guard value(field) == name else { return fail("the name did not land in the field") }
-            if AXUIElementPerformAction(field, kAXConfirmAction as CFString) != .success { pressReturn() }
+            // The field's value reads back stale until it is confirmed (a web input), so Return is the check: the row says the rest.
+            Thread.sleep(forTimeInterval: 0.2)
+            pressReturn()
             guard wait(3, { sidebarRow(titles: [name], in: page) }) != nil else { return fail("the app did not take the new name") }
         case .archive:
             guard wait(3, { sidebarRow(titles: titles, in: page) == nil ? true : nil }) != nil else { return fail("the session is still in the list") }
@@ -216,27 +215,36 @@ extension ClaudeComposer {
             role(e) == "AXButton" && titles.contains { t in string(e, kAXTitleAttribute).hasPrefix(t) || first(in: e, limit: 12, { role($0) == "AXStaticText" && value($0) == t }) != nil }
         }.first
     }
-    /// The row menu is the one that has Archive in it.
+    /// The row menu: a web popover, its items each in a group of their own, so there is no menu element to find. Focus goes to its
+    /// first item when it opens; the nearest ancestor holding Archive among its items is the menu.
     private static func rowMenu(in app: AXUIElement) -> AXUIElement? {
-        first(in: app, limit: 3000, { e in
-            role(e) == "AXMenu" && ((attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? []).contains { string($0, kAXTitleAttribute) == "Archive" }
-        })
+        guard var e = attr(app, kAXFocusedUIElementAttribute) as! AXUIElement?, role(e) == "AXMenuItem" else { return nil }
+        for _ in 0..<8 {
+            if menuItem("Archive", in: e) != nil { return e }
+            guard let up = attr(e, kAXParentAttribute) as! AXUIElement? else { return nil }
+            e = up
+        }
+        return nil
+    }
+    private static func menuItem(_ title: String, in menu: AXUIElement) -> AXUIElement? {
+        all(in: menu, limit: 200, stopAtFirst: true) { role($0) == "AXMenuItem" && string($0, kAXTitleAttribute) == title }.first
     }
     /// The field Rename opens: it holds the session's current title.
     private static func editField(in app: AXUIElement, titles: [String]) -> AXUIElement? {
-        first(in: app, limit: 3000, { e in
+        first(in: app, limit: 60000, { e in
             let r = role(e)
             return (r == "AXTextField" || r == "AXTextArea") && titles.contains { value(e).hasPrefix($0) }
         })
     }
     /// The confirming button of the question Delete asks.
     private static func confirmButton(in app: AXUIElement) -> AXUIElement? {
-        first(in: app, limit: 3000, { e in
+        first(in: app, limit: 60000, { e in
             role(e) == "AXButton" && string(e, kAXTitleAttribute) == "Delete" && !classes(e).contains("dframe-sidebar")
         })
     }
-    private static func pressReturn() {
-        for down in [true, false] { CGEvent(keyboardEventSource: CGEventSource(stateID: .hidSystemState), virtualKey: 36, keyDown: down)?.post(tap: .cghidEventTap) }
+    private static func pressReturn() { pressKey(36) }
+    private static func pressKey(_ code: CGKeyCode) {
+        for down in [true, false] { CGEvent(keyboardEventSource: CGEventSource(stateID: .hidSystemState), virtualKey: code, keyDown: down)?.post(tap: .cghidEventTap) }
     }
 }
 

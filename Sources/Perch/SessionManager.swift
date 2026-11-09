@@ -12,7 +12,7 @@ enum SessionManager {
         let r: Result<Void, Failure>
         switch p.app {
         case Agent.claude.id:
-            if let desktop = p.desktopSessionId { r = ClaudeComposer.manage(a, session: desktop, titles: [p.topic, p.name].filter { !$0.isEmpty }, name: name) }
+            if let desktop = p.desktopSessionId { r = ClaudeComposer.manage(a, session: desktop, titles: [p.topic.isEmpty ? p.name : p.topic], name: name) }
             else { r = files(a, claudeTranscript: SessionManage.claudeTranscript(home: home, sessionId: id), id: id, name: name) }
         case Agent.pi.id: r = files(a, pi: SessionManage.piSession(home: home, sessionId: id), name: name)
         case Agent.codex.id: r = codex(a, thread: id, name: name)

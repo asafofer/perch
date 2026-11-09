@@ -29,6 +29,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   Shortcut            The shortcut that opens Perch, its rules, ModifierTap and ShortcutRecorder.
   ScreenTarget        Which screen Perch opens on (ShowOn: the mouse's, the active window's, or a display by its UUID), with fallbacks to the mouse; window-list rects to Cocoa's.
   NewSession          Starting a session from the notch: the agents on this Mac (Choice), the folders to offer, what it starts on, a terminal agent's command, and which scanned session is the new one (started).
+  SessionManage       What More offers per session (rename, archive, delete) and the records, calls and files behind each agent's route.
   PullRequests        A session's pull requests: the Claude app's list, what the GitHub CLI says (GitHubCLI, parse), the cache that asks it (PullRequestChecker), and what a session shows.
   Feedback            What Send feedback sends: the 4 MB limit for files, the email check, the subject, the multipart form.
   InstalledCopy       A test build's way back (its menu's Back to installed Perch): which other copy is the installed one.
@@ -44,6 +45,7 @@ Sources/Perch       The AppKit shell.
   ClaudeComposer      A reply into a Claude app session through Accessibility, Claude's window left behind.
   NewSessionStarter   Starts a new session: the Claude or Codex app's own link with your words, then Send through Accessibility; or a terminal window running the agent.
   FeedbackSender      Send feedback: posts it to the feedback function (pictures made smaller first), or opens Mail with it.
+  SessionManager      Does what More asks, off the main thread: Codex's app-server, OpenCode's server, transcript and pi files, the Claude app's row menu (ClaudeComposer.manage). `Perch --manage ...` tries a route.
   PullRequestState    Which mode applies (Off, Marks, Checks), whether the CLI works, and the checker the list is decorated by.
   Snapshot            The JSON Swift sends to the page. The page never decides anything.
   Preferences         UserDefaults: onboarded, character, enabled apps, idle minutes.
@@ -74,6 +76,7 @@ Before changing an area, read its file in `docs/behavior/`:
 - [keyboard.md](docs/behavior/keyboard.md): the shortcut that opens Perch, and when a card takes the keyboard.
 - [displays.md](docs/behavior/displays.md): which screen Perch shows on, hover, displays without a notch.
 - [settings.md](docs/behavior/settings.md): the Settings list and its pages, their keys, Send feedback and where it goes.
+- [manage.md](docs/behavior/manage.md): More (Command+K) on the card and in the list: rename, archive or delete a session, and what each agent's route can do.
 - [pull-requests.md](docs/behavior/pull-requests.md): the pull request mark and its label, where they come from (the Claude app, or GitHub through the GitHub CLI), and what needs you.
 - [updates.md](docs/behavior/updates.md): Sparkle, signing, What's new, update errors, Accessibility lost after an update.
 

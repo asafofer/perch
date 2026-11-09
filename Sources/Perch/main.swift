@@ -37,8 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let i = args.firstIndex(of: "--manage") {
             let rest = Array(args.dropFirst(i + 1))
             guard rest.count >= 3, let action = ManageAction(rawValue: rest[0]) else { print("usage: --manage rename|archive|delete <agent> <session id> [name]"); exit(2) }
-            let p = Project(id: rest[2], name: "", branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: "", app: rest[1], agents: [], steps: [], sessionId: rest[2])
-            switch SessionManager.perform(action, on: p, name: rest.count > 3 ? rest[3] : nil) {
+            // `claude-app <local_ id> <title as the sidebar shows it> [name]`: a session of the Claude app.
+            let inApp = rest[1] == "claude-app"
+            let p = Project(id: rest[2], name: "", branch: nil, away: "", at: "", headline: "", context: "", next: "", topic: inApp && rest.count > 3 ? rest[3] : "", app: inApp ? "claude" : rest[1], agents: [], steps: [], sessionId: rest[2], desktopSessionId: inApp ? rest[2] : nil)
+            switch SessionManager.perform(action, on: p, name: rest.count > (inApp ? 4 : 3) ? rest[inApp ? 4 : 3] : nil) {
             case .success: print("ok"); exit(0)
             case .failure(let f): print("failed: \(f.why)"); exit(1)
             }
