@@ -259,7 +259,8 @@ extension ClaudeComposer {
     /// moment ago (a terminal) must not get a Return. False when it was not sent.
     @discardableResult
     private static func sendKey(_ code: CGKeyCode, to app: NSRunningApplication) -> Bool {
-        guard wait(1, { app.isActive || NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier ? true : nil }) != nil else { return false }
+        // The front app itself, read right before the event: `isActive` can lag, and then the key would land in another app.
+        guard wait(1, { NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier ? true : nil }) != nil else { return false }
         for down in [true, false] { CGEvent(keyboardEventSource: CGEventSource(stateID: .hidSystemState), virtualKey: code, keyDown: down)?.post(tap: .cghidEventTap) }
         return true
     }
