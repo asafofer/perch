@@ -56,11 +56,15 @@ struct UISnapshot: Encodable {
         /// What More offers for it ("rename", "archive", "delete"), and a line under the choices when its route has a cost.
         var manage: [String] = []
         var manageNote: String? = nil
+        /// Its own avatar's key in `icons` ("avatar:tablet:yellow"), for a Grok Bot bot.
+        var avatar: String? = nil
     }
 
     /// A new session: the agents to start one with, the folders to offer, what to start on, and where it was opened from.
     struct NewSession: Encodable {
         struct App: Encodable { let id: String; let app: String; let via: String?; let name: String }
+        /// A terminal or host a command line agent can open in, by its key in `icons`.
+        struct Terminal: Encodable { let id: String; let name: String }
         struct Folder: Encodable { let name: String; let path: String; let label: String; let away: String }
         let apps: [App]
         let projects: [Folder]
@@ -68,6 +72,9 @@ struct UISnapshot: Encodable {
         let project: String?
         /// "list" when opened from the list (it goes back there), "anywhere" otherwise.
         let from: String
+        /// Where a command line agent can open (the Where step, asked when there is more than one), and the one used last.
+        let terminals: [Terminal]
+        let terminal: String
     }
 
     struct Character: Encodable { let shape: String; let color: String }
@@ -120,7 +127,9 @@ struct UISnapshot: Encodable {
         var back = false
         /// Pull requests: whether the marks show, and Checks: "on", "off", or why it cannot be ("nogh": no GitHub CLI, "login": not signed in).
         var showPRs = true
-        var prs = "off" }
+        var prs = "off"
+        /// Character at the notch (Notifications).
+        var charAtNotch = false }
     var newSession: NewSession?
 
     /// A question Perch shows but cannot answer says why: Live status is off (so Settings is the way), or it is answered in the app.
@@ -136,6 +145,8 @@ struct UISnapshot: Encodable {
     let notifyOff = Prefs.notifyOff.sorted()
     /// Pull requests are shown at all (Settings, Pull requests).
     let showPRs = Prefs.prShow
+    /// The character shows in the notch when an agent needs you (Settings, Notifications: Character at the notch).
+    let charAtNotch = Prefs.charAtNotch
     let phase: String
     let settings: Settings?
     let character: Character
@@ -163,6 +174,9 @@ struct UISnapshot: Encodable {
     var proactive = false
     /// What you typed in the list, and the rows that match it (all of them when nil).
     var query = ""
+    /// Where the caret is in it and the other end of the selection (equal when nothing is selected), in characters.
+    var queryCaret = 0
+    var queryAnchor = 0
     var shown: [Int]?
     /// On a call, on camera or presenting: the notch keeps what arrives to small wings.
     var quiet = false
@@ -210,7 +224,8 @@ struct UISnapshot: Encodable {
         self.timerToken = timerToken
         self.screen = Screen(hasNotch: screen.notchSize != nil, notchW: screen.notchSize?.width ?? 0, notchH: screen.notchSize?.height ?? NotchGeometry.idleSize(for: screen).height)
         let now = Date()
-        self.projects = projects.map { p in
+        let open = machine.selected
+        self.projects = projects.enumerated().map { i, p in
             UIProject(id: p.id, name: p.name, branch: p.branch, away: p.away, at: p.at, headline: p.headline,
                       context: p.context, next: p.next, topic: p.topic, app: p.app, attention: p.needsAttention,
                       fresh: fresh.contains(p.id), line: lines[p.id] ?? "",
@@ -220,9 +235,9 @@ struct UISnapshot: Encodable {
                                                  questions: $0.questions.map { UIQuestion(text: $0.text, header: $0.header, multi: $0.multiSelect, options: $0.options, notes: $0.notes) },
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
-                      section: ListFilter.section(p, now: now).rawValue, said: p.said, asked: p.asked, askedLast: p.askedLast,
+                      section: ListFilter.section(p, now: now).rawValue, said: i == open ? p.said : Recap.clipSaid(p.said), asked: p.asked, askedLast: p.askedLast,
                       prs: p.prs.map(UIPR.init), ci: p.prNeeds,
-                      manage: SessionManage.actions(for: p).map(\.rawValue), manageNote: SessionManage.note(for: p))
+                      manage: SessionManage.actions(for: p).map(\.rawValue), manageNote: SessionManage.note(for: p), avatar: p.avatar.map { "avatar:" + $0 })
         }
     }
 }

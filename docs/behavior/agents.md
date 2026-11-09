@@ -1,10 +1,13 @@
 # Other agents, multiplexers and Conductor
 
-OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
+OpenCode, pi, Oh My Pi and Muse as sources (Cursor, an app like Claude and Codex, is in [sessions.md](sessions.md)), Herdr's app, herdr, tmux, cmux and agterm as hosts, which process is which session, and Conductor. Claude and Codex sources are in [sessions.md](sessions.md).
 
 ## OpenCode
 
 - Every session, its desktop app's too, is in `~/.local/share/opencode/opencode.db` (SQLite, WAL, opened read-only per scan).
+- OpenCode 1 writes `session`, `message` and `part`. OpenCode 2 writes `session_v2` and `session_message`, and copies 1's sessions there when it first runs. Both are read; for a session in each, 2's row wins.
+- An OpenCode 2 message keeps its parts in `content`, and a turn ends in an `idle` message whose outcome says how (succeeded, interrupted, failed). `OpenCodeStore.message` puts 2's messages in 1's shape for `OpenCodeTranscript.digest`, and `pullRequestRecords` gives 2's tool calls in 1's shape (`callID`).
+- OpenCode 2 renamed tools: `bash` is `shell`, `task` is `subagent`, and files are `path`.
 - Subagent sessions (`parent_id`), archived ones and ones nobody wrote in are skipped. A placeholder title ("New session - …") gives way to your first prompt.
 - Resume with `opencode -s <id>`.
 
@@ -14,9 +17,28 @@ OpenCode and pi as sources (Cursor, an app like Claude and Codex, is in [session
 - The title is the newest `session_info` name, else your first prompt.
 - Resume with `pi --session <id>`.
 
-## herdr, tmux, cmux and agterm
+## Oh My Pi
 
-- They host any agent. Every process in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`; in agterm `AGTERM_WINDOW_ID`, `AGTERM_SESSION_ID` and `AGTERM_PANE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). herdr wins, then tmux, since their servers can inherit a cmux tab's values.
+- omp (github.com/can1357/oh-my-pi) is a fork of pi. It writes pi's files under `~/.omp/agent/sessions/<folder>/<time>_<id>.jsonl`, with one difference: the first line is a 256-byte title slot (`{"type":"title",…}`), rewritten in place on a rename, and the header comes second. So the head is two lines (`SessionScanner.head(lines:)`), the title is read fresh from that slot each scan, else the newest `title_change`, else your first prompt. Subagents' files sit a folder deeper and get no row.
+- Perch's extension is `~/.omp/agent/extensions/perch.ts` (`PerchPlugins.omp`): pi's, with Stop on `agent_end` (unless `willContinue`), main agent only, an approval posted from `tool_approval_requested` with the call's input from `tool_call`, and the `ask` tool registered in its place: it runs omp's own picker through `ctx.invokeTool` and holds the question at Perch, the first answer winning.
+- Which process runs which session: each omp keeps its session's owner lock open (`~/.omp/run/session-owners/<id>.lock`, or under `$XDG_STATE_HOME/omp`), and `/new` or `/resume` moves it, so Perch reads it from the process's open files (`LiveSessions.ownedSession`): exact with several omp in one folder, hooks or not. The lock wins over a hook and over a command line that still names an older session (`LiveSessions.runs`), and a reply is typed into an omp or Muse only while its lock says it runs that session; otherwise the reply waits on the clipboard. Driven: two omp in one folder, each Pick up went to its own tmux pane, before and after Perch restarted, and after `/new` the new session went to the same pane.
+- The process is `omp`. Resume with `omp --resume <id>` (with words after it, they are sent); a new session is `omp '<words>'`.
+- Spike: [oh-my-pi.md](../spikes/oh-my-pi.md).
+
+## Muse
+
+- Muse Code (Meta) writes `~/.local/share/muse/sessions/YYYY/MM/DD/<id>/session.jsonl`, sharded by local date: one envelope a line (`stream.id` the session, `recorded_at` in microseconds). What was said is in `runtime.session` records whose `payload.kind` is `run`: `started` (your prompt), `assistant_message_committed`, `assistant_tool_calls_committed`, `tool_result_batch_committed` and `terminal` (`completed`, `cancelled`, else failed). Task and reminder records share the stream and are skipped (`MuseTranscript`).
+- The folder is `runtime.session.metadata`'s `workspace_root`, near the top. Only the terminal app writes `session.startup_phases.observed`, so `muse exec` runs get no row; subagents have their own logs under `subagent/`.
+- The title is the one Muse made in its index, `session-index.db` (`effective_long_title`, read-only, best effort), else your first prompt.
+- Its hooks are Claude Code's shape in `~/.config/muse/settings.json` (which needs `"schema_version": 1`), all async ([status.md](status.md)).
+- Which process runs which session: each Muse keeps `.session.lock` open in its session's folder, whose name is the session id, so Perch reads it from the process's open files (`LiveSessions.ownedSession`). Driven: two Muse sessions in one folder, each tied to its own process.
+- The process table shows the binary the `muse` launcher hands over to, `muse-bin-<version>`. Resume with `muse resume <id>`; a new session is `muse '<words>'`.
+- Spike: [muse.md](../spikes/muse.md).
+
+## Herdr's app, herdr, tmux, cmux and agterm
+
+- They host any agent. Every process in a terminal of Herdr's app carries `HC_TERMINAL_ID` and `HC_TERMINAL_SOCKET`; in a herdr pane carries `HERDR_PANE_ID`, `HERDR_SOCKET_PATH` and `HERDR_SESSION`; in tmux `TMUX` (socket, server pid, session) and `TMUX_PANE`; in cmux `CMUX_SURFACE_ID` and `CMUX_WORKSPACE_ID`; in agterm `AGTERM_WINDOW_ID`, `AGTERM_SESSION_ID` and `AGTERM_PANE_ID`. `LiveSessions` reads them from the process's own environment (`KERN_PROCARGS2`). Herdr's app wins (its terminals also say they are Ghostty, and pass on what its runtime started with), then herdr, then tmux, since their servers can inherit a cmux tab's values.
+- Herdr's app (`dev.herdr.app`, [spike](../spikes/herdr-app.md)): its runtime, herdr-core (`hc`), runs every terminal apart from the window (`HerdrApp`). The session wears Herdr's icon. Pick up brings Herdr forward on that terminal (`herdr-app do agent.focus`). One in no tab of the window (started with `hc run` alone) opens `hc attach` in your terminal: Herdr answers a focus on it with "ok" and shows nothing, so Perch checks `herdr-app ls` first (`HerdrCore.inWindow`). A tmux pane inside a Herdr terminal carries hc's variables too; the agent is in the pane its tty is. A tmux client attached in a Herdr tab is that session's viewer: Pick up shows the pane in it and brings that tab forward, and with Herdr in front the pane it shows is the session you are in. A session on another core, or in no tab, wears the terminal it is attached in (`Terminals.attachApp`). Reply is `hc send`, which waits for a pause in typing. hc's own status for an agent that reports it (`hc ls`) counts like herdr's. With Herdr in front, the terminal in its focused pane is the session you are in. A session that ran there opens again in a new Herdr tab (`tab.new`, then the resume command), and Herdr counts as a terminal for New session. The window shows the default core only.
 - herdr: a server runs apart from any terminal, so the terminal you see it in is the one running a `herdr` client for that session (`LiveSessions.Viewer`). With none attached, Pick up opens one. herdr's own reading of each pane (working, blocked, done) counts below hooks and above the transcript (`HerdrStatus`).
 - tmux is the same with its own CLI (`Tmux`, the server's executable from its pid, `-S` the socket):
   - one call per server lists its panes and clients (`TmuxServer.listing`);

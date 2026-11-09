@@ -8,14 +8,15 @@
 :root[data-theme="dark"]{--pg-bg:#0E1210;--pg-fg:#E8ECE9;--pg-muted:#8C9690;--pg-line:#252B28;--pg-card:#131815;color-scheme:dark}
 html,body{overflow:auto!important;-webkit-user-select:text!important;user-select:text!important;background:var(--pg-bg)!important;color:var(--pg-fg);margin:0}
 body{font-family:Inter,-apple-system,system-ui,sans-serif}
-.wrap{max-width:880px;margin:0 auto;padding:28px 20px 64px;display:flex;flex-direction:column;gap:22px}
-h1{font:600 22px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
-.sub{margin:6px 0 0;color:var(--pg-muted);font-size:14px;line-height:1.55;max-width:64ch}
+.wrap{max-width:880px;margin:0 auto;padding:12px 20px 64px;display:flex;flex-direction:column;gap:14px}
+h1{font:600 18px/1.1 Inter,sans-serif;letter-spacing:-.02em;margin:0}
+.sub{margin:0;color:var(--pg-muted);font-size:13px;line-height:1.4}
+header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 h2{font:600 15px/1.2 Inter,sans-serif;letter-spacing:-.01em;margin:0 0 4px}
 .note{font-size:12.5px;line-height:1.5;color:var(--pg-muted);margin:0}
 
 /* the desktop stays in view while you pick scenarios */
-.deskwrap{position:sticky;top:0;z-index:20;padding:10px 0;background:var(--pg-bg)}
+.deskwrap{position:sticky;top:0;z-index:20;padding:6px 0;background:var(--pg-bg)}
 /* a real desktop: Raycast wallpapers (raycast.com/wallpapers), seen from the top of the screen like the notch sees it */
 .desk{position:relative;border-radius:16px;overflow:hidden;box-shadow:0 0 0 1px var(--pg-line);height:452px;
   background:#0b0d14 var(--wall,url(wallpapers/blue-distortion-1.webp)) center 12%/cover no-repeat}
@@ -131,6 +132,23 @@ i.sci svg{width:16px;height:16px}
 .rec .wrap{max-width:none;padding:0;gap:0}.rec .wrap>*:not(.deskwrap){display:none}
 /* Settings and setup are as tall as the panel (440 pt): the desk grows to show their last rows */
 .rec .deskwrap{position:static;padding:0}.rec .disp,.rec .now{display:none}.rec .desk{border-radius:0;box-shadow:none;height:100vh}
+.film .desk #hw{box-shadow:none}
+/* filmed close: WebKit draws the coat's filter at screen resolution whatever the zoom, so a film lights it with a gradient instead */
+.film .cr .f g.coat{filter:none!important}
+/* &macro (perch-studio's macro-clip films it): the notch alone on near-black, a soft shadow under the open panel; &timer: how long it has
+   waited, in rolling digits beside "Waiting on you" */
+.macro .desk{background-size:240%;background-position:84% 22%}.macro .act-b.act-o{display:none}.macro .act-p{white-space:nowrap}.macro .ttl,.macro .now{display:none!important}
+/* the clip opens slower, in a spring that overshoots a little, and closes in one smooth 0.6 s ease */
+.macro .n[data-s=idle][data-nb="1"]{transition:width .6s cubic-bezier(.45,0,.25,1),margin-left .6s cubic-bezier(.45,0,.25,1),height .6s cubic-bezier(.45,0,.25,1),border-radius .6s cubic-bezier(.45,0,.25,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s,background-color 0s .6s}
+.macro .n[data-s=idle][data-nb="1"][data-act=full]{transition:width .7s cubic-bezier(.3,1.6,.45,1),margin-left .7s cubic-bezier(.3,1.6,.45,1),height .7s cubic-bezier(.3,1.6,.45,1),border-radius .7s cubic-bezier(.3,1.6,.45,1),box-shadow var(--nbg) cubic-bezier(.3,0,.6,1),--gcol .7s}
+.macro .act>*{transition:opacity .35s cubic-bezier(.4,0,.6,1),transform .3s cubic-bezier(.2,.9,.3,1),left .45s cubic-bezier(.3,1.2,.45,1),right .45s cubic-bezier(.3,1.2,.45,1)}
+.macro .n[data-act=full]{box-shadow:0 16px 28px -10px rgba(0,0,0,.9),0 4px 10px -4px rgba(0,0,0,.6)}
+.odo{display:inline-flex;align-items:center;flex:none;margin-left:.42em;color:#F5B83D;font-weight:500;font-variant-numeric:tabular-nums}
+.odo .w{display:inline-block;height:2.5em;margin:-.625em 0;overflow:hidden;width:.64em;text-align:center;
+  -webkit-mask-image:linear-gradient(transparent .55em,#000 .8em,#000 1.7em,transparent 1.95em);mask-image:linear-gradient(transparent .55em,#000 .8em,#000 1.7em,transparent 1.95em)}
+.odo .w b{display:block;font-weight:inherit;padding-top:.5em;will-change:transform}
+.odo .w i{display:block;height:1.5em;line-height:1.5em;font-style:normal}
+.odo .c{padding:0 .03em}.film .cr .f path:not(.pl):not(.fd){fill:url(#coat-film)}.film .now,.film .ttl{display:none!important}
 .rec.play .now{display:block;left:22px;right:auto;top:calc(50% + 12px);bottom:auto;width:190px;background:none;backdrop-filter:none;padding:0;font-size:12.5px;line-height:1.35;color:rgba(255,255,255,.72);text-shadow:0 1px 8px rgba(0,0,0,.6)}
 /* a PR demo's title for each scene, big enough to read in a GIF, in the empty space left of the card; the step caption (.now) under it */
 .ttl{display:none}.rec.play .ttl{display:block;position:absolute;z-index:6;left:22px;width:190px;bottom:calc(50% - 6px);font:600 19px/1.22 Inter,sans-serif;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}.rec.play .desk #hw{box-shadow:none}
@@ -147,7 +165,7 @@ i.sci svg{width:16px;height:16px}
 <main class="wrap">
   <header>
     <h1>Perch</h1>
-    <p class="sub">The real interface, the same code that runs in the app, with sample projects. Pick a scenario to see it on the desktop below.</p>
+    <p class="sub">The real interface with sample projects. Pick a scenario below.</p>
   </header>
 
   <div class="deskwrap">
@@ -235,6 +253,7 @@ i.sci svg{width:16px;height:16px}
     }
   })();
   var charRun = 0;   /* the character scenarios' timers; any scenario started after stops them */
+  function preview(i, o, then) { return function () { var me = charRun; if (o) d.variant(i, o); else { d.project(i); d.show('open'); } setTimeout(function () { if (me !== charRun) return; window.perch.previewMenu(true); if (then) setTimeout(function () { if (me === charRun) then(); }, 900); }, 700); }; }
   function reply(typed, send) { return function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.replyMenu(true); if (typed) { var r = document.querySelector('.r-in'); r.value = 'Match by vendor first, then by amount.'; r.dispatchEvent(new Event('input')); if (send) setTimeout(function () { r.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, 1200); } }, 700); }; }
   /* selects the words `from` to `to` (found in the text) inside the element, as a drag across them would */
   function selectWords(sel, from, to) {
@@ -257,6 +276,19 @@ i.sci svg{width:16px;height:16px}
   }
   /* presses one of the live activity's buttons the way the pointer would: it lights under the pointer, then clicks (or, with `fail`, the answer comes too late) */
   function press(a, ms, fail) { var me = charRun; setTimeout(function () { if (me !== charRun) return; var b = document.querySelector('.act [data-a=' + a + ']'); if (!b) return; b.classList.add('hv'); setTimeout(function () { if (me !== charRun) return; b.classList.remove('hv'); if (fail) d.sentFail(a); else b.click(); }, 600); }, ms || 1400); }
+  /* a click on the small character beside the card: the reaction (`name`), on a loop; another scenario stops it */
+  function mascotTap(name, every) {
+    var me = ++charRun;
+    d.project(0); d.show('open');
+    (function again(ms) {
+      setTimeout(function () {
+        if (me !== charRun) return;
+        var c = document.querySelector('#scene .cr');
+        if (name) d.mascot(name); else c.click();
+        again(every || 3200);
+      }, ms);
+    })(1100);
+  }
   /* a Motion scenario's timeline: at(ms, caption, f) runs f after ms, unless another scenario started since */
   function motionAt() { var me = charRun; return function (ms, label, f) { setTimeout(function () { if (me !== charRun) return; if (label) now.textContent = label; f(); }, ms); }; }
   /* types `text` into the card's field a letter at a time, from `delay` ms, then runs `then` */
@@ -303,7 +335,8 @@ i.sci svg{width:16px;height:16px}
   /* replies that list things: a bold line straight into bullets, numbers, nested items, a table after a list */
   var SAID_BULLETS = '**Options for the next release**\n- Serve the feed from somewhere that doesn’t cache for 5 minutes, such as a GitHub Pages site or a release asset URL.\n- Or leave it and have `release.sh` print “live in about 5 minutes”.\n\nI would take the first: it also makes the appcast faster for everyone.';
   var SAID_NUMBERS = 'The release goes out in this order:\n1. Bump the version and write `release-notes/0.4.0.md`\n2. Run `./scripts/release.sh --publish`\n3. Wait for the appcast to refresh, about 5 minutes\n4. Check that an older copy offers the update\n\nStep 3 is the slow one.';
-  var SAID_NESTED = '## What changed\n- The reply card\n  - Bullet and numbered lists now draw\n  - Nested items sit one step in\n    - and a third level too\n- The design page\n  - Four new scenarios under *Reply formatting*\n- Tests: **all green**, nothing new to cover\n\nNext: open the PR.';
+  var SAID_LONG = 'The hero now fits at phone width. What changed, and why:\n\n## Layout\n- Padding drops from 96px to 48px under 640px, so the headline has room\n- The headline wraps at 18ch instead of overflowing the card\n- The call to action moves under the headline on phones, full width\n\n## Weight\n- The full-bleed video is gone on phones; it cost 1.8s on 4G\n- The poster image stays in its place, so the fold still has something to look at\n- Fonts load with `font-display: swap`, so text shows before Inter arrives\n\n## Checked\n| Width | Before | After |\n|---|---|---|\n| 375 | overflows | fits |\n| 414 | overflows | fits |\n| 768 | fits | fits |\n\nLighthouse on a mid phone went from 61 to 88. Nothing changed above 640px.\n\nWant me to bring the video back for desktop only, behind `prefers-reduced-motion`?';
+  var SAID_NESTED ='## What changed\n- The reply card\n  - Bullet and numbered lists now draw\n  - Nested items sit one step in\n    - and a third level too\n- The design page\n  - Four new scenarios under *Reply formatting*\n- Tests: **all green**, nothing new to cover\n\nNext: open the PR.';
   var SAID_MIXED = '**Where September stands**\n- 41 of 43 invoices matched\n- Two are still open:\n  1. A Figma seat refund\n  2. A Linear credit note\n\n| Vendor | Matched |\n|---|---|\n| Hetzner | 100% |\n| Linear | 94% |\n| Figma | 75% |\n\nShould I book the two as credits against October?';
   var WIDE = 'Ran the load test against the new limiter, twelve runs. Every run held its limit:\n\n| Run | Requests | Allowed | Rejected (429) | p50 | p95 | p99 | Error rate | Notes |\n|---|---|---|---|---|---|---|---|---|\n' +
     '| 121 | 20,000 | 100% | 0 | 12 ms | 27 ms | 41 ms | 0.00% | cold start |\n' +
@@ -379,8 +412,16 @@ i.sci svg{width:16px;height:16px}
   function onRow(name) { return function () { var r = [].filter.call(document.querySelectorAll('.nw .nrow'), function (x) { return (x.querySelector('.nm') || {}).textContent === name; })[0]; return deskPoint(r, 30, 0); }; }
   function onPrompt() { var el = document.querySelector('.nw-in'), w = el.getBoundingClientRect().width; return deskPoint(el, w / 2 - 46, 0); }
   function offCard() { var w = document.getElementById('desk').clientWidth, H = document.getElementById('desk').clientHeight; return [Math.max(36, w / 2 - 255), H * .42]; }
-  var APP_SOURCES = [{ id: 'cowork', name: 'Claude tasks', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
   var FOUR = [{ id: 'claude', name: 'Claude Code', count: 9, enabled: true }, { id: 'codex', name: 'Codex', count: 2, enabled: true }, { id: 'opencode', name: 'OpenCode', count: 1, enabled: true }, { id: 'pi', name: 'pi', count: 3, enabled: false }];
+  var APP_SOURCES = [{ id: 'cowork', name: 'Claude tasks', count: 2, enabled: true }, { id: 'chat', name: 'Claude chats', count: 30, enabled: false }];
+  /* every agent Perch knows, with what a Mac that has some of them would send: found ones have sessions and are on (chats start off), the rest have none and are off */
+  var CAT = [['agterm', 'agterm', ['docs'], 1], ['claude', 'Claude Code', ['Website', 'Docs', 'Finance'], 9], ['codex', 'Codex', ['Onboarding flow'], 2], ['cmux', 'cmux', ['tui-kit'], 1], ['conductor', 'Conductor', ['conductor-test'], 1], ['cursor', 'Cursor', ['api-server', 'website'], 2],
+    ['cowork', 'Claude tasks', ['Taxes', 'Inbox'], 2], ['chat', 'Claude chats', [], 30], ['dots', 'Dots', ['Pip'], 1], ['grokbot', 'Grok Bot', ['Scout', 'Ledger'], 2], ['herdr', 'herdr', ['price-scraper'], 1], ['muse', 'Muse', ['ledger-api'], 1], ['omp', 'Oh My Pi', ['lint-rules'], 1], ['opencode', 'OpenCode', ['tui-kit'], 1], ['pi', 'pi', ['price-scraper'], 3], ['tmux', 'tmux', ['api-server'], 1]];
+  /* as Swift sends them: every agent Perch supports, found or not, all on but Claude chats (unless `on` says), and the places
+     agents run in, which have no count of their own */
+  var PLACES = ['agterm', 'cmux', 'conductor', 'herdr', 'tmux'];
+  function srcs(found, on) { return CAT.map(function (c) { var f = found.indexOf(c[0]) >= 0 && PLACES.indexOf(c[0]) < 0; return { id: c[0], name: c[1], count: f ? c[3] : 0, names: f ? c[2] : [], enabled: on ? on.indexOf(c[0]) >= 0 : c[0] !== 'chat' }; }); }
+  var ALL_IDS = CAT.map(function (c) { return c[0]; });
     /* every way an update can fail: what the notch says (a line), what Settings says beside Updates (short), what you can do (fix: try again, move, or nothing) */
     var UPD_ERR = [
       ['Offline', { during: 'check', short: 'no connection', problem: 'No internet connection. Try again in a moment.' }],
@@ -452,23 +493,58 @@ i.sci svg{width:16px;height:16px}
       ['OpenCode needs your OK', 'OpenCode asks before running a command. Allow with A or Deny with D from the notch, or answer in OpenCode: whichever comes first.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode wants to run a command', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'OpenCode wants to run a command', subject: 'rm -rf dist && bun run build', options: [], answerable: true } }); }],
       ['OpenCode asked you something', 'Its question tool, answered with a number.', function () { d.variant(10, { status: { kind: 'attention', text: 'OpenCode asked you something', app: 'opencode' }, attention: true, now: null, line: 'Waiting on you for 2m', ask: { kind: 'question', title: 'OpenCode asked you something', subject: 'Should Tab leave the table or move to the next cell?', answerable: true, questions: [Q('Should Tab leave the table or move to the next cell?', 'Tab key', [['Leave the table (Recommended)', 'Like a native grid: arrows move, Tab leaves'], ['Next cell', 'Like a spreadsheet']])] } }); }],
       ['pi in herdr, finished', 'pi in a herdr pane, with herdr open in Ghostty. Pick up focuses that pane in herdr and brings Ghostty forward. Hover the icon for where it runs.', function () { d.project(11); d.show('open', false, true); }],
+      ['Claude Code in Herdr, working', 'Claude Code in a terminal of Herdr’s own app: Herdr’s icon with Claude’s mark on its corner, and Open Herdr on the button. Pick up brings Herdr forward on that agent; Reply types into its terminal. Hover the icon for where it runs.', function () { d.variant(11, { via: 'herdr', host: '', app: 'claude', status: { kind: 'running', text: 'Claude Code is working', app: 'claude' }, now: 'Running `pytest -q`', next: '', fresh: false, line: 'Working now' }); }],
+      ['Claude Code in Herdr needs your OK', 'The same session asking before a command: Allow with A or Deny with D from the notch, as in any terminal, or answer it in Herdr.', function () { d.variant(11, { via: 'herdr', host: '', app: 'claude', status: { kind: 'attention', text: 'Claude wants to run a command', app: 'claude' }, attention: true, now: null, next: '', line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'Claude wants to run a command', subject: 'python scrape.py --all --retries 3', options: [], answerable: true } }); }],
+      ['All sessions, one in Herdr', 'In the list the Herdr session wears Herdr’s icon like any terminal session wears its terminal’s.', function () { d.variantList(11, { via: 'herdr', host: '', app: 'claude', status: { kind: 'done', text: 'Claude Code finished', app: 'claude' } }); }],
       ['Cursor, finished', 'A chat in Cursor: Cursor\u2019s own icon and Open Cursor on the button. Pick up opens that very chat in Cursor\u2019s Agents window through Cursor\u2019s own chat link, and Reply goes in with Cursor behind your app.', function () { d.project(13); d.show('open', false, true); }],
       ['Cursor needs your OK', 'Cursor shows its own prompt in its window. Perch reads that it waits, and for what, from Cursor\u2019s database; Allow or Deny opens the chat, presses Run or Skip there and puts you back where you were.', function () { d.variant(13, { status: { kind: 'attention', text: 'Cursor is waiting for your OK', app: 'cursor' }, attention: true, now: null, fresh: false, line: 'Waiting on you for 1m', ask: { kind: 'permission', title: 'Cursor wants to search the web', subject: '\u201ccurrent stable Node.js version 2026\u201d', options: [], answerable: true } }); }],
       ['Cursor, working', 'A Cursor chat mid-turn: what it says it is doing and the step on the Now row, read from its transcript.', function () { d.variant(13, { status: { kind: 'running', text: 'Cursor is working', app: 'cursor' }, now: 'Editing sync.ts', context: 'Running the tests before I touch the scheduler.', fresh: false, line: 'Working now' }); }],
       ['Claude in Conductor', 'A workspace in Conductor: Conductor\u2019s icon with Claude\u2019s mark on its corner, and Open Conductor on the button. Pick up brings Conductor forward and opens that workspace. Hover the icon for where it runs.', function () { d.project(12); d.show('open', false, true); }],
       ['pi asked you something', 'One of pi\u2019s extensions asks something in the terminal. The card shows it; Pick up goes to its pane to answer.', function () { d.variant(11, { status: { kind: 'attention', text: 'pi asked you something', app: 'pi' }, attention: true, fresh: true, line: 'Waiting on you for 3m', next: '', ask: { kind: 'question', title: 'pi asked you something', subject: 'Overwrite failed.txt?', questions: [], answerable: false } }); }],
       ['All sessions, every agent', 'The list with Claude, Codex, OpenCode and pi side by side.', function () { d.show('switcher'); }],
-      ['Settings: five agents', 'Cursor joins the list once its chats are on this Mac.', function () { d.settings({ sources: FOUR.concat([{ id: 'cursor', name: 'Cursor', count: 2, enabled: true }]), page: 'agents' }); }],
-      ['Settings: four agents', 'Settings, Agents: each agent Perch reads, how many sessions it has, and a switch. An agent switched off dims.', function () { d.settings({ sources: FOUR, page: 'agents' }); }],
-      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, all four.', function () { d.onboarding(4, true, false, null, true); }]
+      ['Settings: five agents', 'Cursor joins once its chats are on this Mac.', function () { d.settings({ sources: FOUR.concat([{ id: 'cursor', name: 'Cursor', count: 2, enabled: true }]), page: 'agents' }); }],
+      ['Settings: four agents', 'Settings, Agents: each agent Perch reads, how many sessions it has, and a check. An agent switched off dims.', function () { d.settings({ sources: FOUR, page: 'agents' }); }],
+      ['Onboarding: four agents', 'Choose your apps lists only the agents found on this Mac; here, five found, alphabetical.', function () { d.onboarding(4, true, false, null, true); }]
+    ]],
+    ['Muse, Dots, Grok Bot', [
+      ['Muse, finished', 'Muse Code in a terminal, like OpenCode and pi: the terminal\u2019s icon with Muse\u2019s mark on its corner, and Open Ghostty on the button. Hover the icon for where it runs.', function () { d.project(14); d.show('open', false, true); }],
+      ['Muse, working', 'What it says it is doing, and the step on the Now row.', function () { d.variant(14, { status: { kind: 'running', text: 'Muse is working', app: 'muse' }, now: 'Running `cargo test`', fresh: false, line: 'Working now' }); }],
+      ['Oh My Pi, finished', 'Oh My Pi (omp), the pi fork, in a terminal like pi: the terminal\u2019s icon with Oh My Pi\u2019s own mark on its corner, and Open Ghostty on the button. Hover the icon for where it runs.', function () { d.project(17); d.show('open', false, true); }],
+      ['Oh My Pi, working', 'What it says it is doing, and the step on the Now row.', function () { d.variant(17, { status: { kind: 'running', text: 'Oh My Pi is working', app: 'omp' }, now: 'Running `pnpm lint`', fresh: false, line: 'Working now' }); }],
+      ['Dots, finished', 'Dots works in the cloud, on a computer of its own, so there is no terminal and no folder: the row is the dot itself, one long chat: it wears the ChatGPT app\u2019s icon, its title is the dot\u2019s name, and Open Dots goes to it.', function () { d.project(15); d.show('open', false, true); }],
+      ['Dots, working', 'Dots keeps going with your Mac closed. The card says what it is on, the same as any agent.', function () { d.variant(15, { status: { kind: 'running', text: 'Dots is working', app: 'dots' }, now: 'Reading the dashboard', fresh: false, line: 'Working now' }); }],
+      ['Grok Bot, working', 'Grok Bot in the cloud: one row per bot, its own icon, the bot\u2019s name as the title.', function () { d.project(16); d.show('open', false, true); }],
+      ['Grok Bot needs you', 'A cloud agent asks before it acts for you. Perch says what and where; Pick up opens Grok Bot to answer.', function () { d.variant(16, { status: { kind: 'attention', text: 'Grok Bot wants your OK', app: 'grokbot' }, attention: true, now: null, fresh: true, line: 'Waiting on you for 2m', ask: { kind: 'permission', title: 'Grok Bot wants to send an email', subject: 'To the billing team: \u201cCheckout test fixed\u201d', options: [], answerable: false } }); }],
+      ['All sessions, three more agents', 'The list scrolled to Muse, Dots and Grok Bot: Muse wears its terminal\u2019s icon with its own mark on the corner; the two cloud agents wear their own icon, and where a folder would be, the project they work on.', function () { var me = charRun; d.show('switcher'); setTimeout(function () { if (me !== charRun) return; for (var k = 0; k < 30; k++) { var s = window.perch._snap(), p = s && s.projects[s.selected]; if (p && p.id === 'dotsbrief') break; window.perchDev.step(1); } }, 900); }],
+      ['Settings: Agents', 'Settings, Agents: a row for each kind, as on the apps step, showing the marks of what Perch follows. Everything it supports is listed, found or not, and starts on (Claude chats off). Terminals and Conductor are switches too: off, the sessions running in them get no row and no card. Return or a click opens a kind\u2019s list.', function () { d.settings({ sources: srcs(['claude', 'codex', 'cursor', 'grokbot', 'tmux']), page: 'agents' }); }],
+      ['Settings: Agents, a kind open', 'A kind opens a popover list over the rows below, like Notify me about: its agents, alphabetical, each with a check and, once Perch has seen it, how many sessions. Up and Down choose, Return switches one, Left or Esc closes it.', function () { d.settings({ sources: srcs(['claude', 'codex', 'cursor', 'grokbot', 'tmux']), page: 'agents' }); setTimeout(function () { d.openOthers(); }, 900); }],
+      ['Settings: Agents, Terminals open', 'The last kind opens the same way; its list hangs past the card, which keeps its size.', function () { d.settings({ sources: srcs(['claude', 'codex', 'cursor', 'grokbot', 'tmux']), page: 'agents' }); setTimeout(function () { var r = document.querySelectorAll('.set .s-kr'); if (r.length) r[r.length - 1].click(); }, 900); }],
+      ['Settings: Agents, tmux off', 'tmux switched off: its mark leaves the Terminals row, and the sessions running in tmux get no row and no card. The agents in them stay on.', function () { d.settings({ sources: srcs(['claude', 'codex', 'cursor', 'grokbot'], ALL_IDS.filter(function (x) { return x !== 'chat' && x !== 'tmux'; })), page: 'agents' }); setTimeout(function () { var r = document.querySelectorAll('.set .s-kr'); if (r.length) r[r.length - 1].click(); }, 900); }],
+      ['Settings: Agents, nothing found yet', 'A Mac with none of them yet: everything Perch supports is listed and on (Claude chats off), so a session shows as soon as one appears.', function () { d.settings({ sources: srcs([]), page: 'agents' }); }],
+      ['Settings: Agents, found all sixteen', 'Everything found and on: each row shows all its marks.', function () { d.settings({ sources: srcs(ALL_IDS, ALL_IDS), page: 'agents' }); }],
+      ['Settings: Status', 'Live status and Pull requests, which sat under the agents until the list could outgrow the panel.', function () { d.settings({ page: 'status' }); }],
+      ['Onboarding: the scan comes in', 'Step 4 opens while Perch is still looking: one quiet line. Then what it found rises in, each with a check, and the title says so.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'cursor']), true); }],
+      ['Onboarding: what it found', 'Perch found 13 sessions across 3 apps: a row for each kind, as in Settings, showing the marks of what it will follow: everything it supports, on but Claude chats. Keep them, or open a kind to switch one off.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'cursor'])); }],
+      ['Onboarding: a kind open', 'A kind opens its list under it, over the rows below: its agents, alphabetical, each with a check and how many sessions Perch found. Up and Down choose, Return switches one, Left or Esc closes it.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'cursor'])); setTimeout(function () { d.openOthers(); }, 900); }],
+      ['Onboarding: Terminals open', 'The last kind opens upward when the panel has no room under it.', function () { d.onboarding(4, true, false, null, srcs(['claude', 'codex', 'herdr', 'tmux', 'cursor'])); setTimeout(function () { var r = document.querySelectorAll('.onb .ox-h'); if (r.length) r[r.length - 1].click(); }, 900); }],
+      ['Onboarding: nothing found', 'A fresh Mac: nothing found yet. Everything Perch supports is on (Claude chats off), so a session shows as soon as one appears.', function () { d.onboarding(4, true, false, null, srcs([])); }],
+      ['Onboarding: found all sixteen', 'Everything found: each row shows all its marks.', function () { d.onboarding(4, true, false, null, srcs(ALL_IDS)); }],
+    ]],
+    ['Preview', [
+      ['Preview', 'The card is a gist. Space, Preview, or a click on the summary shows the agent\u2019s whole last message, as tall as the panel lets it be, with no field under it. Your own message is above it as a bubble.', preview(1)],
+      ['Preview: a long one', 'A message taller than the panel opens at its end, as a chat does, and scrolls: the arrows go a few lines, Page Up and Down a page, Command+Up and Down to the ends. Space again closes it, as Quick Look does.', preview(1, { said: SAID_LONG })],
+      ['Preview: copy', 'Command+C copies the whole message as written, markdown and all, or only what you selected. The Copy button says Copied.', preview(1, null, function () { window.perch.previewKey('copy'); })],
+      ['Preview, then reply', 'R turns Preview into a reply: the message stays where you scrolled it and the field comes in under it.', preview(1, { said: SAID_LONG }, function () { setTimeout(function () { window.perch.previewKey('pageUp'); }, 100); setTimeout(function () { window.perch.previewKey('reply'); }, 900); })],
+      ['Preview from the notification', 'A session you are not in finishes. Click its title on the notch and its card opens on the whole message; hovering the title says so. From the keyboard, the shortcut that opens Perch (Command+Option) opens its card, and Space previews.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); press('preview', 1800); }],
+      ['Preview from the list', 'In the list, Space previews the row you are on without opening its card first; Esc goes back to the list on the same row. Once you type to filter, Space is a space.', function () { var me = charRun; d.show('switcher'); var on = function () { var s = window.perch._snap(), p = s && s.projects[s.selected]; return p && p.said && !p.ask; }; setTimeout(function () { if (me !== charRun) return; for (var k = 0; k < 8 && !on(); k++) window.perchDev.step(1); }, 900); setTimeout(function () { if (me !== charRun) return; window.perchDev.show('open', false, true); window.perch.previewMenu(true, 'list'); }, 2000); }]
     ]],
     ['Claude app (spike)', [
       ['A task, finished', 'A Claude task (what was Cowork): the same card as a chat or a Code session, the Claude icon, its folder as the project (Taxes), what it found. Open Claude goes to the task (claude://claude.ai/local_sessions/<id>). Cowork has no hooks Perch can reach, so its questions are read only.', function () { var at = d.claudeApp(); d.project(at); d.show('open', false, true); }],
       ['A task, never opened here', 'A task whose words this Mac never cached (started on another device, or not opened lately): its title, its folder and a quiet grey line saying so. Status still comes through.', function () { var at = d.claudeApp(); d.project(at + 1); d.show('open', false, true); }],
       ['A chat', 'A chat in the Claude app: its title, and what Claude last said, like any session. Open Claude goes to the chat (claude://claude.ai/chat/<uuid>). What was said is cached only for chats opened lately on this Mac; see the spike notes.', function () { var at = d.claudeApp(); d.project(at + 2); d.show('open', false, true); }],
       ['The list with tasks and chats', 'Claude tasks and chats among the coding sessions, looking alike. A chat in a Claude project shows the project in grey (financials).', function () { d.claudeApp(); d.show('switcher'); }],
-      ['Settings: tasks and chats', 'Settings, Agents: every agent has a plain check, Claude tasks and Claude chats too, so you choose which Perch shows. Tasks start on, chats off. Under them, the places Perch works in.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), places: [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }], page: 'agents' }); }],
-      ['Onboarding: tasks and chats', 'Choose your apps: Claude as one tile with Code, Tasks and Chats as small checks (chats start off and say only how many), the other agents beside it, and the places Perch works in with their marks.', function () { d.onboarding(4, true, false, null, 'app'); }]
+      ['Settings: tasks and chats', 'Settings, Agents: Claude tasks and chats are listed with the rest, alphabetical. Tasks start on, chats off.', function () { d.settings({ sources: FOUR.concat(APP_SOURCES), places: [{ id: 'conductor', name: 'Conductor' }, { id: 'herdr', name: 'herdr' }, { id: 'tmux', name: 'tmux' }, { id: 'cmux', name: 'cmux' }, { id: 'agterm', name: 'agterm' }], page: 'agents' }); }],
+      ['Onboarding: tasks and chats', 'Choose your apps with Claude tasks and chats among the rest, alphabetical (chats start off).', function () { d.onboarding(4, true, false, null, 'app'); }]
     ]],
     ['Replying', [
       ['Reply: empty', 'Press R. Claude\u2019s own last message takes the summary\u2019s place, so you answer what you read, with your own last message above it as a bubble, a scroll up; a long one opens at its end and scrolls. Esc puts the card back.', reply(false)],
@@ -572,9 +648,9 @@ i.sci svg{width:16px;height:16px}
       }],
     ]],
     ['Acting on it', [
-      ['Sessions', 'A card you open yourself has no button for the other sessions: Back (Left) is one press away, and Up and Down still flip to the next card. The welcome card offers Not now instead (N snoozes either way).', function () { d.project(1); d.show('open', false, true); }],
+      ['Sessions', 'A card has no button for the other sessions: Back (Left) is one press away, and Up and Down still flip to the next card (where the message can be previewed, Preview sits in the footer). The card Perch opened by itself offers no Not now button either (N still snoozes it).', function () { d.project(1); d.show('open', false, true); }],
       ['Not now: choices', 'Press N. 30 min, 2 hours or tomorrow.', function () { d.project(1); d.show('open'); setTimeout(function () { window.perch.snoozeMenu(true); }, 700); }],
-      ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); }],
+      ['Type to filter', 'In the list, just type. The header shows what you typed and how many match; Esc clears it first. What you typed is a small field: Left and Right move a caret through it, Command+A selects it all, Command+C copies.', function () { d.show('switcher'); setTimeout(function () { d.type('web'); }, 500); setTimeout(function () { d.edit({ key: 'ArrowLeft' }); }, 1700); setTimeout(function () { d.edit({ key: 'a', metaKey: true }); }, 2900); }],
       ['All sessions', 'Press Left (or Tab). What needs you first, each with its status in words and how long ago. Five at a time, the rest scroll. Rest on a long row for a second and it reads itself out.', function () { d.show('switcher'); }],
       ['Asked for, still looking', 'The shortcut right after launch, before the first scan.', function () { d.empty(true); }],
       ['Asked for, nothing there', 'No sessions in the last two weeks.', function () { d.empty(false); }]
@@ -610,8 +686,10 @@ i.sci svg{width:16px;height:16px}
         var me = charRun; d.show('idle', true); now.textContent = 'Working in api-server, Perch closed';
         setTimeout(function () { if (me !== charRun) return; now.textContent = 'Command+Option+N'; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'n', code: 'KeyN', metaKey: true, altKey: true, bubbles: true })); }, 1300);
       }],
-      ['Choose the agent', 'Every agent on this Mac, with where it opens: the Claude and Codex apps, or the terminal you use for the others. It starts on the agent of the row you were on; a number picks one and goes on.', function () { d.project(1); d.newSession(); }],
-      ['Choose the agent, typed', 'Typing narrows the agents, by name or by where they open (\u201cghostty\u201d leaves the terminal ones); a number still picks one.', function () { d.project(1); d.newSession(); setTimeout(function () { ['c', 'o'].forEach(function (k, i) { setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }, i * 250); }); }, 500); }],
+      ['Choose the agent', 'Every agent on this Mac, each with its own icon, and whether it is an app or runs in a terminal. It starts on the agent of the row you were on; a number picks one and goes on.', function () { d.project(1); d.newSession(); }],
+      ['Choose where it opens', 'A command line agent asks where next: each terminal and host on this Mac (Ghostty, Herdr, Terminal, cmux here), wearing its icon with the agent on its corner. It starts on the one you used last; a number picks one and goes on. Asked only when there is more than one, and never for the Claude or Codex app.', function () { d.project(1); d.newSession({ agent: 'claude-code', step: 'where' }); }],
+      ['Opens in Herdr', 'Herdr chosen: the chips along the top say Claude Code, then Herdr, and the folder comes next. Click a chip to change it.', function () { d.project(1); d.newSession({ agent: 'claude-code', step: 'project', term: 1 }); }],
+      ['Choose the agent, typed', 'Typing narrows the agents, by name, or \u201cterminal\u201d for the command line ones; a number still picks one.', function () { d.project(1); d.newSession(); setTimeout(function () { ['c', 'o'].forEach(function (k, i) { setTimeout(function () { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }, i * 250); }); }, 500); }],
       ['Choose the folder', 'The folders your sessions ran in, newest first, starting on the one of the row you were on. The first row is for no folder: the Claude app cannot be asked for that, so for Claude it reads Let Claude choose (the folder picked in Claude\u2019s own new-session screen); Codex starts a chat with no folder. Choose a folder… opens the Mac’s own picker. Press the agent’s chip to change it.', function () { d.project(1); d.newSession({ step: 'project' }); }],
       ['Choose the folder, typed', 'Typing narrows the folders, by name or path, and lands on the first that matches.', function () { d.project(1); d.newSession({ step: 'project', q: 'code' }); }],
       ['A terminal agent, no project', 'For an agent that runs in a terminal, No project starts it in your home folder.', function () { d.project(1); d.newSession({ agent: 'pi', step: 'project' }); }],
@@ -766,6 +844,12 @@ i.sci svg{width:16px;height:16px}
     ]],
     ['While you work', [
       ['A request, start to finish', 'Claude asks to run a command while you work elsewhere. Watch it arrive, then answer it.', function () { d.permission(); }],
+      ['Character at the notch', 'Settings, Notifications: Character at the notch on. Claude works and the notch is plain. Claude asks: the notch opens in one spring with your character inside, at the left of the row, looking at you. Left waiting it acts it out with its face: a glance at the buttons, then bored (heavy lids, a slow look away, a sighing blink), then impatient (a slanted glare, an eye-roll, double blinks). Command+Option+A: one slow, satisfied blink, and the notch closes. Only its eyes move.', function () { d.notchChar(); }],
+      ['Character at the notch: clip', 'The X clip (filmed by perch-studio, macro-clip/): closed; the notch springs open at 0.8 s; it waits: side-eye, an eye-roll, double blinks and a full glare at 5.6 s, held; at 7.5 s the notch closes, closed again by 8.1 s, so 8.5 s loops. With ?record&film=...&macro, the notch alone on near-black, with a timer beside Waiting on you.', function () { d.notchClip(); }],
+      ['Character at the notch: asks', 'The notch has just opened: the character looks at you. Held here, unanswered (it turns impatient after 3 s).', function () { d.notchChar(true, 'alert'); }],
+      ['Character at the notch: bored', 'Heavy lids, looking away.', function () { d.notchChar(true, 'bored'); }],
+      ['Character at the notch: impatient', 'A glare at the buttons, lids slanted.', function () { d.notchChar(true, 'glare'); }],
+      ['Character at the notch: folded', 'In the app the row folds to wings after nine seconds (here, sooner); the character stays in the left wing, beside the app\u2019s icon, until you answer.', function () { var me = charRun; d.notchChar(true); setTimeout(function () { if (me === charRun && window.perchDev.foldNow) window.perchDev.foldNow(); }, 2600); }],
       ['Quiet', 'Nothing there. The notch is just the notch.', function () { d.show('idle', true); }],
       ['Finished elsewhere', 'A session you are not in finishes. The notch grows: its project beside the camera, Finished with a check on the right, and below the session\u2019s title with Pick up or Reply, each on a Command+Option key. A small cross at the left of the row (or Command+Option+.) puts it away; otherwise it folds away after six seconds, and resting the pointer on it holds it.', function () { d.arrive(1, { status: { kind: 'done', text: 'Claude finished', app: 'claude' }, fresh: true }); }],
       ['Wants to run a command', 'The command, with Allow and Deny. After nine seconds it folds to wings, the app and a mark, that stay until you answer.', function () { d.arrive(0, { status: P0.status, attention: true, ask: P0.ask }); }],
@@ -793,6 +877,13 @@ i.sci svg{width:16px;height:16px}
       ['All clear', 'The last thing waiting on you was answered: the wings fold away. The character stays in.', function () { d.clear(); }]
     ]],
     ['Character', [
+      ['Click: giggle', 'The small character beside the card, clicked: a wobble that dies away, its eyes squeezed into a smile. Each click is a different reaction, never the same twice in a row; this one plays on a loop to look at.', function () { mascotTap('giggle'); }],
+      ['Click: hops', 'Two quick hops, each with a squash on landing, kept low so they stay under the screen edge.', function () { mascotTap('hops', 2600); }],
+      ['Click: run into the notch', 'It winds up and dashes right along the top, shrinking out of sight under the notch\u2019s edge. A moment later it pops out there, looks about, and trots home.', function () { mascotTap('dash', 3800); }],
+      ['Click: wink', 'It tips its head, one eye smiles shut and a small sparkle pops by it.', function () { mascotTap('wink', 2800); }],
+      ['Click: startle', 'Wide-eyed, it shies back and shivers, then relaxes.', function () { mascotTap('startle', 2800); }],
+      ['Click: nap', 'Its eyes close, it breathes and two small z drift up; then it wakes with a hop.', function () { mascotTap('nap', 3800); }],
+      ['Click: every reaction in turn', 'Six clicks, a different reaction each, in a random order; it never repeats the one before. Clicks while one plays are ignored.', function () { mascotTap(undefined, 3200); }],
       ['The jump', 'One of the tricks the preview plays while you choose, here every few seconds: it crouches with its eyes down, pushes off stretched, rises and slows at the top, falls faster, lands in a squash and settles. The flip is gone.', function () { d.trick('jump'); }],
       ['Switching shapes', 'Right three times at an easy pace, then four quick presses, then Up and Down through the colours. The whole character squashes and pops, eyes and all; the new shape and its face arrive together at the low point; a quick press carries on from where it is.', function () {
         d.onboarding(1); var me = ++charRun, keys = [['right', 900], ['right', 1700], ['right', 2500], ['right', 3600], ['right', 3800], ['right', 4000], ['right', 4200], ['up', 5400], ['up', 6100], ['down', 6800]];
@@ -965,7 +1056,7 @@ i.sci svg{width:16px;height:16px}
       ['3. Your shortcut: custom', 'A recorded combo, shown the same way.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ keys: ['\u2303', 'Space'], kind: 'combo', custom: true }); }, 300); }],
       ['3. Your shortcut: recording', 'Waiting for the keys; the big keys dim and the button says Cancel.', function () { d.onboarding(3, true); setTimeout(function () { d.shortcut({ recording: true }); }, 300); }],
       ['3. Your shortcut: no Accessibility', 'A tap needs Accessibility, so the line points to a key combo.', function () { d.onboarding(3, false); }],
-      ['4. Choose your apps', 'The agents found on this Mac, each on or off.', function () { d.onboarding(4, true); }],
+      ['4. Choose your apps', 'A row for each kind of agent, showing what Perch found and will follow; a row opens its list.', function () { d.onboarding(4, true); }],
       ['4. Choose your apps: first scan', 'Opened before the first scan is in: one quiet line, Scanning, and the tiles keep their size. Each line then fades to what it found, once; the app goes on sending snapshots every half second and nothing moves.', function () { d.onboarding(4, true, false, null, true, true); }],
       ['5. Live status', 'The hook, with consent: Turn on, or Skip. The switch does the same.', function () { d.onboarding(5, true); }],
       ['5. Live status: on', 'The switch is on and turns it off again, removing the hooks; the buttons follow it.', function () { d.onboarding(5, true, false, 'on'); }],
@@ -1029,7 +1120,8 @@ i.sci svg{width:16px;height:16px}
   var TABICON = {
     'Coming back': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
     'Claude app (spike)': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
-    'More agents': '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+    'More agents': '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    'Muse, Dots, Grok Bot': '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
     'Replying': '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
     'Reply formatting': '<path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
     'Selecting text': '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
@@ -1239,7 +1331,7 @@ i.sci svg{width:16px;height:16px}
     return !!hit;
   });
   if (hit) { showTab(hit[0]); boxes[hit[0]].children[hit[1]].click(); }
-  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&]play=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
+  else { if (qc || qs) console.warn('design: no scenario for ' + location.search); showTab(first); if (!/[?&](play|film)=/.test(location.search)) boxes[first].children[GROUPS[first][1].indexOf(newest[first])].click(); }
 
   /* ?record&play=A|Group/B (scripts/pr-demo.sh): the named scenarios one after another, `hold` seconds each (default 4),
      the caption saying which. A name is a scenario's own, or Group/Name where two share one. */
@@ -1282,6 +1374,44 @@ i.sci svg{width:16px;height:16px}
   var d = window.perchDev;
   document.documentElement.classList.add('rec');
   if (/[?&]play=/.test(location.search)) return;   /* pr-demo.sh: the scenarios script plays them */
+  /* ?record&film=Name (perch-studio's macro-clip/film-design.swift): that one scenario, nothing else on the desk, the notch without its pink edge */
+  var fm = /[?&]film=([^&]*)/.exec(location.search);
+  if (fm) {
+    var want = decodeURIComponent(fm[1].replace(/\+/g, ' '));
+    document.documentElement.classList.add('film');
+    if (/[?&]macro\b/.test(location.search)) {
+      document.documentElement.classList.add('macro');
+      /* the timer: each digit a wheel on a spring that rolls to the next second, faster and faster until 0:47 */
+      if (!/[?&]timer=0\b/.test(location.search)) (function () {
+        var col = '<b>' + '01234567890'.split('').map(function (x) { return '<i>' + x + '</i>'; }).join('') + '</b>';
+        var odo = document.createElement('span'); odo.className = 'odo';
+        odo.innerHTML = '<span class="w"><b><i>0</i></b></span><span class="c">:</span><span class="w">' + col + '</span><span class="w">' + col + '</span>';
+        var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var wheels = odo.querySelectorAll('.w b'), tens = wheels[1], ones = wheels[2], st = [{ x: 0, v: 0 }, { x: 1, v: 0 }], last = null;
+        var goal = function (t) { var s = Math.min(1, Math.max(0, (t - 1600) / 4900)); return Math.floor(1 + 46 * Math.pow(s, 1.9) + 1e-9); };
+        var spring = function (w, g, dt) { var k = 560, c = 2 * Math.sqrt(k) * .6; w.v += (-k * (w.x - g) - c * w.v) * dt; w.x += w.v * dt; };
+        var put = function (el, x) { el.style.transform = 'translateY(' + (-(((x % 10) + 10) % 10) * 1.5).toFixed(4) + 'em)'; };
+        (function tick() {
+          if (window.__clipT0 != null) {
+            var t = Date.now() - window.__clipT0, now = performance.now(), dt = last == null ? 0 : Math.min(.05, (now - last) / 1000); last = now;
+            var lab = [].filter.call(document.querySelectorAll('.act *'), function (e) { return e.childNodes.length === 1 && e.firstChild.nodeType === 3 && e.firstChild.nodeValue === 'Waiting on you'; })[0];
+            if (lab && lab.nextSibling !== odo) lab.parentNode.insertBefore(odo, lab.nextSibling);
+            var g = goal(t);
+            if (t < 1600) { st[0].x = 0; st[1].x = 1; st[0].v = st[1].v = 0; }
+            else if (still) { st[1].x = g; st[0].x = Math.floor(g / 10); }   /* reduced motion: the digits change in place, no roll */
+            else for (var n = Math.max(1, Math.ceil(dt / .002)), i = 0; i < n; i++) { spring(st[1], g, dt / n); spring(st[0], Math.floor(g / 10), dt / n); }
+            put(tens, st[0].x); put(ones, st[1].x);
+          }
+          requestAnimationFrame(tick);
+        })();
+      })();
+    }
+    document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><radialGradient id="coat-film" cx=".3" cy=".22" r=".95">' +
+      '<stop offset="0" stop-color="#FFF46E"/><stop offset=".45" stop-color="#F9C640"/><stop offset=".85" stop-color="#D88E22"/><stop offset="1" stop-color="#E9A030"/></radialGradient></svg>');
+    var b = [].filter.call(document.querySelectorAll('button.sc'), function (x) { return x.querySelector('b').textContent === want; })[0];
+    if (b) b.click(); else console.warn('design: no scenario named ' + want);
+    return;
+  }
   function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
   [[600, function () { d.project(0); d.show('open', false, true); }],
    [3600, function () { key('ArrowDown'); }], [5400, function () { key('ArrowDown'); }],

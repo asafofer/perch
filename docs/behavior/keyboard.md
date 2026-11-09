@@ -5,7 +5,7 @@
 - It is a tap of two or more modifiers (default Command+Option) or a key combo (`Shortcut`, with the rules: what is refused and why).
 - `ModifierTap`: a tap counts only when pressed from nothing with no other modifier or key. Keys other apps' hotkeys take are counted by the system's key-down counter, so another app's Command+Option+Shift+L never opens Perch.
 - `ShortcutRecorder` turns key events into a recording. It is recorded from Settings (Change opens a full-card page, `onbOpen` step 3 only) or onboarding step 3. `HotkeyService` applies it and pauses every Perch hotkey while recording.
-- While the notch shows a question (its row, or folded to wings), the shortcut opens that question on its card, with the keyboard, as clicking the question does (`activityCard`, app.js `toCard`). Otherwise it brings back what you put away a moment ago, or opens the list (`chordTap`).
+- While the notch shows a question (its row, or folded to wings) or a finish, the shortcut opens it on its card, with the keyboard, as clicking the question does (`activityCard`, app.js `toCard`); on a finish's card, Space previews the whole message. Otherwise it brings back what you put away a moment ago, or opens the list (`chordTap`).
 - The new session shortcut is in [new-session.md](new-session.md); the live activity's keys in [speaking-up.md](speaking-up.md).
 
 ## When a card takes the keyboard
@@ -13,6 +13,12 @@
 - A card you hover open takes it only when it shows something to answer (`cardTakesKeys`): otherwise a number or Esc lands in the agent's own prompt behind it, and Esc there dismisses the question.
 - A card takes the keyboard once (on opening, or as the pointer comes onto it) and leaves it with whoever takes it next: Raycast closes the instant it loses focus.
 - When another app takes the keyboard, or a launcher has it (`Quiet.launcherOpen`, an app other than the one in front, read through Accessibility), the card makes way (`makeWay`), except during onboarding or a reply.
+
+## Replying keeps your app in front
+
+- Opening a reply makes the panel key without bringing Perch forward (`frontForReply(quiet:)`): the app you were in stays in front and keeps its window order, so nothing flickers and terminals do not move. Closing the reply gives the front back only if Perch had to come forward.
+- If the panel does not become key within a quarter of a second, Perch comes forward after all, as it used to. `PERCH_REPLY_ACTIVATE=1` brings that back for every reply.
+- In the reply box Return and Command+Return both send; Esc goes back. Send feedback still brings Perch forward, since its file picker needs it.
 
 ## More
 

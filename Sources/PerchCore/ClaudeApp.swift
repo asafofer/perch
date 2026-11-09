@@ -7,6 +7,8 @@ import Foundation
 /// - `chat_conversation_list`: the 30 newest chats, titles and times; `project_list` names their Claude projects.
 /// - `cowork-remote-sessions` (tasks run in the cloud) and `cowork-local-sessions`: each task's title, folders, times, its
 ///   live state (`running`, `awaiting` an approval, `idle`) and whether you have seen its latest (`unread`).
+/// - `sessions_api_list_sessions`: the Code tab's Claude Code sessions that run in the cloud (`Task.cloud`): title, repository,
+///   times, `worker_status` (`running`, `idle`, `requires_action`), `unread`. What was said is not kept on this Mac.
 public final class ClaudeCache: @unchecked Sendable {
     public struct Chat: Sendable, Equatable {
         public let id: String
@@ -29,6 +31,8 @@ public final class ClaudeCache: @unchecked Sendable {
         /// Something happened that you have not looked at in the app.
         public let unread: Bool
         public let archived: Bool
+        /// A Claude Code session that runs in Anthropic's cloud (`sessions_api_list_sessions`), not a Cowork task.
+        public var cloud = false
     }
     public struct Contents: Sendable, Equatable {
         public var chats: [Chat] = []
@@ -88,7 +92,7 @@ public final class ClaudeCache: @unchecked Sendable {
             if let pages = o["pages"] as? [Any] { return pages.flatMap(rows) }
             return rows(o["data"] ?? o["rows"] ?? o["sessions"] ?? [Any]())
         }
-        var projects: [String: String] = [:], chats: [[String: Any]] = [], tasks: [[String: Any]] = []
+        var projects: [String: String] = [:], chats: [[String: Any]] = [], tasks: [[String: Any]] = [], cloud: [[String: Any]] = []
         for case let q as [String: Any] in queries {
             guard let key = q["queryKey"] as? [Any], let kind = key.first as? String,
                   let data = (q["state"] as? [String: Any])?["data"] else { continue }
@@ -102,6 +106,8 @@ public final class ClaudeCache: @unchecked Sendable {
                 for p in rows(data) { if let id = p["uuid"] as? String, let n = p["name"] as? String { projects[id] = n } }
             case "cowork-remote-sessions", "cowork-local-sessions":
                 tasks += rows(data)
+            case "sessions_api_list_sessions":
+                cloud += rows(data)
             default: continue
             }
         }
@@ -120,6 +126,20 @@ public final class ClaudeCache: @unchecked Sendable {
                                   folders: (t["userSelectedFolders"] as? [Any])?.compactMap { $0 as? String } ?? [],
                                   created: Self.millis(t["createdAt"]), lastActivity: last, state: state,
                                   unread: t["unread"] as? Bool ?? false, archived: t["isArchived"] as? Bool ?? false))
+        }
+        // Claude Code sessions in the cloud, as the Code tab lists them. Only the list is local: what was said stays on the servers.
+        for c in cloud {
+            guard let id = c["id"] as? String, seen.insert(id).inserted, let last = (c["updated_at"] as? String).flatMap(Self.date) else { continue }
+            let repo = ((c["session_context"] as? [String: Any])?["sources"] as? [Any])?.compactMap { ($0 as? [String: Any])?["url"] as? String }.first
+            // The worker's own word on it: running, idle, or requires_action (it waits for your OK or an answer).
+            let state: Task.State = switch c["worker_status"] as? String {
+            case "running": .running
+            case "requires_action": .awaiting
+            default: .idle
+            }
+            out.tasks.append(Task(id: id, title: (c["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled session",
+                                  folders: repo.map { [$0] } ?? [], created: (c["created_at"] as? String).flatMap(Self.date), lastActivity: last,
+                                  state: state, unread: c["unread"] as? Bool ?? false, archived: c["archived_at"] is String, cloud: true))
         }
         out.chats.sort { $0.updated > $1.updated }
         out.tasks.sort { $0.lastActivity > $1.lastActivity }

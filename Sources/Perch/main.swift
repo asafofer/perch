@@ -27,7 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The design page draws stand-in icons; this writes this Mac's real ones next to it (git ignores the file).
         if let i = args.firstIndex(of: "--design-icons") {
             let out = URL(fileURLWithPath: i + 1 < args.count ? args[i + 1] : "ui/icons.local.json")
-            let icons = AppIcons.all().merging(AppIcons.designFiles(wallpaper: out.deletingLastPathComponent().appendingPathComponent("wallpapers/blue-distortion-1.webp"))) { a, _ in a }
+            var icons = AppIcons.all().merging(AppIcons.designFiles(wallpaper: out.deletingLastPathComponent().appendingPathComponent("wallpapers/blue-distortion-1.webp"))) { a, _ in a }
+            // The design page's sample Grok Bot bots wear these avatars.
+            for look in ["tablet:yellow", "tablet:violet", "blob:black", "teardrop:magenta"] { icons["avatar:" + look] = GrokBotAvatars.dataURL(look) }
             do { try JSONSerialization.data(withJSONObject: icons, options: [.sortedKeys]).write(to: out); print("wrote \(out.path)") }
             catch { print("could not write \(out.path): \(error)") }
             exit(0)
@@ -65,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for hit in hits {
                 let place: String
                 switch hit.place {
+                case .hc(let t, let socket): place = "hc \(HerdrCore.session(socket: socket)) terminal \(t)"
                 case .herdr(let pane, _, let session): place = "herdr \(session) pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no herdr client attached")
                 case .tmux(let pane, _): place = "tmux \(hit.tmuxSession ?? "?") pane \(pane)" + (hit.viewer.map { ", shown on \($0.tty)" } ?? ", no tmux client attached")
                 case .cmux(let w, let s): place = "cmux workspace \(w.prefix(8)) surface \(s.prefix(8))"

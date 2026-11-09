@@ -1,6 +1,6 @@
 # Perch: guide for people and agents picking this up
 
-Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode or pi in any terminal, including inside the herdr and cmux multiplexers.
+Perch is a macOS notch app. When a developer comes back to their Mac, it tells them where they left off across their coding agents (Claude Code, Codex, OpenCode, pi) and lets them jump back in, reply, snooze, or change settings, all from the notch. It is a portfolio-quality project: the bar is delight, polish and restraint, not feature count. Four jobs, in order: where was I, jump back in, what needs me, answer from the notch. Sessions from the Claude app (Code), the Codex app, and Claude Code, Codex, OpenCode, pi, Oh My Pi or Muse in any terminal, including inside Herdr's app and the herdr and cmux multiplexers.
 
 Read this file first. `README.md` has install and usage. How each feature behaves is in `docs/behavior/`, one file per area (see [Behaviour docs](#behaviour-docs)).
 
@@ -21,7 +21,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   NotchGeometry       Panel and tab sizes, hover rects. Takes ScreenInfo so it is testable. ScreenPicker: which display the cursor is on.
   Agent               Each agent's names, resume command, whether Perch answers it from the notch, how to spot its process.
   Project, Transcript Session model, JSONL parsing (Claude Code and Codex), recap text, git parsing.
-  OpenCode, Pi        OpenCode's SQLite database (read-only) and pi's session files, into the same SessionDigest.
+  OpenCode, Pi        OpenCode's SQLite database (read-only, OpenCode 1's tables and 2's) and pi's session files, into the same SessionDigest.
   Conductor           ConductorSessions: Conductor's SQLite database (read-only) maps a Claude Code session id or Codex thread id to its workspace.
   LiveStatus          Hook events (HookEvent), what an agent asks (Ask: words for the card, the reply JSON), live status per session.
   SessionScan         SessionScanner: which sessions get a row (Claude app list, Codex threads, OpenCode, pi), tail reading, caches.
@@ -33,7 +33,7 @@ Sources/PerchCore   Pure logic, no UI, fully tested.
   PullRequests        A session's pull requests: the Claude app's list, what the GitHub CLI says (GitHubCLI, parse), the cache that asks it (PullRequestChecker), and what a session shows.
   Feedback            What Send feedback sends: the 4 MB limit for files, the email check, the subject, the multipart form.
   InstalledCopy       A test build's way back (its menu's Back to installed Perch): which other copy is the installed one.
-  Place               Where a running agent lives (herdr pane, tmux pane, cmux surface, tab) from its environment; what a tmux server says (TmuxServer); which process is which session (Running); herdr's status (HerdrStatus).
+  Place               Where a running agent lives (Herdr's hc terminal, herdr pane, tmux pane, cmux surface, tab) from its environment; what a tmux server says (TmuxServer); which process is which session (Running); herdr's status (HerdrStatus).
 Sources/Perch       The AppKit shell.
   main.swift          Launch flags, hotkeys, status item menu, first-run onboarding.
   NotchController     Owns the machine, the panel, the WKWebView, timers, hover, keys, refresh.
@@ -71,6 +71,7 @@ Before changing an area, read its file in `docs/behavior/`:
 - [replies.md](docs/behavior/replies.md): the reply view, drafts, attached files and pasted pictures, sending into Claude or a terminal.
 - [new-session.md](docs/behavior/new-session.md): starting a session from the notch.
 - [agents.md](docs/behavior/agents.md): OpenCode, pi, Conductor, herdr, tmux, cmux, and which process is which session.
+- [providers.md](docs/behavior/providers.md): what each agent, app and terminal supports (approvals, questions, reply, pick up, new session, pull requests) and its limits. Adding one: the `add-provider` skill.
 - [status.md](docs/behavior/status.md): hooks against the transcript, answering permissions and questions, background work, testing the hook socket.
 - [speaking-up.md](docs/behavior/speaking-up.md): the session you are in, the live activity, Sent, the welcome card.
 - [keyboard.md](docs/behavior/keyboard.md): the shortcut that opens Perch, and when a card takes the keyboard.
@@ -120,7 +121,7 @@ Useful flags: `--show`, `--simulate`, `--onboarding` (replays it from the hello)
 - Tailwind classes are generated from strings in `app.js`. Rebuild CSS after adding classes.
 - macOS TCC permissions are tied to the code signature: a test build signed another way than the installed Perch takes its permissions over, and macOS asks again after every Allow, so `run.sh` signs with Developer ID when the Mac has it. Without it or the "Perch Dev" certificate the app is signed ad hoc and macOS asks again after every build. An update signed another way drops Accessibility without a word ([updates.md](docs/behavior/updates.md)).
 - Accessibility is needed for Command+Option and for pasting replies. `AXIsProcessTrusted()` can lag after granting; onboarding offers a restart.
-- The panel is one fixed transparent window (480 x 440 plus a 10 pt overscan above the screen). Cards must fit inside it, the settings and onboarding cards too. Settings is a list of pages, each as tall as its rows: the list 288 pt (318 without Accessibility), Agents 428 with all seven agents (no more room: a line added there goes off the panel), Notifications 242 (320 with its menu open), General 371 with three displays and an external one (each more display adds 30), Send feedback up to 394 with its field full, files and a line in orange. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
+- The panel is one fixed transparent window (480 x 440 plus a 10 pt overscan above the screen). Cards must fit inside it, the settings and onboarding cards too. Settings is a list of pages, each as tall as its rows: the list 320 pt (350 without Accessibility), Agents 228 (a row per kind; a kind's list and the Notifications menu hang past the card's foot, inside the panel, and Swift takes clicks there through `menu` in the size message), Status 214, Notifications 294, General 373 with three displays and an external one (each more display adds 30), Send feedback up to 396 with its field full, files and a line in orange. Measure `.p-set .inner` and `.p-onb .inner` in the design page after adding a row.
 - Self-signed and ad-hoc builds cannot register for launch at login reliably.
 - Opening a notch app over full-screen apps depends on window level and collection behavior; see `NotchPanel`.
 - Hooks only change behaviour once installed (Settings, Live status). Codex skips a new hook until you trust it once. Never write to `~/.claude/settings.json` or `~/.codex/hooks.json` except through `HookInstaller`, which only touches its own entries; for OpenCode and pi it writes and removes only its own file (`~/.config/opencode/plugins/perch.js`, `~/.pi/agent/extensions/perch.ts`, first line `// Perch:`). An installed plugin file is written again at launch when this Perch carries a newer one (`HookInstaller.upgrade`). Try the installer with `PERCH_HOME=<folder> .build/debug/Perch --install-hooks` (agent names after the flag limit it: `--install-hooks cursor`), and a plugin against a stand-in socket before it reaches real config.

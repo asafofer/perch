@@ -62,7 +62,7 @@ trap 'kill $SERVER 2>/dev/null || true' EXIT
 sleep 0.6
 FRAMES=$(mktemp -d)
 SECONDS_TOTAL=$(python3 -c "print(0.6 + ${#NAMES[@]} * $HOLD)")
-swift scripts/record-design.swift "http://localhost:$PORT/design.html?record&hold=$HOLD&play=$PLAY" "$FRAMES" "$SECONDS_TOTAL" 840 340
+swift scripts/record-design.swift "http://localhost:$PORT/design.html?record&hold=$HOLD&play=$PLAY" "$FRAMES" "$SECONDS_TOTAL" 840 460
 COUNT=$(ls "$FRAMES" | wc -l | tr -d ' ')
 echo "$COUNT frames"
 

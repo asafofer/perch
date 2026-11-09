@@ -1,7 +1,9 @@
 import Foundation
 
-/// Where a running agent lives, read from its environment. herdr, tmux, cmux and agterm put their own variables in every process they run.
+/// Where a running agent lives, read from its environment. Herdr's app, herdr, tmux, cmux and agterm put their own variables in every process they run.
 public enum Place: Equatable, Sendable {
+    /// A terminal of herdr-core (`hc`), the runtime Herdr's app shows: its address (`t7`) on the core at `socket`.
+    case hc(terminal: String, socket: String)
     /// A pane in a herdr server. `socket` reaches that server; `session` is its name ("default" for the usual one).
     case herdr(pane: String, socket: String, session: String)
     /// A pane in a tmux server (`%3`). `socket` reaches that server.
@@ -15,8 +17,12 @@ public enum Place: Equatable, Sendable {
     case tab
 
     /// Innermost first: a herdr or tmux server started from a cmux tab passes that tab's variables to every pane, so theirs
-    /// win; herdr is taken to run inside tmux rather than the other way round.
-    public static func from(environment env: [String: String]) -> Place {
+    /// win; herdr is taken to run inside tmux rather than the other way round. An hc terminal says it is Ghostty
+    /// (TERM_PROGRAM) and passes on whatever its core was started with, so its own variables come first. A tmux server
+    /// started in an hc terminal passes hc's on to its panes in turn: `skippingHc` reads the place under them, which
+    /// `LiveSessions` takes when the agent's tty is that tmux pane's.
+    public static func from(environment env: [String: String], skippingHc: Bool = false) -> Place {
+        if !skippingHc, let t = env["HC_TERMINAL_ID"], !t.isEmpty, let socket = env["HC_TERMINAL_SOCKET"], !socket.isEmpty { return .hc(terminal: t, socket: socket) }
         if let pane = env["HERDR_PANE_ID"], !pane.isEmpty, let socket = env["HERDR_SOCKET_PATH"], !socket.isEmpty {
             return .herdr(pane: pane, socket: socket, session: env["HERDR_SESSION"].flatMap { $0.isEmpty ? nil : $0 } ?? "default")
         }
@@ -143,11 +149,14 @@ public enum Running {
     /// A freshly started agent with nothing said yet has none.
     public static func match(_ processes: [Process], to projects: [Project]) -> [Int: Int] {
         var out: [Int: Int] = [:], taken = Set<Int>()
-        for (h, p) in processes.enumerated() {
-            guard let i = projects.indices.first(where: { k in
-                projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in p.session == id || p.argv.contains(id) } == true
-            }) else { continue }
-            out[i] = h; taken.insert(h)
+        // The session a process says it runs first: its command line can still name one it left (Oh My Pi's /new).
+        for byArgv in [false, true] {
+            for (h, p) in processes.enumerated() where !taken.contains(h) {
+                guard let i = projects.indices.first(where: { k in
+                    projects[k].app == p.agent && out[k] == nil && projects[k].sessionId.map { id in byArgv ? p.argv.contains(id) : p.session == id } == true
+                }) else { continue }
+                out[i] = h; taken.insert(h)
+            }
         }
         let start = { (h: Int) in processes[h].started ?? .distantPast }
         let active = { (i: Int) in projects[i].lastActive ?? .distantPast }
@@ -169,8 +178,8 @@ public enum Running {
     }
 }
 
-/// What herdr says about an agent in one of its panes, when hooks say nothing: it reads the screen, so it knows when
-/// an agent shows an approval or a question even without hooks.
+/// What herdr, or Herdr's own runtime, says about an agent in one of its panes, when hooks say nothing: it reads the
+/// screen, so it knows when an agent shows an approval or a question even without hooks.
 public enum HerdrStatus {
     public static func apply(_ status: String, to p: Project) -> Project {
         let a = Agent.of(p.app)
@@ -185,5 +194,59 @@ public enum HerdrStatus {
         default: return p
         }
         return q
+    }
+}
+
+/// What herdr-core (`hc`) and Herdr's window say, read from their JSON.
+public enum HerdrCore {
+    /// The core's session, which `HC_SESSION` picks: the name its socket is called by (`…/default/default.sock`).
+    public static func session(socket: String) -> String {
+        let name = ((socket as NSString).lastPathComponent as NSString).deletingPathExtension
+        return name.isEmpty ? "default" : name
+    }
+
+    /// `hc ls --json`: each live terminal's status, by address, for the ones that report one (working, blocked, done, idle).
+    public static func statuses(_ json: String) -> [String: String] {
+        guard let o = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any], let list = o["terminals"] as? [[String: Any]] else { return [:] }
+        var out: [String: String] = [:]
+        for t in list where t["state"] as? String == "live" {
+            if let a = t["address"] as? String, let s = t["status"] as? String { out[a] = s }
+        }
+        return out
+    }
+
+    /// Whether a terminal is in a tab of Herdr's window (`herdr-app ls`). One started with `hc run` alone is not, and the
+    /// window answers a focus on it with "ok" while showing nothing.
+    public static func inWindow(_ terminal: String, listing: String) -> Bool {
+        guard let l = (try? JSONSerialization.jsonObject(with: Data(listing.utf8))) as? [String: Any] else { return false }
+        return (l["spaces"] as? [[String: Any]] ?? []).contains { space in
+            (space["tabs"] as? [[String: Any]] ?? []).contains { tab in (tab["terminals"] as? [[String: Any]] ?? []).contains { $0["terminal"] as? String == terminal } }
+        }
+    }
+
+    /// The terminal in the pane that has focus in Herdr's window, from `herdr-app status` and `herdr-app ls`. Nil when no
+    /// pane has focus or something sits over it (an overlay such as the welcome).
+    public static func focusedTerminal(status: String, listing: String) -> String? {
+        guard let s = (try? JSONSerialization.jsonObject(with: Data(status.utf8))) as? [String: Any],
+              let pane = s["focused_pane"] as? String, (s["overlays"] as? [Any])?.isEmpty != false,
+              let l = (try? JSONSerialization.jsonObject(with: Data(listing.utf8))) as? [String: Any] else { return nil }
+        for space in l["spaces"] as? [[String: Any]] ?? [] {
+            for tab in space["tabs"] as? [[String: Any]] ?? [] {
+                for t in tab["terminals"] as? [[String: Any]] ?? [] where t["pane"] as? String == pane { return t["terminal"] as? String }
+            }
+        }
+        return nil
+    }
+}
+
+/// The places agents run in can be switched off like an agent (Settings, Agents): the sessions in them then get no row.
+public enum PlaceSwitch {
+    /// Whether a session is hidden: it runs in a Conductor workspace that is off, or its terminal session runs (or last ran)
+    /// in a place that is off (`kind`, as Perch remembers it: herdr, tmux, cmux, agterm; Herdr's app, "hc", goes with herdr).
+    public static func hides(_ p: Project, kind: String?, off: Set<String>) -> Bool {
+        if off.isEmpty { return false }
+        if p.conductor != nil { return off.contains("conductor") }
+        guard p.terminal, let kind else { return false }
+        return off.contains(kind == "hc" ? "herdr" : kind)
     }
 }

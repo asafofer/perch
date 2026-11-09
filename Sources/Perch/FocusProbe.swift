@@ -1,7 +1,7 @@
 import AppKit
 import PerchCore
 
-/// Reads what is in front of you in the app you are using: the focused cmux surface or agterm pane, the front Terminal or iTerm2 tab, the
+/// Reads what is in front of you in the app you are using: the terminal Herdr has focused, the focused cmux surface or agterm pane, the front Terminal or iTerm2 tab, the
 /// Ghostty terminal's folder, the pane herdr has focused or a tmux client shows, the session the Claude app shows, the chat
 /// Cursor's Agents window shows.
 /// AppleScript and Accessibility are slow and may ask for permission, so it reads off the main thread, a second apart at
@@ -32,7 +32,7 @@ final class FocusProbe {
     private var lastChange = Date.distantPast
     /// Apps this can read. Other terminals and editors cannot be told apart by tab.
     static func reads(_ bid: String) -> Bool {
-        bid == Restorer.claudeApp || bid == Restorer.conductorApp || bid == Restorer.cursorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly", Terminals.agterm].contains(bid)
+        bid == Restorer.claudeApp || bid == Restorer.conductorApp || bid == Restorer.cursorApp || [Terminals.terminal, Terminals.iterm, Terminals.ghostty, Terminals.cmux, "com.cmuxterm.app.nightly", Terminals.agterm, Terminals.herdr].contains(bid)
     }
 
     /// The last reading of `app`, if it is recent enough to trust.
@@ -88,6 +88,13 @@ final class FocusProbe {
             guard let surface = ask(#"tell application "\#(name)" to return id of focused terminal of selected tab of window 1"#) else { return .cannotTell }
             spots.insert(Spot.cmux(surface: surface))
             viewers = known.viewers.filter { if case .cmux(_, let s) = $0.place { return s.lowercased() == surface.lowercased() } else { return false } }
+        case Terminals.herdr:
+            // Its window shows the default core's terminals and says which has focus. A tmux client in that terminal shows
+            // one pane of its own, read below like a client in any terminal's tab.
+            guard let t = HerdrApp.focusedTerminal() else { return .cannotTell }
+            let sockets = Set(known.hits.compactMap { h -> String? in if case .hc(_, let s) = h.place, HerdrCore.session(socket: s) == "default" { return s } else { return nil } })
+            spots.formUnion(sockets.map { Spot.hc(socket: $0, terminal: t) })
+            viewers = known.viewers.filter { if case .hc(let vt, let vs) = $0.place { return vt == t && HerdrCore.session(socket: vs) == "default" } else { return false } }
         case Terminals.agterm:
             guard let pane = Agterm.focusedPane() else { return .cannotTell }
             spots.insert(Spot.agterm(pane: pane))

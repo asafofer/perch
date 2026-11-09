@@ -28,6 +28,10 @@ enum Prefs {
             d.set(Array(newValue.subtracting(byDefault)), forKey: "sources.optedIn")
         }
     }
+    /// The places agents run in (Conductor, herdr, tmux, cmux, agterm) whose sessions you switched off: they get no row and
+    /// no card. All on until you switch one off.
+    static let placeIds = ["conductor", "herdr", "tmux", "cmux", "agterm"]
+    static var placesOff: Set<String> { get { Set(d.stringArray(forKey: "places.disabled") ?? []) } set { d.set(Array(newValue).sorted(), forKey: "places.disabled") } }
     /// Accessibility Perch had (AccessLoss): whether it ever had it, the build that last had it (a loss on another build came
     /// with an update), and whether this loss was said, so a relaunch does not say it again.
     /// nil on an install from before it was kept (AccessLoss.seeded).
@@ -75,6 +79,8 @@ enum Prefs {
         get { NotifyKinds.off(from: d.stringArray(forKey: "notifyOff") ?? []) }
         set { d.set(newValue.sorted(), forKey: "notifyOff") }
     }
+    /// Whether the character shows in the notch when an agent needs you, acting out the wait (Settings, Notifications). Off by default.
+    static var charAtNotch: Bool { get { d.bool(forKey: "charAtNotch") } set { d.set(newValue, forKey: "charAtNotch") } }
     /// Whether sessions show their pull requests (the marks from the Claude app's own list). On by default.
     static var prShow: Bool { get { d.object(forKey: "pr.show") as? Bool ?? true } set { d.set(newValue, forKey: "pr.show") } }
     /// Whether Perch also asks GitHub, through the GitHub CLI's login, how each one stands (checks, reviews, conflicts). Off until switched on.
