@@ -2,8 +2,8 @@
 
 ## Opening it
 
-- On a card: the footer's More button, or Command+K. In the list: More at the right of its footer, or Command+K, on the row you are on. Letters type into the list's filter, so the list's key is Command+K, the one Raycast uses for its actions.
-- A small popup opens over the footer, its right edge over the button (`manageMenu` in app.js; the card behind it dims, `.m-dim`). Rename, Archive and Delete, each with its icon and letter; Up and Down choose a row and Return does it. Esc or a click elsewhere closes it.
+- On a card: the More button in its top bar (beside Settings, so the footer keeps its room for Reply, Preview and Open), or Command+K. In the list: More at the right of its footer, or Command+K, on the row you are on. Letters type into the list's filter, so the list's key is Command+K, the one Raycast uses for its actions.
+- A small popup opens, its right edge under the card's button (over the list's) (`manageMenu` in app.js; the card behind it dims, `.m-dim`). Rename, Archive and Delete, each with its icon and letter; Up and Down choose a row and Return does it. Esc or a click elsewhere closes it.
 - Perch is in front while it is open, as for a reply (`frontForReply`), the card does not close by itself (`manageMode` holds it) and the keys go to the popup (`manageKeyName`).
 - Only what the session's route can do is offered (`SessionManage.actions`, sent as `manage` on each project). A session with nothing to offer has no More button.
 - Archive and Delete ask once more, in the popup ("Archive this session?", "Delete this session?"; Return says yes, Esc goes back to the rows). Rename is a field: on the card in the footer, in the list inside the popup. Return renames.
