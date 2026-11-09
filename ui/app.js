@@ -4535,6 +4535,8 @@
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },
+      /* New session's shortcut as if it had been changed in Settings (keys like ['\u2303', '\u21E7', 'K']) */
+      newShortcut: function (keys) { devScNew = { keys: keys, kind: 'combo', custom: true }; devScSync(); },
       settings: function (o, keep) {
         devScBack(); kindMenu = '';
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
