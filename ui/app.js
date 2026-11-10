@@ -3842,8 +3842,8 @@
       return notifyMoments(o) + gap +
         /* the character in the notch when an agent needs you, acting out the wait until you answer */
         stap(drow(slabel('Character at the notch', '', 'cat'), 'It waits in the notch with you when an agent asks', swHtml(!!o.charAtNotch, 'atnotch', 'Character at the notch'))) +
-        /* the minutes are how long you are away, not a reminder after an agent replies */
-        drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
+        /* the minutes are how long you are away, not a reminder after an agent replies; Off: the card never opens by itself after a break */
+        drow(slabel('Welcome back after', '', 'timer'), o.idleMinutes === 0 ? 'It opens only when you hover or ask' : 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60, 0], function (m) { return m === 0 ? 'Off' : m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
         drow(slabel('Questions stay for', '', 'hourglass'), 'Then they wait in the list', segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; }));
     }

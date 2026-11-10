@@ -1323,7 +1323,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         case "feedbackAttach": chooseFiles()
         case "setting":
             if let key = body["key"] as? String {
-                if key == "idleMinutes", let v = body["value"] as? Int { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
+                if key == "idleMinutes", let v = body["value"] as? Int, [0, 10, 20, 60].contains(v) { Prefs.idleMinutes = v; onIdleMinutesChanged?(v) }
                 if key == "questionSeconds", let v = body["value"] as? Int, [30, 60, 300].contains(v) { Prefs.questionSeconds = v }
                 if key == "hoverExternal", let on = body["value"] as? Bool { Prefs.hoverExternal = on }
                 if key == "charAtNotch", let on = body["value"] as? Bool { Prefs.charAtNotch = on }

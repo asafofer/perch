@@ -45,6 +45,7 @@ When Perch shows itself without being asked. The keyboard rules for it are in [k
 
 ## The welcome card
 
+- Settings, Notifications, Welcome back after sets how long a break is (10 min, 20 min, 1 hour) or turns it Off: then it never opens by itself after a break (`Prefs.idleMinutes` 0; the break still triggers the update check). Hovering the notch, Control+Option+P and Where was I still open it, and a Not now still comes back.
 - It speaks up only on return from a break, and only if a session changed since you last saw it (finished, asked, stopped) and since your last break or within the last day (`WhileAway.newsSince`).
 - Older is history: a guessed "needs you" from then reads as idle (`Project.settled`). So does one you have seen once you look at a later change in another session (`Project.movedOn`). A question you have seen never opens the card ahead of a fresh finish (`urgent`).
 - Never during a call, camera or presentation, nor while a launcher such as Raycast has the keyboard (`Quiet`; it shows once that is over), and never during a "Not now".

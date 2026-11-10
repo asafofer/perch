@@ -128,10 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var seconds: TimeInterval = 20 * 60
             if let i = args.firstIndex(of: "--idle"), args.indices.contains(i + 1), let v = TimeInterval(args[i + 1]) { seconds = v }
             let monitor = ActivityMonitor(threshold: seconds)
-            if !args.contains("--idle") { monitor.threshold = TimeInterval(Prefs.idleMinutes * 60) }
-            c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval(m * 60) }
+            // Off (0) keeps the 20 minute break for the update check; only the card stays away.
+            if !args.contains("--idle") { monitor.threshold = TimeInterval((Prefs.idleMinutes == 0 ? 20 : Prefs.idleMinutes) * 60) }
+            c.onIdleMinutesChanged = { [weak monitor] m in monitor?.threshold = TimeInterval((m == 0 ? 20 : m) * 60) }
             c.onMenuIcon = { [weak self] image in self?.statusItem?.button?.image = image }
-            monitor.onReturn = { [updater] since in c.comeBack(proactive: true, awaySince: since); updater.checkSoon() }
+            monitor.onReturn = { [updater] since in if Prefs.idleMinutes > 0 || args.contains("--idle") { c.comeBack(proactive: true, awaySince: since) }; updater.checkSoon() }
             activity = monitor
             installStatusItem()
             // First run (or a restart in the middle of setup): the guided onboarding.
