@@ -27,6 +27,7 @@
 ## The Claude app
 
 - Its row menu is a web popover that exists only while the app is the active app (opened with the app behind another, `AXShowMenu` succeeds and nothing shows). So Claude comes forward for the moment it takes, the menu's note says so (Brings Claude forward), and what was in front before comes back (`ClaudeComposer.manage`).
+- The menu is found from its first item, where focus usually goes when it opens; when focus does not get there, by the open popup itself (`group/menu-popup`, `openPopup`). Afterwards the list or card takes the keyboard back if it had it (`manageHadKeys`), since bringing Claude forward and back leaves it with the app you were in.
 - Its items are not a menu element: each sits in its own group. Focus goes to the first item when it opens; the nearest ancestor holding Archive is the menu.
 - The row is found by the session's title (never its project's name: a group header carries that). Rename types into the field the row turns into and presses Return; the app takes the new name only after Return, so the row's new title is the check. Archive and Delete are checked by the row leaving the sidebar. The app writes `isArchived` into its session file a few seconds later.
 - Needs Accessibility. Without it, or when a step does not look as expected (no row, or two sessions with the same title), nothing is changed and the line says why. Keys are sent only while the Claude app is in front.

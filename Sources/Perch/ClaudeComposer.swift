@@ -190,7 +190,7 @@ extension ClaudeComposer {
         let found = wait(3, { () -> [AXUIElement]? in let r = sidebarRows(titles: wanted, in: page); return r.isEmpty ? nil : r }) ?? []
         guard found.count == 1, let row = found.first else { return fail(found.isEmpty ? "no sidebar row for the session" : "more than one session has this title") }
         guard AXUIElementPerformAction(row, "AXShowMenu" as CFString) == .success,
-              let menu = wait(3, { rowMenu(in: ax) }) else { return fail("its row menu did not open (Claude active: \(app.isActive))") }
+              let menu = wait(2, { rowMenu(in: ax) }) ?? wait(3, { openPopup(in: ax) }) else { return fail("its row menu did not open (Claude active: \(app.isActive))") }
         let want = a == .rename ? "Rename" : a == .archive ? "Archive" : "Delete"
         guard let item = menuItem(want, in: menu) else { sendKey(53, to: app); return fail("the row menu has no \(want)") }
         guard AXUIElementPerformAction(item, kAXPressAction as CFString) == .success else { sendKey(53, to: app); return fail("\(want) did not press") }
@@ -236,6 +236,20 @@ extension ClaudeComposer {
             if menuItem("Archive", in: e) != nil { return e }
             guard let up = attr(e, kAXParentAttribute) as! AXUIElement? else { return nil }
             e = up
+        }
+        return nil
+    }
+    /// The row menu found without focus, which does not always reach its first item (it once stayed elsewhere while the menu was
+    /// up): the open popup itself, a portal group Claude draws in its window ("group/menu-popup"), holding Archive or Rename.
+    /// Breadth first, since the portal sits near the top of the page and the conversation under it is deep.
+    private static func openPopup(in app: AXUIElement) -> AXUIElement? {
+        for w in (attr(app, kAXWindowsAttribute) as? [AXUIElement]) ?? [] {
+            var queue = [w], i = 0
+            while i < queue.count, i < 20000 {
+                let e = queue[i]; i += 1
+                if classes(e).contains("group/menu-popup"), menuItem("Archive", in: e) != nil || menuItem("Rename", in: e) != nil { return e }
+                queue.append(contentsOf: (attr(e, kAXChildrenAttribute) as? [AXUIElement]) ?? [])
+            }
         }
         return nil
     }

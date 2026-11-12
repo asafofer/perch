@@ -57,6 +57,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var manageMode = ""
     /// Rename, archive or delete is under way: the card stays, even while the Claude app comes forward for it.
     private var manageBusy = false
+    /// Whether the list or card had the keyboard when a rename, archive or delete began: it takes it back after.
+    private var manageHadKeys = false
     /// A name you just gave a session, shown until a scan reads it from the agent (or 40 s pass), by project id.
     private var renamed: [String: (name: String, until: Date)] = [:]
     /// Preview: the agent's whole last message on the card, with no reply field.
@@ -1476,6 +1478,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let name = (body["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         if a == .rename, name?.isEmpty != false { return }
         manageBusy = true
+        manageHadKeys = panel.isKeyWindow
         Task.detached(priority: .userInitiated) { [weak self] in
             let r = SessionManager.perform(a, on: p, name: name)
             await MainActor.run { self?.managed(a, p, r, name: name) }
@@ -1483,6 +1486,9 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
     private func managed(_ a: ManageAction, _ p: Project, _ r: Result<Void, SessionManager.Failure>, name: String? = nil) {
         manageBusy = false
+        // The Claude app's route brings Claude forward and then the app you were in, which leaves the list or card without the
+        // keyboard it had: it takes it back, so Up, Down and Command+K keep working.
+        if manageHadKeys, machine.phase != .idle, !panel.isKeyWindow { panel.makeKey() }
         let say: String, failed: Bool
         switch r {
         case .failure(let f): say = "Couldn't \(a.rawValue) it: \(f.why)"; failed = true
