@@ -67,4 +67,15 @@ import Testing
                   session("cli", via: cmux, spot: "cmux:s1", app: "codex")]
         #expect(Focus.inCodexApp(ps) == ["t1", "t2"])
     }
+
+    @Test func dotsInTheCodexAppIsMaybeToo() {
+        let ps = [session("t1", via: "", spot: nil, terminal: false, app: "codex"), session("d", via: "", spot: nil, terminal: false, app: Agent.dots.id)]
+        #expect(Focus.inCodexApp(ps) == ["t1", "d"])
+    }
+
+    @Test func grokBotCountsAllItsBotsAsMaybe() {
+        let ps = [session("b1", via: "", spot: nil, terminal: false, app: Agent.grokbot.id), session("b2", via: "", spot: nil, terminal: false, app: Agent.grokbot.id),
+                  session("t1", via: "", spot: nil, terminal: false, app: "codex")]
+        #expect(Focus.inGrokBot(ps) == ["b1", "b2"])
+    }
 }
