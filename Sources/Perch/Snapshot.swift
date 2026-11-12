@@ -142,6 +142,8 @@ struct UISnapshot: Encodable {
     let notifyOff = Prefs.notifyOff.sorted()
     /// Pull requests are shown at all (Settings, Pull requests).
     let showPRs = Prefs.prShow
+    /// New session's shortcut, for the list's footer and its empty state. Empty when another app holds it: they show no key then.
+    var newKeys = Prefs.newShortcut.keys
     /// The character shows in the notch when an agent needs you (Settings, Notifications: Character at the notch).
     let charAtNotch = Prefs.charAtNotch
     let phase: String

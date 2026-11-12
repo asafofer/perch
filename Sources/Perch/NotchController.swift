@@ -844,6 +844,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                           onboarding: machine.phase == .onboarding ? onboardingState() : nil,
                           settings: machine.phase == .settings ? settingsState() : nil)
         var sent = snap
+        if newComboWorks?() == false { sent.newKeys = [] }
         if machine.phase == .whatsNew, let w = whatsNew {
             // The update that lost Accessibility says so on its own card; once it has, the card turns green when it is back.
             if access.afterUpdate(build: Self.build) { wnCarriedAccess = true }

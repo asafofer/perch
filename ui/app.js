@@ -447,7 +447,7 @@
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button></div>' +
+      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere"><span class="x-nk">' + Kbd('\u2325\u2318N') + '</span>New session</button></div>' +
     '</div></div>' +
     /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
     '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -1265,7 +1265,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2325\u2318N') + 'Start a new session</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + newKeyCap() + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -2498,9 +2498,16 @@
       '<div class="rv flex h-9 items-end justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
     var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
+  /* New session's shortcut as one key cap, as the list shows it (Swift sends newKeys; the dev harness keeps its own) */
+  function newKeys() { return (snap && snap.newKeys || (typeof devScNew === 'object' && devScNew ? devScNew.keys : null) || ['\u2325', '\u2318', 'N']).join(''); }
+  /* the same, drawn: nothing when another app holds it (Swift sends no keys), as the activity's buttons show no key then */
+  function newKeyCap() { var k = newKeys(); return k ? Kbd(k) : ''; }
+  var nkShown = '\u2325\u2318N';
   function apply(s) {
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
+    var nk = newKeys(), nkb = q('.x-new');
+    if (nkb && nk !== nkShown) { nkShown = nk; q('.x-nk').innerHTML = newKeyCap(); nkb.title = nk ? 'New session (' + nk + '), from anywhere' : 'New session'; }
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
@@ -4238,9 +4245,12 @@
   }
   function devScSync(patch) {
     Object.assign(devSc, patch || {});
+    /* saved, as Swift saves it at once: New session's keys are what the list shows from now on */
+    if (devSc.which === 'new' && devSc.saved) devScNew = { keys: devSc.keys, kind: devSc.kind, custom: devSc.custom };
     if (!snap) return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (s.settings) s.settings.shortcut = devScOut(s.settings.accessibility);
+    if (s.settings) { s.settings.shortcut = devScOut(s.settings.accessibility); s.settings.newShortcut = { keys: devScNew.keys, custom: devScNew.custom }; }
+    if (s.newKeys) s.newKeys = devScNew.keys;
     if (s.onboarding) s.onboarding.shortcut = devScOut(s.onboarding.accessibility);
     s.timerToken++; apply(s);
   }
@@ -4310,7 +4320,7 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; devScBack(); s.settings.shortcut = devScOut(s.settings.accessibility); s.settings.newShortcut = { keys: devScNew.keys, custom: devScNew.custom }; }
     /* the real app opens the pull request in the browser; the design page does the same in a new tab */
     if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
     if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
@@ -4528,6 +4538,8 @@
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },
+      /* New session's shortcut as if it had been changed in Settings (keys like ['\u2303', '\u21E7', 'K']) */
+      newShortcut: function (keys) { devScNew = { keys: keys, kind: 'combo', custom: true }; if (devSc.which === 'new') devSc.saved = false; devScSync(); },
       settings: function (o, keep) {
         devScBack(); kindMenu = '';
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
