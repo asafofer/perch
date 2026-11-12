@@ -3639,6 +3639,8 @@
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
+  /* the words under Welcome back after: Off says how the card still opens */
+  function idleWords(o) { return o.idleMinutes === 0 ? 'It opens only when you hover or ask' : 'Away this long, and the card says where you left off'; }
   function drow(left, desc, right) {
     /* the line is as tall as a segment (24 pt), so the control never reaches the words under it */
     return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-1 text-[13px] transition-colors"><span class="flex h-6 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
@@ -3849,8 +3851,8 @@
       return notifyMoments(o) + gap +
         /* the character in the notch when an agent needs you, acting out the wait until you answer */
         stap(drow(slabel('Character at the notch', '', 'cat'), 'It waits in the notch with you when an agent asks', swHtml(!!o.charAtNotch, 'atnotch', 'Character at the notch'))) +
-        /* the minutes are how long you are away, not a reminder after an agent replies */
-        drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
+        /* the minutes are how long you are away, not a reminder after an agent replies; Off: the card never opens by itself after a break */
+        drow(slabel('Welcome back after', '', 'timer'), '<span class="s-idled inline-block">' + idleWords(o) + '</span>', segOf('idleMinutes', [10, 20, 60, 0], function (m) { return m === 0 ? 'Off' : m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
         drow(slabel('Questions stay for', '', 'hourglass'), 'Then they wait in the list', segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; }));
     }
@@ -4184,6 +4186,7 @@
         var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
       }
       fbRow(false);
+      var idd = box.querySelector('.s-idled'); if (idd) { if (idd._t == null) idd._t = idd.textContent; swapText(idd, idleWords(o)); }
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });

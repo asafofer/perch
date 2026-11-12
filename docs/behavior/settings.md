@@ -48,7 +48,7 @@ Version row's update states in [updates.md](updates.md).
   - Notifications: one row, Notify me about, with the lit moments (`NotifyKind`) as small coloured icons and a chevron; it opens
     a menu over the rows below, a check for each moment, which may hang past the card's foot, the card keeping its size (Return opens it, Up and Down choose,
     Return switches, Left or Esc folds it). Checks failing is the last, greyed with "Needs Checks" until Checks is chosen.
-    Then Character at the notch (`charAtNotch`, off by default; [speaking-up.md](speaking-up.md#the-character-at-the-notch)), Welcome back after and Questions stay for.
+    Then Character at the notch (`charAtNotch`, off by default; [speaking-up.md](speaking-up.md#the-character-at-the-notch)), Welcome back after (10 min, 20 min, 1 hour or Off; [speaking-up.md](speaking-up.md#the-welcome-card)) and Questions stay for.
   - General: Open at login; Show Perch on as a list with one check; Hover opens on external displays while one is connected.
 - Return or Space flips a switch, picks a screen or presses a row's button. Left is always Back: a segmented choice moves
   with Right (to its end) or Return (round again from the start).
