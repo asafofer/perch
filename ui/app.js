@@ -456,7 +456,7 @@
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
       '<div class="rv s-ft relative flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3">' +
         '<button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span>' +
-        '<button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere">' + Kbd('\u2325\u2318N') + 'New session</button>' +
+        '<button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere"><span class="x-nk">' + Kbd('\u2325\u2318N') + '</span>New session</button>' +
         '<button class="x-lmore flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="More (\u2318K)">' + Kbd('\u2318K') + 'More</button>' +
         '<div class="m-pop pointer-events-none absolute right-2.5 z-30 w-[148px] origin-bottom-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
       '</div>' +
@@ -1413,7 +1413,7 @@
       /* asked for before the first scan finished, or nothing in the last two weeks: say so instead of showing nothing */
       sl.innerHTML = '<div class="flex flex-col gap-0.5 px-2.5 pb-3 pt-1 text-[13px] leading-[18px]">' +
         (s.scanning ? '<span class="flex items-center gap-2 text-muted-foreground">' + Spinner('size-3') + 'Looking for your sessions\u2026</span>'
-          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + Kbd('\u2325\u2318N') + 'Start a new session</span>') + '</div>';
+          : '<span class="text-foreground">Nothing to pick up yet</span><span class="text-muted-foreground">Sessions from your agents in the last two weeks show up here.</span><span class="mt-2 flex items-baseline gap-1.5 text-xs text-muted-foreground">' + newKeyCap() + 'Start a new session</span>') + '</div>';
       edges(); return;
     }
     /* Rows are drawn again only when they change, so a row that is reading itself out is not cut short. Swift sends them
@@ -2646,9 +2646,16 @@
       '<div class="rv flex h-9 items-end justify-end px-2.5 pt-1" style="--i:' + (w.access ? 4 : 3) + '">' + Button('default', 'Got it', Kbd(CMDOPT + svg('enter', 'size-2'), 1), 'wn-ok h-7 rounded-lg pl-3 pr-1.5') + '</div>';
     var box = q('.wn-l'); if (box) box.parentNode.classList.toggle('ov', box.scrollHeight > box.clientHeight + 1);   /* a list that scrolls fades at its edges, as the expanded reply does */
   }
+  /* New session's shortcut as one key cap, as the list shows it (Swift sends newKeys; the dev harness keeps its own) */
+  function newKeys() { return (snap && snap.newKeys || (typeof devScNew === 'object' && devScNew ? devScNew.keys : null) || ['\u2325', '\u2318', 'N']).join(''); }
+  /* the same, drawn: nothing when another app holds it (Swift sends no keys), as the activity's buttons show no key then */
+  function newKeyCap() { var k = newKeys(); return k ? Kbd(k) : ''; }
+  var nkShown = '\u2325\u2318N';
   function apply(s) {
     if (actDemoOn && !s.demo) { actDemoLast = s; return; }
     snap = s;
+    var nk = newKeys(), nkb = q('.x-new');
+    if (nkb && nk !== nkShown) { nkShown = nk; q('.x-nk').innerHTML = newKeyCap(); nkb.title = nk ? 'New session (' + nk + '), from anywhere' : 'New session'; }
     if (s.icons) icons = s.icons;
     var st = { idle: 'idle', open: 'open', switcher: 'switch', restoring: 'idle', onboarding: 'onb', settings: 'set', whatsnew: 'new', newSession: 'ns' }[s.phase];
     updChip(s, st);
@@ -3784,6 +3791,8 @@
   }
   function srow(left, right) { return '<div class="s-row mx-2 flex h-[30px] items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors">' + left + '<span class="flex-none">' + right + '</span></div>'; }
   /* a setting with a line under it saying what it does; the line runs under the whole row, past the control */
+  /* the words under Welcome back after: Off says how the card still opens */
+  function idleWords(o) { return o.idleMinutes === 0 ? 'It opens only when you hover or ask' : 'Away this long, and the card says where you left off'; }
   function drow(left, desc, right) {
     /* the line is as tall as a segment (24 pt), so the control never reaches the words under it */
     return '<div class="s-row mx-2 flex flex-col justify-center rounded-md px-2 py-1 text-[13px] transition-colors"><span class="flex h-6 items-center gap-2.5">' + left + '<span class="flex-none">' + right + '</span></span>' +
@@ -3994,8 +4003,8 @@
       return notifyMoments(o) + gap +
         /* the character in the notch when an agent needs you, acting out the wait until you answer */
         stap(drow(slabel('Character at the notch', '', 'cat'), 'It waits in the notch with you when an agent asks', swHtml(!!o.charAtNotch, 'atnotch', 'Character at the notch'))) +
-        /* the minutes are how long you are away, not a reminder after an agent replies */
-        drow(slabel('Welcome back after', '', 'timer'), 'Away this long, and the card says where you left off', segOf('idleMinutes', [10, 20, 60], function (m) { return m === 60 ? '1 hour' : m + ' min'; })) +
+        /* the minutes are how long you are away, not a reminder after an agent replies; Off: the card never opens by itself after a break */
+        drow(slabel('Welcome back after', '', 'timer'), '<span class="s-idled inline-block">' + idleWords(o) + '</span>', segOf('idleMinutes', [10, 20, 60, 0], function (m) { return m === 0 ? 'Off' : m === 60 ? '1 hour' : m + ' min'; })) +
         /* a question nobody answers leaves the notch after this long (it stays in the list) */
         drow(slabel('Questions stay for', '', 'hourglass'), 'Then they wait in the list', segOf('questionSeconds', [30, 60, 300], function (m) { return m === 300 ? '5 min' : m === 60 ? '1 min' : m + ' s'; }));
     }
@@ -4329,6 +4338,7 @@
         var arc = us.querySelector('.upd-arc'); if (arc) arc.style.strokeDashoffset = String(UPD_C * (1 - (snap.update.progress || 0)));
       }
       fbRow(false);
+      var idd = box.querySelector('.s-idled'); if (idd) { if (idd._t == null) idd._t = idd.textContent; swapText(idd, idleWords(o)); }
       box.querySelectorAll('.s-seg').forEach(function (b) {
         var on = +b.dataset.m === o[b.dataset.key];
         ['bg-white/[0.16]', 'text-foreground'].forEach(function (c) { b.classList.toggle(c, on); });
@@ -4390,9 +4400,12 @@
   }
   function devScSync(patch) {
     Object.assign(devSc, patch || {});
+    /* saved, as Swift saves it at once: New session's keys are what the list shows from now on */
+    if (devSc.which === 'new' && devSc.saved) devScNew = { keys: devSc.keys, kind: devSc.kind, custom: devSc.custom };
     if (!snap) return;
     var s = JSON.parse(JSON.stringify(snap));
-    if (s.settings) s.settings.shortcut = devScOut(s.settings.accessibility);
+    if (s.settings) { s.settings.shortcut = devScOut(s.settings.accessibility); s.settings.newShortcut = { keys: devScNew.keys, custom: devScNew.custom }; }
+    if (s.newKeys) s.newKeys = devScNew.keys;
     if (s.onboarding) s.onboarding.shortcut = devScOut(s.onboarding.accessibility);
     s.timerToken++; apply(s);
   }
@@ -4469,7 +4482,7 @@
       if (o.step === 4 && m.action === 'next') { o.scanning = true; var held = JSON.parse(JSON.stringify(s)); held.timerToken++; apply(held); setTimeout(function () { var d2 = JSON.parse(JSON.stringify(held)); d2.onboarding.scanning = false; apply(d2); }, 1200); return; }
     }
     if (m.type === 'source' && s.onboarding) { s.onboarding.sources.forEach(function (x) { if (x.id === m.id) x.enabled = m.enabled; }); }
-    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; }
+    if (m.type === 'settings') { devFrom = snap.phase === 'open' || snap.phase === 'switcher' ? snap.phase : ''; s.phase = 'settings'; s.settings = s.settings || { sources: [], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', hasExternal: !s.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(true) }; if (!s.settings.sources.length) s.settings.sources = [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }]; devScBack(); s.settings.shortcut = devScOut(s.settings.accessibility); s.settings.newShortcut = { keys: devScNew.keys, custom: devScNew.custom }; }
     /* the real app opens the pull request in the browser; the design page does the same in a new tab */
     if (m.type === 'openpr' && m.url) { window.open(m.url, '_blank', 'noopener'); return; }
     if (m.type === 'setting' && m.key === 'pullRequests') { if (s.settings) s.settings.prs = m.value ? 'on' : 'off'; if (s.onboarding) s.onboarding.prs = m.value ? 'on' : 'off'; }
@@ -4694,6 +4707,8 @@
         if (snap) apply(Object.assign({}, snap, { screen: base.screen, timerToken: Math.random() }));
       },
       shortcut: function (patch) { devScSync(patch); },
+      /* New session's shortcut as if it had been changed in Settings (keys like ['\u2303', '\u21E7', 'K']) */
+      newShortcut: function (keys) { devScNew = { keys: keys, kind: 'combo', custom: true }; if (devSc.which === 'new') devSc.saved = false; devScSync(); },
       settings: function (o, keep) {
         devScBack(); kindMenu = '';
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }

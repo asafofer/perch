@@ -96,9 +96,9 @@ enum Prefs {
         get { (d.data(forKey: "shortcut.new").flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }).flatMap { $0.kind == .combo && Shortcut.problem($0) == nil ? $0 : nil } ?? standardNew }
         set { if newValue == standardNew { d.removeObject(forKey: "shortcut.new") } else if let data = try? JSONEncoder().encode(newValue) { d.set(data, forKey: "shortcut.new") } }
     }
-    /// Minutes away before the welcome card comes back. 20 by default.
+    /// Minutes away before the welcome card comes back. 20 by default; 0 is Off: it never opens by itself after a break.
     static var idleMinutes: Int {
-        get { let v = d.integer(forKey: "idleMinutes"); return v > 0 ? v : 20 }
+        get { d.object(forKey: "idleMinutes") == nil ? 20 : max(0, d.integer(forKey: "idleMinutes")) }
         set { d.set(newValue, forKey: "idleMinutes") }
     }
 }
