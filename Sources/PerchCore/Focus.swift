@@ -51,8 +51,14 @@ public enum Focus {
         return (sure, maybe)
     }
 
-    /// The Codex app has no way to tell its open thread: any of its threads may be the one in front.
+    /// The Codex app has no way to tell its open thread: any of its threads may be the one in front, and so may Dots, which
+    /// lives in the same app.
     public static func inCodexApp(_ projects: [Project]) -> Set<String> {
-        Set(projects.filter { $0.app == "codex" && !$0.terminal }.map(\.id))
+        Set(projects.filter { ($0.app == "codex" || $0.app == Agent.dots.id) && !$0.terminal }.map(\.id))
+    }
+
+    /// Grok Bot's window does not say which bot it shows: with Grok Bot in front, any of its bots may be the one you are in.
+    public static func inGrokBot(_ projects: [Project]) -> Set<String> {
+        Set(projects.filter { $0.app == Agent.grokbot.id }.map(\.id))
     }
 }

@@ -329,6 +329,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             default: return ([], all)
             }
         case Restorer.codexApp: return ([], Focus.inCodexApp(projects.filter { $0.conductor == nil }))
+        case Restorer.grokBotApp:
+            let bots = Focus.inGrokBot(projects)
+            if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil {
+                let line = "grok bot in front -> maybe \(bots.count) bots"
+                if line != traced { traced = line; NSLog("Perch in: \(line)") }
+            }
+            return ([], bots)
         case Restorer.cursorApp:
             // The Agents window names the chat it shows; where that cannot be read, any of its chats may be the one in front.
             // Terminal sessions in its own terminal are told apart like any terminal's.
