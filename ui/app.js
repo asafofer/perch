@@ -32,6 +32,9 @@
      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
      SOFTWARE. */
   var ICON = {
+    pencil: '<path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM51.31,160,136,75.31,152.69,92,68,176.68ZM48,179.31,76.69,208H48Zm48,25.38L79.31,188,164,103.31,180.69,120Zm96-96L147.31,64l24-24L216,84.68Z"/>',
+    archive: '<path d="M224,48H32A16,16,0,0,0,16,64V88a16,16,0,0,0,16,16v88a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V104a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48ZM208,192H48V104H208ZM224,88H32V64H224V88ZM96,136a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,136Z"/>',
+    trash: '<path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/>',
     enter: '<path d="M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z"/>',
     check: '<path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/>',
     x: '<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>',
@@ -342,12 +345,9 @@
   var ENTER = svg('enter', 'size-2');
   /* a footer action: `act` is what it does, `key` its shortcut */
   function Act(v, label, key, act) { return Button(v, label, key ? Kbd(key, v === 'default') : '', (v === 'default' ? 'pr-0.5' : '') + '" data-act="' + act); }
-  /* On a card you opened, Up and Down flip to the next session's card; it says so, since nothing else would tell you.
-     The card Perch opened by itself says nothing there: it offers no button for Not now (N still snoozes). */
-  function Flip() {
-    if (snap && snap.proactive) return '';
-    return snap && snap.projects.length > 1 ? Button('ghost', 'Sessions', Keys('\u2191', '\u2193'), 'pr-1" data-act="flip') : '';
-  }
+  /* No button for the other sessions on a card: Back (Left) is one press away, and Up and Down still flip to the next card.
+     The card Perch opened by itself offers no button for Not now either (N still snoozes). */
+  function Flip() { return ''; }
   function header(inner, right, i) { return '<div class="rv flex h-9 items-center gap-2 pl-4 pr-4" style="--i:' + (i || 0) + '"><div class="min-w-0 flex-1">' + inner + '</div>' + (right || '') + '</div>'; }
 
   /* ---- the character's coat: light from the top left, a rounded form, a rim of light and a soft fuzzy edge ----
@@ -417,8 +417,11 @@
     '<div class="cr" data-m="sleep"><i class="puff"></i><div class="cr-in"><i class="f"><svg viewBox="0 0 24 24"><g class="coat"><path d="' + DOME.d + '"/><path class="pl" d=""/><path class="fd" d=""/></g></svg></i><i class="ey l"></i><i class="ey r"></i></div><i class="dot"></i><i class="say"></i></div>' +
     '<div class="n perch" data-s="idle"><i class="ear l"></i><i class="ear r"></i><div class="clip"><i class="glow"></i><div class="act"></div>' +
     '<div class="pane p-open">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
+    '<button aria-label="More" title="More (\u2318K)" data-act="more" class="x-more rv absolute right-[76px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md pl-1.5 pr-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">More' + Kbd('\u2318K') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="m-pop pointer-events-none absolute right-2.5 top-[30px] z-30 w-[148px] origin-top-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+    '<div class="m-toast pointer-events-none absolute inset-x-3 bottom-[46px] z-40 hidden justify-center"><span class="max-w-[420px] rounded-lg bg-[#1b2120]/95 px-3 py-1.5 text-center text-xs leading-4 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"></span></div>' +
     '<div class="inner pt-8 pb-2">' +
       /* the chat's title is the heading, the whole line its own; its status, in words, ends the grey line under it */
       /* the app's icon at full size, like a notification, beside two lines: the title, the whole line its own, and in grey
@@ -435,19 +438,28 @@
       '<p class="o-nx rv mt-2.5 flex items-baseline gap-2 px-4 text-[13px] leading-[18px]" style="--i:3"><span class="o-nl font-medium text-muted-foreground">Next</span><span class="o-orb -my-px hidden flex-none self-center"><svg></svg></span><span dir="auto" class="o-x min-w-0 flex-1 text-foreground line-clamp-2"></span></p>' +
       /* files for the reply, as chips over its field (attChips) */
       '<div class="r-att rv hidden mt-2 ml-[47px] mr-[74px] gap-1 overflow-x-auto" style="--i:4"></div>' +
-      '<div class="rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-end gap-0.5">' + Button('ghost', 'All sessions', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
+      '<div class="mf rv relative mt-2 h-9 px-2.5" style="--i:4"><div class="f-main flex h-9 items-end gap-0.5">' + Button('ghost', 'Back', Kbd('\u2190'), 'x-list pl-1.5') + '<span class="flex-1"></span><span class="o-acts flex items-center gap-0.5"></span></div>' +
       '<div class="f-rep hidden h-9 items-end gap-1.5"><button aria-label="Close reply" title="Close (Esc)" class="x-rclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="r-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Reply to Claude\u2026" spellcheck="false" autocomplete="off" aria-label="Reply">' + Button('default', '<span class="x-send-l">Send</span>', Kbd(svg('enter', 'size-2'), 1), 'x-send h-7 rounded-lg pr-1') + '</div>' +
       '<div class="f-prev hidden h-9 items-end gap-0.5">' + Button('ghost', 'Back', Kbd('esc'), 'x-pvback" title="Back (Esc)') + '<span class="flex-1"></span><span class="o-pacts flex items-center gap-0.5"></span></div>' +
-      '<div class="f-snz hidden h-9 items-end gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div></div>' +
+      '<div class="f-snz hidden h-9 items-end gap-1"><span class="pl-1.5 text-[13px] text-muted-foreground">Remind me in</span><span class="flex-1"></span>' + Button('ghost', '30 min', Kbd('1'), 'x-s1') + Button('ghost', '2 hours', Kbd('2'), 'x-s2') + Button('ghost', 'Tomorrow', Kbd('3'), 'x-s3') + '</div>' +
+      /* More: rename, archive or delete the session. Only what its agent can do is offered. */
+      '<div class="f-ren hidden h-9 items-end gap-1.5"><button aria-label="Close" title="Back (Esc)" class="x-rnclose flex h-7 flex-none cursor-pointer items-center rounded-md px-0.5 opacity-75 transition-opacity hover:opacity-100">' + Kbd('esc') + '</button><input class="m-in h-7 cursor-text min-w-0 flex-1 rounded-lg bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] outline-none transition-[background-color,box-shadow] duration-200 placeholder:text-white/35 focus:bg-white/[0.13] focus:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name">' + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rensave h-7 rounded-lg pr-1') + '</div>' +
+      '</div>' +
     '</div></div>' +
     /* Settings is Command+comma, here and on the card: in the list, letters type into the filter */
     '<div class="pane p-switch">' + '<button aria-label="Settings" title="Settings (\u2318,)" class="x-gear rv absolute right-[30px] top-[7px] z-10 flex h-[18px] cursor-pointer items-center gap-1 rounded-md pl-[3px] pr-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('gear', 'size-3') + Kbd('\u2318,') + '</button>' +
     '<button class="upd-chip rv absolute left-[44px] top-[7px] z-10 hidden h-[18px] cursor-pointer items-center gap-1 rounded-md px-1.5 text-[11px] font-medium transition-colors" style="--i:0"></button>' +
     '<button aria-label="Dismiss" title="Dismiss (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
+    '<div class="m-toast pointer-events-none absolute inset-x-3 bottom-[38px] z-40 hidden justify-center"><span class="max-w-[420px] rounded-lg bg-[#1b2120]/95 px-3 py-1.5 text-center text-xs leading-4 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl"></span></div>' +
     '<div class="inner pt-8">' +
       header('<div class="s-h truncate text-sm font-medium leading-4">Jump back in</div>', '<span class="s-n flex-none text-xs text-muted-foreground">Type to filter</span>') +
       '<div class="rv relative" style="--i:1"><div class="s-l max-h-[196px] overflow-y-auto px-1.5 pb-1"></div><div class="s-bar"><i></i></div></div>' +
-      '<div class="rv s-ft flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3"><span class="flex items-baseline gap-1.5">' + Keys('\u2191', '\u2193') + 'Choose</span><button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span><button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere"><span class="x-nk">' + Kbd('\u2325\u2318N') + '</span>New session</button></div>' +
+      '<div class="rv s-ft relative flex h-8 items-center justify-center gap-3.5 text-xs text-muted-foreground" style="--i:3">' +
+        '<button class="x-back flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground">' + Kbd('\u2192') + 'Details</button><span class="flex items-baseline gap-1.5">' + Kbd(svg('enter', 'size-2')) + 'Open</span>' +
+        '<button class="x-new flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="New session (\u2325\u2318N), from anywhere"><span class="x-nk">' + Kbd('\u2325\u2318N') + '</span>New session</button>' +
+        '<button class="x-lmore flex cursor-pointer items-baseline gap-1.5 rounded-md px-1 text-muted-foreground transition-colors hover:text-foreground" title="More (\u2318K)">' + Kbd('\u2318K') + 'More</button>' +
+        '<div class="m-pop pointer-events-none absolute right-2.5 z-30 w-[148px] origin-bottom-right rounded-lg bg-[#1b2120]/95 p-[3px] opacity-0 shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-xl" style="display:none"></div>' +
+      '</div>' +
     '</div></div>' +
     /* a new session: which agent, which folder (or none), then what to ask; the three choices read along the top as you make them */
     '<div class="pane p-ns">' + '<button aria-label="Close" title="Close (Esc)" class="x-close rv absolute right-2.5 top-[7px] z-10 grid size-[18px] cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" style="--i:0">' + svg('x', 'size-3') + '</button>' +
@@ -551,6 +563,7 @@
     else if (a === 'reply') replyMenu(true);
     else if (a === 'copy') previewCopy();
     else if (a === 'snooze') snoozeMenu(true);
+    else if (a === 'more') manageMenu(mng.mode === 'menu' ? false : 'menu');
     else if (a === 'allow' || a === 'deny') post({ type: 'answer', choice: a });
     else if (a === 'pick') askKey(String(+b.dataset.i + 1));
     else if (a === 'other') otherMenu(true);
@@ -561,7 +574,7 @@
     else if (a === 'live') { liveNext = true; post({ type: 'settings' }); }   /* the reason line's Settings: opens it with Live status chosen */
   });
   /* "Not now" asks when to come back: 30 min, 2 hours or tomorrow morning. */
-  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fPrev = q('.f-prev'), footers = [fMain, fSnz, fRep, fPrev];
+  var fMain = q('.f-main'), fSnz = q('.f-snz'), fRep = q('.f-rep'), fPrev = q('.f-prev'), fRen = q('.f-ren'), footers = [fMain, fSnz, fRep, fPrev, fRen];
   /* The footer changes between its actions, Reply and Not now. The old row fades up and away while the new one rises in. */
   function footer(el) {
     footers.forEach(function (f) { if (f._out) { f._out.cancel(); f._out = null; f.style.position = f.style.left = f.style.right = f.style.top = ''; f.style.display = 'none'; } });
@@ -581,6 +594,141 @@
   function snoozeMenu(open, quiet) {
     footer(open ? fSnz : fMain);
     if (!quiet) post({ type: 'snoozeMenu', open: open });
+  }
+  /* More (Command K): a popup over the card's corner (as Raycast draws its actions) to rename, archive or delete the session. Swift says
+     which of the three its agent can do (project.manage). Delete asks once more, in the popup. Rename is a field with the name in
+     it in the footer, as Reply is. */
+  var mng = { id: '', mode: '', sel: 0 }, mIn = q('.m-in'), popO = q('.p-open .m-pop'), popS = q('.p-switch .m-pop'), mPop = popO, MANAGE = { rename: ['Rename', 'R', 'pencil'], archive: ['Archive', 'A', 'archive'], delete: ['Delete', 'D', 'trash'] };
+  function manageOf(p) { return (p && p.manage || []).filter(function (k) { return MANAGE[k]; }); }
+  function mRow(k, p) {
+    var m = MANAGE[k], bad = k === 'delete';
+    return '<button data-act="m-' + k + '" class="flex h-6 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs transition-colors hover:bg-white/[0.08] ' + (bad ? 'text-red-400' : 'text-foreground') + '">' + svg(m[2], 'size-3 flex-none ' + (bad ? '' : 'text-muted-foreground')) + '<span class="flex-1">' + m[0] + '</span>' + Kbd(m[1]) + '</button>';
+  }
+  function mPaint(mode, p) {
+    if (mode === 'rename') {
+      mPop.innerHTML = '<input class="m-in2 h-7 w-full cursor-text rounded-md bg-white/[0.1] px-2.5 text-[13px] text-foreground caret-white outline-none placeholder:text-white/35 focus:bg-white/[0.13]" placeholder="Name" spellcheck="false" autocomplete="off" aria-label="Name"><div class="mt-1 flex items-center justify-end gap-0.5">' + Button('ghost', 'Cancel', Kbd('esc'), 'x-rnno') + Button('default', 'Rename', Kbd(svg('enter', 'size-2'), 1), 'x-rnyes pr-0.5') + '</div>';
+      var i2 = mPop.querySelector('input'); i2.value = p.topic || p.name || ''; setTimeout(function () { i2.focus({ preventScroll: true }); i2.select(); }, 30);
+    } else if (mode === 'delete' || mode === 'archive') {
+      var del = mode === 'delete';
+      mPop.innerHTML = '<div class="px-2 pb-1.5 pt-1.5 text-xs">' + (del ? 'Delete this session?' : 'Archive this session?') + '</div><div class="flex items-center justify-end gap-0.5">' + Button('ghost', 'No', Kbd('esc'), 'x-delno') + Button('default', del ? 'Delete' : 'Archive', Kbd(svg('enter', 'size-2'), 1), 'x-delyes pr-0.5') + '</div>';
+    } else {
+      var ks = manageOf(p); mng.sel = Math.min(mng.sel || 0, ks.length - 1);
+      mPop.innerHTML = ks.map(function (k) { return mRow(k, p); }).join('');
+      mMark();
+    }
+    mPop.title = p.manageNote || '';
+  }
+  /* the row the arrows are on */
+  function mMark() { [].forEach.call(mPop.querySelectorAll('[data-act^=m-]'), function (r, i) { r.classList.toggle('bg-white/[0.08]', i === mng.sel); }); }
+  /* the card grows to hold the popup, and settles back when it goes */
+  function mFit(on) {
+    var inner = q('.p-open .inner'); if (!inner || mPop === popS) return;
+    inner.style.minHeight = '';
+    if (on) inner.style.minHeight = (mPop.offsetTop + mPop.offsetHeight + 10) + 'px';
+    if (n.dataset.s !== 'open') return;
+    var h = inner.offsetHeight; n.style.height = h + 'px'; curH = h; post({ type: 'size', width: CARD_W, height: h });
+  }
+  function mClose(pop, quiet, calm) {
+    if (pop._a) { pop._a.cancel(); pop._a = null; }
+    if (pop.style.display === 'none') return;
+    pop.style.pointerEvents = 'none';
+    var done = function () { pop.style.display = 'none'; pop.style.opacity = '0'; pop._a = null; if (pop === popO) mFit(false); };
+    if (calm || quiet) done(); else { pop._a = pop.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 100, easing: 'ease-out' }); pop._a.onfinish = done; setTimeout(done, 160); }
+  }
+  /* How a rename, archive or delete went, as a line over the footer of the card or list that is open (the character's word only
+     shows at rest). A failure stays longer. */
+  var toastT = 0;
+  function toast(text, bad) {
+    var el = q(lastSt === 'switch' ? '.p-switch .m-toast' : '.p-open .m-toast'); if (!el) return false;
+    var span = el.firstChild;
+    span.textContent = text; span.classList.toggle('text-red-300', !!bad);
+    el.style.display = 'flex';
+    if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 160, easing: 'ease-out' });
+    clearTimeout(toastT); toastT = setTimeout(function () { el.style.display = 'none'; }, bad ? 7000 : 2400);
+    return true;
+  }
+  function mShow(on, quiet) {
+    var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var other = mPop === popS ? popO : popS; mClose(other, true, true);
+    if (on) {
+      if (mPop._a) { mPop._a.cancel(); mPop._a = null; }
+      var more = mPop === popS ? q('.x-lmore') : q('.x-more'), box = mPop.parentNode.getBoundingClientRect();
+      if (more) {
+        var mr = more.getBoundingClientRect(); mPop.style.right = Math.max(10, Math.round(box.right - mr.right)) + 'px';
+        if (mPop === popS) mPop.style.bottom = Math.round(box.bottom - mr.top + 6) + 'px'; else mPop.style.top = Math.round(mr.bottom - box.top + 6) + 'px';   /* over the list's button, under the card's */
+      }   /* over its button, its right edges together */
+      mPop.style.display = 'block'; mPop.style.opacity = '1'; mPop.style.pointerEvents = 'auto'; mFit(true); (mPop === popS ? q('.p-switch') : q('.p-open')).classList.add('m-dim');
+      if (!calm && !quiet) mPop._a = mPop.animate([{ opacity: 0, transform: 'scale(.96) translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    } else {
+      q('.p-open').classList.remove('m-dim'); q('.p-switch').classList.remove('m-dim');
+      mClose(mPop, quiet, calm);
+    }
+  }
+  function manageMenu(mode, quiet) {
+    var inList = n.dataset.s === 'switch';
+    if (mode || n.dataset.s === 'open' || inList) mPop = inList ? popS : popO;
+    var p = snap && snap.projects[snap.selected];
+    if (mode && (!p || !manageOf(p).length)) mode = false;
+    var pop = inList ? mode : false;   /* in the list the rename field is in the popup, on the card it is in the footer */
+    if (mode === 'menu' && mng.mode !== 'menu') mng.sel = 0;
+    if (mode === 'menu' || mode === 'delete' || mode === 'archive' || (mode === 'rename' && inList)) { mng.id = p.id; mPaint(mode, p); }
+    else if (mode === 'rename') { mng.id = p.id; mIn.value = p.topic || p.name || ''; setTimeout(function () { mIn.focus({ preventScroll: true }); mIn.select(); }, 30); }
+    if (!mode) { if (mng.mode === 'rename') mIn.blur(); mng.id = ''; }
+    var was = mng.mode; mng.mode = mode || '';
+    var isUp = function (m) { return m === 'menu' || m === 'delete' || m === 'archive' || (m === 'rename' && inList); };
+    mPop.style.width = mode === 'rename' && inList ? '290px' : '';
+    mShow(isUp(mode), quiet || (isUp(mode) && isUp(was)));
+    if (!inList) { if (mode === 'rename' || was === 'rename') footer(mode === 'rename' ? fRen : fMain); else if (!mode && fMain.style.display === 'none') footer(fMain); }
+    if (!quiet || (!mode && was)) post({ type: 'manageMenu', mode: mode || '' });   /* a close the page did by itself is still told, so Perch lets go of the keys */
+  }
+  function manageDo(kind) {
+    var p = snap && snap.projects[snap.selected]; if (!p) return;
+    if (kind === 'rename') { var f = mPop === popS ? popS.querySelector('input') : mIn, t = f ? f.value.trim() : ''; if (!t) return; manageMenu(false); post({ type: 'manage', action: 'rename', id: p.id, name: t }); return; }
+    manageMenu(false); post({ type: 'manage', action: kind, id: p.id });
+  }
+  [popO, popS].forEach(function (pp) { pp.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.classList.contains('x-rnno')) return manageMenu('menu');
+    if (b.classList.contains('x-rnyes')) return manageDo('rename');
+    if (b.classList.contains('x-delno')) return manageMenu('menu');
+    if (b.classList.contains('x-delyes')) return manageDo(mng.mode);
+    var k = (b.dataset.act || '').slice(2); if (k) manageMenu(k);
+  }); });
+  popS.addEventListener('keydown', function (e) {
+    if (e.target.tagName !== 'INPUT') return;
+    if (e.key === 'Enter') { e.preventDefault(); manageDo('rename'); }
+    else if (e.key === 'Escape') { e.preventDefault(); manageMenu('menu'); }
+    e.stopPropagation();
+  });
+  q('.x-lmore').onclick = function () { manageMenu(mng.mode === 'menu' ? false : 'menu'); };
+  /* a click anywhere else on the card closes the popup */
+  ['.p-open', '.p-switch'].forEach(function (c) { q(c).addEventListener('mousedown', function (e) { if (mng.mode && mng.mode !== 'rename' && !e.target.closest('.m-pop, [data-act=more], .x-lmore')) manageMenu(false); }); });
+  q('.x-rnclose').onclick = function () { manageMenu(false); };
+  q('.x-rensave').onclick = function () { manageDo('rename'); };
+  mIn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); manageDo('rename'); }
+    else if (e.key === 'Escape') { e.preventDefault(); manageMenu(false); }
+    e.stopPropagation();
+  });
+  /* the keys while the popup is open: the letter on each row, Up and Down choose and Return does it, Esc closes (from a question,
+     back to the rows). Archive and Delete ask once more; Return there says yes. */
+  function manageKey(e) {
+    if (mng.mode === 'rename' && mPop === popS) return false;
+    if (mng.mode === 'menu') {
+      var k = e.key.toLowerCase(), rows = [].map.call(mPop.querySelectorAll('[data-act^=m-]'), function (r) { return r.dataset.act.slice(2); });
+      var hit = Object.keys(MANAGE).filter(function (x) { return MANAGE[x][1].toLowerCase() === k && rows.indexOf(x) >= 0; })[0];
+      if (e.key === 'Escape') { manageMenu(false); return true; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { mng.sel = (mng.sel + (e.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length; mMark(); return true; }
+      if (e.key === 'Enter') hit = rows[mng.sel];
+      if (hit) manageMenu(hit);
+      return true;
+    }
+    if (mng.mode === 'delete' || mng.mode === 'archive') {
+      if (e.key === 'Escape') { manageMenu('menu'); return true; }
+      if (e.key === 'Enter') { manageDo(mng.mode); return true; }
+      return true;
+    }
+    return false;
   }
   /* "Reply": answer a question Claude asked without opening the session first. The reply is pasted into the session. */
   var rIn = q('.r-in');
@@ -1133,7 +1281,7 @@
     q('.o-nx').style.display = nx ? '' : 'none';
     setWords(q('.o-acts'), a && a.answerable && a.kind === 'permission' ? Act('ghost', 'Deny', 'D', 'deny') + Act('ghost', goLabel(p), ENTER, 'go') + Act('default', 'Allow', 'A', 'allow')
       : a ? Flip() + Act('default', goLabel(p), ENTER, 'go')
-      : Act('ghost', 'Reply', 'R', 'reply') + (canPreview(p) ? Act('ghost', 'Preview', 'space', 'preview') : Flip()) + Act('default', goLabel(p), ENTER, 'go'));
+      : Act('ghost', 'Reply', 'R', 'reply') + (canPreview(p) ? Act('ghost', 'Preview', 'space', 'preview') : '') + Act('default', goLabel(p), ENTER, 'go'));
   }
   /* Beside the step a working session is on, a Thinking Orb (orbs.js) in the character's colour, its state from the step:
      searching for a search or a read, background for a helper, compacting, retrying, otherwise working. It is made only while
@@ -2517,6 +2665,10 @@
     /* a reply belongs to its session: if the card moved to another one under it, the reply closes (its words stay a draft) */
     else if (replyFor && p && p.id !== replyFor) replyMenu(false);
     else if (asking.typing && !(p && p.ask && asking.p && p.id === asking.p.id)) otherMenu(false);
+    if (st !== 'open' && st !== 'switch') manageMenu(false, true);   /* the list has More too */
+    if (mng.mode && (!p || p.id !== mng.id)) manageMenu(false, true);
+    q('.x-more').classList.toggle('hidden', !(st === 'open' && manageOf(p).length)); q('.x-more').classList.toggle('flex', st === 'open' && manageOf(p).length > 0);
+    q('.x-lmore').style.display = st === 'switch' && manageOf(p).length && (!s.shown || s.shown.indexOf(s.selected) >= 0) ? '' : 'none';   /* a row to act on: with nothing matching, none */
     if (st !== 'open' && dropping) { dropping = 0; dropOpened = false; rIn.classList.remove('drop', 'on'); }
     if (p && !dropping) rIn.placeholder = replyHint();
     if (Date.now() - pickedAt > 1000) applyCharacter(s.character);
@@ -4206,7 +4358,7 @@
   new MutationObserver(function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); }).observe(n, { childList: true, subtree: true, characterData: true });
   window.addEventListener('resize', function () { if (!fadeRaf) fadeRaf = requestAnimationFrame(fadeSweep); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fadeSweep);
-  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
+  window.perch = { held: function (list) { scHeldNow = list || []; scHeldApply(); }, hi: function () { if (lastSt === 'idle' && !hello && !celebrating) sayHello(); }, _icons: function (o) { icons = o; }, _snap: function () { return snap; }, actKey: actDo, actNoKeys: function (l) { l = l || []; if (l.join() === actNoKeys.join()) return; actNoKeys = l; actEl._h = ''; renderAct(); }, actDemo: actDemo, hot: function (on) { n.dataset.hot = on ? '1' : ''; }, onbKey: onbKey, setKey: settingsKey, setGo: setGo, feedbackSent: fbDone, askKey: askKey, newKey: function (k) { return newKey({ key: k }); }, newStarted: nwStarted, newPicked: nwPicked, answering: function (choice) { noteAnswer({ type: 'answer', choice: choice }); }, notSent: notSent, replying: replying, replyHanded: replyHanded, still: function () { still = true; cr.classList.remove('blink'); }, apply: apply, wnUp: wnUp, listKey: function () { listKb = true; markList(); }, cursor: cursor, snoozeMenu: function (o) { snoozeMenu(o); }, manageMenu: function (o) { manageMenu(o); }, manageKey: manageKey, managed: function (text, bad) { if ((lastSt === 'open' || lastSt === 'switch') && toast(text, bad)) return; pop('awake', 2600, text); }, manageToggle: function () { manageMenu(mng.mode ? false : 'menu'); }, manageKeyName: function (k) { manageKey({ key: k }); }, replyMenu: function (o) { if (o && !q('.o-acts [data-act=reply]')) return; replyMenu(o); }, previewMenu: function (o, from) { previewMenu(o, false, from); }, previewKey: previewKey, wnScroll: function (k) { var el = q('.wn-l'); if (!el) return; var page = Math.max(57, el.clientHeight - 38); saidScroll({ down: 57, up: -57, pageDown: page, pageUp: -page }[k] || 0, el); }, paths: addPaths, fileSizes: function (o) { Object.keys(o || {}).forEach(function (k) { fileSizes[k] = o[k]; }); fbAtt(); fbPaint(); }, fileIcons: function (o) { Object.keys(o || {}).forEach(function (k) { if (o[k]) fileIcons[k] = o[k]; }); repAtt(); nwAtt(); fbAtt(); }, dragOver: dragOver, say: function (t) { pop('awake', 2600, t); },
     /* the character at the notch, forced while it shows: a face (alert, bored, glare, happy), or 'act' for the whole wait from its start */
     notchChar: function (m) {
       if (!atN.on) return; atNClear();
@@ -4296,8 +4448,15 @@
       if (!onCard) setTimeout(function () { if (k2 === updTok) base.access = null; }, 4000);
       return;
     }
-    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu') return;
+    if (!snap || m.type === 'size' || m.type === 'log' || m.type === 'hand' || m.type === 'snoozeMenu' || m.type === 'replyMenu' || m.type === 'manageMenu') return;
     var s = JSON.parse(JSON.stringify(snap));
+    /* More: renamed in place; archived or deleted, the row is gone and the list is back */
+    if (m.type === 'manage') {
+      var mi = s.projects.map(function (x) { return x.id; }).indexOf(m.id); if (mi < 0) return;
+      if (m.action === 'rename') { s.projects[mi].topic = m.name; if (!s.projects[mi].topic) s.projects[mi].name = m.name; s.timerToken++; apply(s); window.perch.managed('Renamed', false); return; }
+      var gone = s.projects.splice(mi, 1)[0]; window.perchDev.drop(gone.id);
+      s.selected = 0; s.phase = s.projects.length ? 'switcher' : 'idle'; s.timerToken++; apply(s); window.perch.managed(m.action === 'archive' ? 'Archived' : 'Deleted', false); return;
+    }
     if (m.type === 'flip') { s.selected = (s.selected + (m.dir || 1) + s.projects.length) % s.projects.length; s.timerToken++; apply(s); return; }
     /* a reply to a terminal session flies off first, then the card closes */
     if (m.type === 'reply' && snap.projects[snap.selected] && snap.projects[snap.selected].via) { replying(snap.projects[snap.selected].id); setTimeout(function () { var s2 = JSON.parse(JSON.stringify(snap)); s2.phase = 'idle'; s2.timerToken++; apply(s2); }, (m.close || .76) * 1000); return; }
@@ -4404,6 +4563,12 @@
       gaps: [{ number: 23, url: 'https://github.com/asafofer/perch/pull/23', title: 'Set up the PDF gap finder', repo: PR0, state: 'open', conflict: true }],
       tui: [{ number: 9, url: 'https://github.com/asafofer/perch/pull/9', title: 'Keyboard focus for the table', repo: PR0, state: 'open', checks: 'pass' }, { number: 7, url: 'https://github.com/asafofer/perch/pull/7', title: 'Add Perch to the landing page', repo: 'asafofer/perch-landing', state: 'merged' }] };
     P.forEach(function (p) { if (DEMO_PR[p.id]) p.prs = DEMO_PR[p.id]; });
+    /* what More offers per agent (Swift sends this per session): the Claude app and Codex do all three; a terminal Claude Code and pi have
+       no archive of their own; Cursor keeps its chats in a file it holds open, so nothing */
+    P.forEach(function (p) {
+      p.manage = p.app === 'cursor' ? [] : p.app === 'claude' && !p.via ? ['rename', 'archive', 'delete'] : p.app === 'claude' || p.app === 'pi' ? ['rename', 'delete'] : ['rename', 'archive', 'delete'];
+      if (p.app === 'claude' && !p.via) p.manageNote = 'Brings Claude forward';
+    });
     /* this Mac's real app icons when ./scripts/run.sh --design-icons has written them; the stand-ins otherwise */
     fetch('icons.local.json', { cache: 'reload' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
       if (!o) return; icons = o; listSig = ''; setSig = ''; onbSig = ''; if (snap) apply(Object.assign({}, snap, { timerToken: snap.timerToken }));
@@ -4412,7 +4577,7 @@
     var phase = { idle: 'idle', open: 'open', switcher: 'switcher', restoring: 'restoring' }[hash] || 'open';
     var sel = +(new URLSearchParams(location.search).get('i') || 0);
     document.body.style.background = '#16201e';
-    function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); }
+    function d0() { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); }
     var base = { canUpdate: true, selected: sel, timerToken: 0, screen: { hasNotch: true, notchW: 185, notchH: 32 }, projects: P, version: '0.1.0 (198)' };
     apply(Object.assign({ phase: phase, autoCollapse: phase === 'open' }, base));
     var autoTimer, devQuery = '', devCaret = 0, devAnchor = 0;
@@ -4502,6 +4667,7 @@
       });
     }
     window.perchDev = {
+      drop: function (id) { P = P.filter(function (x) { return x.id !== id; }); base.projects = P; },
       /* a pull request mark (or the mark of several) for a scenario's button on the design page */
       prIcon: function (specs) { return PRMark(specs.map(function (x) { return Object.assign({ number: 1, state: 'open' }, x); }), 'size-4'); },
       /* every pull request mark with its words and colour, for the design page's grid */
@@ -4520,7 +4686,7 @@
       },
       /* the new session flow; o can set agent, project, step, text and q (what is typed to narrow the folders) */
       newSession: function (o) {
-        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); nw.on = false;
+        o = o || {}; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); nw.on = false;
         if (o.text !== undefined) nw.text = o.text;
         var front = P.filter(function (x) { return x.id === 'api'; })[0];
         var ns = Object.assign(newFrom(o.from === 'anywhere' ? front : P[base.selected]), { from: o.from === 'anywhere' ? 'anywhere' : 'list' }, o.agent ? { agent: o.agent } : {}, o.project ? { project: o.project } : {});
@@ -4532,7 +4698,7 @@
       character: function (shape, size, mood) { return crHtml('', size, shapeOf(shape), mood); },
       /* open a group on the apps step or on Settings, Agents */
       openOthers: function () { var el = snap && snap.phase === 'settings' ? q('.set .s-kr') : q('.onb .ox-h'); if (el && el.getAttribute('aria-expanded') !== 'true') el.click(); },
-      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
+      show: function (ph, quiet, mine) { if (ph === 'open' && P[base.selected] && P[base.selected].pending) return; clearTimeout(autoTimer); devQuery = ''; devCaret = devAnchor = 0; if (base.once) base.once = false; else { base.canSend = true; base.allowing = false; } snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); if (ph === 'switcher') { var top = devShown()[0]; if (top !== undefined) base.selected = top; } var s = Object.assign({}, base, { character: charNow, projects: quiet ? P.map(function (x) { return Object.assign({}, x, { attention: false }); }) : P, phase: ph, autoCollapse: ph === 'open', proactive: ph === 'open' && !mine, shown: ph === 'switcher' ? devShown() : null, timerToken: Math.random() }); apply(s); },
       /* the selection's highlight: drawn by the page (the default) or the system's own, to compare them */
       hl: function (mode) { if (mode === 'native') document.documentElement.dataset.hl = 'native'; else delete document.documentElement.dataset.hl; hlDraw(); },
       tint: function (color) { applyCharacter({ shape: charNow.shape, color: color }); },
@@ -4548,7 +4714,7 @@
         if (!keep) { devSc = Object.assign({}, SC0, o && o.shortcut || {}); devScNew = Object.assign({}, SCN0); axAsked = false; }
         /* each scenario starts Settings afresh: the list, at the top, nothing written to send */
         if (!keep) { fbText = ''; fbMail = ''; fbFiles = []; fbState = ''; fbInfo = true; fbMailSaid = false; window.perchDev.fbFail = window.perchDev.fbHold = false; setPage = ''; setSig = ''; setFocus = setRootAt = 0; setKb = true; }
-        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         apply(Object.assign({}, base, { phase: 'settings', character: charNow, autoCollapse: false, timerToken: Math.random(), update: o && o.update ? o.update : null, notifyOff: o && o.notifyOff || [],
           settings: Object.assign({ sources: [{ id: 'claude', name: 'Claude Code', enabled: true }, { id: 'codex', name: 'Codex', enabled: true }], accessibility: true, idleMinutes: 20, questionSeconds: 60, login: false, live: 'on', prs: 'off', showPRs: true, hasExternal: !base.screen.hasNotch, hoverExternal: false, showOn: 'mouse', displays: DEV_DISPLAYS, shortcut: devScOut(!o || o.accessibility !== false), newShortcut: { keys: devScNew.keys, custom: devScNew.custom } }, o || {}) }));
         if (o && o.page) setGo(o.page, true); else if (!keep) setGo('', true);
@@ -4560,7 +4726,7 @@
         /* the recorder records the shortcut it was opened for: New session's from its row, otherwise the one that opens Perch */
         if (only && step === 3 && which === 'new') { devScOpen = devSc; devSc = Object.assign({}, SC0, devScNew, { which: 'new', recording: true }); }
         else devSc = only && step === 3 ? Object.assign({}, devSc, { which: 'open', recording: true, error: '', saved: false, tried: false }) : Object.assign({}, SC0);
-        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         var given = Array.isArray(all) ? all : null; if (given) all = 'given';
         var sources = [{ id: 'claude', name: 'Claude Code', count: 3, names: ['Website', 'Docs', 'Finance'], enabled: true }, { id: 'codex', name: 'Codex', count: 1, names: ['Onboarding flow'], enabled: true }];
         if (all) sources = sources.concat([{ id: 'opencode', name: 'OpenCode', count: 1, names: ['tui-kit'], enabled: true }, { id: 'pi', name: 'pi', count: 1, names: ['price-scraper'], enabled: true }, { id: 'cursor', name: 'Cursor', count: 2, names: ['api-server', 'website'], enabled: true }]);
@@ -4581,9 +4747,9 @@
         };
         autoTimer = setTimeout(again, 1600);
       },
-      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
+      variant: function (i, o) { clearTimeout(autoTimer); actGone = {}; snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); base.canSend = true; apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', proactive: true, autoCollapse: true, timerToken: Math.random() })); },
       /* the list with one session changed, as variant does for the card */
-      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
+      variantList: function (i, o) { clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true); apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'switcher', autoCollapse: false, timerToken: Math.random() })); },
       /* the next refresh of the same card, a reply left open as it is */
       refresh: function (i, o) { apply(Object.assign({}, base, { character: charNow, selected: i, projects: P.map(function (x, k) { return k === i ? Object.assign({}, x, o) : x; }), phase: 'open', timerToken: Math.random() })); },
       empty: function (scanning) { clearTimeout(autoTimer); apply(Object.assign({}, base, { character: charNow, projects: [], selected: 0, phase: 'switcher', autoCollapse: false, scanning: !!scanning, timerToken: Math.random() })); },
@@ -4607,7 +4773,7 @@
       say: function (t) { window.perch.say(t); },
       /* Perch's own update, at rest on the notch: phase is downloading, ready, restarting or updated (none: no update). `o.progress` is how far the download is. */
       update: function (phase, o) {
-        o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true);
+        o = o || {}; var LONG_NOTES = ['Record your own shortcut to open Perch', 'Shortcuts work on non-Latin keyboard layouts (Hebrew, Arabic, Cyrillic and more) by falling back to the key\u2019s position on a US keyboard', 'A notch that fits the hardware, on every display', 'Hover opens on the right screen when you have more than one', 'Perch updates itself, with a ring beside the camera while it downloads', 'Check for updates in the menu bar', 'The list shows what needs you first', 'Replies to a Claude app session go in without leaving what you were doing', 'A file dropped on the card goes in as its path', 'OpenCode and pi sessions show up beside Claude Code and Codex', 'herdr and cmux panes are found and brought back exactly', 'The character has a few more shapes and colours', 'Settings has a switch for opening at login', 'Many small fixes']; clearTimeout(autoTimer); snoozeMenu(false, true); replyMenu(false, true); manageMenu(false, true);
         if (o.fresh !== false && (o.fresh || !snap || !snap.update || snap.update.phase !== phase)) { actGone = {}; if (o.fresh) { updNotes = false; updOpen = false; } }
         var calm = P.map(function (x) { return Object.assign({}, x, { attention: false, ask: null, fresh: false, status: x.status.kind === 'attention' || x.status.kind === 'done' ? { kind: 'idle', text: 'Finished', app: x.app } : x.status }); });
         base.update = phase ? { version: phase === 'checking' ? '0.3.0' : '0.3.1', phase: phase, peek: !!o.peek, listOnly: !!o.listOnly, progress: o.progress || 0, notes: 'Record your own shortcut to open Perch', problem: o.problem || '', fix: o.fix || '', during: o.during || '', short: o.short || '',
@@ -4861,6 +5027,7 @@
       if (e.key === ' ' && ph === 'open' && fRep.style.display !== 'flex') { e.preventDefault(); previewMenu(true); return; }
       if (e.key === 'Escape' && ph === 'switcher' && devQuery) { window.perchDev.type(''); return; }
       if (e.key === 'Escape' && ph === 'settings') { settingsKey('esc'); return; }
+      if ((ph === 'open' || ph === 'switcher') && (mng.mode === 'menu' || mng.mode === 'delete' || mng.mode === 'archive')) { if (manageKey(e)) { e.preventDefault(); return; } }
       if (e.key === 'Escape') { if (fSnz.style.display === 'flex') snoozeMenu(false, true); else if (fRep.style.display === 'flex') replyMenu(false); else window.perchDev.show('idle'); }
       else if (e.key === 'Enter' && (ph === 'open' || ph === 'switcher')) window.perchDev.show('idle');
       else if (e.key === 'Tab' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
@@ -4872,6 +5039,7 @@
       else if (e.key === 'ArrowLeft' && ph === 'open') { e.preventDefault(); window.perchDev.show('switcher'); }
       else if (e.metaKey && e.key === ',') { e.preventDefault(); window.perchDev.settings(); }
       else if (ph === 'switcher' && (e.key === 'Backspace' || e.key === 'Delete' || (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !(e.key === ' ' && !devQuery)))) { e.preventDefault(); window.perchDev.edit(e); }
+      else if (e.metaKey && (e.key === 'k' || e.key === 'K') && (ph === 'open' || ph === 'switcher') && (ph === 'switcher' ? q('.x-lmore').style.display !== 'none' : !q('.x-more').classList.contains('hidden'))) { e.preventDefault(); manageMenu(mng.mode === 'menu' ? false : 'menu', true); }
       else if ((e.key === 'n' || e.key === 'N') && ph === 'open') snoozeMenu(fSnz.style.display !== 'flex', true);
       else if (fSnz.style.display === 'flex' && /^[123]$/.test(e.key)) { snoozeMenu(false, true); window.perchDev.show('idle'); }
 

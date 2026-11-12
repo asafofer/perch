@@ -19,3 +19,7 @@
 - Opening a reply makes the panel key without bringing Perch forward (`frontForReply(quiet:)`): the app you were in stays in front and keeps its window order, so nothing flickers and terminals do not move. Closing the reply gives the front back only if Perch had to come forward.
 - If the panel does not become key within a quarter of a second, Perch comes forward after all, as it used to. `PERCH_REPLY_ACTIVATE=1` brings that back for every reply.
 - In the reply box Return and Command+Return both send; Esc goes back. Send feedback still brings Perch forward, since its file picker needs it.
+
+## More
+
+- Command+K opens the More popup on the card and in the list ([manage.md](manage.md)). While it is open the popup takes the keys: Up, Down and Return choose, the letter on a row does it, Esc closes. Renaming is a field, which takes its own keys.

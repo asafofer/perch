@@ -53,6 +53,9 @@ struct UISnapshot: Encodable {
         /// Its pull requests, and whether one of them is why it needs you (so the notch announces it as Checks failing).
         var prs: [UIPR] = []
         var ci = false
+        /// What More offers for it ("rename", "archive", "delete"), and a line under the choices when its route has a cost.
+        var manage: [String] = []
+        var manageNote: String? = nil
         /// Its own avatar's key in `icons` ("avatar:tablet:yellow"), for a Grok Bot bot.
         var avatar: String? = nil
     }
@@ -235,7 +238,8 @@ struct UISnapshot: Encodable {
                                                  answerable: $0.answerable, why: Self.why($0)) },
                       now: p.now, via: p.terminal ? p.via.flatMap { Terminals.keys[$0] } ?? "terminal" : nil, host: p.host, opens: p.conductor == nil ? nil : "conductor",
                       section: ListFilter.section(p, now: now).rawValue, said: i == open ? p.said : Recap.clipSaid(p.said), asked: p.asked, askedLast: p.askedLast,
-                      prs: p.prs.map(UIPR.init), ci: p.prNeeds, avatar: p.avatar.map { "avatar:" + $0 })
+                      prs: p.prs.map(UIPR.init), ci: p.prNeeds,
+                      manage: SessionManage.actions(for: p).map(\.rawValue), manageNote: SessionManage.note(for: p), avatar: p.avatar.map { "avatar:" + $0 })
         }
     }
 }

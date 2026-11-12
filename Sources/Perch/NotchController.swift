@@ -53,6 +53,12 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var snoozeMenuOpen = false
     /// The reply field is showing; keys go to it.
     private var replyOpen = false
+    /// The More popup is showing ("menu", "rename", "archive" or "delete", else empty): it holds the card open and takes the keys.
+    private var manageMode = ""
+    /// Rename, archive or delete is under way: the card stays, even while the Claude app comes forward for it.
+    private var manageBusy = false
+    /// A name you just gave a session, shown until a scan reads it from the agent (or 40 s pass), by project id.
+    private var renamed: [String: (name: String, until: Date)] = [:]
     /// Preview: the agent's whole last message on the card, with no reply field.
     private var previewOpen = false
     /// What you have typed in each session's reply and not sent, by project id. Kept while Perch runs, not on disk: closing
@@ -239,7 +245,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private var replyKeyOn = false
     private func updateReplyKey() {
         let asking = projects.indices.contains(machine.selected) && projects[machine.selected].ask != nil
-        let want = machine.phase == .open && panel.isKeyWindow && !replyOpen && !asking && recorder == nil
+        let want = machine.phase == .open && panel.isKeyWindow && !replyOpen && manageMode.isEmpty && !asking && recorder == nil
         guard want != replyKeyOn else { return }
         replyKeyOn = want; onReplyKey?(want)
         if ProcessInfo.processInfo.environment["PERCH_TRACE"] != nil { NSLog("Perch reply key: \(want)") }
@@ -614,7 +620,13 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
 
     /// Live hook status over the transcript's guess, then what needs you first.
     private func decorate(_ list: [Project]) -> [Project] {
+        let now = Date()
+        renamed = renamed.filter { $0.value.until > now }
         let withLive = list.map { p -> Project in
+            // Renamed a moment ago: the new name until the agent's own record shows it (the Claude app writes it seconds later).
+            if let r = renamed[p.id] { if p.topic == r.name || p.name == r.name { renamed[p.id] = nil } else { return SessionManage.retitled(p, r.name) } }
+            return p
+        }.map { p -> Project in
             let key = p.sessionId ?? p.id
             // A terminal session no process runs: what it asked waits on no one, and does not come back if it is resumed.
             if p.terminal, p.pid == nil, p.sessionId != nil, let l = live[key] { live[key] = l.agentGone() }
@@ -916,7 +928,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 putAway = PutAway(phase: old, session: projects.indices.contains(machine.selected) ? projects[machine.selected].id : nil,
                                   query: listQuery, replying: replyOpen, at: Date())
             }
-            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; previewOpen = false; listQuery = ""; pointerOnCard = false
+            hoverLatched = true; snoozeMenuOpen = false; replyOpen = false; previewOpen = false; manageMode = ""; listQuery = ""; pointerOnCard = false
             // The card shrinks away where it was; the task below takes the panel home once that has played.
             closedAt = Date(); awayForHover = false
             Task { [weak self] in
@@ -965,7 +977,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     private func restartTimer() {
         timer?.cancel(); timerToken += 1
         // Only a card Perch opened on its own counts down. One you asked for stays until you are done with it.
-        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen, !previewOpen, !textSelected else { return }
+        guard machine.autoCollapses, proactiveOpen, !holdOpen, !openedByHover, !snoozeMenuOpen, !replyOpen, !previewOpen, manageMode.isEmpty, !textSelected else { return }
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(9))
             if !Task.isCancelled { self?.send(.timeout) }
@@ -1067,7 +1079,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // A panel that is not key by now has not taken the keyboard: then, and only then, come forward.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
                     MainActor.assumeIsolated {
-                        guard let self, self.replyOpen, self.replyFrontFrom != nil, !self.replyActivated, !self.panel.isKeyWindow else { return }
+                        guard let self, self.replyOpen || !self.manageMode.isEmpty, self.replyFrontFrom != nil, !self.replyActivated, !self.panel.isKeyWindow else { return }
                         NSLog("Perch: the reply panel did not become key; coming forward")
                         self.activateForReply()
                     }
@@ -1093,7 +1105,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         let cfg = NSWorkspace.OpenConfiguration(); cfg.activates = true; cfg.addsToRecentItems = false
         NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: cfg) { _, _ in
             DispatchQueue.main.async { MainActor.assumeIsolated {
-                if self.replyOpen || self.feedbackOpen { self.panel.makeKey() }
+                if self.replyOpen || !self.manageMode.isEmpty || self.feedbackOpen { self.panel.makeKey() }
                 // The field closed while Launch Services was still bringing Perch forward: give the front back.
                 else if NSApp.isActive, let app = from, !app.isTerminated { app.activate() }
             } }
@@ -1287,6 +1299,8 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(t, forType: .string)
         case "reply": if let t = body["text"] as? String { reply(t, closeAfter: body["close"] as? Double ?? 0.78) }
         case "draft": if let id = body["id"] as? String { drafts[id] = (body["text"] as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        case "manageMenu": manageMenuChanged(body["mode"] as? String ?? "")
+        case "manage": manage(body)
         case "snoozeMenu":
             snoozeMenuOpen = body["open"] as? Bool ?? false
             if snoozeMenuOpen { timer?.cancel() } else { restartTimer() }
@@ -1431,6 +1445,64 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     }
 
     /// "Not now": hide the card and bring it back later (30 minutes, 2 hours, or 9 in the morning), unless you come back to it yourself first.
+    /// The More popup opened, changed (rename, a question) or closed. While it is up the card stays and Perch is in front, as for
+    /// a reply, so its keys and its field work.
+    private func manageMenuChanged(_ mode: String) {
+        let was = !manageMode.isEmpty
+        manageMode = mode
+        if !mode.isEmpty {
+            timer?.cancel()
+            if !was, !replyOpen { frontForReply(true, quiet: true) }
+            panel.makeKey()
+        } else if was {
+            restartTimer()
+            if !replyOpen { frontForReply(false) }
+        }
+        push()
+    }
+
+    /// Rename, archive or delete the session `id`, the way its agent allows (`SessionManager`), off the main thread. The card then
+    /// says how it went, and archived or deleted sessions leave the list at once instead of after the next scan.
+    private func manage(_ body: [String: Any]) {
+        guard !manageBusy, let a = (body["action"] as? String).flatMap(ManageAction.init(rawValue:)), let id = body["id"] as? String,
+              let p = projects.first(where: { $0.id == id }), SessionManage.actions(for: p).contains(a) else { return }
+        let name = (body["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if a == .rename, name?.isEmpty != false { return }
+        manageBusy = true
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let r = SessionManager.perform(a, on: p, name: name)
+            await MainActor.run { self?.managed(a, p, r, name: name) }
+        }
+    }
+    private func managed(_ a: ManageAction, _ p: Project, _ r: Result<Void, SessionManager.Failure>, name: String? = nil) {
+        manageBusy = false
+        let say: String, failed: Bool
+        switch r {
+        case .failure(let f): say = "Couldn't \(a.rawValue) it: \(f.why)"; failed = true
+        case .success:
+            failed = false
+            say = a == .rename ? "Renamed" : a == .archive ? "Archived" : "Deleted"
+            if a == .rename, let name {
+                renamed[p.id] = (name, Date().addingTimeInterval(40))
+                projects = decorate(base)
+                // The Claude app writes the new title into its own record a few seconds after: read it again then.
+                if p.desktopSessionId != nil { DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in self?.refreshProjects() } }
+            }
+            if a != .rename {
+                base.removeAll { $0.id == p.id }
+                projects = decorate(base)
+                machine.send(.projectsChanged(count: projects.count, selected: 0))
+                if machine.phase == .open { send(projects.isEmpty ? .dismiss : .openSwitcher) }
+            }
+            refreshProjects()
+        }
+        push()
+        // Shown in the card or list when it is open (the character's word only shows at rest), as JSON so no text can break the call.
+        if let data = try? JSONEncoder().encode(say), let text = String(data: data, encoding: .utf8) {
+            web.evaluateJavaScript("window.perch && window.perch.managed(\(text), \(failed))", completionHandler: nil)
+        }
+    }
+
     private func snooze(_ when: String) {
         let seconds: Double
         switch when {
@@ -2137,14 +2209,24 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 }
                 return e
             }
-            if self.replyOpen {
-                if e.keyCode == 53 { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
+            // The More popup: Up, Down, Return, Esc and the letter of each row go to the page, which knows its rows. Renaming is a field,
+            // so the keys go to it (the page takes Return and Esc there).
+            if !self.manageMode.isEmpty, self.manageMode != "rename" {
+                let ch = KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)
+                let name: String? = switch e.keyCode { case 53: "Escape"; case 36, 76: "Enter"; case 125: "ArrowDown"; case 126: "ArrowUp"
+                    default: ch.count == 1 && ch.first!.isLetter && e.modifierFlags.intersection([.command, .control, .option]).isEmpty ? ch : nil }
+                if e.modifierFlags.contains(.command), ch == "k" { self.web.evaluateJavaScript("window.perch && window.perch.manageToggle()", completionHandler: nil); return nil }
+                if let name { self.web.evaluateJavaScript("window.perch && window.perch.manageKeyName('\(name)')", completionHandler: nil) }
+                return nil
+            }
+            if self.replyOpen || self.manageMode == "rename" {
+                if e.keyCode == 53, self.replyOpen { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(false)", completionHandler: nil); return nil }
                 // Perch has no Edit menu, so nothing turns Command+V and friends into actions: send them to the field ourselves.
                 let flags = e.modifierFlags.intersection([.command, .option, .control, .shift])
                 let edits: [String: String] = ["v": "paste:", "c": "copy:", "x": "cut:", "a": "selectAll:", "z": flags.contains(.shift) ? "redo:" : "undo:"]
                 if flags.subtracting(.shift) == .command, let action = edits[KeyLayout.shortcut(typed: e.charactersIgnoringModifiers, keyCode: e.keyCode)] {
                     // A file copied in Finder is attached by its path; a picture on the clipboard (a screenshot) is saved and attached the same way.
-                    if action == "paste:", let paths = Clipboard.pastedFiles() {
+                    if action == "paste:", self.replyOpen, let paths = Clipboard.pastedFiles() {
                         self.addPaths(paths); return nil
                     }
                     NSApp.sendAction(Selector((action)), to: nil, from: self); return nil
@@ -2248,6 +2330,11 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
                 // A card with a request on it offers no Reply: a message sent while a question is open dismisses the question.
                 let asking = self.projects.indices.contains(self.machine.selected) && self.projects[self.machine.selected].ask != nil
                 if self.machine.phase == .open, !asking { self.web.evaluateJavaScript("window.perch && window.perch.replyMenu(true)", completionHandler: nil) } else { return e }
+            case (_, "k"):
+                // More, on the card and in the list (where letters filter): Command+K, as Raycast opens its actions.
+                guard list, !self.manageBusy, e.modifierFlags.contains(.command), self.projects.indices.contains(self.machine.selected),
+                      !SessionManage.actions(for: self.projects[self.machine.selected]).isEmpty else { return e }
+                self.web.evaluateJavaScript("window.perch && window.perch.manageToggle()", completionHandler: nil)
             case (_, "n"): if self.machine.phase == .open { self.web.evaluateJavaScript("window.perch && window.perch.snoozeMenu(true)", completionHandler: nil) } else { return e }
             case (49, _):
                 // Space reads the agent's whole message, as Quick Look does in Finder. Not over a request: that card is for answering.
@@ -2377,7 +2464,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
     /// Settings in the middle of it), nor while a reply is typed or on its way, nor while a new session is being set up:
     /// an app that comes forward by itself must not throw away what you chose and typed. Esc or a click outside closes it.
     private func makeWay() {
-        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
+        guard machine.phase != .idle, machine.phase != .onboarding, machine.phase != .newSession, !holdOpen, !replyOpen, manageMode.isEmpty, !manageBusy, !feedbackOpen, waitingReply == nil, !wnHoldsForAccess else { return }
         // The Mac's folder picker, just closed: the keyboard comes back to the card, it was not you leaving.
         if Date() < pickingUntil { return }
         // A session just started from the list: the app or terminal Perch brought forward for it is not you going elsewhere.
@@ -2517,7 +2604,7 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
         pointerOnCard = inside
         // Writing a reply, or words selected to copy, make the card yours: it stays when the pointer wanders off, until a
         // click elsewhere or Esc.
-        if openedByHover, !replyOpen, !previewOpen, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
+        if openedByHover, !replyOpen, !previewOpen, manageMode.isEmpty, !textSelected, Date().timeIntervalSince(openedAt) > 0.5 {
             // A few points of slack and a quarter second, so drifting off an edge does not slam it shut.
             if inside || cardRect.insetBy(dx: -10, dy: -10).contains(NSEvent.mouseLocation) { leftCardAt = nil }
             else if let t = leftCardAt { if Date().timeIntervalSince(t) > 0.25 { leftCardAt = nil; send(.dismiss); return } }

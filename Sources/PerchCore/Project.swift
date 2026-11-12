@@ -18,14 +18,14 @@ public struct RestoreStep: Equatable, Sendable {
 
 public struct Project: Identifiable, Equatable, Sendable {
     public let id: String
-    public let name: String
+    public var name: String
     public let branch: String?
     public let away: String          // "2h 14m"
     public let at: String            // "11:32 AM"
     public var headline: String
     public var context: String
     public var next: String
-    public let topic: String         // short label for lists
+    public var topic: String         // short label for lists
     public let app: String           // which app icon the UI shows
     public var agents: [AgentStatus]
     public let steps: [RestoreStep]
