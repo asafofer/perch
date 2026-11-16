@@ -2535,8 +2535,21 @@ final class NotchController: NSObject, WKScriptMessageHandler, WKNavigationDeleg
             return e
         }) { mouseMonitors.append(l) }
         let handler: (NSEvent?) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.mouseMoved() } }
-        if let g = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler) { mouseMonitors.append(g) }
+        movesElsewhere = handler
+        menuClosed()
         if let l = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { e in handler(e); return e }) { mouseMonitors.append(l) }
+    }
+
+    /// The global mouse-moved monitor costs Perch's own status menu its moves (the highlight lags and skips rows, #149), so
+    /// it is off while that menu is open. The cursor polling carries on meanwhile, so hovering the notch still works.
+    private var movesElsewhere: ((NSEvent?) -> Void)?
+    private var movesMonitor: Any?
+    func menuOpened() {
+        if let m = movesMonitor { NSEvent.removeMonitor(m); movesMonitor = nil }
+    }
+    func menuClosed() {
+        guard movesMonitor == nil, let handler = movesElsewhere else { return }
+        movesMonitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: handler)
     }
     /// The notch plus a little room for the character beside it.
     private func notchHoverRect() -> CGRect {
