@@ -230,6 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let check = updater.checkItem { menu.addItem(check) }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Perch", action: #selector(quit), keyEquivalent: "q").target = self
+        menu.delegate = self
         item.menu = menu
         statusItem = item
     }
@@ -254,6 +255,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do { try wait.run() } catch { return }
         NSApp.terminate(nil)
     }
+}
+
+/// The status menu turns off Perch's global mouse-moved monitor while it is open, or its rows miss moves (#149).
+extension AppDelegate: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) { controller?.menuOpened() }
+    func menuDidClose(_ menu: NSMenu) { controller?.menuClosed() }
 }
 
 MainActor.assumeIsolated {
